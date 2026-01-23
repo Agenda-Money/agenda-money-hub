@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Moon, Sun, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TierConfig {
@@ -175,6 +177,36 @@ function TierConfigCard({ tier, onUpdate }: { tier: TierConfig; onUpdate: (tier:
   );
 }
 
+function ThemeSelector() {
+  const { theme, setTheme } = useTheme();
+
+  const themes = [
+    { value: "light", label: "Light", icon: Sun },
+    { value: "dark", label: "Dark", icon: Moon },
+    { value: "system", label: "System", icon: Monitor },
+  ];
+
+  return (
+    <div className="flex gap-2">
+      {themes.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          onClick={() => setTheme(value)}
+          className={cn(
+            "flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all duration-200",
+            theme === value
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-card hover:border-primary/50"
+          )}
+        >
+          <Icon className="h-5 w-5" />
+          <span className="font-medium">{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [tiers, setTiers] = useState(defaultTiers);
   const [hasChanges, setHasChanges] = useState(false);
@@ -216,6 +248,9 @@ export default function SettingsPage() {
             <TabsTrigger value="general" className="data-[state=active]:bg-card">
               General
             </TabsTrigger>
+            <TabsTrigger value="appearance" className="data-[state=active]:bg-card">
+              Appearance
+            </TabsTrigger>
             <TabsTrigger value="notifications" className="data-[state=active]:bg-card">
               Notifications
             </TabsTrigger>
@@ -247,6 +282,26 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Label>Support Email</Label>
                   <Input defaultValue="support@agendamoney.com" />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="appearance" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Appearance</CardTitle>
+                <CardDescription>
+                  Customize the look and feel of the dashboard
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-3">
+                  <Label>Theme</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Select your preferred color scheme
+                  </p>
+                  <ThemeSelector />
                 </div>
               </CardContent>
             </Card>
