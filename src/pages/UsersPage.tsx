@@ -158,8 +158,8 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-card rounded-xl shadow-sm overflow-hidden">
+        {/* Desktop Table View */}
+        <div className="hidden md:block bg-card rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -191,7 +191,7 @@ export default function UsersPage() {
                 {filteredUsers.map((user, index) => (
                   <tr
                     key={user.id}
-                    className="border-b border-border last:border-0 hover:bg-background-pink-subtle transition-colors duration-150 animate-fade-in"
+                    className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 animate-fade-in"
                     style={{ animationDelay: `${index * 30}ms` }}
                   >
                     <td className="px-6 py-4 text-sm font-medium text-foreground">
@@ -291,6 +291,103 @@ export default function UsersPage() {
                 Next
               </Button>
             </div>
+          </div>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-4">
+          {filteredUsers.map((user) => (
+            <div
+              key={user.id}
+              className="bg-card rounded-xl p-4 shadow-sm border border-border space-y-3"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-semibold text-foreground">{user.name}</h3>
+                  <p className="text-sm text-muted-foreground">{user.phone}</p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "capitalize",
+                    user.status === "active"
+                      ? "bg-success/10 text-success border-success/20"
+                      : "bg-destructive/10 text-destructive border-destructive/20"
+                  )}
+                >
+                  {user.status}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex flex-col gap-1">
+                  <span className="text-muted-foreground">Tier</span>
+                  <Badge
+                    variant="outline"
+                    className={cn("w-fit", tierColors[user.tier])}
+                  >
+                    {user.tier}
+                  </Badge>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-muted-foreground">Borrowed</span>
+                  <span className="font-medium text-foreground">
+                    ₵{user.totalBorrowed.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-border flex justify-between items-center">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Active Loan:</span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "font-medium",
+                      user.activeLoan
+                        ? "bg-info/10 text-info border-info/20"
+                        : "bg-muted text-muted-foreground border-muted"
+                    )}
+                  >
+                    {user.activeLoan ? "Yes" : "No"}
+                  </Badge>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "h-8 w-8",
+                      user.status === "active"
+                        ? "text-destructive hover:text-destructive/80"
+                        : "text-success hover:text-success/80"
+                    )}
+                  >
+                    {user.status === "active" ? (
+                      <Ban className="h-4 w-4" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          {/* Mobile Pagination */}
+          <div className="flex items-center justify-between pt-2">
+            <Button variant="outline" size="sm" disabled>
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+               Page 1 of 3
+            </span>
+             <Button variant="outline" size="sm">
+              Next
+            </Button>
           </div>
         </div>
       </div>
