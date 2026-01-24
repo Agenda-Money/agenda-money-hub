@@ -9,6 +9,7 @@ import UsersPage from "./pages/UsersPage";
 import LoansPage from "./pages/LoansPage";
 import RepaymentsPage from "./pages/RepaymentsPage";
 import SettingsPage from "./pages/SettingsPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/loans/active" element={<LoansPage />} />
             <Route path="/loans/overdue" element={<LoansPage />} />
             <Route path="/repayments" element={<RepaymentsPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
