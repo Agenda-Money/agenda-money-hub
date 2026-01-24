@@ -165,7 +165,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-sidebar-border">
+        <div className="mt-auto p-4 border-t border-sidebar-border">
           <button className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-all duration-200">
             <LogOut className="h-5 w-5" />
             <span>Logout</span>
