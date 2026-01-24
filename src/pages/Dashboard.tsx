@@ -1,4 +1,4 @@
-import { CreditCard, Users, TrendingDown, Wallet } from "lucide-react";
+import { CreditCard, Users, TrendingDown, BookOpen, Banknote, Percent, BarChart } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentLoansTable } from "@/components/dashboard/RecentLoansTable";
 import { PendingApprovals } from "@/components/dashboard/PendingApprovals";
@@ -19,27 +19,44 @@ export default function Dashboard() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
+          title="Loan Book"
+          value="₵600K"
+          icon={BookOpen}
+          trend={{ value: 12.5, isPositive: true }}
+        />
+        <StatsCard
+          title="Total Repayments"
+          value="₵1.8M"
+          icon={Banknote}
+          trend={{ value: 8.2, isPositive: true }}
+        />
+        <StatsCard
+          title="Repayment vs Disbursement"
+          value="75%"
+          icon={Percent}
+          trend={{ value: 2.1, isPositive: true }}
+        />
+        <StatsCard
+          title="Average Loan Size"
+          value="₵320"
+          icon={BarChart}
+          trend={{ value: 5.4, isPositive: true }}
+        />
+        <StatsCard
           title="Total Loans Disbursed"
           value="₵2.4M"
           icon={CreditCard}
-          trend={{ value: 12.5, isPositive: true }}
         />
         <StatsCard
           title="Active Loans"
           value="1,847"
           icon={Users}
-          trend={{ value: 8.2, isPositive: true }}
         />
         <StatsCard
           title="Default Rate"
           value="3.2%"
           icon={TrendingDown}
           trend={{ value: 0.5, isPositive: false }}
-        />
-        <StatsCard
-          title="Available Balance"
-          value="₵580K"
-          icon={Wallet}
         />
       </div>
 
