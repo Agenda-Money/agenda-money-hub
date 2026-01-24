@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
+import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Moon, Sun, Monitor } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
 interface TierConfig {
@@ -18,7 +20,7 @@ interface TierConfig {
   enabled: boolean;
   minAmount: number;
   maxAmount: number;
-  tenures: number[];
+  tenure: number;
   interestRate: number;
   processingFee: number;
   loansRequired: number;
@@ -26,14 +28,19 @@ interface TierConfig {
 }
 
 const defaultTiers: TierConfig[] = [
-  { id: "L1", name: "Tier L1", enabled: true, minAmount: 50, maxAmount: 200, tenures: [7, 14], interestRate: 10, processingFee: 5, loansRequired: 0, onTimeRequired: 0 },
-  { id: "L2", name: "Tier L2", enabled: true, minAmount: 100, maxAmount: 500, tenures: [7, 14, 21], interestRate: 8, processingFee: 10, loansRequired: 2, onTimeRequired: 2 },
-  { id: "L3", name: "Tier L3", enabled: true, minAmount: 200, maxAmount: 1000, tenures: [14, 21, 30], interestRate: 7, processingFee: 15, loansRequired: 5, onTimeRequired: 4 },
-  { id: "L4", name: "Tier L4", enabled: true, minAmount: 500, maxAmount: 2000, tenures: [21, 30], interestRate: 6, processingFee: 20, loansRequired: 10, onTimeRequired: 8 },
-  { id: "L5", name: "Tier L5", enabled: false, minAmount: 1000, maxAmount: 5000, tenures: [30, 45, 60], interestRate: 5, processingFee: 25, loansRequired: 20, onTimeRequired: 18 },
+  { id: "L1", name: "Tier L1", enabled: true, minAmount: 50, maxAmount: 300, tenure: 5, interestRate: 0.5, processingFee: 30, loansRequired: 0, onTimeRequired: 0 },
+  { id: "L2", name: "Tier L2", enabled: true, minAmount: 100, maxAmount: 350, tenure: 10, interestRate: 0.5, processingFee: 30, loansRequired: 2, onTimeRequired: 2 },
+  { id: "L3", name: "Tier L3", enabled: true, minAmount: 150, maxAmount: 400, tenure: 14, interestRate: 0.5, processingFee: 30, loansRequired: 5, onTimeRequired: 4 },
+  { id: "L4", name: "Tier L4", enabled: true, minAmount: 200, maxAmount: 500, tenure: 14, interestRate: 0.5, processingFee: 30, loansRequired: 10, onTimeRequired: 8 },
+  { id: "L5", name: "Tier L5", enabled: true, minAmount: 250, maxAmount: 550, tenure: 14, interestRate: 0.5, processingFee: 30, loansRequired: 15, onTimeRequired: 12 },
+  { id: "L6", name: "Tier L6", enabled: true, minAmount: 300, maxAmount: 600, tenure: 14, interestRate: 0.5, processingFee: 30, loansRequired: 20, onTimeRequired: 16 },
+  { id: "L7", name: "Tier L7", enabled: true, minAmount: 350, maxAmount: 700, tenure: 14, interestRate: 0.5, processingFee: 30, loansRequired: 25, onTimeRequired: 20 },
+  { id: "L8", name: "Tier L8", enabled: true, minAmount: 400, maxAmount: 800, tenure: 14, interestRate: 0.5, processingFee: 30, loansRequired: 30, onTimeRequired: 24 },
+  { id: "L9", name: "Tier L9", enabled: true, minAmount: 500, maxAmount: 900, tenure: 14, interestRate: 0.5, processingFee: 30, loansRequired: 35, onTimeRequired: 28 },
+  { id: "L10", name: "Tier L10", enabled: true, minAmount: 500, maxAmount: 1100, tenure: 14, interestRate: 0.5, processingFee: 30, loansRequired: 40, onTimeRequired: 32 },
 ];
 
-const availableTenures = [1, 5, 7, 10, 14, 21, 30, 45, 60];
+const availableTenures = [1, 5, 10, 14];
 
 const tierColors: Record<string, string> = {
   L1: "border-muted-foreground",
@@ -41,6 +48,11 @@ const tierColors: Record<string, string> = {
   L3: "border-primary",
   L4: "border-success",
   L5: "border-warning",
+  L6: "border-info",
+  L7: "border-primary",
+  L8: "border-success",
+  L9: "border-warning",
+  L10: "border-muted-foreground",
 };
 
 function TierConfigCard({ tier, onUpdate }: { tier: TierConfig; onUpdate: (tier: TierConfig) => void }) {
@@ -95,32 +107,33 @@ function TierConfigCard({ tier, onUpdate }: { tier: TierConfig; onUpdate: (tier:
           </div>
         </div>
 
-        {/* Tenures */}
+        {/* Tenure */}
         <div className="space-y-2">
-          <Label>Allowed Tenures (days)</Label>
-          <div className="flex flex-wrap gap-3">
+          <Label>Tenure (days)</Label>
+          <RadioGroup
+            value={tier.tenure.toString()}
+            onValueChange={(val) => {
+              const newTenure = parseInt(val);
+              onUpdate({ 
+                ...tier, 
+                tenure: newTenure,
+              });
+            }}
+            className="flex flex-wrap gap-3"
+            disabled={!tier.enabled}
+          >
             {availableTenures.map((tenure) => (
-              <div key={tenure} className="flex items-center gap-2">
-                <Checkbox
-                  id={`tenure-${tier.id}-${tenure}`}
-                  checked={tier.tenures.includes(tenure)}
-                  disabled={!tier.enabled}
-                  onCheckedChange={(checked) => {
-                    const newTenures = checked
-                      ? [...tier.tenures, tenure].sort((a, b) => a - b)
-                      : tier.tenures.filter((t) => t !== tenure);
-                    onUpdate({ ...tier, tenures: newTenures });
-                  }}
-                />
+              <div key={tenure} className="flex items-center space-x-2">
+                <RadioGroupItem value={tenure.toString()} id={`tenure-${tier.id}-${tenure}`} />
                 <Label
                   htmlFor={`tenure-${tier.id}-${tenure}`}
-                  className="text-sm font-normal cursor-pointer"
+                  className="font-normal cursor-pointer"
                 >
                   {tenure}d
                 </Label>
               </div>
             ))}
-          </div>
+          </RadioGroup>
         </div>
 
         {/* Rates */}
@@ -208,7 +221,17 @@ function ThemeSelector() {
 }
 
 export default function SettingsPage() {
-  const [tiers, setTiers] = useState(defaultTiers);
+  const [tiers, setTiers] = useState<TierConfig[]>(() => {
+    const saved = localStorage.getItem("agenda-money-tiers");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse saved tiers", e);
+      }
+    }
+    return defaultTiers;
+  });
   const [hasChanges, setHasChanges] = useState(false);
 
   const updateTier = (updatedTier: TierConfig) => {
@@ -217,8 +240,9 @@ export default function SettingsPage() {
   };
 
   const handleSave = () => {
-    // Save logic here
+    localStorage.setItem("agenda-money-tiers", JSON.stringify(tiers));
     setHasChanges(false);
+    toast.success("Settings saved successfully");
   };
 
   return (
