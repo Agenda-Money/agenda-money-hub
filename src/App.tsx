@@ -12,6 +12,7 @@ import SettingsPage from "./pages/SettingsPage";
 import AgentsPage from "./pages/AgentsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import LoginPage from "./pages/LoginPage";
+import UserDetailsPage from "./pages/UserDetailsPage";
 import SignupPage from "./pages/SignupPage";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/users/:id" element={<UserDetailsPage />} />
             <Route path="/loans" element={<LoansPage />} />
             <Route path="/loans/pending" element={<LoansPage />} />
             <Route path="/loans/active" element={<LoansPage />} />

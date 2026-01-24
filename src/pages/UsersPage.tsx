@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,6 +99,7 @@ const tierColors: Record<string, string> = {
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("all");
+  const navigate = useNavigate();
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -191,7 +193,8 @@ export default function UsersPage() {
                 {filteredUsers.map((user, index) => (
                   <tr
                     key={user.id}
-                    className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 animate-fade-in"
+                    onClick={() => navigate(`/users/${user.id}`)}
+                    className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 animate-fade-in cursor-pointer"
                     style={{ animationDelay: `${index * 30}ms` }}
                   >
                     <td className="px-6 py-4 text-sm font-medium text-foreground">
@@ -239,9 +242,11 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <Link to={`/users/${user.id}`}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -299,7 +304,8 @@ export default function UsersPage() {
           {filteredUsers.map((user) => (
             <div
               key={user.id}
-              className="bg-card rounded-xl p-4 shadow-sm border border-border space-y-3"
+              onClick={() => navigate(`/users/${user.id}`)}
+              className="bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 cursor-pointer hover:bg-muted/50 transition-colors"
             >
               <div className="flex justify-between items-start">
                 <div>
@@ -353,9 +359,11 @@ export default function UsersPage() {
                   </Badge>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                  <Link to={`/users/${user.id}`}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </Link>
                   <Button
                     variant="ghost"
                     size="icon"
