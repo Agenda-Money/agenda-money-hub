@@ -16,6 +16,11 @@ const mockUser = {
   status: "active",
   joinedAt: "15 Jun, 2023",
   address: "15 Ring Road, Accra",
+  location: "Greater Accra, Ghana",
+  gender: "Male",
+  age: 34,
+  accommodation: "Rented Apartment",
+  employment: "Self-Employed (Trader)",
   walletBalance: 125.00,
   totalLoansTaken: 15200,
   currentLoan: {
@@ -29,8 +34,8 @@ const mockUser = {
     { id: "TX3", type: "Deposit", amount: 200, date: "05 Jan, 2026", status: "completed" },
   ],
   loanHistory: [
-    { id: "L001", amount: 2000, date: "15 Dec, 2025", status: "repaid", paidDate: "30 Dec, 2025" },
-    { id: "L002", amount: 1500, date: "10 Nov, 2025", status: "repaid", paidDate: "25 Nov, 2025" },
+    { id: "L001", amount: 2000, date: "15 Dec, 2025", status: "closed", paidDate: "30 Dec, 2025" },
+    { id: "L002", amount: 1500, date: "10 Nov, 2025", status: "closed", paidDate: "25 Nov, 2025" },
     { id: "L003", amount: 4500, date: "10 Jan, 2026", status: "active", paidDate: null },
   ]
 };
@@ -203,6 +208,26 @@ export default function UserDetailsPage() {
                    <div>
                      <p className="text-sm font-medium text-muted-foreground">User ID</p>
                      <p className="font-mono text-sm">{user.id}</p>
+                   </div>
+                   <div>
+                     <p className="text-sm font-medium text-muted-foreground">Gender</p>
+                     <p>{user.gender}</p>
+                   </div>
+                   <div>
+                     <p className="text-sm font-medium text-muted-foreground">Age</p>
+                     <p>{user.age} Years</p>
+                   </div>
+                   <div>
+                     <p className="text-sm font-medium text-muted-foreground">Location</p>
+                     <p>{user.location}</p>
+                   </div>
+                   <div>
+                     <p className="text-sm font-medium text-muted-foreground">Accommodation</p>
+                     <p>{user.accommodation}</p>
+                   </div>
+                   <div>
+                     <p className="text-sm font-medium text-muted-foreground">Employment</p>
+                     <p>{user.employment}</p>
                    </div>
                 </div>
               </CardContent>
