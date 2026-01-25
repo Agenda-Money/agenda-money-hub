@@ -110,6 +110,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
       subItems: [
         { to: "/loans/pending", label: "Pending" },
         { to: "/loans/active", label: "Active" },
+        { to: "/loans/closed", label: "Closed" },
         { to: "/loans/overdue", label: "Overdue" },
       ],
     },

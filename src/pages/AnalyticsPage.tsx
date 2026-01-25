@@ -61,10 +61,17 @@ const loansByTierData = [
 ];
 
 const repaymentMethodData = [
-  { method: "MoMo", count: 680, amount: 125000 },
-  { method: "Bank Transfer", count: 220, amount: 85000 },
+  { method: "MoMo (Self)", count: 680, amount: 125000 },
+  { method: "MoMo (Agent)", count: 95, amount: 28000 },
+  { method: "Bank", count: 220, amount: 85000 },
   { method: "Cash", count: 150, amount: 42000 },
-  { method: "Agent", count: 95, amount: 28000 },
+];
+
+const networkData = [
+  { name: "MTN", value: 65, color: "#FFCB05" },
+  { name: "Telecel", value: 25, color: "#E20074" },
+  { name: "AT", value: 5, color: "#0000FF" },
+  { name: "Bank", value: 5, color: "#333333" },
 ];
 
 interface MetricCardProps {
@@ -344,8 +351,25 @@ const AnalyticsPage = () => {
           <TabsContent value="performance" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Default Rate Trends</CardTitle>
-                <CardDescription>Monthly default rate percentage and count</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Default Rate Trends</CardTitle>
+                    <CardDescription>Monthly default rate percentage and count</CardDescription>
+                  </div>
+                  <Select defaultValue="all">
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Filter Tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Tiers</SelectItem>
+                      <SelectItem value="l1">Tier L1</SelectItem>
+                      <SelectItem value="l2">Tier L2</SelectItem>
+                      <SelectItem value="l3">Tier L3</SelectItem>
+                      <SelectItem value="l4">Tier L4</SelectItem>
+                      <SelectItem value="l5">Tier L5</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="h-[400px]">
@@ -377,6 +401,69 @@ const AnalyticsPage = () => {
                 </div>
               </CardContent>
             </Card>
+
+
+            <div className="grid gap-4 md:grid-cols-2">
+               <Card>
+                <CardHeader>
+                  <CardTitle>Disbursement Networks</CardTitle>
+                   <CardDescription>Market share by network provider</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                     <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={networkData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {networkData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+               </Card>
+               
+               <Card>
+                <CardHeader>
+                  <CardTitle>Repayment Networks</CardTitle>
+                   <CardDescription>Market share by network provider</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                     <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={networkData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {networkData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+               </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,14 +13,14 @@ interface Loan {
   amount: number;
   tenure: string;
   dueDate: string;
-  status: "pending" | "active" | "overdue" | "completed";
+  status: "pending" | "active" | "overdue" | "closed";
 }
 
 const allLoans: Loan[] = [
   { id: "LN001", user: "Kwame Asante", phone: "0244123456", amount: 500, tenure: "14 days", dueDate: "2024-01-29", status: "active" },
   { id: "LN002", user: "Ama Serwaa", phone: "0201987654", amount: 200, tenure: "7 days", dueDate: "2024-01-22", status: "pending" },
   { id: "LN003", user: "Kofi Mensah", phone: "0559876543", amount: 1000, tenure: "30 days", dueDate: "2024-01-10", status: "overdue" },
-  { id: "LN004", user: "Akua Boateng", phone: "0271234567", amount: 300, tenure: "14 days", dueDate: "2024-01-08", status: "completed" },
+  { id: "LN004", user: "Akua Boateng", phone: "0271234567", amount: 300, tenure: "14 days", dueDate: "2024-01-08", status: "closed" },
   { id: "LN005", user: "Yaw Agyeman", phone: "0543216789", amount: 750, tenure: "21 days", dueDate: "2024-02-04", status: "active" },
   { id: "LN006", user: "Abena Osei", phone: "0244567890", amount: 350, tenure: "14 days", dueDate: "2024-01-25", status: "pending" },
   { id: "LN007", user: "Kwabena Frimpong", phone: "0209876543", amount: 150, tenure: "7 days", dueDate: "2024-01-18", status: "overdue" },
@@ -30,7 +31,7 @@ const statusConfig = {
   pending: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
   active: { label: "Active", icon: CheckCircle, color: "bg-info/10 text-info border-info/20" },
   overdue: { label: "Overdue", icon: AlertTriangle, color: "bg-destructive/10 text-destructive border-destructive/20" },
-  completed: { label: "Completed", icon: Check, color: "bg-success/10 text-success border-success/20" },
+  closed: { label: "Closed", icon: Check, color: "bg-success/10 text-success border-success/20" },
 };
 
 function LoansTable({ loans, showApproveButton = false }: { loans: Loan[]; showApproveButton?: boolean }) {
@@ -104,9 +105,25 @@ function LoansTable({ loans, showApproveButton = false }: { loans: Loan[]; showA
 }
 
 export default function LoansPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Determine default tab from URL path
+  const getTabFromPath = () => {
+    const path = location.pathname;
+    if (path.includes("/pending")) return "pending";
+    if (path.includes("/active")) return "active";
+    if (path.includes("/overdue")) return "overdue";
+    if (path.includes("/closed")) return "closed";
+    return "all";
+  };
+
+  const currentTab = getTabFromPath();
+
   const pendingLoans = allLoans.filter((l) => l.status === "pending");
   const activeLoans = allLoans.filter((l) => l.status === "active");
   const overdueLoans = allLoans.filter((l) => l.status === "overdue");
+  const closedLoans = allLoans.filter((l) => l.status === "closed");
 
   return (
     <DashboardLayout>
@@ -127,6 +144,10 @@ export default function LoansPage() {
             <p className="text-sm text-muted-foreground">Active Loans</p>
             <p className="text-2xl font-bold text-foreground mt-1">{activeLoans.length}</p>
           </div>
+          <div className="bg-card rounded-xl p-4 shadow-sm border-l-4 border-success">
+            <p className="text-sm text-muted-foreground">Closed Loans</p>
+            <p className="text-2xl font-bold text-foreground mt-1">{closedLoans.length}</p>
+          </div>
           <div className="bg-card rounded-xl p-4 shadow-sm border-l-4 border-destructive">
             <p className="text-sm text-muted-foreground">Overdue</p>
             <p className="text-2xl font-bold text-foreground mt-1">{overdueLoans.length}</p>
@@ -134,7 +155,7 @@ export default function LoansPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="all" className="space-y-4">
+        <Tabs value={currentTab} onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)} className="space-y-4">
           <TabsList className="bg-muted p-1">
             <TabsTrigger value="all" className="data-[state=active]:bg-card">All Loans</TabsTrigger>
             <TabsTrigger value="pending" className="data-[state=active]:bg-card">
@@ -142,6 +163,9 @@ export default function LoansPage() {
             </TabsTrigger>
             <TabsTrigger value="active" className="data-[state=active]:bg-card">
               Active ({activeLoans.length})
+            </TabsTrigger>
+            <TabsTrigger value="closed" className="data-[state=active]:bg-card">
+              Closed ({closedLoans.length})
             </TabsTrigger>
             <TabsTrigger value="overdue" className="data-[state=active]:bg-card">
               Overdue ({overdueLoans.length})
@@ -156,6 +180,9 @@ export default function LoansPage() {
           </TabsContent>
           <TabsContent value="active">
             <LoansTable loans={activeLoans} />
+          </TabsContent>
+          <TabsContent value="closed">
+            <LoansTable loans={closedLoans} />
           </TabsContent>
           <TabsContent value="overdue">
             <LoansTable loans={overdueLoans} />
