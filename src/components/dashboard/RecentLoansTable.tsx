@@ -5,17 +5,19 @@ import { cn } from "@/lib/utils";
 
 interface Loan {
   id: string;
+  userId: string;
   user: string;
   phone: string;
   amount: number;
   tenure: string;
-  status: "pending" | "active" | "overdue" | "completed";
+  status: "pending" | "active" | "overdue" | "closed";
   date: string;
 }
 
 const loans: Loan[] = [
   {
     id: "LN001",
+    userId: "U001",
     user: "Kwame Asante",
     phone: "0244123456",
     amount: 500,
@@ -25,6 +27,7 @@ const loans: Loan[] = [
   },
   {
     id: "LN002",
+    userId: "U002",
     user: "Ama Serwaa",
     phone: "0201987654",
     amount: 200,
@@ -34,6 +37,7 @@ const loans: Loan[] = [
   },
   {
     id: "LN003",
+    userId: "U003",
     user: "Kofi Mensah",
     phone: "0559876543",
     amount: 1000,
@@ -43,15 +47,17 @@ const loans: Loan[] = [
   },
   {
     id: "LN004",
+    userId: "U004",
     user: "Akua Boateng",
     phone: "0271234567",
     amount: 300,
     tenure: "14 days",
-    status: "completed",
+    status: "closed",
     date: "2024-01-08",
   },
   {
     id: "LN005",
+    userId: "U005",
     user: "Yaw Agyeman",
     phone: "0543216789",
     amount: 750,
@@ -65,10 +71,14 @@ const statusStyles = {
   pending: "bg-warning/10 text-warning border-warning/20",
   active: "bg-info/10 text-info border-info/20",
   overdue: "bg-destructive/10 text-destructive border-destructive/20",
-  completed: "bg-success/10 text-success border-success/20",
+  closed: "bg-success/10 text-success border-success/20",
 };
 
+import { useNavigate } from "react-router-dom";
+
 export function RecentLoansTable() {
+  const navigate = useNavigate();
+
   return (
     <div className="bg-card rounded-xl shadow-sm animate-fade-in">
       <div className="p-6 border-b border-border">
@@ -111,7 +121,8 @@ export function RecentLoansTable() {
             {loans.map((loan, index) => (
               <tr
                 key={loan.id}
-                className="border-b border-border last:border-0 hover:bg-background-pink-subtle transition-colors duration-150"
+                onClick={() => navigate(`/users/${loan.userId}`)}
+                className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 <td className="px-6 py-4 text-sm font-medium text-foreground">
