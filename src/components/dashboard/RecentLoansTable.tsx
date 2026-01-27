@@ -14,77 +14,57 @@ interface Loan {
   date: string;
 }
 
-const loans: Loan[] = [
-  {
-    id: "LN001",
-    userId: "U001",
-    user: "Kwame Asante",
-    phone: "0244123456",
-    amount: 500,
-    tenure: "14 days",
-    status: "active",
-    date: "2024-01-15",
-  },
-  {
-    id: "LN002",
-    userId: "U002",
-    user: "Ama Serwaa",
-    phone: "0201987654",
-    amount: 200,
-    tenure: "7 days",
-    status: "pending",
-    date: "2024-01-15",
-  },
-  {
-    id: "LN003",
-    userId: "U003",
-    user: "Kofi Mensah",
-    phone: "0559876543",
-    amount: 1000,
-    tenure: "30 days",
-    status: "overdue",
-    date: "2024-01-10",
-  },
-  {
-    id: "LN004",
-    userId: "U004",
-    user: "Akua Boateng",
-    phone: "0271234567",
-    amount: 300,
-    tenure: "14 days",
-    status: "closed",
-    date: "2024-01-08",
-  },
-  {
-    id: "LN005",
-    userId: "U005",
-    user: "Yaw Agyeman",
-    phone: "0543216789",
-    amount: 750,
-    tenure: "21 days",
-    status: "active",
-    date: "2024-01-14",
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
+import { useNavigate } from "react-router-dom";
 
 const statusStyles = {
   pending: "bg-warning/10 text-warning border-warning/20",
   active: "bg-info/10 text-info border-info/20",
   overdue: "bg-destructive/10 text-destructive border-destructive/20",
   closed: "bg-success/10 text-success border-success/20",
+  repaid: "bg-success/10 text-success border-success/20", // Added repaid mapping
 };
-
-import { useNavigate } from "react-router-dom";
 
 export function RecentLoansTable() {
   const navigate = useNavigate();
+
+  const { data: responseData, isLoading } = useQuery({
+    queryKey: ["recent-loans"],
+    queryFn: async () => {
+      const res = await api.get("/api/admin/dashboard/recent-loans");
+      return res.data;
+    },
+  });
+
+  // Handle wrapped { success: true, data: [...] } or direct array
+  const rawLoans = Array.isArray(responseData) ? responseData : responseData?.data || [];
+  
+  const loans: Loan[] = rawLoans.map((l: any) => ({
+    id: l.loanReference ?? l.id ?? l._id,
+    userId: l.user?._id ?? "",
+    user: l.user?.fullName ?? "Unknown User",
+    phone: l.userMsisdn ?? "",
+    amount: l.principal ?? 0,
+    tenure: l.tenureDays != null ? `${l.tenureDays} days` : "N/A",
+    status: (l.status?.toLowerCase() ?? "pending") as any,
+    date: l.disbursedAt ?? l.createdAt,
+  }));
+
+  if (isLoading) {
+    return <div className="p-8 text-center bg-card rounded-xl">Loading recent loans...</div>;
+  }
 
   return (
     <div className="bg-card rounded-xl shadow-sm animate-fade-in">
       <div className="p-6 border-b border-border">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-foreground">Recent Loans</h2>
-          <Button variant="ghost" className="text-primary hover:text-primary/80">
+          <Button 
+            variant="ghost" 
+            className="text-primary hover:text-primary/80"
+            onClick={() => navigate("/loans")}
+          >
             View All
           </Button>
         </div>

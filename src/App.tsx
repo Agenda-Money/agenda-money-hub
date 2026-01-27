@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 import Index from "./pages/Index";
 import UsersPage from "./pages/UsersPage";
 import LoansPage from "./pages/LoansPage";
@@ -20,32 +22,37 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+    <AuthProvider>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/users/:id" element={<UserDetailsPage />} />
-            <Route path="/loans" element={<LoansPage />} />
-            <Route path="/loans/pending" element={<LoansPage />} />
-            <Route path="/loans/active" element={<LoansPage />} />
-            <Route path="/loans/closed" element={<LoansPage />} />
-            <Route path="/loans/overdue" element={<LoansPage />} />
-            <Route path="/repayments" element={<RepaymentsPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/agents" element={<AgentsPage />} />
+            
+            {/* Protected Routes */}
+            <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
+            <Route path="/users" element={<RequireAuth><UsersPage /></RequireAuth>} />
+            <Route path="/users/:id" element={<RequireAuth><UserDetailsPage /></RequireAuth>} />
+            <Route path="/loans" element={<RequireAuth><LoansPage /></RequireAuth>} />
+            <Route path="/loans/pending" element={<RequireAuth><LoansPage /></RequireAuth>} />
+            <Route path="/loans/active" element={<RequireAuth><LoansPage /></RequireAuth>} />
+            <Route path="/loans/closed" element={<RequireAuth><LoansPage /></RequireAuth>} />
+            <Route path="/loans/overdue" element={<RequireAuth><LoansPage /></RequireAuth>} />
+            <Route path="/repayments" element={<RequireAuth><RepaymentsPage /></RequireAuth>} />
+            <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
+            <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
+            <Route path="/agents" element={<RequireAuth><AgentsPage /></RequireAuth>} />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

@@ -25,68 +25,7 @@ interface User {
   joinedAt: string;
 }
 
-const users: User[] = [
-  {
-    id: "U001",
-    phone: "0244123456",
-    name: "Kwame Asante",
-    tier: "L3",
-    totalBorrowed: 4500,
-    activeLoan: true,
-    status: "active",
-    joinedAt: "2023-06-15",
-  },
-  {
-    id: "U002",
-    phone: "0201987654",
-    name: "Ama Serwaa",
-    tier: "L2",
-    totalBorrowed: 1200,
-    activeLoan: false,
-    status: "active",
-    joinedAt: "2023-08-22",
-  },
-  {
-    id: "U003",
-    phone: "0559876543",
-    name: "Kofi Mensah",
-    tier: "L4",
-    totalBorrowed: 8500,
-    activeLoan: true,
-    status: "active",
-    joinedAt: "2023-03-10",
-  },
-  {
-    id: "U004",
-    phone: "0271234567",
-    name: "Akua Boateng",
-    tier: "L1",
-    totalBorrowed: 350,
-    activeLoan: false,
-    status: "blocked",
-    joinedAt: "2023-11-05",
-  },
-  {
-    id: "U005",
-    phone: "0543216789",
-    name: "Yaw Agyeman",
-    tier: "L5",
-    totalBorrowed: 15200,
-    activeLoan: true,
-    status: "active",
-    joinedAt: "2022-12-01",
-  },
-  {
-    id: "U006",
-    phone: "0244567890",
-    name: "Abena Osei",
-    tier: "L2",
-    totalBorrowed: 2100,
-    activeLoan: true,
-    status: "active",
-    joinedAt: "2023-09-18",
-  },
-];
+
 
 const tierColors: Record<string, string> = {
   L1: "bg-muted text-muted-foreground border-muted",
@@ -96,22 +35,66 @@ const tierColors: Record<string, string> = {
   L5: "bg-warning/10 text-warning border-warning/20",
 };
 
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
+
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("all");
+  const [page, setPage] = useState(1);
   const navigate = useNavigate();
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.phone.includes(searchQuery);
-    const matchesFilter =
-      filter === "all" ||
-      (filter === "active" && user.status === "active") ||
-      (filter === "blocked" && user.status === "blocked") ||
-      filter === user.tier;
-    return matchesSearch && matchesFilter;
+  const { data: responseData } = useQuery({
+    queryKey: ["users", page, filter, searchQuery],
+    queryFn: async () => {
+      const params: any = { page, limit: 10 };
+      if (searchQuery) params.search = searchQuery;
+      if (filter !== "all") {
+        if (filter.startsWith("L")) params.tier = filter;
+        else params.status = filter;
+      }
+      const res = await api.get("/api/admin/users", { params });
+      return res.data;
+    },
+    // Keep previous data while fetching new page for smoother transition
+    placeholderData: (previousData) => previousData,
   });
+
+  const rawUsers = responseData?.users ?? [];
+  const totalPages = responseData?.pagination?.pages ?? 1;
+
+  // Map API fields to UI interface
+  const users: User[] = rawUsers.map((u: any) => ({
+    id: u._id,
+    phone: u.msisdn,
+    name: u.fullName,
+    tier: `L${u.currentTier ?? 1}`, // Default to L1 if missing
+    totalBorrowed: u.totalLoansRepaid ?? 0, // Using this for now, check if API has totalBorrowed
+    activeLoan: false, // API doesn't seem to return this in the list view user object yet
+    status: u.isBlocked ? "blocked" : "active",
+    joinedAt: u.createdAt,
+  }));
+
+  // No client-side filtering needed anymore as API handles it
+  const filteredUsers = users;
+
+  // Helper function to calculate visible page numbers
+  const getVisiblePages = (currentPage: number, total: number, maxVisible: number = 5): number[] => {
+    const visibleCount = Math.min(maxVisible, total);
+    let startPage = 1;
+
+    if (total > maxVisible) {
+      const middleOffset = Math.floor(visibleCount / 2);
+      startPage = Math.max(1, currentPage - middleOffset);
+
+      if (startPage + visibleCount - 1 > total) {
+        startPage = Math.max(1, total - visibleCount + 1);
+      }
+    }
+
+    return Array.from({ length: visibleCount }, (_, i) => startPage + i);
+  };
+
 
   return (
     <DashboardLayout>
@@ -274,25 +257,36 @@ export default function UsersPage() {
           {/* Pagination */}
           <div className="px-6 py-4 border-t border-border flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Showing {filteredUsers.length} of {users.length} users
+              Showing {filteredUsers.length} users (Page {page} of {totalPages})
             </p>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
                 Previous
               </Button>
-              <Button
+              <div className="flex items-center gap-1">
+                {getVisiblePages(page, totalPages).map((pNum) => (
+                  <Button
+                    key={pNum}
+                    size="sm"
+                    variant={page === pNum ? "default" : "outline"}
+                    className={page === pNum ? "bg-primary text-primary-foreground" : ""}
+                    onClick={() => setPage(pNum)}
+                  >
+                    {pNum}
+                  </Button>
+                ))}
+              </div>
+              <Button 
+                variant="outline" 
                 size="sm"
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               >
-                1
-              </Button>
-              <Button variant="outline" size="sm">
-                2
-              </Button>
-              <Button variant="outline" size="sm">
-                3
-              </Button>
-              <Button variant="outline" size="sm">
                 Next
               </Button>
             </div>
