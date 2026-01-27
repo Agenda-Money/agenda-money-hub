@@ -78,6 +78,23 @@ export default function UsersPage() {
   // No client-side filtering needed anymore as API handles it
   const filteredUsers = users;
 
+  // Helper function to calculate visible page numbers
+  const getVisiblePages = (currentPage: number, total: number, maxVisible: number = 5): number[] => {
+    const visibleCount = Math.min(maxVisible, total);
+    let startPage = 1;
+
+    if (total > maxVisible) {
+      const middleOffset = Math.floor(visibleCount / 2);
+      startPage = Math.max(1, currentPage - middleOffset);
+
+      if (startPage + visibleCount - 1 > total) {
+        startPage = Math.max(1, total - visibleCount + 1);
+      }
+    }
+
+    return Array.from({ length: visibleCount }, (_, i) => startPage + i);
+  };
+
 
   return (
     <DashboardLayout>
@@ -252,36 +269,17 @@ export default function UsersPage() {
                 Previous
               </Button>
               <div className="flex items-center gap-1">
-                {(() => {
-                  const maxVisible = 5;
-                  const visiblePages = Math.min(maxVisible, totalPages);
-                  let startPage = 1;
-
-                  if (totalPages > maxVisible) {
-                    const middleOffset = Math.floor(visiblePages / 2);
-                    startPage = Math.max(1, page - middleOffset);
-
-                    if (startPage + visiblePages - 1 > totalPages) {
-                      startPage = Math.max(1, totalPages - visiblePages + 1);
-                    }
-                  }
-
-                  return Array.from({ length: visiblePages }, (_, i) => {
-                    const pNum = startPage + i;
-
-                    return (
-                      <Button
-                        key={pNum}
-                        size="sm"
-                        variant={page === pNum ? "default" : "outline"}
-                        className={page === pNum ? "bg-primary text-primary-foreground" : ""}
-                        onClick={() => setPage(pNum)}
-                      >
-                        {pNum}
-                      </Button>
-                    );
-                  });
-                })()}
+                {getVisiblePages(page, totalPages).map((pNum) => (
+                  <Button
+                    key={pNum}
+                    size="sm"
+                    variant={page === pNum ? "default" : "outline"}
+                    className={page === pNum ? "bg-primary text-primary-foreground" : ""}
+                    onClick={() => setPage(pNum)}
+                  >
+                    {pNum}
+                  </Button>
+                ))}
               </div>
               <Button 
                 variant="outline" 

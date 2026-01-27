@@ -32,6 +32,14 @@ export default function Dashboard() {
     },
   });
 
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="p-8 text-center">Loading dashboard data...</div>
+      </DashboardLayout>
+    );
+  }
+
   // Normalize API response: support wrapped { success, data }, { data }, or direct stats object.
   let stats: DashboardStats | undefined;
   if (responseData && typeof responseData === "object") {
@@ -67,14 +75,6 @@ export default function Dashboard() {
     feeIncome: "N/A",
     lossDefaults: "N/A",
   };
-
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="p-8 text-center">Loading dashboard data...</div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <div className="space-y-8">
