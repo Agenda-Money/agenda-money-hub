@@ -16,7 +16,7 @@ interface Loan {
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const statusStyles = {
   pending: "bg-warning/10 text-warning border-warning/20",
@@ -41,14 +41,14 @@ export function RecentLoansTable() {
   const rawLoans = Array.isArray(responseData) ? responseData : responseData?.data || [];
   
   const loans: Loan[] = rawLoans.map((l: any) => ({
-    id: l.loanReference || l.id || l._id,
-    userId: l.user?._id || "",
-    user: l.user?.fullName || "Unknown User",
-    phone: l.userMsisdn || "",
-    amount: l.principal || 0,
-    tenure: l.tenureDays ? `${l.tenureDays} days` : "N/A",
-    status: (l.status?.toLowerCase() || "pending") as any,
-    date: l.disbursedAt || l.createdAt,
+    id: l.loanReference ?? l.id ?? l._id,
+    userId: l.user?._id ?? "",
+    user: l.user?.fullName ?? "Unknown User",
+    phone: l.userMsisdn ?? "",
+    amount: l.principal ?? 0,
+    tenure: l.tenureDays != null ? `${l.tenureDays} days` : "N/A",
+    status: (l.status?.toLowerCase() ?? "pending") as any,
+    date: l.disbursedAt ?? l.createdAt,
   }));
 
   if (isLoading) {

@@ -29,6 +29,7 @@ const SignupPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
+      window.alert("Passwords do not match. Please make sure both password fields are identical.");
       return; 
     }
     
@@ -166,7 +167,11 @@ const SignupPage = () => {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={isLoading || !formData.agreeTerms}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || !formData.agreeTerms || formData.password !== formData.confirmPassword}
+              >
                 {isLoading ? "Requesting Access..." : "Request Access"}
               </Button>
               <p className="text-sm text-center text-muted-foreground">

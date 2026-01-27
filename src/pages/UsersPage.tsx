@@ -44,7 +44,7 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const navigate = useNavigate();
 
-  const { data: responseData, isLoading } = useQuery({
+  const { data: responseData } = useQuery({
     queryKey: ["users", page, filter, searchQuery],
     queryFn: async () => {
       const params: any = { page, limit: 10 };
@@ -60,17 +60,16 @@ export default function UsersPage() {
     placeholderData: (previousData) => previousData,
   });
 
-  const rawUsers = responseData?.users || [];
-  const totalUsers = responseData?.pagination?.total || 0;
-  const totalPages = responseData?.pagination?.pages || 1;
+  const rawUsers = responseData?.users ?? [];
+  const totalPages = responseData?.pagination?.pages ?? 1;
 
   // Map API fields to UI interface
   const users: User[] = rawUsers.map((u: any) => ({
     id: u._id,
     phone: u.msisdn,
     name: u.fullName,
-    tier: `L${u.currentTier || 1}`, // Default to L1 if missing
-    totalBorrowed: u.totalLoansRepaid || 0, // Using this for now, check if API has totalBorrowed
+    tier: `L${u.currentTier ?? 1}`, // Default to L1 if missing
+    totalBorrowed: u.totalLoansRepaid ?? 0, // Using this for now, check if API has totalBorrowed
     activeLoan: false, // API doesn't seem to return this in the list view user object yet
     status: u.isBlocked ? "blocked" : "active",
     joinedAt: u.createdAt,
@@ -78,6 +77,23 @@ export default function UsersPage() {
 
   // No client-side filtering needed anymore as API handles it
   const filteredUsers = users;
+
+  // Helper function to calculate visible page numbers
+  const getVisiblePages = (currentPage: number, total: number, maxVisible: number = 5): number[] => {
+    const visibleCount = Math.min(maxVisible, total);
+    let startPage = 1;
+
+    if (total > maxVisible) {
+      const middleOffset = Math.floor(visibleCount / 2);
+      startPage = Math.max(1, currentPage - middleOffset);
+
+      if (startPage + visibleCount - 1 > total) {
+        startPage = Math.max(1, total - visibleCount + 1);
+      }
+    }
+
+    return Array.from({ length: visibleCount }, (_, i) => startPage + i);
+  };
 
 
   return (
@@ -253,25 +269,17 @@ export default function UsersPage() {
                 Previous
               </Button>
               <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                   // Simple logic to show a few pages around current page
-                   // For now, just show first 5 or meaningful range could be implemented
-                   let pNum = i + 1;
-                   if (totalPages > 5 && page > 3) pNum = page - 2 + i;
-                   if (pNum > totalPages) return null;
-                   
-                   return (
-                    <Button
-                      key={pNum}
-                      size="sm"
-                      variant={page === pNum ? "default" : "outline"}
-                      className={page === pNum ? "bg-primary text-primary-foreground" : ""}
-                      onClick={() => setPage(pNum)}
-                    >
-                      {pNum}
-                    </Button>
-                   );
-                })}
+                {getVisiblePages(page, totalPages).map((pNum) => (
+                  <Button
+                    key={pNum}
+                    size="sm"
+                    variant={page === pNum ? "default" : "outline"}
+                    className={page === pNum ? "bg-primary text-primary-foreground" : ""}
+                    onClick={() => setPage(pNum)}
+                  >
+                    {pNum}
+                  </Button>
+                ))}
               </div>
               <Button 
                 variant="outline" 
