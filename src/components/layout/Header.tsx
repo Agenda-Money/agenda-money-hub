@@ -14,7 +14,15 @@ interface HeaderProps {
   onMenuClick: () => void;
 }
 
+import { useAuth } from "@/contexts/AuthContext";
+
 export function Header({ onMenuClick }: HeaderProps) {
+  const { user, logout } = useAuth();
+  
+  const initials = user?.fullName 
+    ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() 
+    : "AD";
+
   return (
     <header className="h-20 bg-card border-b border-border flex items-center justify-between px-6">
       {/* Left Side */}
@@ -52,12 +60,12 @@ export function Header({ onMenuClick }: HeaderProps) {
             <Button variant="ghost" className="flex items-center gap-2 px-2">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                  AD
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium">Admin User</p>
-                <p className="text-xs text-muted-foreground">Super Admin</p>
+                <p className="text-sm font-medium">{user?.fullName || "Admin User"}</p>
+                <p className="text-xs text-muted-foreground capitalize">{user?.role || "Administrator"}</p>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </Button>
@@ -66,7 +74,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             <DropdownMenuItem>Profile</DropdownMenuItem>
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem className="text-destructive" onClick={logout}>
               Logout
             </DropdownMenuItem>
           </DropdownMenuContent>
