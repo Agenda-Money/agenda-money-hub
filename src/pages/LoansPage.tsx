@@ -1,4 +1,7 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useQuery, useQueries } from "@tanstack/react-query";
+import api from "@/lib/api";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 interface Loan {
   id: string;
+  reference: string;
   user: string;
   phone: string;
   amount: number;
@@ -16,16 +20,7 @@ interface Loan {
   status: "pending" | "active" | "overdue" | "closed";
 }
 
-const allLoans: Loan[] = [
-  { id: "LN001", user: "Kwame Asante", phone: "0244123456", amount: 500, tenure: "14 days", dueDate: "2024-01-29", status: "active" },
-  { id: "LN002", user: "Ama Serwaa", phone: "0201987654", amount: 200, tenure: "7 days", dueDate: "2024-01-22", status: "pending" },
-  { id: "LN003", user: "Kofi Mensah", phone: "0559876543", amount: 1000, tenure: "30 days", dueDate: "2024-01-10", status: "overdue" },
-  { id: "LN004", user: "Akua Boateng", phone: "0271234567", amount: 300, tenure: "14 days", dueDate: "2024-01-08", status: "closed" },
-  { id: "LN005", user: "Yaw Agyeman", phone: "0543216789", amount: 750, tenure: "21 days", dueDate: "2024-02-04", status: "active" },
-  { id: "LN006", user: "Abena Osei", phone: "0244567890", amount: 350, tenure: "14 days", dueDate: "2024-01-25", status: "pending" },
-  { id: "LN007", user: "Kwabena Frimpong", phone: "0209876543", amount: 150, tenure: "7 days", dueDate: "2024-01-18", status: "overdue" },
-  { id: "LN008", user: "Efua Dadzie", phone: "0551234567", amount: 500, tenure: "14 days", dueDate: "2024-01-30", status: "active" },
-];
+
 
 const statusConfig = {
   pending: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
@@ -34,7 +29,9 @@ const statusConfig = {
   closed: { label: "Closed", icon: Check, color: "bg-success/10 text-success border-success/20" },
 };
 
-function LoansTable({ loans, showApproveButton = false }: { loans: Loan[]; showApproveButton?: boolean }) {
+import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
+
+function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan: Loan) => void }) {
   return (
     <div className="bg-card rounded-xl shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
@@ -53,10 +50,15 @@ function LoansTable({ loans, showApproveButton = false }: { loans: Loan[]; showA
           <tbody>
             {loans.map((loan, index) => {
               const config = statusConfig[loan.status];
+              if (!config) {
+                console.warn(`Unexpected loan status: ${loan.status}`);
+              }
+              const displayConfig = config ?? statusConfig.pending;
               return (
                 <tr
                   key={loan.id}
-                  className="border-b border-border last:border-0 hover:bg-background-pink-subtle transition-colors duration-150 animate-fade-in"
+                  onClick={() => onLoanClick(loan)}
+                  className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 animate-fade-in cursor-pointer"
                   style={{ animationDelay: `${index * 30}ms` }}
                 >
                   <td className="px-6 py-4 text-sm font-medium text-foreground">{loan.id}</td>
@@ -72,8 +74,8 @@ function LoansTable({ loans, showApproveButton = false }: { loans: Loan[]; showA
                     {new Date(loan.dueDate).toLocaleDateString("en-GB")}
                   </td>
                   <td className="px-6 py-4">
-                    <Badge variant="outline" className={cn("font-medium", config.color)}>
-                      {config.label}
+                    <Badge variant="outline" className={cn("font-medium capitalize", displayConfig.color)}>
+                      {loan.status ?? "Unknown"}
                     </Badge>
                   </td>
                   <td className="px-6 py-4">
@@ -81,11 +83,6 @@ function LoansTable({ loans, showApproveButton = false }: { loans: Loan[]; showA
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {showApproveButton && (
-                        <Button size="sm" className="bg-success hover:bg-success/90 h-8 px-3">
-                          Approve
-                        </Button>
-                      )}
                     </div>
                   </td>
                 </tr>
@@ -104,9 +101,27 @@ function LoansTable({ loans, showApproveButton = false }: { loans: Loan[]; showA
   );
 }
 
+const StatusCard = ({ title, count, type }: { title: string, count: number | string, type: "pending" | "active" | "closed" | "overdue" }) => {
+  const styles = {
+    pending: "border-warning text-warning bg-warning/5",
+    active: "border-info text-info bg-info/5",
+    closed: "border-success text-success bg-success/5",
+    overdue: "border-destructive text-destructive bg-destructive/5",
+  };
+
+  return (
+    <div className={cn("bg-card rounded-xl p-4 shadow-sm border-l-4", styles[type])}>
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      <p className="text-2xl font-bold text-foreground mt-1">{count}</p>
+    </div>
+  );
+};
+
 export default function LoansPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const [selectedLoan, setSelectedLoan] = useState<any | null>(null);
 
   // Determine default tab from URL path
   const getTabFromPath = () => {
@@ -120,10 +135,55 @@ export default function LoansPage() {
 
   const currentTab = getTabFromPath();
 
-  const pendingLoans = allLoans.filter((l) => l.status === "pending");
-  const activeLoans = allLoans.filter((l) => l.status === "active");
-  const overdueLoans = allLoans.filter((l) => l.status === "overdue");
-  const closedLoans = allLoans.filter((l) => l.status === "closed");
+  // Reset page when tab changes
+  useEffect(() => {
+    setPage(1);
+  }, [currentTab]);
+
+  const { data: loansData, isLoading } = useQuery({
+    queryKey: ["loans", page, currentTab],
+    queryFn: async () => {
+      const params: any = { page, limit: 10 };
+      if (currentTab !== "all") {
+        params.status = currentTab;
+      }
+      
+      const res = await api.get("/api/admin/loans", { params });
+      return res.data;
+    },
+    placeholderData: (previousData) => previousData,
+  });
+
+  // Parallel queries for status counts
+  const statusQueries = useQueries({
+    queries: ["pending", "active", "closed", "overdue"].map((status) => ({
+      queryKey: ["loans-count", status],
+      queryFn: async () => {
+        const res = await api.get("/api/admin/loans", { params: { status, limit: 1 } });
+        return res.data?.pagination?.total || 0;
+      },
+      staleTime: 60000, // Cache for 1 minute
+    })),
+  });
+
+  const [pendingCount, activeCount, closedCount, overdueCount] = statusQueries.map(q => q.data ?? "-");
+
+  const rawLoans = loansData?.loans || [];
+  const totalLoans = loansData?.pagination?.total || 0;
+  const totalPages = loansData?.pagination?.pages || 1;
+  const currentPage = loansData?.pagination?.page || 1;
+
+  // Map API fields strictly based on user provided structure
+  const loans: Loan[] = rawLoans.map((l: any) => ({
+    id: l.id ?? l._id ?? l.loanReference, // Prioritize DB ID for API calls, only falling back when null/undefined
+    reference: l.loanReference ?? "N/A",
+    user: l.user?.fullName  ?? l.user ?? "Unknown User", 
+    phone: l.userMsisdn ?? l.phone ?? "",
+    amount: l.principal ?? l.amount ?? 0,
+    tenure: l.tenureDays != null ? `${l.tenureDays} days` : (l.tenure ?? "N/A"),
+    dueDate: l.dueDate ?? l.repaymentDate ?? new Date().toISOString(),
+    status: (l.status?.toLowerCase() ?? "pending") as any,
+  }));
 
   return (
     <DashboardLayout>
@@ -135,59 +195,66 @@ export default function LoansPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-card rounded-xl p-4 shadow-sm border-l-4 border-warning">
-            <p className="text-sm text-muted-foreground">Pending Approval</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{pendingLoans.length}</p>
-          </div>
-          <div className="bg-card rounded-xl p-4 shadow-sm border-l-4 border-info">
-            <p className="text-sm text-muted-foreground">Active Loans</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{activeLoans.length}</p>
-          </div>
-          <div className="bg-card rounded-xl p-4 shadow-sm border-l-4 border-success">
-            <p className="text-sm text-muted-foreground">Closed Loans</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{closedLoans.length}</p>
-          </div>
-          <div className="bg-card rounded-xl p-4 shadow-sm border-l-4 border-destructive">
-            <p className="text-sm text-muted-foreground">Overdue</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{overdueLoans.length}</p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <StatusCard title="Pending Approval" count={pendingCount} type="pending" />
+          <StatusCard title="Active Loans" count={activeCount} type="active" />
+          <StatusCard title="Closed Loans" count={closedCount} type="closed" />
+          <StatusCard title="Overdue" count={overdueCount} type="overdue" />
         </div>
 
         {/* Tabs */}
         <Tabs value={currentTab} onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)} className="space-y-4">
           <TabsList className="bg-muted p-1">
             <TabsTrigger value="all" className="data-[state=active]:bg-card">All Loans</TabsTrigger>
-            <TabsTrigger value="pending" className="data-[state=active]:bg-card">
-              Pending ({pendingLoans.length})
-            </TabsTrigger>
-            <TabsTrigger value="active" className="data-[state=active]:bg-card">
-              Active ({activeLoans.length})
-            </TabsTrigger>
-            <TabsTrigger value="closed" className="data-[state=active]:bg-card">
-              Closed ({closedLoans.length})
-            </TabsTrigger>
-            <TabsTrigger value="overdue" className="data-[state=active]:bg-card">
-              Overdue ({overdueLoans.length})
-            </TabsTrigger>
+            <TabsTrigger value="pending" className="data-[state=active]:bg-card">Pending</TabsTrigger>
+            <TabsTrigger value="active" className="data-[state=active]:bg-card">Active</TabsTrigger>
+            <TabsTrigger value="closed" className="data-[state=active]:bg-card">Closed</TabsTrigger>
+            <TabsTrigger value="overdue" className="data-[state=active]:bg-card">Overdue</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all">
-            <LoansTable loans={allLoans} />
-          </TabsContent>
-          <TabsContent value="pending">
-            <LoansTable loans={pendingLoans} showApproveButton />
-          </TabsContent>
-          <TabsContent value="active">
-            <LoansTable loans={activeLoans} />
-          </TabsContent>
-          <TabsContent value="closed">
-            <LoansTable loans={closedLoans} />
-          </TabsContent>
-          <TabsContent value="overdue">
-            <LoansTable loans={overdueLoans} />
+          <TabsContent value={currentTab} className="mt-0">
+            <div className="space-y-4">
+              <LoansTable 
+                loans={loans} 
+                onLoanClick={(loan) => setSelectedLoan(loan)}
+              />
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-border pt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {loans.length} of {totalLoans} loans
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1 || isLoading}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm font-medium">Page {currentPage} of {totalPages}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages || isLoading}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
+
+        <LoanReviewModal 
+          loan={selectedLoan} 
+          isOpen={!!selectedLoan} 
+          onOpenChange={(open) => !open && setSelectedLoan(null)} 
+        />
       </div>
     </DashboardLayout>
   );

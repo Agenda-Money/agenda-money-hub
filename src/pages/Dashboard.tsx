@@ -4,8 +4,78 @@ import { RecentLoansTable } from "@/components/dashboard/RecentLoansTable";
 import { PendingApprovals } from "@/components/dashboard/PendingApprovals";
 import { LoanTrendsChart } from "@/components/dashboard/LoanTrendsChart";
 import { TierDistributionChart } from "@/components/dashboard/TierDistributionChart";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
+
+interface DashboardStats {
+  loanBook: string;
+  activeLoans: string;
+  repaymentEfficiency: string;
+  defaultRate: string;
+  totalLoansCumulative: string;
+  totalDisbursedCumulative: string;
+  disbursedThisMonth: string;
+  avgLoanSize: string;
+  interestIncome: string;
+  feeIncome: string;
+  lossDefaults: string;
+}
 
 export default function Dashboard() {
+  const { data: responseData, isLoading } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: async () => {
+      const res = await api.get("/api/admin/dashboard/stats");
+      return res.data;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="p-8 text-center">Loading dashboard data...</div>
+      </DashboardLayout>
+    );
+  }
+
+  // Normalize API response: support wrapped { success, data }, { data }, or direct stats object.
+  let stats: DashboardStats | undefined;
+  if (responseData && typeof responseData === "object") {
+    // Case 1: explicit success wrapper { success: boolean, data?: DashboardStats }
+    if ("success" in responseData) {
+      const wrapped = responseData as { success: boolean; data?: DashboardStats | null };
+      if (wrapped.success && wrapped.data) {
+        stats = wrapped.data;
+      }
+    } else if ("data" in responseData) {
+      // Case 2: simple wrapper { data: DashboardStats }
+      const wrapped = responseData as { data: DashboardStats | null | undefined };
+      if (wrapped.data) {
+        stats = wrapped.data;
+      }
+    } else {
+      // Case 3: direct stats object
+      stats = responseData as DashboardStats;
+    }
+  }
+
+  // Fallback to defaults if stats is undefined (e.g. error) or some fields missing
+  const data = stats ?? {
+    loanBook: "N/A",
+    activeLoans: "N/A",
+    repaymentEfficiency: "N/A",
+    defaultRate: "N/A",
+    totalLoansCumulative: "N/A",
+    totalDisbursedCumulative: "N/A",
+    disbursedThisMonth: "N/A",
+    avgLoanSize: "N/A",
+    interestIncome: "N/A",
+    feeIncome: "N/A",
+    lossDefaults: "N/A",
+  };
+
   return (
     <div className="space-y-8">
       {/* Page Header */}
@@ -20,25 +90,25 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Loan Book"
-          value="₵600K"
+          value={data.loanBook !== "N/A" ? `₵${data.loanBook}` : "N/A"}
           icon={BookOpen}
           trend={{ value: 12.5, isPositive: true }}
         />
         <StatsCard
           title="Active Loans"
-          value="1,847"
+          value={data.activeLoans}
           icon={Users}
           trend={{ value: 8.2, isPositive: true }}
         />
         <StatsCard
           title="Repayment vs Disbursement"
-          value="75%"
+          value={data.repaymentEfficiency !== "N/A" ? data.repaymentEfficiency : "N/A"}
           icon={Percent}
           trend={{ value: 2.1, isPositive: true }}
         />
         <StatsCard
           title="Default Rate"
-          value="3.2%"
+          value={data.defaultRate !== "N/A" ? data.defaultRate : "N/A"}
           icon={TrendingDown}
           trend={{ value: 0.5, isPositive: false }}
         />
@@ -50,24 +120,24 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatsCard
             title="Total Loans (Cumulative)"
-            value="5,420"
+            value={data.totalLoansCumulative}
             icon={Layers}
             trend={{ value: 15.3, isPositive: true }}
           />
           <StatsCard
             title="Total Disbursed (All Time)"
-            value="₵12.5M"
+            value={data.totalDisbursedCumulative !== "N/A" ? `₵${data.totalDisbursedCumulative}` : "N/A"}
             icon={DollarSign}
             trend={{ value: 10.8, isPositive: true }}
           />
           <StatsCard
             title="Disbursed This Month"
-            value="₵450K"
+            value={data.disbursedThisMonth !== "N/A" ? `₵${data.disbursedThisMonth}` : "N/A"}
             icon={Calendar}
             trend={{ value: 5.2, isPositive: true }}
           />
         </div>
-        </div>
+      </div>
 
       {/* Financial Overview */}
       <div className="space-y-4">
@@ -75,25 +145,25 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
            <StatsCard
             title="Avg. Loan Size"
-            value="₵450.00"
+            value={data.avgLoanSize !== "N/A" ? `₵${data.avgLoanSize}` : "N/A"}
             icon={DollarSign}
             trend={{ value: 2.5, isPositive: true }}
           />
           <StatsCard
             title="Interest Income"
-            value="₵45,200"
+            value={data.interestIncome !== "N/A" ? `₵${data.interestIncome}` : "N/A"}
             icon={TrendingDown}
             trend={{ value: 12.0, isPositive: true }}
           />
            <StatsCard
             title="Fee Income"
-            value="₵12,800"
+            value={data.feeIncome !== "N/A" ? `₵${data.feeIncome}` : "N/A"}
             icon={PieChart}
             trend={{ value: 8.5, isPositive: true }}
           />
            <StatsCard
             title="Loss (Defaults)"
-            value="₵3,200"
+            value={data.lossDefaults !== "N/A" ? `₵${data.lossDefaults}` : "N/A"}
             icon={TrendingDown}
             trend={{ value: 1.2, isPositive: false }}
           />

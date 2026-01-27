@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, LogIn } from "lucide-react";
+import { Eye, EyeOff, LogIn, CircleAlert } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -13,10 +15,27 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // No auth - just UI demo
-    console.log("Login attempted:", { email, rememberMe });
+    setLoading(true);
+    setError(null);
+    
+    // Call real login
+    const result = await login(email, password);
+    if (result.success) {
+      // Force full reload to ensure auth state and headers are cleanly initialized
+      window.location.href = "/";
+    } else {
+      setError(result.message || "Authentication failed");
+    }
+    
+    setLoading(false);
   };
 
   return (
@@ -39,6 +58,13 @@ const LoginPage = () => {
               <CardDescription>Enter your credentials to access your account</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <CircleAlert className="h-4 w-4" />
+                  <AlertTitle>Login Failed</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -93,8 +119,8 @@ const LoginPage = () => {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full">
-                Sign In
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Signing In..." : "Sign In"}
               </Button>
               <p className="text-sm text-center text-muted-foreground">
                 Don't have an account?{" "}
