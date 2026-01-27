@@ -65,21 +65,21 @@ export default function UserDetailsPage() {
 
   // Map API data to UI structure
   const user = {
-    id: userData._id || userData.id || id,
-    name: userData.fullName || "Unknown User",
-    email: userData.email || "N/A",
-    phone: userData.msisdn || userData.phone || "N/A",
-    tier: `L${userData.currentTier || 1}`,
+    id: userData._id ?? userData.id ?? id,
+    name: userData.fullName ?? "Unknown User",
+    email: userData.email ?? "N/A",
+    phone: userData.msisdn ?? userData.phone ?? "N/A",
+    tier: `L${userData.currentTier ?? 1}`,
     status: userData.isBlocked ? "blocked" : "active",
     joinedAt: userData.createdAt ? new Date(userData.createdAt).toLocaleDateString() : "N/A",
-    address: userData.address || "N/A",
-    location: userData.location || "Ghana",
-    gender: userData.gender || "N/A",
-    age: userData.age || 0,
-    accommodation: userData.accommodation || "N/A",
-    employment: userData.employment || "N/A",
-    walletBalance: userData.temporaryWallet || userData.walletBalance || 0,
-    totalLoansTaken: userData.totalLoansRepaid || 0, // Fallback mapping
+    address: userData.address ?? "N/A",
+    location: userData.location ?? "Ghana",
+    gender: userData.gender ?? "N/A",
+    age: userData.age ?? 0,
+    accommodation: userData.accommodation ?? "N/A",
+    employment: userData.employment ?? "N/A",
+    walletBalance: userData.temporaryWallet ?? userData.walletBalance ?? 0,
+    totalLoansTaken: userData.totalLoansRepaid ?? 0, // Fallback mapping
     currentLoan: null, // Need specific endpoint for this
     transactions: [], // Need specific endpoint for this
     loanHistory: [], // Need specific endpoint for this

@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
@@ -29,9 +29,6 @@ const tierColors: Record<string, string> = {
 
 export function LoanReviewModal({ loan, isOpen, onOpenChange }: LoanReviewModalProps) {
   const queryClient = useQueryClient();
-
-  // We rely on the passed loan object now to avoid 404s from missing endpoints
-  console.log("Loan Review Modal Data:", loan);
 
   const loanId = loan?.id || loan?._id;
 
