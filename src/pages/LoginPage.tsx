@@ -29,8 +29,8 @@ const LoginPage = () => {
     // Call real login
     const result = await login(email, password);
     if (result.success) {
-      // Use React Router navigation to avoid full page reload
-      navigate("/", { replace: true });
+      // Force full reload to ensure auth state and headers are cleanly initialized
+      window.location.href = "/";
     } else {
       setError(result.message || "Authentication failed");
     }
