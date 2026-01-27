@@ -40,12 +40,73 @@ const mockUser = {
   ]
 };
 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/api";
+import { toast } from "sonner";
+
 export default function UserDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  // In a real app fitler/fetch by ID
-  const user = mockUser; 
+  const { data: responseData, isLoading } = useQuery({
+    queryKey: ["user", id],
+    queryFn: async () => {
+      const res = await api.get(`/api/admin/users/${id}`);
+      return res.data;
+    },
+    enabled: !!id,
+  });
+
+  // Handle wrapped response { success: true, data: user } or direct user object
+  // The API returns { user: {...}, summary: {...} } so we need to extract 'user'
+  const rawData = responseData?.data || responseData || {};
+  const userData = rawData.user || rawData; // Extract nested user object if present
+
+  // Map API data to UI structure
+  const user = {
+    id: userData._id || userData.id || id,
+    name: userData.fullName || "Unknown User",
+    email: userData.email || "N/A",
+    phone: userData.msisdn || userData.phone || "N/A",
+    tier: `L${userData.currentTier || 1}`,
+    status: userData.isBlocked ? "blocked" : "active",
+    joinedAt: userData.createdAt ? new Date(userData.createdAt).toLocaleDateString() : "N/A",
+    address: userData.address || "N/A",
+    location: userData.location || "Ghana",
+    gender: userData.gender || "N/A",
+    age: userData.age || 0,
+    accommodation: userData.accommodation || "N/A",
+    employment: userData.employment || "N/A",
+    walletBalance: userData.temporaryWallet || userData.walletBalance || 0,
+    totalLoansTaken: userData.totalLoansRepaid || 0, // Fallback mapping
+    currentLoan: null, // Need specific endpoint for this
+    transactions: [], // Need specific endpoint for this
+    loanHistory: [], // Need specific endpoint for this
+  };
+
+  // Mutation for blocking/unblocking
+  const { mutate: toggleBlock, isPending: isBlocking } = useMutation({
+    mutationFn: async () => {
+      const action = user.status === "active" ? "block" : "unblock";
+      await api.post(`/api/admin/users/${id}/${action}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user", id] });
+      toast.success(`User ${user.status === "active" ? "blocked" : "unblocked"} successfully`);
+    },
+    onError: () => {
+      toast.error("Failed to update user status");
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="p-8 text-center">Loading user details...</div>
+      </DashboardLayout>
+    );
+  } 
 
   return (
     <DashboardLayout>
@@ -79,10 +140,16 @@ export default function UserDetailsPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline">
-                Block User
+              <Button 
+                variant={user.status === "active" ? "destructive" : "default"}
+                size="sm"
+                onClick={() => toggleBlock()}
+                disabled={isBlocking}
+                className={user.status === "active" ? "" : "bg-green-600 hover:bg-green-700"}
+              >
+                {user.status === "active" ? "Block User" : "Unblock User"}
               </Button>
-              <Button>
+              <Button size="sm" variant="outline">
                 View Documents
               </Button>
             </div>

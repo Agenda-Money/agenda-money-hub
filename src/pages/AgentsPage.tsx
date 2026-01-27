@@ -36,94 +36,44 @@ interface Agent {
   loansOverdue: number;
 }
 
-const mockAgents: Agent[] = [
-  {
-    id: "1",
-    name: "Kwame Mensah",
-    email: "kwame.mensah@example.com",
-    nodeCode: "ACC-001",
-    status: "active",
-    location: "Accra, Greater Accra",
-    totalTransactions: 1250,
-    signUpsAllTime: 156,
-    signUpsThisMonth: 12,
-    loansActive: 45,
-    loansPending: 8,
-    loansClosed: 320,
-    loansOverdue: 2,
-  },
-  {
-    id: "2",
-    name: "Abena Osei",
-    email: "abena.osei@example.com",
-    nodeCode: "KUM-045",
-    status: "active",
-    location: "Kumasi, Ashanti",
-    totalTransactions: 980,
-    signUpsAllTime: 98,
-    signUpsThisMonth: 8,
-    loansActive: 28,
-    loansPending: 5,
-    loansClosed: 180,
-    loansOverdue: 1,
-  },
-  {
-    id: "3",
-    name: "Emmanuel Boateng",
-    email: "emmanuel.b@example.com",
-    nodeCode: "TAM-012",
-    status: "inactive",
-    location: "Tamale, Northern",
-    totalTransactions: 450,
-    signUpsAllTime: 45,
-    signUpsThisMonth: 0,
-    loansActive: 0,
-    loansPending: 0,
-    loansClosed: 120,
-    loansOverdue: 5,
-  },
-  {
-    id: "4",
-    name: "Sarah Addo",
-    email: "sarah.addo@example.com",
-    nodeCode: "TAK-089",
-    status: "active",
-    location: "Takoradi, Western",
-    totalTransactions: 2100,
-    signUpsAllTime: 245,
-    signUpsThisMonth: 22,
-    loansActive: 85,
-    loansPending: 15,
-    loansClosed: 890,
-    loansOverdue: 4,
-  },
-  {
-    id: "5",
-    name: "Kofi Owusu",
-    email: "kofi.owusu@example.com",
-    nodeCode: "CAP-023",
-    status: "active",
-    location: "Cape Coast, Central",
-    totalTransactions: 875,
-    signUpsAllTime: 82,
-    signUpsThisMonth: 5,
-    loansActive: 22,
-    loansPending: 3,
-    loansClosed: 145,
-    loansOverdue: 0,
-  },
-];
+
+
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
 
 export default function AgentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
 
-  const filteredAgents = mockAgents.filter(
-    (agent) =>
-      agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      agent.nodeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      agent.location.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const { data: responseData, isLoading } = useQuery({
+    queryKey: ["agents", searchTerm],
+    queryFn: async () => {
+      const params: any = { limit: 100 }; // Fetch reasonable amount
+      if (searchTerm) params.search = searchTerm;
+      const res = await api.get("/api/admin/agents", { params });
+      return res.data;
+    },
+  });
+
+  const rawAgents = responseData?.data || [];
+
+  const agents: Agent[] = rawAgents.map((a: any) => ({
+    id: a.id || a._id,
+    name: a.name || a.fullName || "Unknown",
+    email: a.email || "N/A",
+    nodeCode: a.nodeCode || "N/A",
+    status: a.status === "inactive" ? "inactive" : "active",
+    location: a.location || a.region || "Unknown",
+    totalTransactions: a.totalTransactions || 0,
+    signUpsAllTime: a.signUpsAllTime || a.activeUsers || 0, // Fallback mapping
+    signUpsThisMonth: a.signUpsThisMonth || 0,
+    loansActive: a.loansActive || 0,
+    loansPending: a.loansPending || 0,
+    loansClosed: a.loansClosed || 0,
+    loansOverdue: a.loansOverdue || 0,
+  }));
+
+  const filteredAgents = agents;
 
   return (
     <DashboardLayout>
