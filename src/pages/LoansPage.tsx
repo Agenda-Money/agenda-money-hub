@@ -49,7 +49,11 @@ function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan:
           </thead>
           <tbody>
             {loans.map((loan, index) => {
-              const config = statusConfig[loan.status] || statusConfig.pending;
+              const config = statusConfig[loan.status];
+              if (!config) {
+                console.warn(`Unexpected loan status: ${loan.status}`);
+              }
+              const displayConfig = config ?? statusConfig.pending;
               return (
                 <tr
                   key={loan.id}
@@ -70,8 +74,8 @@ function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan:
                     {new Date(loan.dueDate).toLocaleDateString("en-GB")}
                   </td>
                   <td className="px-6 py-4">
-                    <Badge variant="outline" className={cn("font-medium capitalize", config.color)}>
-                      {loan.status || "Unknown"}
+                    <Badge variant="outline" className={cn("font-medium capitalize", displayConfig.color)}>
+                      {loan.status ?? "Unknown"}
                     </Badge>
                   </td>
                   <td className="px-6 py-4">
@@ -171,14 +175,14 @@ export default function LoansPage() {
 
   // Map API fields strictly based on user provided structure
   const loans: Loan[] = rawLoans.map((l: any) => ({
-    id: l.id || l._id || l.loanReference, // Prioritize DB ID for API calls
-    reference: l.loanReference || "N/A",
-    user: l.user?.fullName  || l.user || "Unknown User", 
-    phone: l.userMsisdn || l.phone || "",
-    amount: l.principal || l.amount || 0,
-    tenure: l.tenureDays ? `${l.tenureDays} days` : l.tenure || "N/A",
-    dueDate: l.dueDate || l.repaymentDate || new Date().toISOString(),
-    status: (l.status?.toLowerCase() || "pending") as any,
+    id: l.id ?? l._id ?? l.loanReference, // Prioritize DB ID for API calls, only falling back when null/undefined
+    reference: l.loanReference ?? "N/A",
+    user: l.user?.fullName  ?? l.user ?? "Unknown User", 
+    phone: l.userMsisdn ?? l.phone ?? "",
+    amount: l.principal ?? l.amount ?? 0,
+    tenure: l.tenureDays != null ? `${l.tenureDays} days` : (l.tenure ?? "N/A"),
+    dueDate: l.dueDate ?? l.repaymentDate ?? new Date().toISOString(),
+    status: (l.status?.toLowerCase() ?? "pending") as any,
   }));
 
   return (

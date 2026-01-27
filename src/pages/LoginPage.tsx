@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,6 @@ const LoginPage = () => {
 
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [loading, setLoading] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
@@ -30,10 +29,8 @@ const LoginPage = () => {
     // Call real login
     const result = await login(email, password);
     if (result.success) {
-      // Redirect to dashboard or previous page
-      // Use window.location.href to force a full reload and ensure auth state is picked up
-      // This avoids race conditions with RequireAuth
-      window.location.href = "/";
+      // Use React Router navigation to avoid full page reload
+      navigate("/", { replace: true });
     } else {
       setError(result.message || "Authentication failed");
     }

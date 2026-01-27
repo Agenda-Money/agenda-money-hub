@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 
 interface AdminUser {
   id: string;
@@ -44,7 +43,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.removeItem("token");
       }
     } catch (error) {
-      console.error("Session verification failed", error);
       localStorage.removeItem("token");
     } finally {
       setLoading(false);
@@ -63,7 +61,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       return false;
     } catch (error: any) {
-      console.error("Signup failed", error);
       const errorMessage = error.response?.data?.message || "Signup failed. Please try again.";
       toast.error("Signup Failed", {
         description: errorMessage,
@@ -87,13 +84,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { success: true };
       }
       
-      console.log("Login response success=false", response.data);
       const msg = response.data.message || "Invalid credentials";
       // Removed toast to handle UI in component
       return { success: false, message: msg };
     } catch (error: any) {
-      console.error("Login failed full error:", error);
-      console.log("Response data:", error.response?.data);
       
       const errorMessage = 
         error.response?.data?.message || 
