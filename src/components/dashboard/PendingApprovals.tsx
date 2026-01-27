@@ -34,10 +34,9 @@ import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
 
 export function PendingApprovals() {
   const [selectedLoan, setSelectedLoan] = useState<any | null>(null);
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: responseData, isLoading } = useQuery({
+  const { data: responseData } = useQuery({
     queryKey: ["pending-approvals"],
     queryFn: async () => {
       const res = await api.get("/api/admin/dashboard/pending-approvals");
@@ -46,21 +45,21 @@ export function PendingApprovals() {
       // Map API fields strictly
       const mappedLoans = (Array.isArray(rawData) ? rawData : []).map((l: any) => ({
         ...l, // Spread original fields as fallback
-        id: l.id || l._id || l.loanReference, // Prioritize DB ID for API calls
-        reference: l.loanReference || l.reference || l.loanId || "N/A",
-        user: l.user?.fullName  || l.user || "Unknown User", // Handle both object and string
-        phone: l.userMsisdn || l.phone || "",
-        amount: l.principal || l.amount || 0,
+        id: l.id ?? l._id ?? l.loanReference, // Prioritize DB ID for API calls
+        reference: l.loanReference ?? l.reference ?? l.loanId ?? "N/A",
+        user: l.user?.fullName  ?? l.user ?? "Unknown User", // Handle both object and string
+        phone: l.userMsisdn ?? l.phone ?? "",
+        amount: l.principal ?? l.amount ?? 0,
         tier: l.tier ? `L${l.tier}` : "L1", // Ensure Lx format
-        date: l.createdAt || l.requestedAt,
-        tenor: l.tenureDays ? `${l.tenureDays} days` : l.tenure || l.tenor || "N/A",
-        repaymentDate: l.dueDate || l.repaymentDate,
-        loansToDate: l.loansToDate || 0,
-        repaymentRate: l.repaymentRate || 100,
-        creditScore: l.creditScore || 700,
-        nodeCode: l.nodeCode || "N/A",
-        userStatus: l.userStatus || "Node",
-        status: (l.status?.toUpperCase() || "PENDING")
+        date: l.createdAt ?? l.requestedAt,
+        tenor: l.tenureDays != null ? `${l.tenureDays} days` : (l.tenure ?? l.tenor ?? "N/A"),
+        repaymentDate: l.dueDate ?? l.repaymentDate,
+        loansToDate: l.loansToDate ?? 0,
+        repaymentRate: l.repaymentRate ?? 100,
+        creditScore: l.creditScore ?? 700,
+        nodeCode: l.nodeCode ?? "N/A",
+        userStatus: l.userStatus ?? "Node",
+        status: (l.status?.toUpperCase() ?? "PENDING")
       }));
 
       // Client-side filter for extra safety

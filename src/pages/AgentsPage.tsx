@@ -45,7 +45,7 @@ export default function AgentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
 
-  const { data: responseData, isLoading } = useQuery({
+  const { data: responseData } = useQuery({
     queryKey: ["agents", searchTerm],
     queryFn: async () => {
       const params: any = { limit: 100 }; // Fetch reasonable amount
@@ -55,22 +55,22 @@ export default function AgentsPage() {
     },
   });
 
-  const rawAgents = responseData?.data || [];
+  const rawAgents = responseData?.data ?? [];
 
   const agents: Agent[] = rawAgents.map((a: any) => ({
-    id: a.id || a._id,
-    name: a.name || a.fullName || "Unknown",
-    email: a.email || "N/A",
-    nodeCode: a.nodeCode || "N/A",
+    id: a.id ?? a._id,
+    name: a.name ?? a.fullName ?? "Unknown",
+    email: a.email ?? "N/A",
+    nodeCode: a.nodeCode ?? "N/A",
     status: a.status === "inactive" ? "inactive" : "active",
-    location: a.location || a.region || "Unknown",
-    totalTransactions: a.totalTransactions || 0,
-    signUpsAllTime: a.signUpsAllTime || a.activeUsers || 0, // Fallback mapping
-    signUpsThisMonth: a.signUpsThisMonth || 0,
-    loansActive: a.loansActive || 0,
-    loansPending: a.loansPending || 0,
-    loansClosed: a.loansClosed || 0,
-    loansOverdue: a.loansOverdue || 0,
+    location: a.location ?? a.region ?? "Unknown",
+    totalTransactions: a.totalTransactions ?? 0,
+    signUpsAllTime: a.signUpsAllTime ?? a.activeUsers ?? 0, // Fallback mapping
+    signUpsThisMonth: a.signUpsThisMonth ?? 0,
+    loansActive: a.loansActive ?? 0,
+    loansPending: a.loansPending ?? 0,
+    loansClosed: a.loansClosed ?? 0,
+    loansOverdue: a.loansOverdue ?? 0,
   }));
 
   const filteredAgents = agents;
