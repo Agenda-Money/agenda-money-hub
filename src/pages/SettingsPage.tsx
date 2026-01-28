@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -13,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Moon, Sun, Monitor } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
+import { User } from "lucide-react";
 
 function ThemeSelector() {
   const { theme, setTheme } = useTheme();
@@ -45,12 +47,30 @@ function ThemeSelector() {
 }
 
 export default function SettingsPage() {
+  const { user, updateProfile } = useAuth();
   const [hasChanges, setHasChanges] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setFullName(user.fullName || "");
+      setEmail(user.email || "");
+    }
+  }, [user]);
 
   const handleSave = () => {
     // Save logic for other settings would go here
     setHasChanges(false);
     toast.success("Settings saved successfully");
+  };
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileLoading(true);
+    const result = await updateProfile({ fullName, email });
+    setProfileLoading(false);
   };
 
   return (
@@ -72,8 +92,11 @@ export default function SettingsPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="general">
+        <Tabs defaultValue="profile">
           <TabsList className="bg-muted p-1">
+            <TabsTrigger value="profile" className="data-[state=active]:bg-card">
+              Profile
+            </TabsTrigger>
             <TabsTrigger value="general" className="data-[state=active]:bg-card">
               General
             </TabsTrigger>
@@ -84,6 +107,43 @@ export default function SettingsPage() {
               Notifications
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="profile" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Profile Settings</CardTitle>
+                <CardDescription>
+                  Manage your public profile and private information.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleProfileUpdate} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input 
+                      id="fullName" 
+                      value={fullName} 
+                      onChange={(e) => setFullName(e.target.value)} 
+                      placeholder="Enter your full name" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      value={email} 
+                      onChange={(e) => setEmail(e.target.value)} 
+                      placeholder="Enter your email" 
+                    />
+                  </div>
+                  <Button type="submit" disabled={profileLoading}>
+                    {profileLoading ? "Saving..." : "Save Profile"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="general" className="mt-4">
             <Card>
