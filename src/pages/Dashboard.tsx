@@ -4,7 +4,7 @@ import { RecentLoansTable } from "@/components/dashboard/RecentLoansTable";
 import { PendingApprovals } from "@/components/dashboard/PendingApprovals";
 import { LoanTrendsChart } from "@/components/dashboard/LoanTrendsChart";
 import { TierDistributionChart } from "@/components/dashboard/TierDistributionChart";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
@@ -33,31 +33,7 @@ export default function Dashboard() {
   });
 
   if (isLoading) {
-    return (
-      <DashboardLayout>
-         <div className="space-y-8 animate-pulse">
-            <div>
-              <div className="h-10 w-48 bg-muted rounded-md mb-2" />
-              <div className="h-5 w-72 bg-muted rounded-md" />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-               {[1, 2, 3, 4].map((i) => (
-                 <div key={i} className="h-32 bg-muted rounded-xl" />
-               ))}
-            </div>
-
-            <div className="space-y-4">
-               <div className="h-7 w-48 bg-muted rounded-md" />
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-32 bg-muted rounded-xl" />
-                  ))}
-               </div>
-            </div>
-         </div>
-      </DashboardLayout>
-    );
+    return <DashboardSkeleton />;
   }
 
   // Normalize API response: support wrapped { success, data }, { data }, or direct stats object.
@@ -173,7 +149,7 @@ export default function Dashboard() {
             title="Interest Income"
             value={data.interestIncome !== "N/A" ? `₵${data.interestIncome}` : "N/A"}
             icon={TrendingDown}
-            trend={{ value: 12.0, isPositive: true }}
+            trend={{ value: 12, isPositive: true }}
           />
            <StatsCard
             title="Fee Income"
