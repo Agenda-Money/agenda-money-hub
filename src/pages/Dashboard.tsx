@@ -4,7 +4,7 @@ import { RecentLoansTable } from "@/components/dashboard/RecentLoansTable";
 import { PendingApprovals } from "@/components/dashboard/PendingApprovals";
 import { LoanTrendsChart } from "@/components/dashboard/LoanTrendsChart";
 import { TierDistributionChart } from "@/components/dashboard/TierDistributionChart";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
@@ -33,11 +33,7 @@ export default function Dashboard() {
   });
 
   if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="p-8 text-center">Loading dashboard data...</div>
-      </DashboardLayout>
-    );
+    return <DashboardSkeleton />;
   }
 
   // Normalize API response: support wrapped { success, data }, { data }, or direct stats object.
@@ -153,7 +149,7 @@ export default function Dashboard() {
             title="Interest Income"
             value={data.interestIncome !== "N/A" ? `₵${data.interestIncome}` : "N/A"}
             icon={TrendingDown}
-            trend={{ value: 12.0, isPositive: true }}
+            trend={{ value: 12, isPositive: true }}
           />
            <StatsCard
             title="Fee Income"

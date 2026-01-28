@@ -1,17 +1,13 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
 
 export const RequireAuth = ({ children }: { children: JSX.Element }) => {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
-    // Render a simple loading spinner or layout while checking auth
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (!isAuthenticated) {
