@@ -106,7 +106,8 @@ export default function AgentsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow>
@@ -157,6 +158,47 @@ export default function AgentsPage() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+              {filteredAgents.map((agent) => (
+                <div
+                  key={agent.id}
+                  onClick={() => setSelectedAgent(agent)}
+                  className="bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 cursor-pointer active:bg-muted/50"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold text-foreground">{agent.name}</h3>
+                      <p className="text-sm text-muted-foreground">{agent.email}</p>
+                    </div>
+                    <Badge variant="outline" className="font-mono">
+                      {agent.nodeCode}
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-2">
+                       <Badge
+                          variant={agent.status === "active" ? "default" : "secondary"}
+                          className={
+                            agent.status === "active"
+                              ? "bg-green-500 hover:bg-green-600"
+                              : "bg-gray-500 hover:bg-gray-600"
+                          }
+                        >
+                          {agent.status}
+                        </Badge>
+                        <span className="text-muted-foreground text-xs">{agent.location}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Transactions</p>
+                      <p className="font-semibold">{agent.totalTransactions.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

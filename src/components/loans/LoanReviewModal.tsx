@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
@@ -31,6 +31,22 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: LoanReviewModalP
   const queryClient = useQueryClient();
 
   const loanId = loan?.id || loan?._id;
+  const userId = loan?.userId || loan?.user?.id || (typeof loan?.user === 'string' ? null : loan?.user?._id);
+
+  // Fetch full user details to get Node Code if missing
+  const { data: userResponse } = useQuery({
+    queryKey: ["loan-user-details", userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const res = await api.get(`/api/admin/users/${userId}`);
+      return res.data;
+    },
+    enabled: !!userId && isOpen,
+  });
+
+  const userDetails = userResponse?.data?.user || userResponse?.data || userResponse || {};
+  // Prioritize fetched personalNodeCode -> fetched nodeCode -> loan prop nodeCode -> N/A
+  const displayNodeCode = userDetails.personalNodeCode || userDetails.nodeCode || loan?.nodeCode || "N/A";
 
   const approveMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -98,7 +114,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: LoanReviewModalP
                     <Badge variant="secondary" className="text-xs">
                        {loan.userStatus || "Node"} User
                     </Badge>
-                    <span className="text-xs text-muted-foreground">Code: {loan.nodeCode || "N/A"}</span>
+                    <span className="text-xs text-muted-foreground">Code: {displayNodeCode}</span>
                   </div>
                 </div>
               </div>
