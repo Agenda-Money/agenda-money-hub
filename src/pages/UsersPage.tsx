@@ -195,7 +195,7 @@ export default function UsersPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-foreground">
-                      ₵{user.totalBorrowed.toLocaleString()}
+                      {user.totalBorrowed.toLocaleString()}
                     </td>
                     <td className="px-6 py-4">
                       <Badge

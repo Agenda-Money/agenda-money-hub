@@ -17,7 +17,8 @@ interface Loan {
   amount: number;
   tenure: string;
   dueDate: string;
-  status: "pending" | "active" | "overdue" | "closed";
+  status: "pending" | "active" | "overdue" | "closed" | "repaid";
+  nodeCode: string;
 }
 
 
@@ -27,77 +28,138 @@ const statusConfig = {
   active: { label: "Active", icon: CheckCircle, color: "bg-info/10 text-info border-info/20" },
   overdue: { label: "Overdue", icon: AlertTriangle, color: "bg-destructive/10 text-destructive border-destructive/20" },
   closed: { label: "Closed", icon: Check, color: "bg-success/10 text-success border-success/20" },
+  repaid: { label: "Repaid", icon: Check, color: "bg-success/10 text-success border-success/20" },
 };
 
 import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
 
 function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan: Loan) => void }) {
+  if (loans.length === 0) {
+    return (
+      <div className="bg-card rounded-xl shadow-sm p-12 text-center">
+        <p className="text-muted-foreground">No loans found</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-card rounded-xl shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Loan ID</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">User</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Amount</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Tenure</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Due Date</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Status</th>
-              <th className="text-right px-6 py-4 text-sm font-semibold text-muted-foreground">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loans.map((loan, index) => {
-              const config = statusConfig[loan.status];
-              if (!config) {
-                console.warn(`Unexpected loan status: ${loan.status}`);
-              }
-              const displayConfig = config ?? statusConfig.pending;
-              return (
-                <tr
-                  key={loan.id}
-                  onClick={() => onLoanClick(loan)}
-                  className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 animate-fade-in cursor-pointer"
-                  style={{ animationDelay: `${index * 30}ms` }}
-                >
-                  <td className="px-6 py-4 text-sm font-medium text-foreground">{loan.id}</td>
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{loan.user}</p>
-                      <p className="text-xs text-muted-foreground">{loan.phone}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium text-foreground">₵{loan.amount.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">{loan.tenure}</td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">
-                    {new Date(loan.dueDate).toLocaleDateString("en-GB")}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant="outline" className={cn("font-medium capitalize", displayConfig.color)}>
-                      {loan.status ?? "Unknown"}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    <>
+      <div className="hidden md:block bg-card rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Reference</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">User</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Amount</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Tenure</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Due Date</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Status</th>
+                <th className="text-right px-6 py-4 text-sm font-semibold text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loans.map((loan, index) => {
+                const config = statusConfig[loan.status];
+                if (!config) {
+                  console.warn(`Unexpected loan status: ${loan.status}`);
+                }
+                const displayConfig = config ?? statusConfig.pending;
+                return (
+                  <tr
+                    key={loan.id}
+                    onClick={() => onLoanClick(loan)}
+                    className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 animate-fade-in cursor-pointer"
+                    style={{ animationDelay: `${index * 30}ms` }}
+                  >
+                    <td className="px-6 py-4 text-sm font-medium text-foreground">{loan.reference}</td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{loan.user}</p>
+                        <p className="text-xs text-muted-foreground">{loan.phone}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium text-foreground">₵{loan.amount.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-sm text-muted-foreground">{loan.tenure}</td>
+                    <td className="px-6 py-4 text-sm text-muted-foreground">
+                      {new Date(loan.dueDate).toLocaleDateString("en-GB")}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="outline" className={cn("font-medium capitalize", displayConfig.color)}>
+                        {loan.status ?? "Unknown"}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
       
-      {loans.length === 0 && (
-        <div className="p-12 text-center">
-          <p className="text-muted-foreground">No loans found</p>
-        </div>
-      )}
-    </div>
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-4">
+        {loans.map((loan, index) => {
+          const config = statusConfig[loan.status];
+          const displayConfig = config ?? statusConfig.pending;
+          const StatusIcon = displayConfig.icon;
+          return (
+            <div
+              key={loan.id}
+              onClick={() => onLoanClick(loan)}
+              className="bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in cursor-pointer active:bg-muted/50"
+              style={{ animationDelay: `${index * 30}ms` }}
+            >
+              {/* Header with ID and Status */}
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs text-muted-foreground">{loan.reference}</p>
+                  <h3 className="font-semibold text-foreground">{loan.user}</h3>
+                  <p className="text-sm text-muted-foreground">{loan.phone}</p>
+                </div>
+                <Badge variant="outline" className={cn("font-medium flex items-center gap-1", displayConfig.color)}>
+                  <StatusIcon className="h-3 w-3" />
+                  {loan.status ?? "Unknown"}
+                </Badge>
+              </div>
+
+              {/* Loan Details Grid */}
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="flex flex-col gap-1">
+                  <span className="text-muted-foreground text-xs">Amount</span>
+                  <span className="font-semibold text-foreground">₵{loan.amount.toLocaleString()}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-muted-foreground text-xs">Tenure</span>
+                  <span className="font-medium text-foreground">{loan.tenure}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-muted-foreground text-xs">Due Date</span>
+                  <span className="font-medium text-foreground">
+                    {new Date(loan.dueDate).toLocaleDateString("en-GB")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="pt-3 border-t border-border flex justify-end gap-2">
+                <Button variant="outline" size="sm" className="h-8">
+                  <Eye className="h-4 w-4 mr-1" />
+                  View
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -140,9 +202,40 @@ export default function LoansPage() {
     setPage(1);
   }, [currentTab]);
 
+  // Main loans query
   const { data: loansData, isLoading } = useQuery({
     queryKey: ["loans", page, currentTab],
     queryFn: async () => {
+      // Special handling for merged "Closed" tab
+      if (currentTab === "closed") {
+        const [closedRes, repaidRes] = await Promise.all([
+          api.get("/api/admin/loans", { params: { status: "closed", page, limit: 10 } }),
+          api.get("/api/admin/loans", { params: { status: "repaid", page, limit: 10 } })
+        ]);
+
+        const closedLoans = closedRes.data?.loans || [];
+        const repaidLoans = repaidRes.data?.loans || [];
+        
+        // Merge and sort by date descending
+        const mergedLoans = [...closedLoans, ...repaidLoans].sort((a: any, b: any) => {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        // Combine pagination totals
+        const totalClosed = closedRes.data?.pagination?.total || 0;
+        const totalRepaid = repaidRes.data?.pagination?.total || 0;
+        
+        return {
+          loans: mergedLoans, // Note: pagination is imperfect here as it's 2 pages combined, but better than broken
+          pagination: {
+            total: totalClosed + totalRepaid,
+            page: page,
+            pages: Math.ceil((totalClosed + totalRepaid) / 10) // Approx total pages
+          }
+        };
+      }
+
+      // Standard behavior for other tabs
       const params: any = { page, limit: 10 };
       if (currentTab !== "all") {
         params.status = currentTab;
@@ -156,17 +249,20 @@ export default function LoansPage() {
 
   // Parallel queries for status counts
   const statusQueries = useQueries({
-    queries: ["pending", "active", "closed", "overdue"].map((status) => ({
+    queries: ["pending", "active", "closed", "overdue", "repaid"].map((status) => ({
       queryKey: ["loans-count", status],
       queryFn: async () => {
         const res = await api.get("/api/admin/loans", { params: { status, limit: 1 } });
         return res.data?.pagination?.total || 0;
       },
-      staleTime: 60000, // Cache for 1 minute
+      staleTime: 60000, 
     })),
   });
 
-  const [pendingCount, activeCount, closedCount, overdueCount] = statusQueries.map(q => q.data ?? "-");
+  const [pendingCount, activeCount, closedCountRaw, overdueCount, repaidCount] = statusQueries.map(q => q.data ?? 0);
+  
+  // Combine closed and repaid counts
+  const closedCount = (Number(closedCountRaw) || 0) + (Number(repaidCount) || 0);
 
   const rawLoans = loansData?.loans || [];
   const totalLoans = loansData?.pagination?.total || 0;
@@ -174,15 +270,23 @@ export default function LoansPage() {
   const currentPage = loansData?.pagination?.page || 1;
 
   // Map API fields strictly based on user provided structure
+  // Debug log to check user structure
+  if (rawLoans.length > 0) {
+    console.log("First raw loan user structure:", rawLoans[0].user);
+  }
+
   const loans: Loan[] = rawLoans.map((l: any) => ({
     id: l.id ?? l._id ?? l.loanReference, // Prioritize DB ID for API calls, only falling back when null/undefined
     reference: l.loanReference ?? "N/A",
     user: l.user?.fullName  ?? l.user ?? "Unknown User", 
+    userId: l.user?._id ?? l.userId ?? "", // Extract ID
     phone: l.userMsisdn ?? l.phone ?? "",
     amount: l.principal ?? l.amount ?? 0,
     tenure: l.tenureDays != null ? `${l.tenureDays} days` : (l.tenure ?? "N/A"),
     dueDate: l.dueDate ?? l.repaymentDate ?? new Date().toISOString(),
     status: (l.status?.toLowerCase() ?? "pending") as any,
+    // Add Node Code mapping (Personal > Referrer > N/A)
+    nodeCode: l.user?.personalNodeCode || l.user?.nodeCode || "N/A"
   }));
 
   return (
