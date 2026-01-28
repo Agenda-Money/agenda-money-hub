@@ -212,7 +212,6 @@ export default function RepaymentsPage() {
                     <SelectValue placeholder="Select payment method" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
-                    <SelectItem value="cash">Cash</SelectItem>
                     <SelectItem value="momo">Mobile Money (MoMo)</SelectItem>
                     <SelectItem value="bank">Bank Transfer</SelectItem>
                   </SelectContent>

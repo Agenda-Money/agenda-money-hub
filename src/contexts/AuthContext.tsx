@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
+
 interface AdminUser {
   id: string;
   email: string;
@@ -9,12 +10,16 @@ interface AdminUser {
   fullName?: string;
 }
 
+
 interface AuthContextType {
   user: AdminUser | null;
   loading: boolean;
   signup: (data: any) => Promise<boolean>;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
+  forgotPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
+  resetPassword: (token: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  updateProfile: (data: { fullName?: string; email?: string }) => Promise<{ success: boolean; message?: string }>;
   isAuthenticated: boolean;
 }
 
@@ -99,6 +104,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const forgotPassword = async (email: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const response = await api.post("/api/admin/auth/forgot-password", { email });
+      if (response.data.success) {
+        toast.success("Reset link sent", { description: "Check your email for the password reset link." });
+        return { success: true };
+      }
+      return { success: false, message: response.data.message };
+    } catch (error: any) {
+      return { success: false, message: error.response?.data?.message || "Failed to send reset link" };
+    }
+  };
+
+  const resetPassword = async (token: string, password: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const response = await api.post("/api/admin/auth/reset-password", { token, password });
+      if (response.data.success) {
+        toast.success("Password reset successful", { description: "You can now login with your new password." });
+        return { success: true };
+      }
+      return { success: false, message: response.data.message };
+    } catch (error: any) {
+      return { success: false, message: error.response?.data?.message || "Failed to reset password" };
+    }
+  };
+
+  const updateProfile = async (data: { fullName?: string; email?: string }): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const response = await api.patch("/api/admin/auth/profile", data);
+      if (response.data.success) {
+        setUser(prev => prev ? { ...prev, ...data } : prev);
+        toast.success("Profile updated", { description: "Your profile has been updated successfully." });
+        return { success: true };
+      }
+      return { success: false, message: response.data.message };
+    } catch (error: any) {
+      return { success: false, message: error.response?.data?.message || "Failed to update profile" };
+    }
+  };
+
+
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
@@ -107,7 +153,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, forgotPassword, resetPassword, updateProfile, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

@@ -36,7 +36,7 @@ const SignupPage = () => {
     setIsLoading(true);
     const success = await signup(formData);
     if (success) {
-      navigate("/login");
+      navigate("/check-email", { state: { email: formData.email } });
     }
     setIsLoading(false);
   };
