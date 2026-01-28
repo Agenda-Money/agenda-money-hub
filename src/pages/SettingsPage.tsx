@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Moon, Sun, Monitor } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-import { User } from "lucide-react";
 
 function ThemeSelector() {
   const { theme, setTheme } = useTheme();
@@ -69,8 +68,24 @@ export default function SettingsPage() {
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileLoading(true);
-    const result = await updateProfile({ fullName, email });
-    setProfileLoading(false);
+    try {
+      const result = await updateProfile({ fullName, email });
+
+      if (!result?.success) {
+        const message = result?.message || "Failed to update profile. Please try again.";
+        toast.error(message);
+        return;
+      }
+
+      toast.success("Profile updated successfully");
+      setHasChanges(false);
+    } catch (error) {
+      toast.error(
+        "An unexpected error occurred while updating your profile. Please try again."
+      );
+    } finally {
+      setProfileLoading(false);
+    }
   };
 
   return (
