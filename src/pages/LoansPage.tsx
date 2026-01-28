@@ -34,72 +34,136 @@ const statusConfig = {
 };
 
 function LoansTable({ loans, showApproveButton = false }: { loans: Loan[]; showApproveButton?: boolean }) {
-  return (
-    <div className="bg-card rounded-xl shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Loan ID</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">User</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Amount</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Tenure</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Due Date</th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Status</th>
-              <th className="text-right px-6 py-4 text-sm font-semibold text-muted-foreground">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loans.map((loan, index) => {
-              const config = statusConfig[loan.status];
-              return (
-                <tr
-                  key={loan.id}
-                  className="border-b border-border last:border-0 hover:bg-background-pink-subtle transition-colors duration-150 animate-fade-in"
-                  style={{ animationDelay: `${index * 30}ms` }}
-                >
-                  <td className="px-6 py-4 text-sm font-medium text-foreground">{loan.id}</td>
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{loan.user}</p>
-                      <p className="text-xs text-muted-foreground">{loan.phone}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium text-foreground">₵{loan.amount.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">{loan.tenure}</td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">
-                    {new Date(loan.dueDate).toLocaleDateString("en-GB")}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant="outline" className={cn("font-medium", config.color)}>
-                      {config.label}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {showApproveButton && (
-                        <Button size="sm" className="bg-success hover:bg-success/90 h-8 px-3">
-                          Approve
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+  if (loans.length === 0) {
+    return (
+      <div className="bg-card rounded-xl shadow-sm p-12 text-center">
+        <p className="text-muted-foreground">No loans found</p>
       </div>
-      
-      {loans.length === 0 && (
-        <div className="p-12 text-center">
-          <p className="text-muted-foreground">No loans found</p>
+    );
+  }
+
+  return (
+    <>
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-card rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Loan ID</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">User</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Amount</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Tenure</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Due Date</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Status</th>
+                <th className="text-right px-6 py-4 text-sm font-semibold text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loans.map((loan, index) => {
+                const config = statusConfig[loan.status];
+                return (
+                  <tr
+                    key={loan.id}
+                    className="border-b border-border last:border-0 hover:bg-background-pink-subtle transition-colors duration-150 animate-fade-in"
+                    style={{ animationDelay: `${index * 30}ms` }}
+                  >
+                    <td className="px-6 py-4 text-sm font-medium text-foreground">{loan.id}</td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{loan.user}</p>
+                        <p className="text-xs text-muted-foreground">{loan.phone}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium text-foreground">₵{loan.amount.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-sm text-muted-foreground">{loan.tenure}</td>
+                    <td className="px-6 py-4 text-sm text-muted-foreground">
+                      {new Date(loan.dueDate).toLocaleDateString("en-GB")}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="outline" className={cn("font-medium", config.color)}>
+                        {config.label}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {showApproveButton && (
+                          <Button size="sm" className="bg-success hover:bg-success/90 h-8 px-3">
+                            Approve
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
-    </div>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-4">
+        {loans.map((loan, index) => {
+          const config = statusConfig[loan.status];
+          const StatusIcon = config.icon;
+          return (
+            <div
+              key={loan.id}
+              className="bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in"
+              style={{ animationDelay: `${index * 30}ms` }}
+            >
+              {/* Header with ID and Status */}
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs text-muted-foreground">{loan.id}</p>
+                  <h3 className="font-semibold text-foreground">{loan.user}</h3>
+                  <p className="text-sm text-muted-foreground">{loan.phone}</p>
+                </div>
+                <Badge variant="outline" className={cn("font-medium flex items-center gap-1", config.color)}>
+                  <StatusIcon className="h-3 w-3" />
+                  {config.label}
+                </Badge>
+              </div>
+
+              {/* Loan Details Grid */}
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="flex flex-col gap-1">
+                  <span className="text-muted-foreground text-xs">Amount</span>
+                  <span className="font-semibold text-foreground">₵{loan.amount.toLocaleString()}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-muted-foreground text-xs">Tenure</span>
+                  <span className="font-medium text-foreground">{loan.tenure}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-muted-foreground text-xs">Due Date</span>
+                  <span className="font-medium text-foreground">
+                    {new Date(loan.dueDate).toLocaleDateString("en-GB")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="pt-3 border-t border-border flex justify-end gap-2">
+                <Button variant="outline" size="sm" className="h-8">
+                  <Eye className="h-4 w-4 mr-1" />
+                  View
+                </Button>
+                {showApproveButton && (
+                  <Button size="sm" className="bg-success hover:bg-success/90 h-8">
+                    Approve
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
