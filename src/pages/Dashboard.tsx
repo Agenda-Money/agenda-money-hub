@@ -35,7 +35,27 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="p-8 text-center">Loading dashboard data...</div>
+         <div className="space-y-8 animate-pulse">
+            <div>
+              <div className="h-10 w-48 bg-muted rounded-md mb-2" />
+              <div className="h-5 w-72 bg-muted rounded-md" />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+               {[1, 2, 3, 4].map((i) => (
+                 <div key={i} className="h-32 bg-muted rounded-xl" />
+               ))}
+            </div>
+
+            <div className="space-y-4">
+               <div className="h-7 w-48 bg-muted rounded-md" />
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-32 bg-muted rounded-xl" />
+                  ))}
+               </div>
+            </div>
+         </div>
       </DashboardLayout>
     );
   }

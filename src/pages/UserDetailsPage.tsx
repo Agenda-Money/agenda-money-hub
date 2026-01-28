@@ -192,7 +192,39 @@ export default function UserDetailsPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="p-8 text-center">Loading user details...</div>
+        <div className="space-y-6 animate-pulse">
+           {/* Header Skeleton */}
+          <div className="flex flex-col gap-4">
+             <div className="h-9 w-24 bg-muted rounded-md" /> {/* Back button */}
+             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+               <div className="space-y-2">
+                 <div className="flex items-center gap-3">
+                   <div className="h-8 w-48 bg-muted rounded-md" /> {/* Name */}
+                   <div className="h-6 w-20 bg-muted rounded-full" /> {/* Status */}
+                   <div className="h-6 w-16 bg-muted rounded-full" /> {/* Tier */}
+                 </div>
+                 <div className="h-4 w-64 bg-muted rounded-md" /> {/* Details line */}
+               </div>
+               <div className="flex gap-2">
+                 <div className="h-9 w-24 bg-muted rounded-md" /> {/* Action button */}
+                 <div className="h-9 w-32 bg-muted rounded-md" /> {/* Action button */}
+               </div>
+             </div>
+          </div>
+
+          {/* Stats Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="h-32 bg-muted rounded-xl" />
+            <div className="h-32 bg-muted rounded-xl" />
+            <div className="h-32 bg-muted rounded-xl" />
+          </div>
+
+           {/* Tabs and Content Skeleton */}
+          <div className="space-y-4">
+             <div className="h-10 w-full max-w-sm bg-muted rounded-md" /> {/* Tabs list */}
+             <div className="h-64 bg-muted rounded-xl" /> {/* Tab content */}
+          </div>
+        </div>
       </DashboardLayout>
     );
   } 

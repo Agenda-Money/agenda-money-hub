@@ -381,13 +381,23 @@ export default function UsersPage() {
           
           {/* Mobile Pagination */}
           <div className="flex items-center justify-between pt-2">
-            <Button variant="outline" size="sm" disabled>
+            <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
               Previous
             </Button>
             <span className="text-sm text-muted-foreground">
-               Page 1 of 3
+               Page {page} of {totalPages}
             </span>
-             <Button variant="outline" size="sm">
+             <Button 
+                variant="outline" 
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
               Next
             </Button>
           </div>
