@@ -49,7 +49,8 @@ export default function UserDetailsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: responseData, isLoading } = useQuery({
+  // Fetch User Profile
+  const { data: userDataResponse, isLoading: isUserLoading } = useQuery({
     queryKey: ["user", id],
     queryFn: async () => {
       const res = await api.get(`/api/admin/users/${id}`);
@@ -58,32 +59,120 @@ export default function UserDetailsPage() {
     enabled: !!id,
   });
 
-  // Handle wrapped response { success: true, data: user } or direct user object
-  // The API returns { user: {...}, summary: {...} } so we need to extract 'user'
-  const rawData = responseData?.data || responseData || {};
-  const userData = rawData.user || rawData; // Extract nested user object if present
+  const userDataRaw = userDataResponse?.data || userDataResponse || {};
+  const userData = userDataRaw.user || userDataRaw; // Handle optional wrapper
+  const userPhone = userData.msisdn || userData.phone;
+
+  // Fetch Wallet History (Repayments)
+  const { data: walletHistoryResponse, isLoading: isWalletLoading } = useQuery({
+    queryKey: ["user-wallet", userPhone],
+    queryFn: async () => {
+      if (!userPhone) return { data: [] };
+      const res = await api.get("/api/admin/repayments", { 
+        params: { msisdn: userPhone, limit: 20 } 
+      });
+      return res.data;
+    },
+    enabled: !!userPhone,
+  });
+
+  // Fetch Loan History
+  const { data: loanHistoryResponse, isLoading: isLoansLoading } = useQuery({
+    queryKey: ["user-loans", userPhone],
+    queryFn: async () => {
+      if (!userPhone) return { data: [] };
+      const res = await api.get("/api/admin/loans", { 
+        params: { search: userPhone, limit: 20 } 
+      });
+      return res.data;
+    },
+    enabled: !!userPhone,
+  });
+
+  // Fetch Active Loan Specific Details
+  const { data: activeLoanResponse, isLoading: isActiveLoanLoading } = useQuery({
+    queryKey: ["user-active-loan", userPhone],
+    queryFn: async () => {
+      if (!userPhone) return null;
+      try {
+        // Correct endpoint provided by user
+        const res = await api.get(`/api/loans/active/${userPhone}`);
+        return res.data;
+      } catch (error) {
+        return null;
+      }
+    },
+    enabled: !!userPhone,
+    retry: false
+  });
+  
+  const rawWalletHistory = walletHistoryResponse?.data || (Array.isArray(walletHistoryResponse) ? walletHistoryResponse : []) || [];
+  const rawLoanHistory = loanHistoryResponse?.data || loanHistoryResponse?.loans || [];
+  
+  const activeLoanData = activeLoanResponse?.data || activeLoanResponse;
 
   // Map API data to UI structure
   const user = {
-    id: userData._id ?? userData.id ?? id,
-    name: userData.fullName ?? "Unknown User",
-    email: userData.email ?? "N/A",
-    phone: userData.msisdn ?? userData.phone ?? "N/A",
-    tier: `L${userData.currentTier ?? 1}`,
+    id: userData._id || userData.id || id,
+    name: userData.fullName || "Unknown User",
+    email: userData.email || "N/A",
+    phone: userData.msisdn || userData.phone || "N/A",
+    tier: `L${userData.currentTier || 1}`,
+    // Prioritize personal node code (graduated), fallback to referrer node code
+    nodeCode: userData.personalNodeCode || userData.nodeCode || "N/A",
     status: userData.isBlocked ? "blocked" : "active",
-    joinedAt: userData.createdAt ? new Date(userData.createdAt).toLocaleDateString() : "N/A",
-    address: userData.address ?? "N/A",
-    location: userData.location ?? "Ghana",
-    gender: userData.gender ?? "N/A",
-    age: userData.age ?? 0,
-    accommodation: userData.accommodation ?? "N/A",
-    employment: userData.employment ?? "N/A",
-    walletBalance: userData.temporaryWallet ?? userData.walletBalance ?? 0,
-    totalLoansTaken: userData.totalLoansRepaid ?? 0, // Fallback mapping
-    currentLoan: null, // Need specific endpoint for this
-    transactions: [], // Need specific endpoint for this
-    loanHistory: [], // Need specific endpoint for this
+    joinedAt: userData.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-GB') : "N/A",
+    address: userData.address || "N/A",
+    location: userData.location || "Ghana",
+    gender: userData.gender || "N/A",
+    age: userData.age || 0,
+    accommodation: userData.accommodation || "N/A",
+    employment: userData.employment || "N/A",
+    walletBalance: userData.temporaryWallet || 0,
+    totalLoansTaken: userData.totalLoansRepaid || 0,
+    
+    // Transactions from Wallet History Endpoint
+    transactions: rawWalletHistory.map((t: any) => ({
+      id: t.repaymentId || t._id || t.id, 
+      type: t.type || "deposit", 
+      amount: Number(t.amount || 0),
+      date: new Date(t.createdAt || t.date || new Date()).toLocaleDateString('en-GB'),
+      status: t.status || "completed",
+      reference: t.reference || "N/A"
+    })),
+
+    // Loans from Loan History Endpoint
+    loanHistory: rawLoanHistory.map((l: any) => ({
+      id: l.loanReference || l.id || l._id,
+      amount: Number(l.principal || l.amount || 0),
+      date: new Date(l.createdAt || l.date || new Date()).toLocaleDateString('en-GB'),
+      status: l.status || "closed",
+      term: l.tenure || "14 days",
+      dueDate: l.dueDate || l.repaymentDate,
+      paidDate: l.paidAt || (l.status === 'closed' ? l.updatedAt : null)
+    }))
   };
+
+  // Derive active loan from the specific endpoint data if available
+  // Ensure amount is a number to prevent toLocaleString crashes
+  const currentLoan = activeLoanData ? {
+    amount: Number(activeLoanData.principal || activeLoanData.amount || 0),
+    dueDate: activeLoanData.dueDate 
+      ? new Date(activeLoanData.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      : "N/A",
+    status: activeLoanData.status || "active",
+    reference: activeLoanData.loanDetails?.loanReference || activeLoanData.loanReference || "N/A",
+    balance: Number(activeLoanData.balance || activeLoanData.remainingBalance || 0)
+  } : null;
+
+  const finalUser = {
+    ...user,
+    walletBalance: Number(user.walletBalance || 0),
+    totalLoansTaken: Number(user.totalLoansTaken || 0),
+    currentLoan
+  };
+
+  const isLoading = isUserLoading || isWalletLoading || isLoansLoading;
 
   // Mutation for blocking/unblocking
   const { mutate: toggleBlock, isPending: isBlocking } = useMutation({
@@ -125,29 +214,29 @@ export default function UserDetailsPage() {
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold tracking-tight">{user.name}</h1>
-                <Badge variant={user.status === "active" ? "default" : "destructive"}>
-                  {user.status}
+                <h1 className="text-3xl font-bold tracking-tight">{finalUser.name}</h1>
+                <Badge variant={finalUser.status === "active" ? "default" : "destructive"}>
+                  {finalUser.status}
                 </Badge>
                 <Badge variant="outline" className="border-primary text-primary">
-                  {user.tier}
+                  {finalUser.tier}
                 </Badge>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
-                <span>{user.phone}</span>
+                <span>{finalUser.phone}</span>
                 <span>•</span>
-                <span>{user.email}</span>
+                <span>{finalUser.email}</span>
               </div>
             </div>
             <div className="flex gap-2">
               <Button 
-                variant={user.status === "active" ? "destructive" : "default"}
+                variant={finalUser.status === "active" ? "destructive" : "default"}
                 size="sm"
                 onClick={() => toggleBlock()}
                 disabled={isBlocking}
-                className={user.status === "active" ? "" : "bg-green-600 hover:bg-green-700"}
+                className={finalUser.status === "active" ? "" : "bg-green-600 hover:bg-green-700"}
               >
-                {user.status === "active" ? "Block User" : "Unblock User"}
+                {finalUser.status === "active" ? "Block User" : "Unblock User"}
               </Button>
               <Button size="sm" variant="outline">
                 View Documents
@@ -164,7 +253,7 @@ export default function UserDetailsPage() {
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₵{user.walletBalance.toFixed(2)}</div>
+              <div className="text-2xl font-bold">₵{finalUser.walletBalance?.toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">Available to withdraw</p>
             </CardContent>
           </Card>
@@ -174,8 +263,8 @@ export default function UserDetailsPage() {
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₵{user.totalLoansTaken.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Lifetime borrowed amount</p>
+              <div className="text-2xl font-bold">{finalUser.totalLoansTaken?.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Lifetime borrowed count</p>
             </CardContent>
           </Card>
           <Card>
@@ -185,11 +274,18 @@ export default function UserDetailsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                 {user.currentLoan ? `₵${user.currentLoan.amount.toLocaleString()}` : "None"}
+                 {finalUser.currentLoan ? `₵${finalUser.currentLoan.amount.toLocaleString()}` : "None"}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {user.currentLoan ? `Due ${user.currentLoan.dueDate}` : "No active loans"}
-              </p>
+              <div className="flex flex-col gap-1 mt-1">
+                <p className="text-xs text-muted-foreground">
+                  {finalUser.currentLoan ? `Due ${finalUser.currentLoan.dueDate}` : "No active loans"}
+                </p>
+                {finalUser.currentLoan && (
+                   <Badge variant="secondary" className="w-fit text-[10px] h-5 px-1.5 uppercase">
+                     {finalUser.currentLoan.status}
+                   </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -210,7 +306,7 @@ export default function UserDetailsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {user.transactions.map((tx) => (
+                  {finalUser.transactions.map((tx) => (
                     <div key={tx.id} className="flex items-center justify-between border-b last:border-0 pb-4 last:pb-0">
                       <div className="space-y-1">
                         <p className="font-medium">{tx.type}</p>
@@ -221,6 +317,9 @@ export default function UserDetailsPage() {
                       </div>
                     </div>
                   ))}
+                  {finalUser.transactions.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No transactions found</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -234,7 +333,7 @@ export default function UserDetailsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {user.loanHistory.map((loan) => (
+                  {finalUser.loanHistory.map((loan) => (
                     <div key={loan.id} className="flex items-center justify-between border-b last:border-0 pb-4 last:pb-0">
                       <div className="space-y-1">
                         <p className="font-medium">Loan #{loan.id}</p>
@@ -248,6 +347,9 @@ export default function UserDetailsPage() {
                       </div>
                     </div>
                   ))}
+                  {finalUser.loanHistory.length === 0 && (
+                     <p className="text-sm text-muted-foreground text-center py-4">No loan history found</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -262,39 +364,43 @@ export default function UserDetailsPage() {
                 <div className="grid grid-cols-2 gap-4">
                    <div>
                      <p className="text-sm font-medium text-muted-foreground">Full Name</p>
-                     <p>{user.name}</p>
+                     <p>{finalUser.name}</p>
                    </div>
                    <div>
                      <p className="text-sm font-medium text-muted-foreground">Join Date</p>
-                     <p>{user.joinedAt}</p>
+                     <p>{finalUser.joinedAt}</p>
                    </div>
                    <div>
                      <p className="text-sm font-medium text-muted-foreground">Address</p>
-                     <p>{user.address}</p>
+                     <p>{finalUser.address}</p>
                    </div>
                    <div>
                      <p className="text-sm font-medium text-muted-foreground">User ID</p>
-                     <p className="font-mono text-sm">{user.id}</p>
+                     <p className="font-mono text-sm">{finalUser.id}</p>
+                   </div>
+                   <div>
+                     <p className="text-sm font-medium text-muted-foreground">Node Code</p>
+                     <Badge variant="outline" className="font-mono">{finalUser.nodeCode}</Badge>
                    </div>
                    <div>
                      <p className="text-sm font-medium text-muted-foreground">Gender</p>
-                     <p>{user.gender}</p>
+                     <p>{finalUser.gender}</p>
                    </div>
                    <div>
                      <p className="text-sm font-medium text-muted-foreground">Age</p>
-                     <p>{user.age} Years</p>
+                     <p>{finalUser.age} Years</p>
                    </div>
                    <div>
                      <p className="text-sm font-medium text-muted-foreground">Location</p>
-                     <p>{user.location}</p>
+                     <p>{finalUser.location}</p>
                    </div>
                    <div>
                      <p className="text-sm font-medium text-muted-foreground">Accommodation</p>
-                     <p>{user.accommodation}</p>
+                     <p>{finalUser.accommodation}</p>
                    </div>
                    <div>
                      <p className="text-sm font-medium text-muted-foreground">Employment</p>
-                     <p>{user.employment}</p>
+                     <p>{finalUser.employment}</p>
                    </div>
                 </div>
               </CardContent>
