@@ -105,7 +105,7 @@ export function RecentLoansTable() {
           return (
             <button 
               key={loan.id}
-              onClick={() => navigate(`/loans`)}
+              onClick={() => navigate(`/users/${loan.userId}`)}
               className={cn(
                 "w-full px-5 py-3.5 text-left transition-all duration-150 group",
                 config.row

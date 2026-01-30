@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Check, X, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 interface PendingLoan {
   id: string;
@@ -79,7 +80,7 @@ export function PendingApprovals() {
         user: l.user?.fullName ?? l.user ?? "Unknown User",
         phone: l.userMsisdn ?? l.phone ?? "",
         amount: l.principal ?? l.amount ?? 0,
-        tier: l.tier ? `L${l.tier}` : "L1",
+        tier: l.tier ? (String(l.tier).startsWith("L") ? String(l.tier) : `L${l.tier}`) : "L1",
         date: l.createdAt ?? l.requestedAt,
         tenor: l.tenureDays == null ? (l.tenure ?? l.tenor ?? "N/A") : `${l.tenureDays} days`,
         repaymentDate: l.dueDate ?? l.repaymentDate,
@@ -97,11 +98,12 @@ export function PendingApprovals() {
 
   const pendingLoans = (responseData || [])
     .filter((loan: any) => !approvedIds.has(loan.id) && !rejectedIds.has(loan.id))
-    .sort((a: any, b: any) => tierConfig[a.tier].order - tierConfig[b.tier].order);
+    .sort((a: any, b: any) => getTierConfig(a.tier).order - getTierConfig(b.tier).order);
 
   const handleApprove = (e: React.MouseEvent, loanId: string) => {
     e.stopPropagation();
     setApprovedIds(new Set([...approvedIds, loanId]));
+    toast.info("Quick-approve is preview only. Final approval happens in the full loan details view.");
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     // Future: Implement API call to approve loan
   };
@@ -109,6 +111,7 @@ export function PendingApprovals() {
   const handleReject = (e: React.MouseEvent, loanId: string) => {
     e.stopPropagation();
     setRejectedIds(new Set([...rejectedIds, loanId]));
+    toast.info("Quick-reject is preview only. Final rejection happens in the full loan details view.");
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     // Future: Implement API call to reject loan
   };
@@ -142,6 +145,7 @@ export function PendingApprovals() {
                 onClick={() => setSelectedLoan(loan)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
                     setSelectedLoan(loan);
                   }
                 }}
@@ -220,7 +224,12 @@ export function PendingApprovals() {
       {selectedLoan && (
         <LoanReviewModal
           loan={selectedLoan}
-          onClose={() => setSelectedLoan(null)}
+          isOpen={!!selectedLoan}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedLoan(null);
+            }
+          }}
         />
       )}
     </div>
