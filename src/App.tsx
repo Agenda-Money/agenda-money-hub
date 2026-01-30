@@ -12,6 +12,7 @@ import LoansPage from "./pages/LoansPage";
 import RepaymentsPage from "./pages/RepaymentsPage";
 import SettingsPage from "./pages/SettingsPage";
 import AgentsPage from "./pages/AgentsPage";
+import AgentRegistrationPage from "./pages/AgentRegistrationPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import LoginPage from "./pages/LoginPage";
 import UserDetailsPage from "./pages/UserDetailsPage";
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
             <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
             <Route path="/agents" element={<RequireAuth><AgentsPage /></RequireAuth>} />
+            <Route path="/agents/register" element={<RequireAuth><AgentRegistrationPage /></RequireAuth>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
