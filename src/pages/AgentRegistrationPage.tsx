@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -148,19 +148,38 @@ export default function AgentRegistrationPage() {
   };
 
   return (
-    <DashboardLayout>
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="max-w-4xl mx-auto space-y-6"
-      >
-        <motion.div variants={itemVariants}>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Agent Registration</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Complete the form below to become an Agenda Money agent
-          </p>
-        </motion.div>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-card">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-gradient-pink rounded-lg flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-lg">A</span>
+            </div>
+            <div>
+              <h1 className="font-bold text-lg text-foreground">Agenda Money</h1>
+              <p className="text-xs text-muted-foreground">Who's your guy?</p>
+            </div>
+          </Link>
+          <Link to="/login">
+            <Button variant="outline" size="sm">Login</Button>
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 py-6">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="space-y-6"
+        >
+          <motion.div variants={itemVariants}>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Agent Registration</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Complete the form below to become an Agenda Money agent
+            </p>
+          </motion.div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -734,6 +753,7 @@ export default function AgentRegistrationPage() {
           </form>
         </Form>
       </motion.div>
-    </DashboardLayout>
+      </main>
+    </div>
   );
 }

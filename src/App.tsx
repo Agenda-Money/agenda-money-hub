@@ -52,7 +52,7 @@ const App = () => (
             <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
             <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
             <Route path="/agents" element={<RequireAuth><AgentsPage /></RequireAuth>} />
-            <Route path="/agents/register" element={<RequireAuth><AgentRegistrationPage /></RequireAuth>} />
+            <Route path="/agents/register" element={<AgentRegistrationPage />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
