@@ -118,7 +118,15 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
       ],
     },
     { to: "/repayments", icon: Banknote, label: "Repayments" },
-    { to: "/agents", icon: UserCheck, label: "Agents" },
+    {
+      to: "/agents",
+      icon: UserCheck,
+      label: "Agents",
+      subItems: [
+        { to: "/agents", label: "All Agents" },
+        { to: "/agents/register", label: "Register Agent" },
+      ],
+    },
     { to: "/analytics", icon: BarChart3, label: "Analytics" },
     { to: "/settings", icon: Settings, label: "Settings" },
   ];
