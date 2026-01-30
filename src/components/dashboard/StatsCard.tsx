@@ -43,7 +43,7 @@ export function StatsCard({ title, value, icon: Icon, trend, className }: Readon
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-destructive" />
               <span className="text-sm font-semibold text-destructive">
-                {trend.value}%
+                -{Math.abs(trend.value)}%
               </span>
             </div>
           )}

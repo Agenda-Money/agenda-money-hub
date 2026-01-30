@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, UserPlus, Info } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 const SignupPage = () => {
   const { signup } = useAuth();
@@ -26,7 +27,7 @@ const SignupPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      globalThis.alert("Passwords do not match. Please make sure both password fields are identical.");
+      toast.error("Passwords do not match. Please make sure both password fields are identical.");
       return; 
     }
     
