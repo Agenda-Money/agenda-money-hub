@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
 
 export const RequireAuth = ({ children }: { children: JSX.Element }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -12,6 +12,10 @@ export const RequireAuth = ({ children }: { children: JSX.Element }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (user?.role === "agent") {
+    return <Navigate to="/agent" replace />;
   }
 
   return children;

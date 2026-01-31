@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RequireAuth } from "@/components/auth/RequireAuth";
+import RequireAgent from "@/components/auth/RequireAgent";
 import Index from "./pages/Index";
 import UsersPage from "./pages/UsersPage";
 import LoansPage from "./pages/LoansPage";
@@ -20,6 +21,11 @@ import CheckEmailPage from "./pages/CheckEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
+import AgentLayout from "./components/layout/AgentLayout";
+import AgentDashboard from "./pages/agent/AgentDashboard";
+import AgentOnboarding from "./pages/agent/AgentOnboarding";
+import AgentPortfolio from "./pages/agent/AgentPortfolio";
+import AgentProfile from "./pages/agent/AgentProfile";
 
 const queryClient = new QueryClient();
 
@@ -38,7 +44,15 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             
-            {/* Protected Routes */}
+            {/* Agent Portal Routes */}
+            <Route path="/agent" element={<RequireAgent><AgentLayout /></RequireAgent>}>
+              <Route index element={<AgentDashboard />} />
+              <Route path="onboard" element={<AgentOnboarding />} />
+              <Route path="portfolio" element={<AgentPortfolio />} />
+              <Route path="profile" element={<AgentProfile />} />
+            </Route>
+            
+            {/* Protected Admin Routes */}
             <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
             <Route path="/users" element={<RequireAuth><UsersPage /></RequireAuth>} />
             <Route path="/users/:id" element={<RequireAuth><UserDetailsPage /></RequireAuth>} />

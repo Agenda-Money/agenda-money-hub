@@ -6,7 +6,7 @@ import { TrendingUp, TrendingDown, Users, CreditCard, Banknote, AlertTriangle, D
 import { useState } from "react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { TierDistributionChart } from "@/components/dashboard/TierDistributionChart";
-import { normalizeStatsResponse, type DashboardStats } from "@/lib/utils";
+import { normalizeStatsResponse } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import {
