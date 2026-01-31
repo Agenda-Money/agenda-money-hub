@@ -16,7 +16,7 @@ export function AgentSidebar({ isOpen, onToggle }: AgentSidebarProps) {
     { to: "/agent", icon: Home, label: "Dashboard" },
     { to: "/agent/onboard", icon: UserPlus, label: "New Onboarding" },
     { to: "/agent/portfolio", icon: Users, label: "My Portfolio" },
-    { to: "/agent/profile", icon: User, label: "Profile" },
+    { to: "/agent/profile", icon: User, label: "Account" },
   ];
 
   return (
