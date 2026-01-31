@@ -26,6 +26,7 @@ import AgentDashboard from "./pages/agent/AgentDashboard";
 import AgentOnboarding from "./pages/agent/AgentOnboarding";
 import AgentPortfolio from "./pages/agent/AgentPortfolio";
 import AgentProfile from "./pages/agent/AgentProfile";
+import PendingKycPage from "./pages/PendingKycPage";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
             
             {/* Protected Admin Routes */}
             <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
+            <Route path="/kyc-approvals" element={<RequireAuth><PendingKycPage /></RequireAuth>} />
             <Route path="/users" element={<RequireAuth><UsersPage /></RequireAuth>} />
             <Route path="/users/:id" element={<RequireAuth><UserDetailsPage /></RequireAuth>} />
             <Route path="/loans" element={<RequireAuth><LoansPage /></RequireAuth>} />

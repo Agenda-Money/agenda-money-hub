@@ -1,154 +1,282 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, CreditCard, DollarSign, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, CreditCard, DollarSign, TrendingUp, UserPlus, ArrowUpRight, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useSocket } from "@/hooks/useSocket";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } },
+};
 
 export default function AgentDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
 
-  const { data: statsData } = useQuery({
-    queryKey: ["agent-stats", user?.agentCode],
+  const { data: dashboardStats, refetch: refetchDashboard } = useQuery({
+    queryKey: ["agent-dashboard-stats", user?.email],
     queryFn: async () => {
-      const res = await api.get("/api/agents/my-stats");
+      const res = await api.get("/api/agents/dashboard-stats");
       return res.data?.data;
     },
-    enabled: !!user?.agentCode,
+    enabled: !!user?.email,
   });
 
-  const metrics = statsData?.metrics ?? { signUpsAllTime: 0, signUpsThisMonth: 0 };
-  const portfolio = statsData?.portfolio ?? {
-    loansActive: 0,
-    loansPending: 0,
-    loansClosed: 0,
-    loansOverdue: 0,
-  };
+  useSocket(wsUrl, (message) => {
+    if (message?.type === "KYC_VERIFIED_SUCCESS") {
+      refetchDashboard();
+    }
+  });
 
-  const stats = [
+  const stats = dashboardStats?.stats ?? {
+    totalSignups: 0,
+    signupsThisMonth: 0,
+    activeLoans: 0,
+    totalCommission: "₵0",
+    portfolioHealth: "100%",
+  };
+  
+  const recentSignups = dashboardStats?.recentSignups ?? [];
+
+  const statCards = [
     {
-      title: "Signups This Month",
-      value: metrics.signUpsThisMonth.toString(),
+      title: "Total Signups",
+      value: stats.totalSignups?.toString() ?? "0",
       icon: Users,
       trend: "+12%",
-      color: "text-blue-600",
-      bg: "bg-blue-500/10",
+      trendUp: true,
+      gradient: "from-blue-500 to-blue-600",
+    },
+    {
+      title: "This Month",
+      value: stats.signupsThisMonth?.toString() ?? "0",
+      icon: UserPlus,
+      trend: "+8%",
+      trendUp: true,
+      gradient: "from-emerald-500 to-emerald-600",
     },
     {
       title: "Active Loans",
-      value: portfolio.loansActive.toString(),
+      value: stats.activeLoans?.toString() ?? "0",
       icon: CreditCard,
-      trend: "+8%",
-      color: "text-green-600",
-      bg: "bg-green-500/10",
+      trend: "+5%",
+      trendUp: true,
+      gradient: "from-amber-500 to-orange-500",
     },
     {
-      title: "Total Commission",
-      value: "₵0",
+      title: "Commission",
+      value: stats.totalCommission ?? "₵0",
       icon: DollarSign,
       trend: "+15%",
-      color: "text-amber-600",
-      bg: "bg-amber-500/10",
-    },
-    {
-      title: "Portfolio Health",
-      value: "100%",
-      icon: TrendingUp,
-      trend: "+2%",
-      color: "text-purple-600",
-      bg: "bg-purple-500/10",
+      trendUp: true,
+      gradient: "from-purple-500 to-purple-600",
     },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Welcome back, {user?.fullName || "Agent"}!</h1>
-        <p className="text-muted-foreground mt-1">Agent Code: <span className="font-semibold text-foreground">{statsData?.agentCode || user?.agentCode || "N/A"}</span></p>
-        <p className="text-sm text-muted-foreground mt-1">Total Signups: <span className="font-medium text-foreground">{metrics.signUpsAllTime}</span></p>
-      </div>
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6 sm:space-y-8"
+    >
+      {/* Welcome Header */}
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            Welcome back, {dashboardStats?.agentName?.split(' ')[0] || user?.fullName?.split(' ')[0] || "Agent"}! 👋
+          </h1>
+          <p className="text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
+            <span>Agent Code:</span>
+            <Badge variant="secondary" className="font-mono">
+              {dashboardStats?.agentCode || user?.agentCode || "N/A"}
+            </Badge>
+          </p>
+        </div>
+        <Button 
+          onClick={() => navigate("/agent/onboard")}
+          className="bg-gradient-pink hover:opacity-90 shadow-pink w-full sm:w-auto"
+        >
+          <UserPlus className="h-4 w-4 mr-2" />
+          New Onboarding
+        </Button>
+      </motion.div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <div className={cn("p-2 rounded-lg", stat.bg)}>
-                <stat.icon className={cn("h-5 w-5", stat.color)} />
+      {/* Stats Grid */}
+      <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {statCards.map((stat, index) => (
+          <motion.div
+            key={stat.title}
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="group"
+          >
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full">
+              <div className={cn("h-1 bg-gradient-to-r", stat.gradient)} />
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className={cn(
+                    "p-2.5 rounded-xl bg-gradient-to-br text-white shadow-lg",
+                    stat.gradient
+                  )}>
+                    <stat.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </div>
+                  <div className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-full">
+                    <TrendingUp className="h-3 w-3" />
+                    {stat.trend}
+                  </div>
+                </div>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">{stat.value}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">{stat.title}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Portfolio Health Banner */}
+      <motion.div variants={itemVariants}>
+        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20 overflow-hidden">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-primary/10">
+                  <Activity className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Portfolio Health</h3>
+                  <p className="text-sm text-muted-foreground">Your customers are performing well</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-primary">{stats.portfolioHealth ?? "100%"}</p>
+                  <p className="text-xs text-muted-foreground">Repayment rate</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Recent Activity Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        {/* Recent Signups */}
+        <motion.div variants={itemVariants}>
+          <Card className="h-full">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Recent Signups</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => navigate("/agent/portfolio")}>
+                  View All
+                  <ArrowUpRight className="h-4 w-4 ml-1" />
+                </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-              <p className="text-xs text-muted-foreground mt-1">Updated from live stats</p>
+            <CardContent className="space-y-3">
+              {recentSignups.length > 0 ? (
+                recentSignups.slice(0, 4).map((signup: any, index: number) => (
+                  <motion.div 
+                    key={signup._id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex items-center justify-between p-3 bg-muted/50 rounded-xl hover:bg-muted transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
+                        {signup.fullName?.charAt(0) || "?"}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm text-foreground truncate">{signup.fullName}</p>
+                        <p className="text-xs text-muted-foreground">{signup.msisdn}</p>
+                      </div>
+                    </div>
+                    <Badge className={cn(
+                      "shrink-0",
+                      signup.kycStatus === "VERIFIED" 
+                        ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400" 
+                        : "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400"
+                    )}>
+                      {signup.kycStatus}
+                    </Badge>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Users className="h-10 w-10 text-muted-foreground/50 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No recent signups yet</p>
+                  <Button variant="link" size="sm" onClick={() => navigate("/agent/onboard")}>
+                    Start onboarding
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
-        ))}
-      </div>
+        </motion.div>
 
-      {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Signups */}
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle>Recent Signups</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-sm">Kwame Mensah</p>
-                    <p className="text-xs text-muted-foreground">0244123456</p>
-                  </div>
-                  <Badge className="bg-green-500/10 text-green-700 border-green-500/30">
-                    Verified
-                  </Badge>
+        {/* Loan Health Monitor */}
+        <motion.div variants={itemVariants}>
+          <Card className="h-full">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Loan Health</CardTitle>
+                <Badge variant="outline" className="font-normal">Live</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {dashboardStats?.loanHealthMonitor?.length > 0 ? (
+                dashboardStats.loanHealthMonitor.slice(0, 4).map((loan: any, index: number) => (
+                  <motion.div 
+                    key={loan.msisdn}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex items-center justify-between p-3 bg-muted/50 rounded-xl hover:bg-muted transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-foreground truncate">{loan.name}</p>
+                      <p className="text-xs text-muted-foreground">{loan.msisdn}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-semibold text-sm text-foreground">₵{loan.amount}</p>
+                      <Badge 
+                        className={cn(
+                          "text-xs",
+                          loan.status?.toLowerCase() === "active" 
+                            ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" 
+                            : "bg-red-500/10 text-red-700 border-red-500/30"
+                        )}
+                      >
+                        {loan.status}
+                      </Badge>
+                    </div>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <CreditCard className="h-10 w-10 text-muted-foreground/50 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No active loans in your portfolio</p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Loan Health */}
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle>Loan Health Monitor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { id: "l1", name: "Ama Boateng", phone: "0201234567", status: "active", amount: "₵500" },
-                { id: "l2", name: "Kofi Asante", phone: "0244567890", status: "active", amount: "₵800" },
-                { id: "l3", name: "Abena Osei", phone: "0557890123", status: "overdue", amount: "₵300" },
-                { id: "l4", name: "Yaw Mensah", phone: "0209876543", status: "active", amount: "₵1,200" },
-              ].map((loan) => (
-                <div key={loan.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-sm">{loan.name}</p>
-                    <p className="text-xs text-muted-foreground">{loan.phone}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-sm">{loan.amount}</p>
-                    <Badge 
-                      className={loan.status === "active" 
-                        ? "bg-green-500/10 text-green-700 border-green-500/30" 
-                        : "bg-red-500/10 text-red-700 border-red-500/30"
-                      }
-                    >
-                      {loan.status === "active" ? "Active" : "Overdue"}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }
