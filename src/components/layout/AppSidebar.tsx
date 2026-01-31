@@ -11,7 +11,6 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
-  Menu,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -95,8 +94,8 @@ const NavItem = ({ to, icon: Icon, label, subItems }: NavItemProps) => {
 };
 
 interface AppSidebarProps {
-  isOpen: boolean;
-  onToggle: () => void;
+  readonly isOpen: boolean;
+  readonly onToggle: () => void;
 }
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -127,9 +126,11 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     <>
       {/* Mobile overlay */}
       {isOpen && (
-        <div
+        <button
+          type="button"
           className="fixed inset-0 bg-foreground/50 z-40 lg:hidden"
           onClick={onToggle}
+          aria-label="Close sidebar"
         />
       )}
 
@@ -141,7 +142,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         )}
       >
         {/* Logo Section */}
-        <div className="h-20 flex items-center justify-between px-6 border-b border-sidebar-border">
+        <div className="h-20 flex items-center justify-between px-6 border-b border-sidebar-border flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 bg-gradient-pink rounded-lg flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-lg">A</span>
@@ -161,15 +162,15 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
           </Button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
           {navItems.map((item) => (
             <NavItem key={item.to} {...item} />
           ))}
         </nav>
 
-        {/* Logout */}
-        <div className="mt-auto p-4 border-t border-sidebar-border">
+        {/* Logout - Fixed at bottom */}
+        <div className="border-t border-sidebar-border p-4 flex-shrink-0">
           <button 
             onClick={logout}
             className="flex items-center justify-start text-left gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-all duration-200"

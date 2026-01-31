@@ -10,7 +10,7 @@ interface Loan {
   phone: string;
   amount: number;
   tenure: string;
-  status: "pending" | "active" | "overdue" | "closed";
+  status: "pending" | "active" | "overdue" | "closed" | "repaid";
   date: string;
 }
 
@@ -18,13 +18,44 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 
-const statusStyles = {
-  pending: "bg-warning/10 text-warning border-warning/20",
-  active: "bg-info/10 text-info border-info/20",
-  overdue: "bg-destructive/10 text-destructive border-destructive/20",
-  closed: "bg-success/10 text-success border-success/20",
-  repaid: "bg-success/10 text-success border-success/20", // Added repaid mapping
+const statusConfig = {
+  pending: {
+    badge: "bg-amber-500/10 text-amber-700 border-amber-500/30",
+    row: "bg-amber-500/5 hover:bg-amber-500/10",
+    label: "Pending",
+  },
+  active: {
+    badge: "bg-blue-500/10 text-blue-700 border-blue-500/30",
+    row: "bg-blue-500/5 hover:bg-blue-500/10",
+    label: "Active",
+  },
+  repaid: {
+    badge: "bg-green-500/10 text-green-700 border-green-500/30",
+    row: "bg-green-500/5 hover:bg-green-500/10",
+    label: "Repaid",
+  },
+  overdue: {
+    badge: "bg-red-500/10 text-red-700 border-red-500/30",
+    row: "bg-red-500/5 hover:bg-red-500/10",
+    label: "Overdue",
+  },
+  closed: {
+    badge: "bg-gray-500/10 text-gray-700 border-gray-500/30",
+    row: "bg-gray-500/5 hover:bg-gray-500/10",
+    label: "Closed",
+  },
 };
+
+function getStatusConfig(status: string) {
+  const key = status?.toLowerCase() ?? "pending";
+  return statusConfig[key as keyof typeof statusConfig] ?? statusConfig.pending;
+}
+
+function formatTenure(tenureStr: string): string {
+  if (tenureStr === "N/A" || !tenureStr) return tenureStr;
+  const days = Number.parseInt(tenureStr);
+  return days === 1 ? "1 day" : tenureStr;
+}
 
 export function RecentLoansTable() {
   const navigate = useNavigate();
@@ -46,8 +77,8 @@ export function RecentLoansTable() {
     user: l.user?.fullName ?? "Unknown User",
     phone: l.userMsisdn ?? "",
     amount: l.principal ?? 0,
-    tenure: l.tenureDays != null ? `${l.tenureDays} days` : "N/A",
-    status: (l.status?.toLowerCase() ?? "pending") as any,
+    tenure: l.tenureDays == null ? "N/A" : `${l.tenureDays} days`,
+    status: (l.status?.toLowerCase() ?? "pending") as "pending" | "active" | "overdue" | "closed" | "repaid",
     date: l.disbursedAt ?? l.createdAt,
   }));
 
@@ -56,93 +87,57 @@ export function RecentLoansTable() {
   }
 
   return (
-    <div className="bg-card rounded-xl shadow-sm animate-fade-in">
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Recent Loans</h2>
-          <Button 
-            variant="ghost" 
-            className="text-primary hover:text-primary/80"
-            onClick={() => navigate("/loans")}
-          >
-            View All
-          </Button>
-        </div>
+    <div className="bg-card rounded-xl shadow-sm animate-fade-in border border-border/50 overflow-hidden">
+      <div className="p-5 border-b border-border/50 flex items-center justify-between">
+        <h2 className="text-base font-bold text-foreground">Recent Loans</h2>
+        <Button 
+          variant="ghost" 
+          className="text-xs text-primary hover:text-primary/80 h-auto p-0"
+          onClick={() => navigate("/loans")}
+        >
+          View All →
+        </Button>
       </div>
       
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">
-                Loan ID
-              </th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">
-                User
-              </th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">
-                Amount (GHS)
-              </th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">
-                Tenure
-              </th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">
-                Status
-              </th>
-              <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">
-                Date
-              </th>
-              <th className="text-right px-6 py-4 text-sm font-semibold text-muted-foreground">
-                Action
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {loans.map((loan, index) => (
-              <tr
-                key={loan.id}
-                onClick={() => navigate(`/users/${loan.userId}`)}
-                className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <td className="px-6 py-4 text-sm font-medium text-foreground">
-                  {loan.id}
-                </td>
-                <td className="px-6 py-4">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{loan.user}</p>
-                    <p className="text-xs text-muted-foreground">{loan.phone}</p>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-sm font-medium text-foreground">
-                  ₵{loan.amount.toLocaleString()}
-                </td>
-                <td className="px-6 py-4 text-sm text-muted-foreground">
-                  {loan.tenure}
-                </td>
-                <td className="px-6 py-4">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "capitalize font-medium",
-                      statusStyles[loan.status]
-                    )}
+      <div className="divide-y divide-border/20">
+        {loans.slice(0, 6).map((loan: Loan) => {
+          const config = getStatusConfig(loan.status);
+          return (
+            <button 
+              key={loan.id}
+              onClick={() => loan.userId ? navigate(`/users/${loan.userId}`) : navigate('/loans')}
+              className={cn(
+                "w-full px-5 py-3.5 text-left transition-all duration-150 group",
+                config.row
+              )}
+              type="button"
+            >
+              {/* Primary row: Amount + Status + User info */}
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{loan.user}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{loan.phone || "N/A"}</p>
+                </div>
+                
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-base font-bold text-foreground">₵{(loan.amount || 0).toLocaleString()}</span>
+                  <Badge 
+                    variant="outline" 
+                    className={cn("text-xs whitespace-nowrap", config.badge)}
                   >
-                    {loan.status}
+                    {config.label}
                   </Badge>
-                </td>
-                <td className="px-6 py-4 text-sm text-muted-foreground">
-                  {new Date(loan.date).toLocaleDateString("en-GB")}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              </div>
+              
+              {/* Secondary row: Tenure + Action hint */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground font-medium">{formatTenure(loan.tenure)}</span>
+                <Eye className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors opacity-0 group-hover:opacity-100" />
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

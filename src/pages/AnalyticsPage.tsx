@@ -2,8 +2,13 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Users, CreditCard, Banknote, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, CreditCard, Banknote, AlertTriangle, DollarSign, Calendar, Layers, PieChart as PieChartIcon } from "lucide-react";
 import { useState } from "react";
+import { StatsCard } from "@/components/dashboard/StatsCard";
+import { TierDistributionChart } from "@/components/dashboard/TierDistributionChart";
+import { normalizeStatsResponse, type DashboardStats } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
 import {
   AreaChart,
   Area,
@@ -110,14 +115,35 @@ const MetricCard = ({ title, value, change, icon, prefix = "" }: MetricCardProps
 const AnalyticsPage = () => {
   const [timeRange, setTimeRange] = useState("6m");
 
+  // Fetch dashboard stats for financial data
+  const { data: responseData } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: async () => {
+      const res = await api.get("/api/admin/dashboard/stats");
+      return res.data;
+    },
+  });
+
+  const stats = normalizeStatsResponse(responseData);
+
+  const data = stats ?? {
+    totalLoansCumulative: "N/A",
+    totalDisbursedCumulative: "N/A",
+    disbursedThisMonth: "N/A",
+    avgLoanSize: "N/A",
+    interestIncome: "N/A",
+    feeIncome: "N/A",
+    lossDefaults: "N/A",
+  };
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Analytics</h1>
-            <p className="text-muted-foreground">Track loan performance, user growth, and revenue trends</p>
+            <h1 className="text-3xl font-bold text-foreground">Analytics & Financial Review</h1>
+            <p className="text-muted-foreground">Detailed financial insights, loan performance, and revenue trends</p>
           </div>
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-[180px]">
@@ -130,6 +156,75 @@ const AnalyticsPage = () => {
               <SelectItem value="1y">Last Year</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Financial Review Section */}
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-semibold text-foreground mb-4">Financial Review</h2>
+            <p className="text-muted-foreground mb-6">Complete overview of portfolio performance and financials</p>
+          </div>
+
+          {/* Performance Overview */}
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-4">Portfolio Performance</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <StatsCard
+                title="Total Loans (Cumulative)"
+                value={data.totalLoansCumulative}
+                icon={Layers}
+                trend={{ value: 15.3, isPositive: true }}
+              />
+              <StatsCard
+                title="Total Disbursed (All Time)"
+                value={data.totalDisbursedCumulative === "N/A" ? "N/A" : `₵${data.totalDisbursedCumulative}`}
+                icon={DollarSign}
+                trend={{ value: 10.8, isPositive: true }}
+              />
+              <StatsCard
+                title="Disbursed This Month"
+                value={data.disbursedThisMonth === "N/A" ? "N/A" : `₵${data.disbursedThisMonth}`}
+                icon={Calendar}
+                trend={{ value: 5.2, isPositive: true }}
+              />
+            </div>
+          </div>
+
+          {/* Financial Metrics */}
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-4">Revenue & Income</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatsCard
+                title="Avg. Loan Size"
+                value={data.avgLoanSize === "N/A" ? "N/A" : `₵${data.avgLoanSize}`}
+                icon={DollarSign}
+                trend={{ value: 2.5, isPositive: true }}
+              />
+              <StatsCard
+                title="Interest Income"
+                value={data.interestIncome === "N/A" ? "N/A" : `₵${data.interestIncome}`}
+                icon={TrendingUp}
+                trend={{ value: 12, isPositive: true }}
+              />
+              <StatsCard
+                title="Fee Income"
+                value={data.feeIncome === "N/A" ? "N/A" : `₵${data.feeIncome}`}
+                icon={PieChartIcon}
+                trend={{ value: 8.5, isPositive: true }}
+              />
+              <StatsCard
+                title="Loss (Defaults)"
+                value={data.lossDefaults === "N/A" ? "N/A" : `₵${data.lossDefaults}`}
+                icon={TrendingDown}
+                trend={{ value: 1.2, isPositive: false }}
+              />
+            </div>
+          </div>
+
+          {/* Tier Distribution */}
+          <div className="mt-6">
+            <TierDistributionChart />
+          </div>
         </div>
 
         {/* Metrics Grid */}
@@ -248,8 +343,8 @@ const AnalyticsPage = () => {
                           paddingAngle={2}
                           dataKey="value"
                         >
-                          {loansByTierData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          {loansByTierData.map((entry) => (
+                            <Cell key={entry.name} fill={entry.color} />
                           ))}
                         </Pie>
                         <Tooltip
@@ -422,8 +517,8 @@ const AnalyticsPage = () => {
                           paddingAngle={2}
                           dataKey="value"
                         >
-                          {networkData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          {networkData.map((entry) => (
+                            <Cell key={entry.name} fill={entry.color} />
                           ))}
                         </Pie>
                         <Tooltip />
@@ -452,8 +547,8 @@ const AnalyticsPage = () => {
                           paddingAngle={2}
                           dataKey="value"
                         >
-                          {networkData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          {networkData.map((entry) => (
+                            <Cell key={entry.name} fill={entry.color} />
                           ))}
                         </Pie>
                         <Tooltip />

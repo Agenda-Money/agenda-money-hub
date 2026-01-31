@@ -1,16 +1,14 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, UserPlus } from "lucide-react";
-
+import { Eye, EyeOff, UserPlus, Info } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info } from "lucide-react";
+import { toast } from "sonner";
 
 const SignupPage = () => {
   const { signup } = useAuth();
@@ -29,7 +27,7 @@ const SignupPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      window.alert("Passwords do not match. Please make sure both password fields are identical.");
+      toast.error("Passwords do not match. Please make sure both password fields are identical.");
       return; 
     }
     
