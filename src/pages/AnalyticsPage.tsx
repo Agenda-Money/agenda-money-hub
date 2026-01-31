@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, Users, CreditCard, Banknote, AlertTriangle, D
 import { useState } from "react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { TierDistributionChart } from "@/components/dashboard/TierDistributionChart";
+import { normalizeStatsResponse, type DashboardStats } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import {
@@ -86,20 +87,6 @@ interface MetricCardProps {
   prefix?: string;
 }
 
-interface DashboardStats {
-  loanBook: string;
-  activeLoans: string;
-  repaymentEfficiency: string;
-  defaultRate: string;
-  totalLoansCumulative: string;
-  totalDisbursedCumulative: string;
-  disbursedThisMonth: string;
-  avgLoanSize: string;
-  interestIncome: string;
-  feeIncome: string;
-  lossDefaults: string;
-}
-
 const MetricCard = ({ title, value, change, icon, prefix = "" }: MetricCardProps) => {
   const isPositive = change >= 0;
   return (
@@ -124,24 +111,6 @@ const MetricCard = ({ title, value, change, icon, prefix = "" }: MetricCardProps
     </Card>
   );
 };
-
-function normalizeStatsResponse(responseData: unknown): DashboardStats | undefined {
-  if (!responseData || typeof responseData !== "object") {
-    return undefined;
-  }
-
-  if ("success" in responseData) {
-    const wrapped = responseData as { success: boolean; data?: DashboardStats };
-    return wrapped.success && wrapped.data ? wrapped.data : undefined;
-  }
-
-  if ("data" in responseData) {
-    const wrapped = responseData as { data: DashboardStats };
-    return wrapped.data ?? undefined;
-  }
-
-  return responseData as DashboardStats;
-}
 
 const AnalyticsPage = () => {
   const [timeRange, setTimeRange] = useState("6m");
