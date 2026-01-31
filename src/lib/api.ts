@@ -18,7 +18,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    return Promise.reject(error);
+    throw error;
   }
 );
 
@@ -34,9 +34,9 @@ api.interceptors.response.use(
     // Don't redirect on login failure (which is also a 401)
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes("/auth/login")) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      globalThis.location.href = "/login";
     }
-    return Promise.reject(error);
+    throw error;
   }
 );
 
