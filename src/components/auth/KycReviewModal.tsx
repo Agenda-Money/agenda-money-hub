@@ -1,0 +1,229 @@
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle, XCircle, Loader2, User, MapPin, Calendar } from "lucide-react";
+import { toast } from "sonner";
+import api from "@/lib/api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+interface KycReviewModalProps {
+  readonly user: any;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+}
+
+export function KycReviewModal({ user, isOpen, onClose }: KycReviewModalProps) {
+  const [isApproving, setIsApproving] = useState(false);
+  const queryClient = useQueryClient();
+
+  const approveMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await api.patch(`/api/admin/users/approve/${userId}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("User Verified! 🎉", {
+        description: "User can now apply for loans.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["pending-users-count"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
+      onClose();
+    },
+    onError: (error: any) => {
+      toast.error("Approval Failed", {
+        description: error.response?.data?.message || "Could not approve user",
+      });
+    },
+  });
+
+  const handleApprove = async () => {
+    if (!user?._id && !user?.id) return;
+    setIsApproving(true);
+    try {
+      await approveMutation.mutateAsync(user._id || user.id);
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleReject = () => {
+    toast.info("Rejection feature coming soon");
+    onClose();
+  };
+
+  if (!user) return null;
+
+  const getKycStatusBadgeClass = (status: string) => {
+    if (status === "PENDING") {
+      return "bg-yellow-500/10 text-yellow-700 border-yellow-500/30";
+    }
+    if (status === "VERIFIED") {
+      return "bg-green-500/10 text-green-700 border-green-500/30";
+    }
+    return "bg-red-500/10 text-red-700 border-red-500/30";
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl">KYC Verification Review</DialogTitle>
+          <DialogDescription>
+            Review identity documents and approve or reject this user
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* User Info Section */}
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-semibold text-lg">{user.fullName || "Unknown"}</span>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>📱 {user.msisdn || "N/A"}</span>
+                  <span>📧 {user.email || "N/A"}</span>
+                </div>
+              </div>
+              <Badge
+                className={getKycStatusBadgeClass(user.kycStatus || "PENDING")}
+              >
+                {user.kycStatus || "PENDING"}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-border">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Region</p>
+                  <p className="text-sm font-medium">{user.region || "N/A"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Date of Birth</p>
+                  <p className="text-sm font-medium">
+                    {user.dateOfBirth
+                      ? new Date(user.dateOfBirth).toLocaleDateString()
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Referred By</p>
+                  <p className="text-sm font-medium font-mono">
+                    {user.referredByNodeCode || "Direct"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Identity Documents */}
+          <div className="space-y-4">
+            <h3 className="font-semibold text-lg">Identity Documents</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Selfie */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Selfie Photo</p>
+                <div className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border">
+                  {user.kycSelfieUrl ? (
+                    <img
+                      src={user.kycSelfieUrl}
+                      alt="User Selfie"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Ghana Card Front */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Ghana Card (Front)</p>
+                <div className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border">
+                  {user.kycGhanaCardFrontUrl ? (
+                    <img
+                      src={user.kycGhanaCardFrontUrl}
+                      alt="Ghana Card Front"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <p className="text-sm text-muted-foreground">No image</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Ghana Card Back */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Ghana Card (Back)</p>
+                <div className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border">
+                  {user.kycGhanaCardBackUrl ? (
+                    <img
+                      src={user.kycGhanaCardBackUrl}
+                      alt="Ghana Card Back"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <p className="text-sm text-muted-foreground">No image</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={handleReject}
+            className="border-red-500 text-red-700 hover:bg-red-50"
+          >
+            <XCircle className="h-4 w-4 mr-2" />
+            Reject
+          </Button>
+          <Button
+            onClick={handleApprove}
+            disabled={isApproving || user.kycStatus === "VERIFIED"}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {isApproving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Approving...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Approve Identity
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

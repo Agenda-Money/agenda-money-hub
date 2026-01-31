@@ -50,18 +50,27 @@ export default function UserDetailsPage() {
   const queryClient = useQueryClient();
 
   // Fetch User Profile
-  const { data: userDataResponse, isLoading: isUserLoading } = useQuery({
+  const { data: userDataResponse, isLoading: isUserLoading, error: userError } = useQuery({
     queryKey: ["user", id],
     queryFn: async () => {
       const res = await api.get(`/api/admin/users/${id}`);
+      console.log("User data response:", res.data);
       return res.data;
     },
     enabled: !!id,
   });
 
+  // Show error if user fetch fails
+  if (userError) {
+    console.error("Error fetching user:", userError);
+  }
+
   const userDataRaw = userDataResponse?.data || userDataResponse || {};
   const userData = userDataRaw.user || userDataRaw; // Handle optional wrapper
   const userPhone = userData.msisdn || userData.phone;
+
+  console.log("Processed userData:", userData);
+  console.log("User phone:", userPhone);
 
   // Fetch Wallet History (Repayments)
   const { data: walletHistoryResponse, isLoading: isWalletLoading } = useQuery({
@@ -224,6 +233,37 @@ export default function UserDetailsPage() {
              <div className="h-10 w-full max-w-sm bg-muted rounded-md" /> {/* Tabs list */}
              <div className="h-64 bg-muted rounded-xl" /> {/* Tab content */}
           </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state if user data failed to load
+  if (userError || !userData || !userData._id) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <Button 
+            variant="ghost" 
+            className="w-fit -ml-2 text-muted-foreground hover:text-foreground"
+            onClick={() => navigate("/users")}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Back to Users
+          </Button>
+          <Card className="p-12">
+            <div className="text-center space-y-4">
+              <div className="text-6xl">⚠️</div>
+              <h2 className="text-2xl font-bold">User Not Found</h2>
+              <p className="text-muted-foreground">
+                The user you're looking for doesn't exist or there was an error loading their data.
+              </p>
+              <p className="text-sm text-muted-foreground">User ID: {id}</p>
+              <Button onClick={() => navigate("/users")}>
+                Back to Users List
+              </Button>
+            </div>
+          </Card>
         </div>
       </DashboardLayout>
     );
