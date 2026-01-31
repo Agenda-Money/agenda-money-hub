@@ -56,8 +56,8 @@ export function AgentSidebar({ isOpen, onToggle }: AgentSidebarProps) {
         animate={isOpen ? "open" : "closed"}
         variants={sidebarVariants}
         className={cn(
-          "fixed top-0 left-0 z-50 h-full w-[280px] bg-card border-r border-border flex flex-col",
-          "lg:translate-x-0 lg:static lg:animate-none"
+          "fixed top-0 left-0 z-50 h-full w-[280px] bg-card border-r border-border flex flex-col lg:static",
+          "lg:!translate-x-0"
         )}
         style={{ willChange: "transform" }}
       >
