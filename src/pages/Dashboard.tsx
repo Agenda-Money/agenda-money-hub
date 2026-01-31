@@ -4,7 +4,7 @@ import { RecentLoansTable } from "@/components/dashboard/RecentLoansTable";
 import { PendingApprovals } from "@/components/dashboard/PendingApprovals";
 import { LoanTrendsChart } from "@/components/dashboard/LoanTrendsChart";
 import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
-import { normalizeStatsResponse, type DashboardStats } from "@/lib/utils";
+import { normalizeStatsResponse } from "@/lib/utils";
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
 
   const { login } = useAuth();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
@@ -29,8 +28,9 @@ const LoginPage = () => {
     // Call real login
     const result = await login(email, password);
     if (result.success) {
+      const target = result.user?.role === "agent" ? "/agent" : "/";
       // Force full reload to ensure auth state and headers are cleanly initialized
-      window.location.href = "/";
+      globalThis.location.href = target;
     } else {
       setError(result.message || "Authentication failed");
     }

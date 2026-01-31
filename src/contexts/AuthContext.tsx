@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
@@ -8,6 +8,9 @@ interface AdminUser {
   email: string;
   role: string;
   fullName?: string;
+  agentCode?: string;
+  phoneNumber?: string;
+  alternatePhone?: string;
 }
 
 
@@ -15,7 +18,7 @@ interface AuthContextType {
   user: AdminUser | null;
   loading: boolean;
   signup: (data: any) => Promise<boolean>;
-  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message?: string; user?: AdminUser }>;
   logout: () => void;
   forgotPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
   resetPassword: (token: string, password: string) => Promise<{ success: boolean; message?: string }>;
@@ -48,6 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.removeItem("token");
       }
     } catch (error) {
+      console.error("Auth check failed", error);
       localStorage.removeItem("token");
     } finally {
       setLoading(false);
@@ -74,7 +78,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; message?: string; user?: AdminUser }> => {
     try {
       const response = await api.post("/api/admin/auth/login", { email, password });
       
@@ -86,7 +90,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         toast.success("Welcome back!", {
           description: "You have successfully logged in.",
         });
-        return { success: true };
+        return { success: true, user: admin };
       }
       
       const msg = response.data.message || "Invalid credentials";
@@ -149,11 +153,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem("token");
     setUser(null);
     delete api.defaults.headers.common["Authorization"];
-    window.location.href = "/login";
+    globalThis.location.href = "/login";
   };
 
+  const contextValue = useMemo(
+    () => ({
+      user,
+      loading,
+      login,
+      signup,
+      logout,
+      forgotPassword,
+      resetPassword,
+      updateProfile,
+      isAuthenticated: !!user,
+    }),
+    [
+      user,
+      loading,
+      login,
+      signup,
+      logout,
+      forgotPassword,
+      resetPassword,
+      updateProfile,
+    ]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, forgotPassword, resetPassword, updateProfile, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

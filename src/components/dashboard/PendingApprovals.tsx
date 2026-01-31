@@ -53,9 +53,8 @@ const tierConfig: Record<string, { badge: string; emphasis: string; order: numbe
   },
 };
 
-function getTierConfig(tier: string) {
-  const key = tier ?? "L1";
-  return tierConfig[key] ?? tierConfig.L1;
+function getTierConfig(tier: string = "L1") {
+  return tierConfig[tier] ?? tierConfig.L1;
 }
 
 import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
@@ -73,24 +72,29 @@ export function PendingApprovals() {
       const rawData = res.data?.data || res.data || [];
       
       // Map API fields strictly
-      const mappedLoans = (Array.isArray(rawData) ? rawData : []).map((l: any) => ({
-        ...l,
-        id: l.id ?? l._id ?? l.loanReference,
-        reference: l.loanReference ?? l.reference ?? l.loanId ?? "N/A",
-        user: l.user?.fullName ?? l.user ?? "Unknown User",
-        phone: l.userMsisdn ?? l.phone ?? "",
-        amount: l.principal ?? l.amount ?? 0,
-        tier: l.tier ? (String(l.tier).startsWith("L") ? String(l.tier) : `L${l.tier}`) : "L1",
-        date: l.createdAt ?? l.requestedAt,
-        tenor: l.tenureDays == null ? (l.tenure ?? l.tenor ?? "N/A") : `${l.tenureDays} days`,
-        repaymentDate: l.dueDate ?? l.repaymentDate,
-        loansToDate: l.loansToDate ?? 0,
-        repaymentRate: l.repaymentRate ?? 100,
-        creditScore: l.creditScore ?? 700,
-        nodeCode: l.nodeCode ?? "N/A",
-        userStatus: l.userStatus ?? "Node",
-        status: (l.status?.toUpperCase() ?? "PENDING")
-      }));
+      const mappedLoans = (Array.isArray(rawData) ? rawData : []).map((l: any) => {
+        const rawTier = l.tier ? String(l.tier) : "L1";
+        const normalizedTier = rawTier.startsWith("L") ? rawTier : `L${rawTier}`;
+        
+        return {
+          ...l,
+          id: l.id ?? l._id ?? l.loanReference,
+          reference: l.loanReference ?? l.reference ?? l.loanId ?? "N/A",
+          user: l.user?.fullName ?? l.user ?? "Unknown User",
+          phone: l.userMsisdn ?? l.phone ?? "",
+          amount: l.principal ?? l.amount ?? 0,
+          tier: normalizedTier,
+          date: l.createdAt ?? l.requestedAt,
+          tenor: l.tenureDays == null ? (l.tenure ?? l.tenor ?? "N/A") : `${l.tenureDays} days`,
+          repaymentDate: l.dueDate ?? l.repaymentDate,
+          loansToDate: l.loansToDate ?? 0,
+          repaymentRate: l.repaymentRate ?? 100,
+          creditScore: l.creditScore ?? 700,
+          nodeCode: l.nodeCode ?? "N/A",
+          userStatus: l.userStatus ?? "Node",
+          status: (l.status?.toUpperCase() ?? "PENDING")
+        };
+      });
 
       return mappedLoans.filter((l: any) => l.status === "PENDING");
     },
