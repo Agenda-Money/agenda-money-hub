@@ -1,21 +1,32 @@
-import { Users, TrendingDown, BookOpen } from "lucide-react";
+import { Users, TrendingDown, BookOpen, AlertTriangle } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentLoansTable } from "@/components/dashboard/RecentLoansTable";
 import { PendingApprovals } from "@/components/dashboard/PendingApprovals";
 import { LoanTrendsChart } from "@/components/dashboard/LoanTrendsChart";
 import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
 import { normalizeStatsResponse } from "@/lib/utils";
+import { useSocket } from "@/hooks/useSocket";
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
 export default function Dashboard() {
-  const { data: responseData, isLoading } = useQuery({
+  const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
+
+  const { data: responseData, isLoading, refetch } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
       const res = await api.get("/api/admin/dashboard/stats");
       return res.data;
     },
+  });
+
+  // WebSocket integration for real-time updates
+  useSocket(wsUrl, (message) => {
+    if (message?.type === "NEW_APPLICATION" || message?.type === "KYC_VERIFIED_SUCCESS") {
+      // Refetch dashboard stats when new events occur
+      refetch();
+    }
   });
 
   if (isLoading) {
@@ -39,18 +50,22 @@ export default function Dashboard() {
     lossDefaults: "N/A",
   };
 
+  // Additional stats from the "War Room" requirements
+  const repaymentRate = responseData?.repaymentRate ?? data.repaymentEfficiency;
+  const overdueCount = responseData?.overdueLoans ?? 0;
+
   return (
     <div className="space-y-6">
       {/* Compact Page Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Portfolio snapshot</p>
+          <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">Real-time portfolio health & live pipeline</p>
         </div>
       </div>
 
-      {/* Primary Hero Cards - Top 3 Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Primary Hero Cards - Top 4 Key Metrics for "The War Room" */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Loan Book"
           value={data.loanBook === "N/A" ? "N/A" : `₵${data.loanBook}`}
@@ -64,14 +79,20 @@ export default function Dashboard() {
           trend={{ value: 8.2, isPositive: true }}
         />
         <StatsCard
-          title="Default Rate"
-          value={data.defaultRate === "N/A" ? "N/A" : data.defaultRate}
+          title="Repayment Rate"
+          value={repaymentRate === "N/A" ? "N/A" : repaymentRate}
           icon={TrendingDown}
+          trend={{ value: 2.1, isPositive: true }}
+        />
+        <StatsCard
+          title="Overdue Loans"
+          value={overdueCount?.toString() ?? "0"}
+          icon={AlertTriangle}
           trend={{ value: 0.5, isPositive: false }}
         />
       </div>
 
-      {/* Hero Graph - Disbursement vs Repayment */}
+      {/* Hero Graph - Disbursement vs Repayment (Liquidity Tracker) */}
       <LoanTrendsChart />
 
       {/* Recent Activity Section */}
