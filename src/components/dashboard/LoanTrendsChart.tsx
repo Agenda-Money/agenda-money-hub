@@ -1,6 +1,4 @@
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,50 +20,55 @@ const data = [
 
 export function LoanTrendsChart() {
   return (
-    <div className="bg-card rounded-xl shadow-sm p-6 animate-fade-in">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-foreground">Loan Trends</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Disbursed vs Repaid amounts over time
+    <div className="bg-card rounded-xl shadow-sm p-6 animate-fade-in border border-border/50 hover:shadow-md transition-all duration-300">
+      <div className="mb-4">
+        <h2 className="text-base font-bold text-foreground">Performance Trends</h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          Disbursed vs Repaid over time
         </p>
       </div>
       
-      <div className="h-[300px]">
+      <div className="h-[280px]">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data}>
+          <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
             <defs>
               <linearGradient id="colorDisbursed" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#E91E8C" stopOpacity={0.3} />
+                <stop offset="5%" stopColor="#E91E8C" stopOpacity={0.25} />
                 <stop offset="95%" stopColor="#E91E8C" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="colorRepaid" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#00B4A6" stopOpacity={0.3} />
+                <stop offset="5%" stopColor="#00B4A6" stopOpacity={0.25} />
                 <stop offset="95%" stopColor="#00B4A6" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
             <XAxis
               dataKey="month"
-              stroke="#6B7280"
+              stroke="#9CA3AF"
               fontSize={12}
               tickLine={false}
               axisLine={false}
+              dy={3}
             />
             <YAxis
-              stroke="#6B7280"
+              stroke="#9CA3AF"
               fontSize={12}
               tickLine={false}
               axisLine={false}
               tickFormatter={(value) => `₵${(value / 1000).toFixed(0)}k`}
+              width={50}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "white",
-                border: "1px solid #E5E7EB",
+                backgroundColor: "hsl(var(--background))",
+                border: "1px solid hsl(var(--border))",
                 borderRadius: "8px",
-                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                padding: "8px",
+                fontSize: "12px",
               }}
               formatter={(value: number) => [`₵${value.toLocaleString()}`, ""]}
+              labelStyle={{ color: "hsl(var(--foreground))" }}
             />
             <Area
               type="monotone"
@@ -75,6 +78,7 @@ export function LoanTrendsChart() {
               fillOpacity={1}
               fill="url(#colorDisbursed)"
               name="Disbursed"
+              dot={false}
             />
             <Area
               type="monotone"
@@ -84,19 +88,20 @@ export function LoanTrendsChart() {
               fillOpacity={1}
               fill="url(#colorRepaid)"
               name="Repaid"
+              dot={false}
             />
           </AreaChart>
         </ResponsiveContainer>
       </div>
       
-      <div className="flex items-center justify-center gap-6 mt-4">
+      <div className="flex items-center justify-start gap-6 mt-4 pt-3 border-t border-border/50">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-primary" />
-          <span className="text-sm text-muted-foreground">Disbursed</span>
+          <div className="w-3 h-3 rounded-full bg-primary shadow-sm" />
+          <p className="text-xs font-semibold text-foreground">Disbursed</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-info" />
-          <span className="text-sm text-muted-foreground">Repaid</span>
+          <div className="w-3 h-3 rounded-full bg-info shadow-sm" />
+          <p className="text-xs font-semibold text-foreground">Repaid</p>
         </div>
       </div>
     </div>

@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface StatsCardProps {
   title: string;
@@ -12,43 +11,45 @@ interface StatsCardProps {
   className?: string;
 }
 
-export function StatsCard({ title, value, icon: Icon, trend, className }: StatsCardProps) {
+export function StatsCard({ title, value, icon: Icon, trend, className }: Readonly<StatsCardProps>) {
   return (
     <div
       className={cn(
-        "bg-card rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 animate-fade-in",
+        "group bg-card rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 animate-fade-in border border-border/50 hover:border-primary/20",
         className
       )}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm text-muted-foreground font-medium">{title}</p>
-          <p className="text-3xl font-bold text-foreground mt-2">{value}</p>
-          
-          {trend && (
-            <div className="flex items-center gap-1 mt-3">
-              {trend.isPositive ? (
-                <TrendingUp className="h-4 w-4 text-success" />
-              ) : (
-                <TrendingDown className="h-4 w-4 text-destructive" />
-              )}
-              <span
-                className={cn(
-                  "text-sm font-medium",
-                  trend.isPositive ? "text-success" : "text-destructive"
-                )}
-              >
-                {trend.isPositive ? "+" : "-"}{Math.abs(trend.value)}%
-              </span>
-              <span className="text-sm text-muted-foreground">vs last month</span>
-            </div>
-          )}
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-2 flex-1 min-w-0">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</p>
+          <p className="text-3xl font-bold text-foreground truncate">{value}</p>
         </div>
         
-        <div className="w-12 h-12 rounded-xl bg-background-pink-subtle flex items-center justify-center">
-          <Icon className="h-6 w-6 text-primary" />
+        <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center group-hover:from-primary/30 group-hover:to-primary/15 transition-all flex-shrink-0">
+          <Icon className="h-7 w-7 text-primary" />
         </div>
       </div>
+      
+      {trend && (
+        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50">
+          {trend.isPositive ? (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-success" />
+              <span className="text-sm font-semibold text-success">
+                +{trend.value}%
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-destructive" />
+              <span className="text-sm font-semibold text-destructive">
+                -{Math.abs(trend.value)}%
+              </span>
+            </div>
+          )}
+          <span className="text-xs text-muted-foreground">vs last month</span>
+        </div>
+      )}
     </div>
   );
 }
