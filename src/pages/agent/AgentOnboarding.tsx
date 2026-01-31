@@ -9,12 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight } from "lucide-react";
+import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { uploadToSupabase } from "@/lib/supabase";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 const STORAGE_KEY = "agent_onboarding_form";
 
@@ -67,10 +68,26 @@ const INITIAL_FORM_DATA: FormData = {
   selfieUrl: "",
 };
 
+const slideVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? 300 : -300,
+    opacity: 0
+  }),
+  center: {
+    x: 0,
+    opacity: 1
+  },
+  exit: (direction: number) => ({
+    x: direction < 0 ? 300 : -300,
+    opacity: 0
+  })
+};
+
 export default function AgentOnboarding() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [direction, setDirection] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
   const [onboardedNodeCode, setOnboardedNodeCode] = useState<string | null>(null);
@@ -81,7 +98,6 @@ export default function AgentOnboarding() {
 
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
 
-  // Load form data from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -96,7 +112,6 @@ export default function AgentOnboarding() {
   const updateField = (field: keyof FormData, value: string) => {
     const updatedData = { ...formData, [field]: value };
     setFormData(updatedData);
-    // Save to localStorage whenever a field changes
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData));
     } catch (error) {
@@ -167,6 +182,16 @@ export default function AgentOnboarding() {
     }
   };
 
+  const handleNext = () => {
+    setDirection(1);
+    setCurrentStep(prev => prev + 1);
+  };
+
+  const handleBack = () => {
+    setDirection(-1);
+    setCurrentStep(prev => prev - 1);
+  };
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
 
@@ -193,8 +218,9 @@ export default function AgentOnboarding() {
       const response = await api.post("/api/agents/onboard", payload);
 
       if (response.data.success) {
-        setOnboardedNodeCode(response.data.nodeCode);        // Clear localStorage after successful submission
-        localStorage.removeItem(STORAGE_KEY);        toast.success("Onboarding Complete! ���", {
+        setOnboardedNodeCode(response.data.nodeCode);
+        localStorage.removeItem(STORAGE_KEY);
+        toast.success("Onboarding Complete! 🎉", {
           description: "Customer successfully registered.",
         });
       }
@@ -208,42 +234,45 @@ export default function AgentOnboarding() {
   };
 
   const steps = [
-    { number: 1, title: "Bio-Data", icon: User },
-    { number: 2, title: "Socio-Economic", icon: MapPin },
-    { number: 3, title: "Documents", icon: ImageIcon },
+    { number: 1, title: "Bio-Data", icon: User, description: "Personal info" },
+    { number: 2, title: "Details", icon: MapPin, description: "Location & work" },
+    { number: 3, title: "Documents", icon: ImageIcon, description: "ID & photos" },
   ];
 
   // Success Screen
   if (onboardedNodeCode) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 flex items-center justify-center pb-20">
-        <Card className="w-full max-w-2xl border-2">
-          <CardContent className="pt-12 pb-12 text-center space-y-6">
-            <div className="animate-bounce">
-              <CheckCircle2 className="h-20 w-20 text-green-500 mx-auto" />
-            </div>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex items-center justify-center min-h-[70vh]"
+      >
+        <Card className="w-full max-w-md border-0 shadow-2xl overflow-hidden">
+          <div className="h-2 bg-gradient-to-r from-emerald-500 to-emerald-600" />
+          <CardContent className="pt-10 pb-8 text-center space-y-6">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring" as const, stiffness: 300, delay: 0.2 }}
+            >
+              <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+              </div>
+            </motion.div>
             
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold text-foreground">Onboarding Successful! ���</h1>
-              <p className="text-muted-foreground">Customer has been registered in the network</p>
+              <h1 className="text-2xl font-bold text-foreground">Success! 🎉</h1>
+              <p className="text-muted-foreground">Customer has been registered</p>
             </div>
 
-            <div className="bg-gradient-to-r from-primary/20 to-primary/10 p-8 rounded-xl border-2 border-primary space-y-3">
-              <p className="text-sm text-muted-foreground font-semibold">CUSTOMER NODE CODE</p>
-              <div className="text-4xl font-mono font-bold text-primary tracking-wider">
+            <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-6 rounded-2xl border border-primary/20">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Customer Node Code</p>
+              <p className="text-3xl font-mono font-bold text-primary mt-2 tracking-wider">
                 {onboardedNodeCode}
-              </div>
-              <p className="text-xs text-muted-foreground">Share this code with the customer</p>
+              </p>
             </div>
 
-            <Alert className="bg-blue-500/10 border-blue-500/30">
-              <CheckCircle2 className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800">
-                The customer can now access their account and apply for loans
-              </AlertDescription>
-            </Alert>
-
-            <div className="pt-4 space-y-3">
+            <div className="space-y-3 pt-2">
               <Button
                 onClick={() => {
                   setOnboardedNodeCode(null);
@@ -251,10 +280,10 @@ export default function AgentOnboarding() {
                   localStorage.removeItem(STORAGE_KEY);
                   setCurrentStep(1);
                 }}
-                className="w-full h-12 bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2"
+                className="w-full h-12 bg-gradient-pink hover:opacity-90"
               >
                 Onboard Another Customer
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
 
               <Button
@@ -267,424 +296,446 @@ export default function AgentOnboarding() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 pb-32">
-      <div className="max-w-2xl mx-auto space-y-4">
-        <div className="text-center pt-4">
-          <h1 className="text-2xl font-bold text-foreground">New Customer Onboarding</h1>
-          <p className="text-sm text-muted-foreground mt-1">Complete all steps to register</p>
+    <div className="space-y-6 pb-28">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">New Customer</h1>
+          <p className="text-muted-foreground mt-1">Complete all steps to register</p>
         </div>
+        <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-xl">
+          <Badge className="bg-gradient-pink text-primary-foreground border-0">Agent</Badge>
+          <span className="font-mono text-sm font-medium">{user?.agentCode || <Skeleton className="h-4 w-16" />}</span>
+        </div>
+      </div>
 
-        {/* Agent Info Badge */}
-        <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <Badge className="bg-primary text-primary-foreground shrink-0">Agent</Badge>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-muted-foreground">Code:</span>
-                {user?.agentCode ? (
-                  <span className="font-mono font-bold text-sm text-foreground">{user.agentCode}</span>
-                ) : (
-                  <Skeleton className="h-4 w-20" />
-                )}
+      {/* Progress Steps */}
+      <div className="flex items-center justify-between px-2">
+        {steps.map((step, index) => {
+          const Icon = step.icon;
+          const isActive = currentStep === step.number;
+          const isCompleted = currentStep > step.number;
+
+          return (
+            <div key={step.number} className="flex items-center flex-1">
+              <div className="flex flex-col items-center flex-1">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  className={cn(
+                    "w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center font-semibold transition-all shadow-lg",
+                    isCompleted && "bg-gradient-to-br from-emerald-500 to-emerald-600 text-white",
+                    isActive && "bg-gradient-pink text-primary-foreground shadow-pink",
+                    !isActive && !isCompleted && "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {isCompleted ? <Check className="h-6 w-6" /> : <Icon className="h-5 w-5" />}
+                </motion.div>
+                <p className={cn(
+                  "text-xs mt-2 font-medium text-center",
+                  isActive ? "text-foreground" : "text-muted-foreground"
+                )}>
+                  {step.title}
+                </p>
               </div>
+              {index < steps.length - 1 && (
+                <div className={cn(
+                  "flex-1 h-1 mx-2 rounded-full transition-colors",
+                  currentStep > step.number ? "bg-primary" : "bg-muted"
+                )} />
+              )}
             </div>
-          </div>
-          <ArrowRight className="h-5 w-5 text-primary/40 shrink-0" />
-        </div>
+          );
+        })}
+      </div>
 
-        <div className="flex items-center justify-center gap-2 px-4">
-          {steps.map((step, index) => {
-            const Icon = step.icon;
-            const isActive = currentStep === step.number;
-            const isCompleted = currentStep > step.number;
+      {/* Form Card with Animation */}
+      <Card className="border-0 shadow-lg overflow-hidden">
+        <div className={cn(
+          "h-1.5 transition-all duration-300",
+          currentStep === 1 && "bg-gradient-to-r from-blue-500 to-blue-600",
+          currentStep === 2 && "bg-gradient-to-r from-amber-500 to-orange-500",
+          currentStep === 3 && "bg-gradient-pink"
+        )} />
+        
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-3">
+            {steps[currentStep - 1].title}
+            <Badge variant="secondary" className="font-normal">
+              Step {currentStep} of 3
+            </Badge>
+          </CardTitle>
+          <CardDescription>
+            {currentStep === 1 && "Enter the customer's personal information"}
+            {currentStep === 2 && "Capture location and employment details"}
+            {currentStep === 3 && "Take clear photos of ID and selfie"}
+          </CardDescription>
+        </CardHeader>
 
-            return (
-              <div key={step.number} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <div
-                    className={cn(
-                      "w-12 h-12 rounded-full flex items-center justify-center font-semibold transition-all border-2",
-                      isCompleted && "bg-green-500 border-green-500 text-white",
-                      isActive && "bg-primary border-primary text-primary-foreground",
-                      !isActive && !isCompleted && "bg-muted border-border text-muted-foreground"
+        <CardContent>
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={currentStep}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ type: "spring" as const, stiffness: 300, damping: 30 }}
+            >
+              {currentStep === 1 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName">First Name *</Label>
+                      <Input
+                        id="fullName"
+                        value={formData.fullName}
+                        onChange={(e) => updateField("fullName", e.target.value)}
+                        placeholder="Kwame"
+                        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="surname">Surname *</Label>
+                      <Input
+                        id="surname"
+                        value={formData.surname}
+                        onChange={(e) => updateField("surname", e.target.value)}
+                        placeholder="Mensah"
+                        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="msisdn">Phone Number (MoMo) *</Label>
+                    <Input
+                      id="msisdn"
+                      value={formData.msisdn}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        if (val.length <= 10) updateField("msisdn", val);
+                      }}
+                      placeholder="0244123456"
+                      maxLength={10}
+                      className="h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono"
+                    />
+                    {formData.msisdn && formData.msisdn.length !== 10 && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Must be 10 digits
+                      </p>
                     )}
-                  >
-                    {isCompleted ? <Check className="h-6 w-6" /> : <Icon className="h-5 w-5" />}
                   </div>
-                  <p className="text-xs mt-1 font-medium text-center">{step.title}</p>
-                </div>
-                {index < steps.length - 1 && (
-                  <div
-                    className={cn(
-                      "flex-1 h-1.5 mx-2 rounded transition-colors",
-                      currentStep > step.number ? "bg-primary" : "bg-muted"
-                    )}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
 
-        <Card className="border-2">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2">
-              {steps[currentStep - 1].title}
-              {currentStep === 1 && <Badge variant="secondary">Personal Info</Badge>}
-              {currentStep === 2 && <Badge variant="secondary">Location & Work</Badge>}
-              {currentStep === 3 && <Badge variant="secondary">Upload Photos</Badge>}
-            </CardTitle>
-            <CardDescription>
-              {currentStep === 1 && "Enter the customer's personal information"}
-              {currentStep === 2 && "Capture location and employment details"}
-              {currentStep === 3 && "Take clear photos of ID and selfie"}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            {currentStep === 1 && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName" className="text-sm font-medium">First Name *</Label>
-                    <Input
-                      id="fullName"
-                      value={formData.fullName}
-                      onChange={(e) => updateField("fullName", e.target.value)}
-                      placeholder="Kwame"
-                      className="h-12 focus-visible:ring-primary"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="surname" className="text-sm font-medium">Surname *</Label>
-                    <Input
-                      id="surname"
-                      value={formData.surname}
-                      onChange={(e) => updateField("surname", e.target.value)}
-                      placeholder="Mensah"
-                      className="h-12 focus-visible:ring-primary"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="dob">Date of Birth *</Label>
+                      <Input
+                        id="dob"
+                        type="date"
+                        value={formData.dob}
+                        onChange={(e) => updateField("dob", e.target.value)}
+                        max={new Date().toISOString().split("T")[0]}
+                        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">Gender *</Label>
+                      <Select value={formData.gender} onValueChange={(val) => updateField("gender", val)}>
+                        <SelectTrigger className="h-12 bg-muted/50 border-0">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
+              )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="msisdn" className="text-sm font-medium">Phone Number *</Label>
-                  <Input
-                    id="msisdn"
-                    value={formData.msisdn}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "");
-                      if (val.length <= 10) updateField("msisdn", val);
-                    }}
-                    placeholder="0244123456"
-                    maxLength={10}
-                    className="h-12 focus-visible:ring-primary"
-                  />
-                  {formData.msisdn && formData.msisdn.length !== 10 && (
-                    <p className="text-xs text-destructive">Must be 10 digits</p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+              {currentStep === 2 && (
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="dob" className="text-sm font-medium">Date of Birth *</Label>
-                    <Input
-                      id="dob"
-                      type="date"
-                      value={formData.dob}
-                      onChange={(e) => updateField("dob", e.target.value)}
-                      max={new Date().toISOString().split("T")[0]}
-                      className="h-12 focus-visible:ring-primary"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gender" className="text-sm font-medium">Gender *</Label>
-                    <Select value={formData.gender} onValueChange={(val) => updateField("gender", val)}>
-                      <SelectTrigger className="h-12 focus-visible:ring-primary">
-                        <SelectValue placeholder="Select" />
+                    <Label htmlFor="region">Region *</Label>
+                    <Select value={formData.region} onValueChange={(val) => updateField("region", val)}>
+                      <SelectTrigger className="h-12 bg-muted/50 border-0">
+                        <SelectValue placeholder="Select region" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Male">Male</SelectItem>
-                        <SelectItem value="Female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 2 && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="region" className="text-sm font-medium">Region *</Label>
-                  <Select value={formData.region} onValueChange={(val) => updateField("region", val)}>
-                    <SelectTrigger className="h-12 focus-visible:ring-primary">
-                      <SelectValue placeholder="Select region" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GHANA_REGIONS.map((region) => (
-                        <SelectItem key={region} value={region}>
-                          {region}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address" className="text-sm font-medium">Residential Address * (Min 3 words)</Label>
-                  <Textarea
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => updateField("address", e.target.value)}
-                    placeholder="House No. 12, Dzorwulu Street, near Vodafone Office"
-                    rows={3}
-                    className="resize-none focus-visible:ring-primary"
-                  />
-                  {formData.address && formData.address.trim().split(/\s+/).length < 3 && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      Address must contain at least 3 words
-                    </p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="accommodation" className="text-sm font-medium">Accommodation *</Label>
-                    <Select value={formData.accommodationType} onValueChange={(val) => updateField("accommodationType", val)}>
-                      <SelectTrigger className="h-12 focus-visible:ring-primary">
-                        <SelectValue placeholder="Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ACCOMMODATION_TYPES.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
+                        {GHANA_REGIONS.map((region) => (
+                          <SelectItem key={region} value={region}>{region}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="years" className="text-sm font-medium">Years at Address *</Label>
+                    <Label htmlFor="address">Address * (Min 3 words)</Label>
+                    <Textarea
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => updateField("address", e.target.value)}
+                      placeholder="House No. 12, Dzorwulu Street, near Vodafone"
+                      rows={2}
+                      className="resize-none bg-muted/50 border-0 focus-visible:ring-primary"
+                    />
+                    {formData.address && formData.address.trim().split(/\s+/).length < 3 && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        At least 3 words required
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Accommodation *</Label>
+                      <Select value={formData.accommodationType} onValueChange={(val) => updateField("accommodationType", val)}>
+                        <SelectTrigger className="h-12 bg-muted/50 border-0">
+                          <SelectValue placeholder="Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ACCOMMODATION_TYPES.map((type) => (
+                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Years at Address *</Label>
+                      <Input
+                        type="number"
+                        value={formData.yearsAtAddress}
+                        onChange={(e) => updateField("yearsAtAddress", e.target.value)}
+                        placeholder="5"
+                        min="0"
+                        max="50"
+                        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Education Level *</Label>
+                    <Select value={formData.educationLevel} onValueChange={(val) => updateField("educationLevel", val)}>
+                      <SelectTrigger className="h-12 bg-muted/50 border-0">
+                        <SelectValue placeholder="Select level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EDUCATION_LEVELS.map((level) => (
+                          <SelectItem key={level} value={level}>{level}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Employment *</Label>
+                      <Select value={formData.employmentStatus} onValueChange={(val) => updateField("employmentStatus", val)}>
+                        <SelectTrigger className="h-12 bg-muted/50 border-0">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EMPLOYMENT_STATUS.map((status) => (
+                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Monthly Income *</Label>
+                      <Select value={formData.monthlyIncome} onValueChange={(val) => updateField("monthlyIncome", val)}>
+                        <SelectTrigger className="h-12 bg-muted/50 border-0">
+                          <SelectValue placeholder="Range" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INCOME_BRACKETS.map((bracket) => (
+                            <SelectItem key={bracket} value={bracket}>{bracket}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 3 && (
+                <div className="space-y-4">
+                  <Alert className="bg-blue-500/10 border-blue-500/30">
+                    <Camera className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-blue-800 dark:text-blue-200">
+                      Take clear, well-lit photos. Ensure all text is readable.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="space-y-2">
+                    <Label>Ghana Card Number *</Label>
                     <Input
-                      id="years"
-                      type="number"
-                      value={formData.yearsAtAddress}
-                      onChange={(e) => updateField("yearsAtAddress", e.target.value)}
-                      placeholder="5"
-                      min="0"
-                      max="50"
-                      className="h-12 focus-visible:ring-primary"
+                      value={formData.ghanaCardNumber}
+                      onChange={(e) => updateField("ghanaCardNumber", e.target.value.toUpperCase())}
+                      placeholder="GHA-123456789-0"
+                      className="h-12 font-mono bg-muted/50 border-0 focus-visible:ring-primary"
                     />
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="education" className="text-sm font-medium">Education Level *</Label>
-                  <Select value={formData.educationLevel} onValueChange={(val) => updateField("educationLevel", val)}>
-                    <SelectTrigger className="h-12 focus-visible:ring-primary">
-                      <SelectValue placeholder="Select level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EDUCATION_LEVELS.map((level) => (
-                        <SelectItem key={level} value={level}>
-                          {level}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="grid gap-3">
+                    {/* Ghana Card Front */}
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      onClick={() => frontInputRef.current?.click()}
+                      className={cn(
+                        "border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all",
+                        formData.ghanaCardFrontUrl 
+                          ? "border-emerald-500 bg-emerald-500/5" 
+                          : "border-muted-foreground/30 hover:border-primary hover:bg-primary/5"
+                      )}
+                    >
+                      <input
+                        ref={frontInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload(file, "front");
+                        }}
+                        className="hidden"
+                      />
+                      {uploadProgress.front ? (
+                        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                      ) : formData.ghanaCardFrontUrl ? (
+                        <>
+                          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
+                          <p className="text-sm text-emerald-700 font-medium mt-2">Ghana Card Front ✓</p>
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="h-8 w-8 text-muted-foreground mx-auto" />
+                          <p className="text-sm text-muted-foreground font-medium mt-2">Tap to capture Ghana Card (Front)</p>
+                        </>
+                      )}
+                    </motion.div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="employment" className="text-sm font-medium">Employment *</Label>
-                    <Select value={formData.employmentStatus} onValueChange={(val) => updateField("employmentStatus", val)}>
-                      <SelectTrigger className="h-12 focus-visible:ring-primary">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EMPLOYMENT_STATUS.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="income" className="text-sm font-medium">Monthly Income *</Label>
-                    <Select value={formData.monthlyIncome} onValueChange={(val) => updateField("monthlyIncome", val)}>
-                      <SelectTrigger className="h-12 focus-visible:ring-primary">
-                        <SelectValue placeholder="Range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {INCOME_BRACKETS.map((bracket) => (
-                          <SelectItem key={bracket} value={bracket}>
-                            {bracket}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            )}
+                    {/* Ghana Card Back */}
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      onClick={() => backInputRef.current?.click()}
+                      className={cn(
+                        "border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all",
+                        formData.ghanaCardBackUrl 
+                          ? "border-emerald-500 bg-emerald-500/5" 
+                          : "border-muted-foreground/30 hover:border-primary hover:bg-primary/5"
+                      )}
+                    >
+                      <input
+                        ref={backInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload(file, "back");
+                        }}
+                        className="hidden"
+                      />
+                      {uploadProgress.back ? (
+                        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                      ) : formData.ghanaCardBackUrl ? (
+                        <>
+                          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
+                          <p className="text-sm text-emerald-700 font-medium mt-2">Ghana Card Back ✓</p>
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="h-8 w-8 text-muted-foreground mx-auto" />
+                          <p className="text-sm text-muted-foreground font-medium mt-2">Tap to capture Ghana Card (Back)</p>
+                        </>
+                      )}
+                    </motion.div>
 
-            {currentStep === 3 && (
-              <div className="space-y-4">
-                <Alert className="bg-blue-500/10 border-blue-500/30">
-                  <Camera className="h-4 w-4 text-blue-600" />
-                  <AlertDescription className="text-blue-800">
-                    Take clear, well-lit photos. Ensure all text is readable.
-                  </AlertDescription>
-                </Alert>
-
-                <div className="space-y-2">
-                  <Label htmlFor="ghanaCardNumber" className="text-sm font-medium">Ghana Card Number *</Label>
-                  <Input
-                    id="ghanaCardNumber"
-                    value={formData.ghanaCardNumber}
-                    onChange={(e) => updateField("ghanaCardNumber", e.target.value.toUpperCase())}
-                    placeholder="GHA-123456789-0"
-                    className="h-12 font-mono focus-visible:ring-primary"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <div
-                    onClick={() => frontInputRef.current?.click()}
-                    className={cn(
-                      "border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all",
-                      formData.ghanaCardFrontUrl ? "border-green-500 bg-green-500/5" : "border-border hover:border-primary hover:bg-primary/5"
-                    )}
-                  >
-                    <input
-                      ref={frontInputRef}
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImageUpload(file, "front");
-                      }}
-                      className="hidden"
-                    />
-                    {uploadProgress.front ? (
-                      <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-                    ) : formData.ghanaCardFrontUrl ? (
-                      <>
-                        <CheckCircle2 className="h-10 w-10 text-green-600 mx-auto" />
-                        <p className="text-sm text-green-700 font-medium mt-2">Ghana Card Front - Uploaded</p>
-                      </>
-                    ) : (
-                      <>
-                        <Camera className="h-10 w-10 text-muted-foreground mx-auto" />
-                        <p className="text-sm text-muted-foreground font-medium mt-2">Tap to capture Ghana Card (Front)</p>
-                      </>
-                    )}
-                  </div>
-
-                  <div
-                    onClick={() => backInputRef.current?.click()}
-                    className={cn(
-                      "border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all",
-                      formData.ghanaCardBackUrl ? "border-green-500 bg-green-500/5" : "border-border hover:border-primary hover:bg-primary/5"
-                    )}
-                  >
-                    <input
-                      ref={backInputRef}
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImageUpload(file, "back");
-                      }}
-                      className="hidden"
-                    />
-                    {uploadProgress.back ? (
-                      <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-                    ) : formData.ghanaCardBackUrl ? (
-                      <>
-                        <CheckCircle2 className="h-10 w-10 text-green-600 mx-auto" />
-                        <p className="text-sm text-green-700 font-medium mt-2">Ghana Card Back - Uploaded</p>
-                      </>
-                    ) : (
-                      <>
-                        <Camera className="h-10 w-10 text-muted-foreground mx-auto" />
-                        <p className="text-sm text-muted-foreground font-medium mt-2">Tap to capture Ghana Card (Back)</p>
-                      </>
-                    )}
-                  </div>
-
-                  <div
-                    onClick={() => selfieInputRef.current?.click()}
-                    className={cn(
-                      "border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all",
-                      formData.selfieUrl ? "border-green-500 bg-green-500/5" : "border-border hover:border-primary hover:bg-primary/5"
-                    )}
-                  >
-                    <input
-                      ref={selfieInputRef}
-                      type="file"
-                      accept="image/*"
-                      capture="user"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImageUpload(file, "selfie");
-                      }}
-                      className="hidden"
-                    />
-                    {uploadProgress.selfie ? (
-                      <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-                    ) : formData.selfieUrl ? (
-                      <>
-                        <CheckCircle2 className="h-10 w-10 text-green-600 mx-auto" />
-                        <p className="text-sm text-green-700 font-medium mt-2">Customer Selfie - Uploaded</p>
-                      </>
-                    ) : (
-                      <>
-                        <User className="h-10 w-10 text-muted-foreground mx-auto" />
-                        <p className="text-sm text-muted-foreground font-medium mt-2">Tap to capture Customer Selfie</p>
-                      </>
-                    )}
+                    {/* Selfie */}
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      onClick={() => selfieInputRef.current?.click()}
+                      className={cn(
+                        "border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all",
+                        formData.selfieUrl 
+                          ? "border-emerald-500 bg-emerald-500/5" 
+                          : "border-muted-foreground/30 hover:border-primary hover:bg-primary/5"
+                      )}
+                    >
+                      <input
+                        ref={selfieInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="user"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload(file, "selfie");
+                        }}
+                        className="hidden"
+                      />
+                      {uploadProgress.selfie ? (
+                        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                      ) : formData.selfieUrl ? (
+                        <>
+                          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
+                          <p className="text-sm text-emerald-700 font-medium mt-2">Customer Selfie ✓</p>
+                        </>
+                      ) : (
+                        <>
+                          <User className="h-8 w-8 text-muted-foreground mx-auto" />
+                          <p className="text-sm text-muted-foreground font-medium mt-2">Tap to capture Customer Selfie</p>
+                        </>
+                      )}
+                    </motion.div>
                   </div>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </CardContent>
+      </Card>
 
-        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t shadow-lg p-6 flex gap-3 z-50">
+      {/* Fixed Bottom Actions */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t shadow-2xl p-4 sm:p-6 z-50">
+        <div className="max-w-7xl mx-auto flex gap-3">
           <Button
             variant="outline"
-            onClick={() => setCurrentStep((prev) => prev - 1)}
+            onClick={handleBack}
             disabled={currentStep === 1}
-            className="flex-1 h-12 border-2"
+            className="flex-1 h-12 rounded-xl"
           >
+            <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
 
           {currentStep < 3 ? (
             <Button
-              onClick={() => setCurrentStep((prev) => prev + 1)}
+              onClick={handleNext}
               disabled={!validateStep()}
-              className="flex-1 h-12"
+              className="flex-1 h-12 rounded-xl bg-gradient-pink hover:opacity-90"
             >
               Next Step
+              <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
             <Button
               onClick={handleSubmit}
               disabled={!validateStep() || isSubmitting}
-              className="flex-1 h-12 bg-green-600 hover:bg-green-700"
+              className="flex-1 h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:opacity-90"
             >
               {isSubmitting ? (
                 <>
@@ -692,7 +743,10 @@ export default function AgentOnboarding() {
                   Submitting...
                 </>
               ) : (
-                "Complete Onboarding"
+                <>
+                  Complete
+                  <CheckCircle2 className="h-4 w-4 ml-2" />
+                </>
               )}
             </Button>
           )}
