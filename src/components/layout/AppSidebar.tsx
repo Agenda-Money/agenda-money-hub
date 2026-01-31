@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Home,
@@ -12,18 +12,24 @@ import {
   ChevronDown,
   ChevronRight,
   X,
+  CheckCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useSocket } from "@/hooks/useSocket";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
 
 interface NavItemProps {
   to: string;
   icon: React.ElementType;
   label: string;
   subItems?: { to: string; label: string }[];
+  badge?: number;
 }
 
-const NavItem = ({ to, icon: Icon, label, subItems }: NavItemProps) => {
+const NavItem = ({ to, icon: Icon, label, subItems, badge }: NavItemProps) => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const isActive = location.pathname === to || location.pathname.startsWith(to + "/");
@@ -44,6 +50,11 @@ const NavItem = ({ to, icon: Icon, label, subItems }: NavItemProps) => {
           <div className="flex items-center gap-3">
             <Icon className="h-5 w-5" />
             <span>{label}</span>
+            {badge !== undefined && badge > 0 && (
+              <Badge className="bg-red-500 text-white border-0 h-5 min-w-[20px] px-1.5 text-xs font-bold">
+                {badge > 99 ? "99+" : badge}
+              </Badge>
+            )}
           </div>
           {isOpen ? (
             <ChevronDown className="h-4 w-4" />
@@ -89,6 +100,11 @@ const NavItem = ({ to, icon: Icon, label, subItems }: NavItemProps) => {
     >
       <Icon className="h-5 w-5" />
       <span>{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <Badge className="bg-red-500 text-white border-0 h-5 min-w-[20px] px-1.5 text-xs font-bold ml-auto">
+          {badge > 99 ? "99+" : badge}
+        </Badge>
+      )}
     </NavLink>
   );
 };
@@ -102,8 +118,39 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
   const { logout } = useAuth();
+  const [pendingCount, setPendingCount] = useState(0);
+  const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
+
+  // Query for pending users count
+  const { data: pendingData, refetch: refetchPending } = useQuery({
+    queryKey: ["pending-users-count"],
+    queryFn: async () => {
+      const res = await api.get("/api/admin/users/pending");
+      const users = res.data?.data || res.data || [];
+      return Array.isArray(users) ? users : [];
+    },
+    refetchInterval: 30000, // Refetch every 30 seconds as fallback
+  });
+
+  // Update pending count from query
+  useEffect(() => {
+    if (pendingData) {
+      setPendingCount(pendingData.length);
+    }
+  }, [pendingData]);
+
+  // WebSocket listener for NEW_APPLICATION
+  useSocket(wsUrl, (message) => {
+    if (message?.type === "NEW_APPLICATION") {
+      // Increment count and refetch to get accurate data
+      setPendingCount(prev => prev + 1);
+      refetchPending();
+    }
+  });
+
   const navItems: NavItemProps[] = [
     { to: "/", icon: Home, label: "Dashboard" },
+    { to: "/kyc-approvals", icon: CheckCircle, label: "KYC Approvals", badge: pendingCount },
     { to: "/users", icon: Users, label: "Users" },
     {
       to: "/loans",
