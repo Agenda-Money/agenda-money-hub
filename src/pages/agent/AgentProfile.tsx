@@ -13,6 +13,8 @@ import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -33,6 +35,15 @@ export default function AgentProfile() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+
+  const { data: dashboardStats } = useQuery({
+    queryKey: ["agent-dashboard-stats", user?.email],
+    queryFn: async () => {
+      const res = await api.get("/api/agents/dashboard-stats");
+      return res.data?.data;
+    },
+    enabled: !!user?.email,
+  });
 
   const [formData, setFormData] = useState({
     fullName: user?.fullName || "",
@@ -64,8 +75,9 @@ export default function AgentProfile() {
   };
 
   const copyAgentCode = () => {
-    if (user?.agentCode) {
-      navigator.clipboard.writeText(user.agentCode);
+    const agentCode = dashboardStats?.agentCode || user?.agentCode;
+    if (agentCode) {
+      navigator.clipboard.writeText(agentCode);
       setCopied(true);
       toast.success("Agent code copied!");
       setTimeout(() => setCopied(false), 2000);
@@ -73,8 +85,8 @@ export default function AgentProfile() {
   };
 
   const stats = {
-    totalSignups: 24,
-    totalCommission: 1240,
+    totalSignups: dashboardStats?.stats?.totalSignups ?? 0,
+    totalCommission: dashboardStats?.stats?.totalCommission ?? "₵0",
     joinedDate: "2024-01-01",
     tier: "Gold Agent",
   };
@@ -132,7 +144,7 @@ export default function AgentProfile() {
                       <p className="text-sm text-muted-foreground">Your Agent Code</p>
                       <div className="flex items-center gap-2 mt-1">
                         <p className="text-2xl sm:text-3xl font-bold font-mono tracking-wider text-foreground">
-                          {user?.agentCode || "N/A"}
+                          {dashboardStats?.agentCode || user?.agentCode || "N/A"}
                         </p>
                         <Button 
                           variant="ghost" 
@@ -172,7 +184,7 @@ export default function AgentProfile() {
             <Card className="border-0 shadow-md">
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Total Commission</p>
-                <p className="text-3xl font-bold text-emerald-600 mt-1">₵{stats.totalCommission.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-emerald-600 mt-1">{stats.totalCommission}</p>
                 <p className="text-xs text-muted-foreground mt-1">Lifetime earnings</p>
               </CardContent>
             </Card>
