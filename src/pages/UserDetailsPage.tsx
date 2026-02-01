@@ -53,9 +53,14 @@ export default function UserDetailsPage() {
   const { data: userDataResponse, isLoading: isUserLoading, error: userError } = useQuery({
     queryKey: ["user", id],
     queryFn: async () => {
-      const res = await api.get(`/api/admin/users/${id}`);
-      console.log("User data response:", res.data);
-      return res.data;
+      try {
+        const res = await api.get(`/api/admin/users/profile/${id}`);
+        console.log("✅ User data response:", res.data);
+        return res.data;
+      } catch (error: any) {
+        console.error("❌ Error fetching user:", error.response?.data || error.message);
+        throw error;
+      }
     },
     enabled: !!id,
   });
@@ -69,8 +74,9 @@ export default function UserDetailsPage() {
   const userData = userDataRaw.user || userDataRaw; // Handle optional wrapper
   const userPhone = userData.msisdn || userData.phone;
 
-  console.log("Processed userData:", userData);
-  console.log("User phone:", userPhone);
+  console.log("✅ Processed userData:", userData);
+  console.log("✅ User ID check:", { id, userData_id: userData._id || userData.id, has_data: !!userData });
+  console.log("✅ User phone:", userPhone);
 
   // Fetch Wallet History (Repayments)
   const { data: walletHistoryResponse, isLoading: isWalletLoading } = useQuery({
@@ -171,7 +177,8 @@ export default function UserDetailsPage() {
       : "N/A",
     status: activeLoanData.status || "active",
     reference: activeLoanData.loanDetails?.loanReference || activeLoanData.loanReference || "N/A",
-    balance: Number(activeLoanData.balance || activeLoanData.remainingBalance || 0)
+     balance: Number(activeLoanData.balance || activeLoanData.remainingBalance || 0),
+     consentStatus: activeLoanData.consentStatus || activeLoanData.loanDetails?.consentStatus || null
   } : null;
 
   const finalUser = {
@@ -239,7 +246,8 @@ export default function UserDetailsPage() {
   }
 
   // Show error state if user data failed to load
-  if (userError || !userData || !userData._id) {
+  if (userError || !userData || (!userData._id && !userData.id)) {
+    console.error("❌ User not found - Error:", userError, "userData:", userData);
     return (
       <DashboardLayout>
         <div className="space-y-6">
@@ -293,6 +301,14 @@ export default function UserDetailsPage() {
                 <Badge variant="outline" className="border-primary text-primary">
                   {finalUser.tier}
                 </Badge>
+                {finalUser.currentLoan && (
+                  <Badge 
+                    variant={finalUser.currentLoan.consentStatus === 'Accepted' ? 'default' : 'secondary'}
+                    className={finalUser.currentLoan.consentStatus === 'Accepted' ? 'bg-green-600' : 'bg-amber-500'}
+                  >
+                    Consent: {finalUser.currentLoan.consentStatus || 'Awaiting Node Reply'}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <span>{finalUser.phone}</span>
@@ -428,12 +444,14 @@ export default function UserDetailsPage() {
           </TabsContent>
 
           <TabsContent value="details">
-            <Card>
-              <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             {/* Personal Info Card */}
+             <Card>
+               <CardHeader>
+                 <CardTitle>Personal Information</CardTitle>
+               </CardHeader>
+               <CardContent className="space-y-4">
+                 <div className="grid grid-cols-2 gap-4">
                    <div>
                      <p className="text-sm font-medium text-muted-foreground">Full Name</p>
                      <p>{finalUser.name}</p>
@@ -474,9 +492,56 @@ export default function UserDetailsPage() {
                      <p className="text-sm font-medium text-muted-foreground">Employment</p>
                      <p>{finalUser.employment}</p>
                    </div>
-                </div>
-              </CardContent>
-            </Card>
+                 </div>
+               </CardContent>
+             </Card>
+
+             {/* KYC Documents Card */}
+             <Card>
+               <CardHeader>
+                 <CardTitle>KYC Documents</CardTitle>
+               </CardHeader>
+               <CardContent className="space-y-4">
+                 {userData.ghanaCardFrontUrl && userData.ghanaCardBackUrl ? (
+                   <>
+                     <div className="grid grid-cols-2 gap-2">
+                       <div className="space-y-1">
+                         <p className="text-xs text-muted-foreground">Ghana Card Front</p>
+                         <img 
+                           src={userData.ghanaCardFrontUrl} 
+                           alt="Ghana Card Front" 
+                           className="rounded border aspect-video object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                           onClick={() => window.open(userData.ghanaCardFrontUrl, '_blank')}
+                         />
+                       </div>
+                       <div className="space-y-1">
+                         <p className="text-xs text-muted-foreground">Ghana Card Back</p>
+                         <img 
+                           src={userData.ghanaCardBackUrl} 
+                           alt="Ghana Card Back" 
+                           className="rounded border aspect-video object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                           onClick={() => window.open(userData.ghanaCardBackUrl, '_blank')}
+                         />
+                       </div>
+                     </div>
+                     {userData.selfieUrl && (
+                       <div className="space-y-1">
+                         <p className="text-xs text-muted-foreground">Customer Selfie</p>
+                         <img 
+                           src={userData.selfieUrl} 
+                           alt="Customer Selfie" 
+                           className="rounded border w-full h-48 object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                           onClick={() => window.open(userData.selfieUrl, '_blank')}
+                         />
+                       </div>
+                     )}
+                   </>
+                 ) : (
+                   <p className="text-sm text-muted-foreground text-center py-8">No KYC documents uploaded</p>
+                 )}
+               </CardContent>
+             </Card>
+           </div>
           </TabsContent>
         </Tabs>
       </div>
