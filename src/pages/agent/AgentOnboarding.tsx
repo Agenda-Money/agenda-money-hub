@@ -739,7 +739,7 @@ export default function AgentOnboarding() {
                         ref={frontInputRef}
                         type="file"
                         accept="image/*"
-                        capture="environment"
+                        capture="user"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) handleImageUpload(file, "front");
@@ -934,7 +934,7 @@ export default function AgentOnboarding() {
                             className="flex items-center gap-2 mx-auto"
                           >
                             <Camera className="h-4 w-4" />
-                            Capture with Timer (3s)
+                            Open Camera
                           </Button>
                         </div>
                       )}
