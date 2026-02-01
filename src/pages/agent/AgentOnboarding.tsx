@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Sparkles, Upload, Timer, CreditCard, TrendingUp } from "lucide-react";
+import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Sparkles, Upload, CreditCard, TrendingUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { uploadToSupabase } from "@/lib/supabase";
@@ -104,6 +104,7 @@ export default function AgentOnboarding() {
   const selfieInputRef = useRef<HTMLInputElement>(null);
   const frontUploadRef = useRef<HTMLInputElement>(null);
   const backUploadRef = useRef<HTMLInputElement>(null);
+  const selfieIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
   const [selfieCountdown, setSelfieCountdown] = useState<number | null>(null);
@@ -113,15 +114,21 @@ export default function AgentOnboarding() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsedData = JSON.parse(saved);
-        // Ensure Ghana Card number has proper format
-        if (!parsedData.ghanaCardNumber || parsedData.ghanaCardNumber === "") {
-          parsedData.ghanaCardNumber = "GHA-";
-        }
-        setFormData(parsedData);
+        // Merge with INITIAL_FORM_DATA to ensure new fields have default values
+        const mergedData = {
+          ...INITIAL_FORM_DATA,
+          ...parsedData,
+          ghanaCardNumber: parsedData.ghanaCardNumber || "GHA-",
+        };
+        setFormData(mergedData);
       } else {
         // Set default Ghana Card format on first load
         setFormData(prev => ({ ...prev, ghanaCardNumber: "GHA-" }));
       }
+      
+      // Reset consent and onboarding state when initializing
+      setIsAwaitingConsent(false);
+      setOnboardedNodeCode(null);
     } catch (error) {
       console.error("Failed to load form data from localStorage:", error);
       setFormData(prev => ({ ...prev, ghanaCardNumber: "GHA-" }));
@@ -161,17 +168,8 @@ export default function AgentOnboarding() {
       return;
     }
     
-    // Extract only digits
-    const digitsOnly = input.replace(/[^0-9]/g, "");
-    
-    // Format based on number of digits
-    let formatted = "GHA-";
-    if (digitsOnly.length <= 9) {
-      formatted = `GHA-${digitsOnly}`;
-    } else if (digitsOnly.length >= 10) {
-      formatted = `GHA-${digitsOnly.slice(0, 9)}-${digitsOnly.slice(9, 10)}`;
-    }
-    
+    // Use the formatting function
+    const formatted = formatGhanaCardNumber(input);
     updateField("ghanaCardNumber", formatted);
   };
 
@@ -206,11 +204,19 @@ export default function AgentOnboarding() {
 
   // Selfie countdown timer
   const startSelfieCapture = () => {
+    // Clear any existing interval
+    if (selfieIntervalRef.current) {
+      clearInterval(selfieIntervalRef.current);
+    }
+    
     setSelfieCountdown(3);
-    const interval = setInterval(() => {
+    selfieIntervalRef.current = setInterval(() => {
       setSelfieCountdown(prev => {
         if (prev === null || prev <= 1) {
-          clearInterval(interval);
+          if (selfieIntervalRef.current) {
+            clearInterval(selfieIntervalRef.current);
+            selfieIntervalRef.current = null;
+          }
           setTimeout(() => {
             selfieInputRef.current?.click();
             setSelfieCountdown(null);
@@ -221,6 +227,15 @@ export default function AgentOnboarding() {
       });
     }, 1000);
   };
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (selfieIntervalRef.current) {
+        clearInterval(selfieIntervalRef.current);
+      }
+    };
+  }, []);
 
   const validateStep = () => {
     switch (currentStep) {
@@ -251,12 +266,19 @@ export default function AgentOnboarding() {
           formData.ghanaCardBackUrl &&
           formData.selfieUrl
         );
-      case 4:
+      case 4: {
+        const loanAmount = parseInt(formData.initialLoanAmount, 10);
+        const loanTenure = parseInt(formData.initialLoanTenure, 10);
         return (
           formData.initialLoanAmount &&
           formData.initialLoanTenure &&
-          formData.initialLoanPurpose
+          formData.initialLoanPurpose &&
+          loanAmount >= 50 &&
+          loanAmount <= 350 &&
+          loanTenure >= 1 &&
+          loanTenure <= 14
         );
+      }
       default:
         return false;
     }
@@ -285,7 +307,7 @@ export default function AgentOnboarding() {
         region: formData.region,
         address: formData.address,
         accommodationType: formData.accommodationType,
-        yearsAtAddress: Number.parseInt(formData.yearsAtAddress),
+        yearsAtAddress: parseInt(formData.yearsAtAddress, 10) || 0,
         educationLevel: formData.educationLevel,
         employmentStatus: formData.employmentStatus,
         monthlyIncome: formData.monthlyIncome,
@@ -293,8 +315,8 @@ export default function AgentOnboarding() {
         ghanaCardFrontUrl: formData.ghanaCardFrontUrl,
         ghanaCardBackUrl: formData.ghanaCardBackUrl,
         selfieUrl: formData.selfieUrl,
-        initialLoanAmount: Number.parseInt(formData.initialLoanAmount),
-        initialLoanTenure: Number.parseInt(formData.initialLoanTenure),
+        initialLoanAmount: parseInt(formData.initialLoanAmount, 10) || 0,
+        initialLoanTenure: parseInt(formData.initialLoanTenure, 10) || 0,
         initialLoanPurpose: formData.initialLoanPurpose,
       };
 
@@ -381,7 +403,7 @@ export default function AgentOnboarding() {
                 onClick={() => {
                   setOnboardedNodeCode(null);
                    setIsAwaitingConsent(false);
-                  setFormData(INITIAL_FORM_DATA);
+                  setFormData({ ...INITIAL_FORM_DATA, ghanaCardNumber: "GHA-" });
                   localStorage.removeItem(STORAGE_KEY);
                   setCurrentStep(1);
                 }}
