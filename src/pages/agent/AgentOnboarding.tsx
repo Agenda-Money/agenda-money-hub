@@ -204,29 +204,25 @@ export default function AgentOnboarding() {
 
   // Selfie countdown timer
   const startSelfieCapture = () => {
-    // Clear any existing interval
     if (selfieIntervalRef.current) {
       clearInterval(selfieIntervalRef.current);
     }
-    
-    setSelfieCountdown(3);
+    let count = 3;
+    setSelfieCountdown(count);
     selfieIntervalRef.current = setInterval(() => {
-      setSelfieCountdown(prev => {
-        if (prev === null || prev <= 1) {
-          if (selfieIntervalRef.current) {
-            clearInterval(selfieIntervalRef.current);
-            selfieIntervalRef.current = null;
-          }
-          setTimeout(() => {
-            selfieInputRef.current?.click();
-            setSelfieCountdown(null);
-          }, 500);
-          return null;
+      count--;
+      if (count <= 0) {
+        if (selfieIntervalRef.current) {
+          clearInterval(selfieIntervalRef.current);
+          selfieIntervalRef.current = null;
         }
-        return prev - 1;
-      });
+        setSelfieCountdown(null);
+        selfieInputRef.current?.click();
+      } else {
+        setSelfieCountdown(count);
+      }
     }, 1000);
-  };
+  }
 
   // Cleanup interval on unmount
   useEffect(() => {
