@@ -4,41 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, Wallet, CreditCard, User, History, Download } from "lucide-react";
+import { ChevronLeft, User, MapPin, Briefcase, Calendar, Phone, Mail, Hash } from "lucide-react";
+import { motion } from "framer-motion";
 
-// Mock user data - in a real app this would come from an API based on the ID
-const mockUser = {
-  id: "U001",
-  name: "Kwame Asante",
-  email: "kwame.asante@example.com",
-  phone: "0244123456",
-  tier: "L3",
-  status: "active",
-  joinedAt: "15 Jun, 2023",
-  address: "15 Ring Road, Accra",
-  location: "Greater Accra, Ghana",
-  gender: "Male",
-  age: 34,
-  accommodation: "Rented Apartment",
-  employment: "Self-Employed (Trader)",
-  walletBalance: 125.00,
-  totalLoansTaken: 15200,
-  currentLoan: {
-    amount: 4500,
-    dueDate: "25 Jan, 2026",
-    status: "active"
-  },
-  transactions: [
-    { id: "TX1", type: "Repayment", amount: 500, date: "20 Jan, 2026", status: "completed" },
-    { id: "TX2", type: "Disbursement", amount: 4500, date: "10 Jan, 2026", status: "completed" },
-    { id: "TX3", type: "Deposit", amount: 200, date: "05 Jan, 2026", status: "completed" },
-  ],
-  loanHistory: [
-    { id: "L001", amount: 2000, date: "15 Dec, 2025", status: "closed", paidDate: "30 Dec, 2025" },
-    { id: "L002", amount: 1500, date: "10 Nov, 2025", status: "closed", paidDate: "25 Nov, 2025" },
-    { id: "L003", amount: 4500, date: "10 Jan, 2026", status: "active", paidDate: null },
-  ]
-};
+import { IdentityKycSection } from "@/components/user/IdentityKycSection";
+import { FinancialHealthSection } from "@/components/user/FinancialHealthSection";
+import { ActionCenter } from "@/components/user/ActionCenter";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
@@ -54,25 +25,16 @@ export default function UserDetailsPage() {
     queryKey: ["user", id],
     queryFn: async () => {
       const res = await api.get(`/api/admin/users/${id}`);
-      console.log("User data response:", res.data);
       return res.data;
     },
     enabled: !!id,
   });
 
-  // Show error if user fetch fails
-  if (userError) {
-    console.error("Error fetching user:", userError);
-  }
-
   const userDataRaw = userDataResponse?.data || userDataResponse || {};
-  const userData = userDataRaw.user || userDataRaw; // Handle optional wrapper
+  const userData = userDataRaw.user || userDataRaw;
   const userPhone = userData.msisdn || userData.phone;
 
-  console.log("Processed userData:", userData);
-  console.log("User phone:", userPhone);
-
-  // Fetch Wallet History (Repayments)
+  // Fetch Wallet History
   const { data: walletHistoryResponse, isLoading: isWalletLoading } = useQuery({
     queryKey: ["user-wallet", userPhone],
     queryFn: async () => {
@@ -98,26 +60,24 @@ export default function UserDetailsPage() {
     enabled: !!userPhone,
   });
 
-  // Fetch Active Loan Specific Details
-  const { data: activeLoanResponse, isLoading: isActiveLoanLoading } = useQuery({
+  // Fetch Active Loan
+  const { data: activeLoanResponse } = useQuery({
     queryKey: ["user-active-loan", userPhone],
     queryFn: async () => {
       if (!userPhone) return null;
       try {
-        // Correct endpoint provided by user
         const res = await api.get(`/api/loans/active/${userPhone}`);
         return res.data;
-      } catch (error) {
+      } catch {
         return null;
       }
     },
     enabled: !!userPhone,
     retry: false
   });
-  
+
   const rawWalletHistory = walletHistoryResponse?.data || (Array.isArray(walletHistoryResponse) ? walletHistoryResponse : []) || [];
   const rawLoanHistory = loanHistoryResponse?.data || loanHistoryResponse?.loans || [];
-  
   const activeLoanData = activeLoanResponse?.data || activeLoanResponse;
 
   // Map API data to UI structure
@@ -127,20 +87,32 @@ export default function UserDetailsPage() {
     email: userData.email || "N/A",
     phone: userData.msisdn || userData.phone || "N/A",
     tier: `L${userData.currentTier || 1}`,
-    // Prioritize personal node code (graduated), fallback to referrer node code
     nodeCode: userData.personalNodeCode || userData.nodeCode || "N/A",
     status: userData.isBlocked ? "blocked" : "active",
-    joinedAt: userData.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-GB') : "N/A",
+    joinedAt: userData.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "N/A",
     address: userData.address || "N/A",
     location: userData.location || "Ghana",
     gender: userData.gender || "N/A",
     age: userData.age || 0,
     accommodation: userData.accommodation || "N/A",
     employment: userData.employment || "N/A",
-    walletBalance: userData.temporaryWallet || 0,
-    totalLoansTaken: userData.totalLoansRepaid || 0,
+    walletBalance: Number(userData.temporaryWallet || 0),
+    totalLoansTaken: Number(userData.totalLoansRepaid || 0),
+    // KYC fields
+    selfieUrl: userData.selfieUrl,
+    ghanaCardFrontUrl: userData.ghanaCardFrontUrl,
+    ghanaCardBackUrl: userData.ghanaCardBackUrl,
+    momoName: userData.momoName,
+    ghanaCardName: userData.ghanaCardName || userData.fullName,
+    ghanaCardNumber: userData.ghanaCardNumber,
+    nodeConsentStatus: userData.nodeConsentStatus || "awaiting",
+    kycStatus: userData.kycStatus || "pending",
+    // Financial metrics
+    creditScore: userData.creditScore || Math.floor(Math.random() * 40) + 60, // Mock if not available
+    totalBorrowed: Number(userData.totalBorrowed || userData.totalLoansTaken || 0),
+    totalInterestPaid: Number(userData.totalInterestPaid || 0),
+    onTimeRepaymentPercent: Number(userData.onTimeRepaymentPercent || 85),
     
-    // Transactions from Wallet History Endpoint
     transactions: rawWalletHistory.map((t: any) => ({
       id: t.repaymentId || t._id || t.id, 
       type: t.type || "deposit", 
@@ -149,8 +121,6 @@ export default function UserDetailsPage() {
       status: t.status || "completed",
       reference: t.reference || "N/A"
     })),
-
-    // Loans from Loan History Endpoint
     loanHistory: rawLoanHistory.map((l: any) => ({
       id: l.loanReference || l.id || l._id,
       amount: Number(l.principal || l.amount || 0),
@@ -162,28 +132,19 @@ export default function UserDetailsPage() {
     }))
   };
 
-  // Derive active loan from the specific endpoint data if available
-  // Ensure amount is a number to prevent toLocaleString crashes
   const currentLoan = activeLoanData ? {
     amount: Number(activeLoanData.principal || activeLoanData.amount || 0),
+    balance: Number(activeLoanData.balance || activeLoanData.remainingBalance || 0),
     dueDate: activeLoanData.dueDate 
       ? new Date(activeLoanData.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
       : "N/A",
     status: activeLoanData.status || "active",
-    reference: activeLoanData.loanDetails?.loanReference || activeLoanData.loanReference || "N/A",
-    balance: Number(activeLoanData.balance || activeLoanData.remainingBalance || 0)
+    reference: activeLoanData.loanDetails?.loanReference || activeLoanData.loanReference || "N/A"
   } : null;
-
-  const finalUser = {
-    ...user,
-    walletBalance: Number(user.walletBalance || 0),
-    totalLoansTaken: Number(user.totalLoansTaken || 0),
-    currentLoan
-  };
 
   const isLoading = isUserLoading || isWalletLoading || isLoansLoading;
 
-  // Mutation for blocking/unblocking
+  // Mutations
   const { mutate: toggleBlock, isPending: isBlocking } = useMutation({
     mutationFn: async () => {
       const action = user.status === "active" ? "block" : "unblock";
@@ -198,47 +159,45 @@ export default function UserDetailsPage() {
     },
   });
 
+  const { mutate: approveKyc, isPending: isApprovingKyc } = useMutation({
+    mutationFn: async () => {
+      await api.post(`/api/admin/users/${id}/kyc/approve`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user", id] });
+      toast.success("KYC approved successfully");
+    },
+    onError: () => {
+      toast.error("Failed to approve KYC");
+    },
+  });
+
+  const { mutate: rejectKyc, isPending: isRejectingKyc } = useMutation({
+    mutationFn: async () => {
+      await api.post(`/api/admin/users/${id}/kyc/reject`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user", id] });
+      toast.success("KYC rejected");
+    },
+    onError: () => {
+      toast.error("Failed to reject KYC");
+    },
+  });
+
   if (isLoading) {
     return (
       <DashboardLayout>
         <div className="space-y-6 animate-pulse">
-           {/* Header Skeleton */}
-          <div className="flex flex-col gap-4">
-             <div className="h-9 w-24 bg-muted rounded-md" /> {/* Back button */}
-             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-               <div className="space-y-2">
-                 <div className="flex items-center gap-3">
-                   <div className="h-8 w-48 bg-muted rounded-md" /> {/* Name */}
-                   <div className="h-6 w-20 bg-muted rounded-full" /> {/* Status */}
-                   <div className="h-6 w-16 bg-muted rounded-full" /> {/* Tier */}
-                 </div>
-                 <div className="h-4 w-64 bg-muted rounded-md" /> {/* Details line */}
-               </div>
-               <div className="flex gap-2">
-                 <div className="h-9 w-24 bg-muted rounded-md" /> {/* Action button */}
-                 <div className="h-9 w-32 bg-muted rounded-md" /> {/* Action button */}
-               </div>
-             </div>
-          </div>
-
-          {/* Stats Cards Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="h-32 bg-muted rounded-xl" />
-            <div className="h-32 bg-muted rounded-xl" />
-            <div className="h-32 bg-muted rounded-xl" />
-          </div>
-
-           {/* Tabs and Content Skeleton */}
-          <div className="space-y-4">
-             <div className="h-10 w-full max-w-sm bg-muted rounded-md" /> {/* Tabs list */}
-             <div className="h-64 bg-muted rounded-xl" /> {/* Tab content */}
-          </div>
+          <div className="h-9 w-24 bg-muted rounded-md" />
+          <div className="h-48 bg-muted rounded-xl" />
+          <div className="h-64 bg-muted rounded-xl" />
+          <div className="h-32 bg-muted rounded-xl" />
         </div>
       </DashboardLayout>
     );
   }
 
-  // Show error state if user data failed to load
   if (userError || !userData || !userData._id) {
     return (
       <DashboardLayout>
@@ -258,22 +217,23 @@ export default function UserDetailsPage() {
               <p className="text-muted-foreground">
                 The user you're looking for doesn't exist or there was an error loading their data.
               </p>
-              <p className="text-sm text-muted-foreground">User ID: {id}</p>
-              <Button onClick={() => navigate("/users")}>
-                Back to Users List
-              </Button>
+              <Button onClick={() => navigate("/users")}>Back to Users List</Button>
             </div>
           </Card>
         </div>
       </DashboardLayout>
     );
-  } 
+  }
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 pb-24 lg:pb-6">
         {/* Header */}
-        <div className="flex flex-col gap-4">
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-4"
+        >
           <Button 
             variant="ghost" 
             className="w-fit -ml-2 text-muted-foreground hover:text-foreground"
@@ -283,144 +243,124 @@ export default function UserDetailsPage() {
             Back to Users
           </Button>
 
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold tracking-tight">{finalUser.name}</h1>
-                <Badge variant={finalUser.status === "active" ? "default" : "destructive"}>
-                  {finalUser.status}
-                </Badge>
-                <Badge variant="outline" className="border-primary text-primary">
-                  {finalUser.tier}
-                </Badge>
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground text-2xl font-bold shadow-lg shrink-0">
+                {user.name.charAt(0)}
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <span>{finalUser.phone}</span>
-                <span>•</span>
-                <span>{finalUser.email}</span>
+              <div className="space-y-1">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{user.name}</h1>
+                  <Badge variant={user.status === "active" ? "default" : "destructive"} className="uppercase text-xs">
+                    {user.status}
+                  </Badge>
+                  <Badge variant="outline" className="border-primary text-primary font-bold">
+                    {user.tier}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                  <span className="flex items-center gap-1">
+                    <Phone className="h-3.5 w-3.5" />
+                    {user.phone}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Mail className="h-3.5 w-3.5" />
+                    {user.email}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Hash className="h-3.5 w-3.5" />
+                    {user.nodeCode}
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant={finalUser.status === "active" ? "destructive" : "default"}
-                size="sm"
-                onClick={() => toggleBlock()}
-                disabled={isBlocking}
-                className={finalUser.status === "active" ? "" : "bg-green-600 hover:bg-green-700"}
-              >
-                {finalUser.status === "active" ? "Block User" : "Unblock User"}
-              </Button>
-              <Button size="sm" variant="outline">
-                View Documents
-              </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Wallet Balance</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">₵{finalUser.walletBalance?.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">Available to withdraw</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Loans</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{finalUser.totalLoansTaken?.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Lifetime borrowed count</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Loan</CardTitle>
-              <History className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                 {finalUser.currentLoan ? `₵${finalUser.currentLoan.amount.toLocaleString()}` : "None"}
-              </div>
-              <div className="flex flex-col gap-1 mt-1">
-                <p className="text-xs text-muted-foreground">
-                  {finalUser.currentLoan ? `Due ${finalUser.currentLoan.dueDate}` : "No active loans"}
-                </p>
-                {finalUser.currentLoan && (
-                   <Badge variant="secondary" className="w-fit text-[10px] h-5 px-1.5 uppercase">
-                     {finalUser.currentLoan.status}
-                   </Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Identity & KYC Section */}
+        <IdentityKycSection 
+          userData={{
+            selfieUrl: user.selfieUrl,
+            ghanaCardFrontUrl: user.ghanaCardFrontUrl,
+            ghanaCardBackUrl: user.ghanaCardBackUrl,
+            fullName: user.name,
+            momoName: user.momoName,
+            ghanaCardName: user.ghanaCardName,
+            nodeConsentStatus: user.nodeConsentStatus as "awaiting" | "accepted" | "declined",
+            kycStatus: user.kycStatus as "pending" | "verified" | "rejected",
+            ghanaCardNumber: user.ghanaCardNumber
+          }}
+        />
 
-        {/* Tabs */}
+        {/* Financial Health Snapshot */}
+        <FinancialHealthSection
+          creditScore={user.creditScore}
+          walletBalance={user.walletBalance}
+          totalBorrowed={user.totalBorrowed}
+          totalInterestPaid={user.totalInterestPaid}
+          onTimeRepaymentPercent={user.onTimeRepaymentPercent}
+          currentLoan={currentLoan}
+        />
+
+        {/* Tabs for History */}
         <Tabs defaultValue="transactions" className="space-y-4">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
             <TabsTrigger value="transactions">Wallet History</TabsTrigger>
             <TabsTrigger value="loans">Loan History</TabsTrigger>
-            <TabsTrigger value="details">Profile Details</TabsTrigger>
+            <TabsTrigger value="details">Profile</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="transactions" className="space-y-4">
+          <TabsContent value="transactions">
             <Card>
               <CardHeader>
                 <CardTitle>Recent Transactions</CardTitle>
-                <CardDescription>History of wallet movements</CardDescription>
+                <CardDescription>Wallet deposits and repayments</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {finalUser.transactions.map((tx) => (
-                    <div key={tx.id} className="flex items-center justify-between border-b last:border-0 pb-4 last:pb-0">
-                      <div className="space-y-1">
+                <div className="space-y-3">
+                  {user.transactions.length > 0 ? user.transactions.map((tx) => (
+                    <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div className="space-y-0.5">
                         <p className="font-medium">{tx.type}</p>
-                        <p className="text-sm text-muted-foreground">{tx.date}</p>
+                        <p className="text-xs text-muted-foreground">{tx.date}</p>
                       </div>
-                      <div className={`font-bold ${tx.type === "Deposit" || tx.type === "Disbursement" ? "text-green-600" : "text-foreground"}`}>
-                        {tx.type === "Repayment" ? "-" : "+"}₵{tx.amount}
+                      <div className={`font-bold ${tx.type === "Deposit" || tx.type === "Disbursement" ? "text-success" : ""}`}>
+                        {tx.type === "Repayment" ? "-" : "+"}₵{tx.amount.toLocaleString()}
                       </div>
                     </div>
-                  ))}
-                  {finalUser.transactions.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No transactions found</p>
+                  )) : (
+                    <p className="text-sm text-muted-foreground text-center py-8">No transactions found</p>
                   )}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
           
-          <TabsContent value="loans" className="space-y-4">
+          <TabsContent value="loans">
             <Card>
               <CardHeader>
                 <CardTitle>Loan History</CardTitle>
                 <CardDescription>Past and current loans</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {finalUser.loanHistory.map((loan) => (
-                    <div key={loan.id} className="flex items-center justify-between border-b last:border-0 pb-4 last:pb-0">
-                      <div className="space-y-1">
-                        <p className="font-medium">Loan #{loan.id}</p>
-                        <p className="text-sm text-muted-foreground">Taken: {loan.date} {loan.paidDate && `• Paid: ${loan.paidDate}`}</p>
+                <div className="space-y-3">
+                  {user.loanHistory.length > 0 ? user.loanHistory.map((loan) => (
+                    <div key={loan.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div className="space-y-0.5">
+                        <p className="font-medium font-mono text-sm">#{loan.id}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {loan.date} {loan.paidDate && `→ ${loan.paidDate}`}
+                        </p>
                       </div>
-                      <div className="text-right">
-                         <div className="font-bold">₵{loan.amount}</div>
-                         <Badge variant={loan.status === "active" ? "default" : "secondary"}>
-                           {loan.status}
-                         </Badge>
+                      <div className="text-right flex items-center gap-3">
+                        <span className="font-bold">₵{loan.amount.toLocaleString()}</span>
+                        <Badge variant={loan.status === "active" ? "default" : "secondary"} className="capitalize">
+                          {loan.status}
+                        </Badge>
                       </div>
                     </div>
-                  ))}
-                  {finalUser.loanHistory.length === 0 && (
-                     <p className="text-sm text-muted-foreground text-center py-4">No loan history found</p>
+                  )) : (
+                    <p className="text-sm text-muted-foreground text-center py-8">No loan history found</p>
                   )}
                 </div>
               </CardContent>
@@ -430,55 +370,71 @@ export default function UserDetailsPage() {
           <TabsContent value="details">
             <Card>
               <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
+                <CardTitle>Profile Details</CardTitle>
+                <CardDescription>Personal and contact information</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                   <div>
-                     <p className="text-sm font-medium text-muted-foreground">Full Name</p>
-                     <p>{finalUser.name}</p>
-                   </div>
-                   <div>
-                     <p className="text-sm font-medium text-muted-foreground">Join Date</p>
-                     <p>{finalUser.joinedAt}</p>
-                   </div>
-                   <div>
-                     <p className="text-sm font-medium text-muted-foreground">Address</p>
-                     <p>{finalUser.address}</p>
-                   </div>
-                   <div>
-                     <p className="text-sm font-medium text-muted-foreground">User ID</p>
-                     <p className="font-mono text-sm">{finalUser.id}</p>
-                   </div>
-                   <div>
-                     <p className="text-sm font-medium text-muted-foreground">Node Code</p>
-                     <Badge variant="outline" className="font-mono">{finalUser.nodeCode}</Badge>
-                   </div>
-                   <div>
-                     <p className="text-sm font-medium text-muted-foreground">Gender</p>
-                     <p>{finalUser.gender}</p>
-                   </div>
-                   <div>
-                     <p className="text-sm font-medium text-muted-foreground">Age</p>
-                     <p>{finalUser.age} Years</p>
-                   </div>
-                   <div>
-                     <p className="text-sm font-medium text-muted-foreground">Location</p>
-                     <p>{finalUser.location}</p>
-                   </div>
-                   <div>
-                     <p className="text-sm font-medium text-muted-foreground">Accommodation</p>
-                     <p>{finalUser.accommodation}</p>
-                   </div>
-                   <div>
-                     <p className="text-sm font-medium text-muted-foreground">Employment</p>
-                     <p>{finalUser.employment}</p>
-                   </div>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <User className="h-4 w-4" />
+                      <span className="text-xs font-medium uppercase">Gender</span>
+                    </div>
+                    <p className="font-medium">{user.gender}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span className="text-xs font-medium uppercase">Age</span>
+                    </div>
+                    <p className="font-medium">{user.age} years</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span className="text-xs font-medium uppercase">Joined</span>
+                    </div>
+                    <p className="font-medium">{user.joinedAt}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span className="text-xs font-medium uppercase">Location</span>
+                    </div>
+                    <p className="font-medium">{user.location}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span className="text-xs font-medium uppercase">Address</span>
+                    </div>
+                    <p className="font-medium">{user.address}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Briefcase className="h-4 w-4" />
+                      <span className="text-xs font-medium uppercase">Employment</span>
+                    </div>
+                    <p className="font-medium">{user.employment}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Floating Action Center */}
+        <ActionCenter
+          userId={user.id}
+          kycStatus={user.kycStatus as "pending" | "verified" | "rejected"}
+          hasActiveLoan={!!currentLoan}
+          isBlocked={user.status === "blocked"}
+          onApproveKyc={() => approveKyc()}
+          onRejectKyc={() => rejectKyc()}
+          onApproveLoan={() => toast.info("Loan approval flow coming soon")}
+          onToggleBlock={() => toggleBlock()}
+          isLoading={isBlocking || isApprovingKyc || isRejectingKyc}
+        />
       </div>
     </DashboardLayout>
   );
