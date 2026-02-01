@@ -86,7 +86,9 @@ export default function AgentProfile() {
 
   const stats = {
     totalSignups: dashboardStats?.stats?.totalSignups ?? 0,
-    totalCommission: dashboardStats?.stats?.totalCommission ?? "₵0",
+    totalCommission: typeof dashboardStats?.stats?.totalCommission === 'number' 
+      ? `₵${dashboardStats.stats.totalCommission.toLocaleString()}`
+      : dashboardStats?.stats?.totalCommission ?? "₵0",
     joinedDate: "2024-01-01",
     tier: "Gold Agent",
   };
