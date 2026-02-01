@@ -217,7 +217,16 @@ export default function AgentOnboarding() {
           selfieIntervalRef.current = null;
         }
         setSelfieCountdown(null);
-        selfieInputRef.current?.click();
+        // Ensure input exists before clicking
+        const input = selfieInputRef.current;
+        if (input) {
+          // Reset value to trigger onChange on same file
+          input.value = "";
+          console.log("� Triggering camera...", input);
+          input.click();
+        } else {
+          console.error("❌ Selfie input ref not found");
+        }
       } else {
         setSelfieCountdown(count);
       }
@@ -880,7 +889,7 @@ export default function AgentOnboarding() {
                         ref={selfieInputRef}
                         type="file"
                         accept="image/*"
-                        capture="user"
+                        capture
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) handleImageUpload(file, "selfie");
