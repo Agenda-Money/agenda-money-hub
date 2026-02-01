@@ -24,7 +24,7 @@ export default function UserDetailsPage() {
   const { data: userDataResponse, isLoading: isUserLoading, error: userError } = useQuery({
     queryKey: ["user", id],
     queryFn: async () => {
-      const res = await api.get(`/api/admin/users/${id}`);
+      const res = await api.get(`/api/admin/users/profile/${id}`);
       return res.data;
     },
     enabled: !!id,
