@@ -159,11 +159,17 @@ export function IdentityKycSection({ userData }: IdentityKycSectionProps) {
                 Live Selfie
               </div>
               {userData.selfieUrl ? (
-                <img 
-                  src={userData.selfieUrl} 
-                  alt="Live selfie" 
-                  className="w-full aspect-[3/2] object-cover rounded-xl border shadow-sm"
-                />
+                <a
+                  href={userData.selfieUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img 
+                    src={userData.selfieUrl} 
+                    alt="Live selfie" 
+                    className="w-full aspect-[3/2] object-cover rounded-xl border shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                  />
+                </a>
               ) : (
                 <ImagePlaceholder icon={Camera} label="No selfie uploaded" />
               )}
@@ -176,11 +182,17 @@ export function IdentityKycSection({ userData }: IdentityKycSectionProps) {
                 Ghana Card (Front)
               </div>
               {userData.ghanaCardFrontUrl ? (
-                <img 
-                  src={userData.ghanaCardFrontUrl} 
-                  alt="Ghana Card front" 
-                  className="w-full aspect-[3/2] object-cover rounded-xl border shadow-sm"
-                />
+                <a
+                  href={userData.ghanaCardFrontUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img 
+                    src={userData.ghanaCardFrontUrl} 
+                    alt="Ghana Card front" 
+                    className="w-full aspect-[1.586] object-cover rounded-xl border shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                  />
+                </a>
               ) : (
                 <ImagePlaceholder icon={IdCard} label="No ID uploaded" />
               )}
@@ -193,11 +205,17 @@ export function IdentityKycSection({ userData }: IdentityKycSectionProps) {
                 Ghana Card (Back)
               </div>
               {userData.ghanaCardBackUrl ? (
-                <img 
-                  src={userData.ghanaCardBackUrl} 
-                  alt="Ghana Card back" 
-                  className="w-full aspect-[3/2] object-cover rounded-xl border shadow-sm"
-                />
+                <a
+                  href={userData.ghanaCardBackUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img 
+                    src={userData.ghanaCardBackUrl} 
+                    alt="Ghana Card back" 
+                    className="w-full aspect-[1.586] object-cover rounded-xl border shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                  />
+                </a>
               ) : (
                 <ImagePlaceholder icon={IdCard} label="No ID uploaded" />
               )}

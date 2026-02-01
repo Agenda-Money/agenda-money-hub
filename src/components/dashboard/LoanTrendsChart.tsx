@@ -7,18 +7,27 @@ import {
   Area,
   AreaChart,
 } from "recharts";
-
-const data = [
-  { month: "Jan", disbursed: 45000, repaid: 42000 },
-  { month: "Feb", disbursed: 52000, repaid: 48000 },
-  { month: "Mar", disbursed: 48000, repaid: 51000 },
-  { month: "Apr", disbursed: 61000, repaid: 55000 },
-  { month: "May", disbursed: 55000, repaid: 58000 },
-  { month: "Jun", disbursed: 67000, repaid: 62000 },
-  { month: "Jul", disbursed: 72000, repaid: 68000 },
-];
+  import { useQuery } from "@tanstack/react-query";
+  import api from "@/lib/api";
 
 export function LoanTrendsChart() {
+    const { data: chartData } = useQuery({
+      queryKey: ["loan-trends"],
+      queryFn: async () => {
+        const res = await api.get("/api/admin/dashboard/trends");
+        return res.data?.data || res.data || [];
+      },
+    });
+
+  const dummyData = [
+    { month: "W1", disbursed: 2000, repaid: 2400 },
+    { month: "W2", disbursed: 3200, repaid: 2800 },
+    { month: "W3", disbursed: 4500, repaid: 4100 },
+    { month: "W4", disbursed: 6800, repaid: 5900 },
+  ];
+
+  const data = (chartData && chartData.length > 0) ? chartData : dummyData;
+
   return (
     <div className="bg-card rounded-xl shadow-sm p-6 animate-fade-in border border-border/50 hover:shadow-md transition-all duration-300">
       <div className="mb-4">
