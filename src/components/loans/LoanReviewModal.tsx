@@ -38,7 +38,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: LoanReviewModalP
     queryKey: ["loan-user-details", userId],
     queryFn: async () => {
       if (!userId) return null;
-      const res = await api.get(`/api/admin/users/${userId}`);
+      const res = await api.get(`/api/admin/users/profile/${userId}`);
       return res.data;
     },
     enabled: !!userId && isOpen,
