@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { User, CreditCard, CheckCircle2, XCircle, Clock, AlertCircle, Camera, IdCard } from "lucide-react";
+import { User, CheckCircle2, XCircle, Clock, AlertCircle, Camera, IdCard, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface IdentityKycSectionProps {
@@ -25,7 +24,7 @@ const KycStatusBadge = ({ status }: { status: string }) => {
       text: "text-warning",
       border: "border-warning/30",
       icon: Clock,
-      label: "PENDING"
+      label: "PENDING REVIEW"
     },
     verified: {
       bg: "bg-success/15",
@@ -66,28 +65,28 @@ const ConsentStatusIndicator = ({ status }: { status: string }) => {
       bg: "bg-muted",
       text: "text-muted-foreground",
       icon: Clock,
-      label: "Awaiting Consent"
+      label: "Awaiting"
     },
     accepted: {
       bg: "bg-success/15",
       text: "text-success",
       icon: CheckCircle2,
-      label: "Consent Accepted"
+      label: "Accepted"
     },
     declined: {
       bg: "bg-destructive/15",
       text: "text-destructive",
       icon: XCircle,
-      label: "Consent Declined"
+      label: "Declined"
     }
   };
 
   const { bg, text, icon: Icon, label } = config[status as keyof typeof config] || config.awaiting;
 
   return (
-    <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg", bg)}>
-      <Icon className={cn("h-4 w-4", text)} />
-      <span className={cn("text-sm font-medium", text)}>{label}</span>
+    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium", bg, text)}>
+      <Icon className="h-3.5 w-3.5" />
+      {label}
     </div>
   );
 };
@@ -95,36 +94,88 @@ const ConsentStatusIndicator = ({ status }: { status: string }) => {
 const NameMatchBadge = ({ matches }: { matches: boolean | null }) => {
   if (matches === null) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted">
-        <AlertCircle className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium text-muted-foreground">Not Verified</span>
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted text-xs font-medium text-muted-foreground">
+        <AlertCircle className="h-3.5 w-3.5" />
+        Pending
       </div>
     );
   }
 
   return matches ? (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/15">
-      <CheckCircle2 className="h-4 w-4 text-success" />
-      <span className="text-sm font-medium text-success">Names Match</span>
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-success/15 text-xs font-medium text-success">
+      <CheckCircle2 className="h-3.5 w-3.5" />
+      Match
     </div>
   ) : (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-destructive/15">
-      <XCircle className="h-4 w-4 text-destructive" />
-      <span className="text-sm font-medium text-destructive">Names Mismatch</span>
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-destructive/15 text-xs font-medium text-destructive">
+      <XCircle className="h-3.5 w-3.5" />
+      Mismatch
     </div>
   );
 };
 
 const ImagePlaceholder = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => (
   <div className="aspect-[3/2] rounded-xl bg-muted/50 border-2 border-dashed border-muted-foreground/20 flex flex-col items-center justify-center gap-2">
-    <Icon className="h-10 w-10 text-muted-foreground/40" />
+    <Icon className="h-8 w-8 text-muted-foreground/40" />
     <span className="text-xs text-muted-foreground/60">{label}</span>
+  </div>
+);
+
+const ImageCard = ({ 
+  url, 
+  alt, 
+  icon: Icon, 
+  label,
+  aspectRatio = "3/2"
+}: { 
+  url?: string; 
+  alt: string; 
+  icon: React.ElementType; 
+  label: string;
+  aspectRatio?: string;
+}) => (
+  <div className="space-y-2">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <Icon className="h-4 w-4" />
+        {label}
+      </div>
+      {url && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-primary hover:underline flex items-center gap-1"
+        >
+          View <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
+    </div>
+    {url ? (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
+        <div className="relative overflow-hidden rounded-xl border shadow-sm">
+          <img 
+            src={url} 
+            alt={alt} 
+            className={cn(
+              "w-full object-cover transition-transform duration-300 group-hover:scale-105",
+              aspectRatio === "3/2" && "aspect-[3/2]",
+              aspectRatio === "1.586" && "aspect-[1.586/1]"
+            )}
+            style={{ aspectRatio: aspectRatio === "1.586" ? "1.586" : "3/2" }}
+          />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+        </div>
+      </a>
+    ) : (
+      <ImagePlaceholder icon={Icon} label={`No ${label.toLowerCase()} uploaded`} />
+    )}
   </div>
 );
 
 export function IdentityKycSection({ userData }: IdentityKycSectionProps) {
   const nameMatches = userData.momoName && userData.ghanaCardName 
-    ? userData.momoName.toLowerCase() === userData.ghanaCardName.toLowerCase()
+    ? userData.momoName.toLowerCase().trim() === userData.ghanaCardName.toLowerCase().trim()
     : null;
 
   return (
@@ -133,122 +184,83 @@ export function IdentityKycSection({ userData }: IdentityKycSectionProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <Card className="overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b">
-          <div className="flex items-center justify-between flex-wrap gap-4">
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-primary/5 via-primary/3 to-transparent border-b px-4 py-4 lg:px-6 lg:py-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
                 <User className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <CardTitle className="text-lg">Identity & KYC Verification</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">Document verification and identity check</p>
+                <CardTitle className="text-base lg:text-lg">Identity & KYC</CardTitle>
+                <p className="text-xs lg:text-sm text-muted-foreground mt-0.5">Document verification</p>
               </div>
             </div>
             <KycStatusBadge status={userData.kycStatus || "pending"} />
           </div>
         </CardHeader>
 
-        <CardContent className="p-6 space-y-6">
-          {/* Selfie & ID Comparison */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Live Selfie */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Camera className="h-4 w-4" />
-                Live Selfie
-              </div>
-              {userData.selfieUrl ? (
-                <a
-                  href={userData.selfieUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <img 
-                    src={userData.selfieUrl} 
-                    alt="Live selfie" 
-                    className="w-full aspect-[3/2] object-cover rounded-xl border shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
-                  />
-                </a>
-              ) : (
-                <ImagePlaceholder icon={Camera} label="No selfie uploaded" />
-              )}
-            </div>
-
-            {/* Ghana Card Front */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <IdCard className="h-4 w-4" />
-                Ghana Card (Front)
-              </div>
-              {userData.ghanaCardFrontUrl ? (
-                <a
-                  href={userData.ghanaCardFrontUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <img 
-                    src={userData.ghanaCardFrontUrl} 
-                    alt="Ghana Card front" 
-                    className="w-full aspect-[1.586] object-cover rounded-xl border shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
-                  />
-                </a>
-              ) : (
-                <ImagePlaceholder icon={IdCard} label="No ID uploaded" />
-              )}
-            </div>
-
-            {/* Ghana Card Back */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <IdCard className="h-4 w-4" />
-                Ghana Card (Back)
-              </div>
-              {userData.ghanaCardBackUrl ? (
-                <a
-                  href={userData.ghanaCardBackUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <img 
-                    src={userData.ghanaCardBackUrl} 
-                    alt="Ghana Card back" 
-                    className="w-full aspect-[1.586] object-cover rounded-xl border shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
-                  />
-                </a>
-              ) : (
-                <ImagePlaceholder icon={IdCard} label="No ID uploaded" />
-              )}
-            </div>
+        <CardContent className="p-4 lg:p-6 space-y-6">
+          {/* Images Grid - Responsive */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <ImageCard
+              url={userData.selfieUrl}
+              alt="Live selfie"
+              icon={Camera}
+              label="Live Selfie"
+              aspectRatio="3/2"
+            />
+            <ImageCard
+              url={userData.ghanaCardFrontUrl}
+              alt="Ghana Card front"
+              icon={IdCard}
+              label="Ghana Card (Front)"
+              aspectRatio="1.586"
+            />
+            <ImageCard
+              url={userData.ghanaCardBackUrl}
+              alt="Ghana Card back"
+              icon={IdCard}
+              label="Ghana Card (Back)"
+              aspectRatio="1.586"
+            />
           </div>
 
-          {/* Verification Checks */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t">
+          {/* Verification Details Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t">
             {/* Ghana Card Number */}
             <div className="space-y-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ghana Card</span>
-              <p className="font-mono text-sm font-medium">
+              <span className="text-[10px] lg:text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Ghana Card #
+              </span>
+              <p className="font-mono text-xs lg:text-sm font-medium truncate">
                 {userData.ghanaCardNumber || "Not provided"}
               </p>
             </div>
 
             {/* Full Name on Card */}
             <div className="space-y-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name on Card</span>
-              <p className="text-sm font-medium">
+              <span className="text-[10px] lg:text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Name on Card
+              </span>
+              <p className="text-xs lg:text-sm font-medium truncate">
                 {userData.ghanaCardName || userData.fullName || "—"}
               </p>
             </div>
 
             {/* MoMo Name Check */}
             <div className="space-y-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Uniwallet Name Check</span>
+              <span className="text-[10px] lg:text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Uniwallet Match
+              </span>
               <NameMatchBadge matches={nameMatches} />
             </div>
 
             {/* Node Consent Status */}
             <div className="space-y-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Node Consent</span>
+              <span className="text-[10px] lg:text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Node Consent
+              </span>
               <ConsentStatusIndicator status={userData.nodeConsentStatus || "awaiting"} />
             </div>
           </div>
