@@ -27,6 +27,7 @@ import AgentOnboarding from "./pages/agent/AgentOnboarding";
 import AgentPortfolio from "./pages/agent/AgentPortfolio";
 import AgentProfile from "./pages/agent/AgentProfile";
 import PendingKycPage from "./pages/PendingKycPage";
+import ApplyPage from "./pages/ApplyPage";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/check-email" element={<CheckEmailPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/apply" element={<ApplyPage />} />
             
             {/* Agent Portal Routes */}
             <Route path="/agent" element={<RequireAgent><AgentLayout /></RequireAgent>}>

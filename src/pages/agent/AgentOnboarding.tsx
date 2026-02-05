@@ -104,10 +104,8 @@ export default function AgentOnboarding() {
   const selfieInputRef = useRef<HTMLInputElement>(null);
   const frontUploadRef = useRef<HTMLInputElement>(null);
   const backUploadRef = useRef<HTMLInputElement>(null);
-  const selfieIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
-  const [selfieCountdown, setSelfieCountdown] = useState<number | null>(null);
 
   useEffect(() => {
     try {
@@ -201,46 +199,6 @@ export default function AgentOnboarding() {
       });
     }
   };
-
-  // Selfie countdown timer
-  const startSelfieCapture = () => {
-    if (selfieIntervalRef.current) {
-      clearInterval(selfieIntervalRef.current);
-    }
-    let count = 3;
-    setSelfieCountdown(count);
-    selfieIntervalRef.current = setInterval(() => {
-      count--;
-      if (count <= 0) {
-        if (selfieIntervalRef.current) {
-          clearInterval(selfieIntervalRef.current);
-          selfieIntervalRef.current = null;
-        }
-        setSelfieCountdown(null);
-        // Ensure input exists before clicking
-        const input = selfieInputRef.current;
-        if (input) {
-          // Reset value to trigger onChange on same file
-          input.value = "";
-          console.log("� Triggering camera...", input);
-          input.click();
-        } else {
-          console.error("❌ Selfie input ref not found");
-        }
-      } else {
-        setSelfieCountdown(count);
-      }
-    }, 1000);
-  }
-
-  // Cleanup interval on unmount
-  useEffect(() => {
-    return () => {
-      if (selfieIntervalRef.current) {
-        clearInterval(selfieIntervalRef.current);
-      }
-    };
-  }, []);
 
   const validateStep = () => {
     switch (currentStep) {
@@ -739,7 +697,7 @@ export default function AgentOnboarding() {
                         ref={frontInputRef}
                         type="file"
                         accept="image/*"
-                        capture="user"
+                        capture="environment"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) handleImageUpload(file, "front");
@@ -889,30 +847,14 @@ export default function AgentOnboarding() {
                         ref={selfieInputRef}
                         type="file"
                         accept="image/*"
-                        capture
+                        capture="user"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) handleImageUpload(file, "selfie");
                         }}
                         className="hidden"
                       />
-                      {selfieCountdown !== null ? (
-                        <motion.div
-                          initial={{ scale: 0.5, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="py-8"
-                        >
-                          <motion.div
-                            key={selfieCountdown}
-                            initial={{ scale: 1.5, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="text-6xl font-bold text-primary"
-                          >
-                            {selfieCountdown}
-                          </motion.div>
-                          <p className="text-sm text-muted-foreground mt-2">Get ready...</p>
-                        </motion.div>
-                      ) : uploadProgress.selfie ? (
+                      {uploadProgress.selfie ? (
                         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
                       ) : formData.selfieUrl ? (
                         <>
@@ -929,7 +871,7 @@ export default function AgentOnboarding() {
                             variant="outline"
                             onClick={(e) => {
                               e.stopPropagation();
-                              startSelfieCapture();
+                              selfieInputRef.current?.click();
                             }}
                             className="flex items-center gap-2 mx-auto"
                           >
