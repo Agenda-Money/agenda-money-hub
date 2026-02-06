@@ -1,5 +1,7 @@
+/* eslint-disable unicorn/prefer-string-replace-all */
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,13 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Sparkles, Upload, CreditCard, TrendingUp } from "lucide-react";
+import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Upload, CreditCard, TrendingUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { uploadToSupabase } from "@/lib/supabase";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+
 
 const STORAGE_KEY = "agent_onboarding_form";
 
@@ -89,6 +92,7 @@ const slideVariants = {
   })
 };
 
+// eslint-disable-next-line sonarjs/cognitive-complexity
 export default function AgentOnboarding() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -107,7 +111,24 @@ export default function AgentOnboarding() {
   const selfieIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
-  const [selfieCountdown, setSelfieCountdown] = useState<number | null>(null);
+
+  const handleGetLocation = () => {
+    if ("geolocation" in navigator) {
+      toast.info("Getting location...");
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          updateField("address", `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+          toast.success("Location updated");
+        },
+        (error) => {
+          toast.error("Location failed", { description: error.message });
+        }
+      );
+    } else {
+      toast.error("Geolocation not supported");
+    }
+  };
 
   useEffect(() => {
     try {
@@ -148,7 +169,7 @@ export default function AgentOnboarding() {
   // Format Ghana Card Number: GHA-XXXXXXXXX-X
   const formatGhanaCardNumber = (value: string) => {
     // Remove all non-digit characters except existing format
-    const digitsOnly = value.replace(/[^0-9]/g, "");
+    const digitsOnly = value.replace(/\D/g, "");
     
     // Build the formatted value
     if (digitsOnly.length === 0) {
@@ -202,35 +223,96 @@ export default function AgentOnboarding() {
     }
   };
 
-  // Selfie countdown timer
-  const startSelfieCapture = () => {
-    if (selfieIntervalRef.current) {
-      clearInterval(selfieIntervalRef.current);
+  function renderDocumentUploadContent(
+    isUploading: boolean,
+    hasUrl: string,
+    label: string,
+    onCapture: () => void,
+    onUpload: () => void
+  ) {
+    if (isUploading) {
+      return <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />;
     }
-    let count = 3;
-    setSelfieCountdown(count);
-    selfieIntervalRef.current = setInterval(() => {
-      count--;
-      if (count <= 0) {
-        if (selfieIntervalRef.current) {
-          clearInterval(selfieIntervalRef.current);
-          selfieIntervalRef.current = null;
-        }
-        setSelfieCountdown(null);
-        // Ensure input exists before clicking
-        const input = selfieInputRef.current;
-        if (input) {
-          // Reset value to trigger onChange on same file
-          input.value = "";
-          console.log("� Triggering camera...", input);
-          input.click();
-        } else {
-          console.error("❌ Selfie input ref not found");
-        }
-      } else {
-        setSelfieCountdown(count);
-      }
-    }, 1000);
+    if (hasUrl) {
+      return (
+        <>
+          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
+          <p className="text-sm text-emerald-700 font-medium mt-2">{label} ✓</p>
+        </>
+      );
+    }
+    return (
+      <div className="space-y-3">
+        <Camera className="h-8 w-8 text-muted-foreground mx-auto" />
+        <p className="text-sm text-muted-foreground font-medium">{label}</p>
+        <div className="flex gap-2 justify-center">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCapture();
+            }}
+            className="flex items-center gap-2"
+          >
+            <Camera className="h-4 w-4" />
+            Capture
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpload();
+            }}
+            className="flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Upload
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderSelfieUploadContent(
+    isUploading: boolean,
+    hasUrl: string,
+    label: string,
+    onCapture: () => void
+  ) {
+    if (isUploading) {
+      return <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />;
+    }
+    if (hasUrl) {
+      return (
+        <>
+          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
+          <p className="text-sm text-emerald-700 font-medium mt-2">{label} ✓</p>
+        </>
+      );
+    }
+    return (
+      <div className="space-y-3">
+        <User className="h-8 w-8 text-muted-foreground mx-auto" />
+        <p className="text-sm text-muted-foreground font-medium">{label}</p>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCapture();
+          }}
+          className="flex items-center gap-2 mx-auto"
+        >
+          <Camera className="h-4 w-4" />
+          Take Selfie
+        </Button>
+      </div>
+    );
   }
 
   // Cleanup interval on unmount
@@ -252,18 +334,17 @@ export default function AgentOnboarding() {
           formData.dob &&
           formData.gender
         );
-      case 2: {
-        const wordCount = formData.address.trim().split(/\s+/).length;
+      case 2:
         return (
           formData.region &&
-          wordCount >= 3 &&
+          formData.address.trim().length >= 10 &&
           formData.accommodationType &&
           formData.yearsAtAddress &&
           formData.educationLevel &&
           formData.employmentStatus &&
           formData.monthlyIncome
         );
-      }
+      
       case 3:
         return (
           formData.ghanaCardNumber.trim() &&
@@ -272,14 +353,14 @@ export default function AgentOnboarding() {
           formData.selfieUrl
         );
       case 4: {
-        const loanAmount = parseInt(formData.initialLoanAmount, 10);
-        const loanTenure = parseInt(formData.initialLoanTenure, 10);
+        const loanAmount = Number.parseInt(formData.initialLoanAmount, 10);
+        const loanTenure = Number.parseInt(formData.initialLoanTenure, 10);
         return (
           formData.initialLoanAmount &&
           formData.initialLoanTenure &&
           formData.initialLoanPurpose &&
           loanAmount >= 50 &&
-          loanAmount <= 350 &&
+          loanAmount <= 300 &&
           loanTenure >= 1 &&
           loanTenure <= 14
         );
@@ -290,6 +371,12 @@ export default function AgentOnboarding() {
   };
 
   const handleNext = () => {
+    if (!validateStep()) {
+      toast.error("Please complete all required fields correctly", {
+        description: "Check for missing or invalid information.",
+      });
+      return;
+    }
     setDirection(1);
     setCurrentStep(prev => prev + 1);
   };
@@ -303,16 +390,20 @@ export default function AgentOnboarding() {
     setIsSubmitting(true);
 
     try {
+      // Format MSISDN using libphonenumber-js for consistent handling
+      const parsed = parsePhoneNumberFromString(formData.msisdn, "GH");
+      const formattedMsisdn = parsed ? parsed.number.replace("+", "") : formData.msisdn.replace(/\D/g, "");
+
       const payload = {
         fullName: formData.fullName,
         surname: formData.surname,
-        msisdn: formData.msisdn,
+        msisdn: formattedMsisdn,
         dob: formData.dob,
         gender: formData.gender,
         region: formData.region,
         address: formData.address,
         accommodationType: formData.accommodationType,
-        yearsAtAddress: parseInt(formData.yearsAtAddress, 10) || 0,
+        yearsAtAddress: Number.parseInt(formData.yearsAtAddress, 10) || 0,
         educationLevel: formData.educationLevel,
         employmentStatus: formData.employmentStatus,
         monthlyIncome: formData.monthlyIncome,
@@ -320,8 +411,8 @@ export default function AgentOnboarding() {
         ghanaCardFrontUrl: formData.ghanaCardFrontUrl,
         ghanaCardBackUrl: formData.ghanaCardBackUrl,
         selfieUrl: formData.selfieUrl,
-        initialLoanAmount: parseInt(formData.initialLoanAmount, 10) || 0,
-        initialLoanTenure: parseInt(formData.initialLoanTenure, 10) || 0,
+        initialLoanAmount: Number.parseInt(formData.initialLoanAmount, 10) || 0,
+        initialLoanTenure: Number.parseInt(formData.initialLoanTenure, 10) || 0,
         initialLoanPurpose: formData.initialLoanPurpose,
       };
 
@@ -334,8 +425,15 @@ export default function AgentOnboarding() {
          }
        
         setOnboardedNodeCode(response.data.nodeCode);
+        
+        // Clear storage immediately
         localStorage.removeItem(STORAGE_KEY);
-        toast.success("Onboarding Complete! 🎉", {
+        setFormData(INITIAL_FORM_DATA);
+        
+        // Vibrate if supported
+        if (navigator.vibrate) navigator.vibrate(200);
+        
+        toast.success("Customer Onboarded! 🎉", {
           description: "Customer successfully registered.",
         });
       }
@@ -352,7 +450,7 @@ export default function AgentOnboarding() {
     { number: 1, title: "Bio-Data", icon: User, description: "Personal info" },
     { number: 2, title: "Details", icon: MapPin, description: "Location & work" },
     { number: 3, title: "Documents", icon: ImageIcon, description: "ID & photos" },
-    { number: 4, title: "Loan Request", icon: CreditCard, description: "Initial loan" },
+    { number: 4, title: "Loan Request Details", icon: CreditCard, description: "Initial request" },
   ];
 
   // Success Screen
@@ -506,7 +604,7 @@ export default function AgentOnboarding() {
             {currentStep === 1 && "Enter the customer's personal information"}
             {currentStep === 2 && "Capture location and employment details"}
             {currentStep === 3 && "Take clear photos of ID and selfie"}
-            {currentStep === 4 && "Select loan amount, tenure, and purpose"}
+            {currentStep === 4 && "Provide loan amount, tenure, and purpose"}
           </CardDescription>
         </CardHeader>
 
@@ -612,21 +710,26 @@ export default function AgentOnboarding() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="address">Address * (Min 3 words)</Label>
-                    <Textarea
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => updateField("address", e.target.value)}
-                      placeholder="House No. 12, Dzorwulu Street, near Vodafone"
-                      rows={2}
-                      className="resize-none bg-muted/50 border-0 focus-visible:ring-primary"
-                    />
-                    {formData.address && formData.address.trim().split(/\s+/).length < 3 && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        At least 3 words required
-                      </p>
-                    )}
+                    <div className="relative">
+                      <Textarea
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => updateField("address", e.target.value)}
+                        placeholder="House No. 12, Dzorwulu Street (or click GPS)"
+                        rows={2}
+                        className="resize-none bg-muted/50 border-0 focus-visible:ring-primary placeholder:text-muted-foreground/30 pr-12"
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        onClick={handleGetLocation}
+                        className="absolute right-2 top-2 h-8 w-8 text-muted-foreground hover:text-primary"
+                        title="Get Current Location"
+                      >
+                        <MapPin className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -649,10 +752,10 @@ export default function AgentOnboarding() {
                         type="number"
                         value={formData.yearsAtAddress}
                         onChange={(e) => updateField("yearsAtAddress", e.target.value)}
-                        placeholder="5"
+                        placeholder="Enter years"
                         min="0"
                         max="50"
-                        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary"
+                        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary placeholder:text-muted-foreground/30"
                       />
                     </div>
                   </div>
@@ -707,7 +810,7 @@ export default function AgentOnboarding() {
                   <Alert className="bg-blue-500/10 border-blue-500/30">
                     <Camera className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-blue-800 dark:text-blue-200">
-                      Take clear, well-lit photos. Ensure all text is readable.
+                      Take clear photos of ID and customer.
                     </AlertDescription>
                   </Alert>
 
@@ -756,46 +859,12 @@ export default function AgentOnboarding() {
                         }}
                         className="hidden"
                       />
-                      {uploadProgress.front ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                      ) : formData.ghanaCardFrontUrl ? (
-                        <>
-                          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
-                          <p className="text-sm text-emerald-700 font-medium mt-2">Ghana Card Front ✓</p>
-                        </>
-                      ) : (
-                        <div className="space-y-3">
-                          <Camera className="h-8 w-8 text-muted-foreground mx-auto" />
-                          <p className="text-sm text-muted-foreground font-medium">Ghana Card (Front)</p>
-                          <div className="flex gap-2 justify-center">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                frontInputRef.current?.click();
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <Camera className="h-4 w-4" />
-                              Capture
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                frontUploadRef.current?.click();
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <Upload className="h-4 w-4" />
-                              Upload
-                            </Button>
-                          </div>
-                        </div>
+                      {renderDocumentUploadContent(
+                        uploadProgress.front,
+                        formData.ghanaCardFrontUrl,
+                        "Ghana Card (Front)",
+                        () => frontInputRef.current?.click(),
+                        () => frontUploadRef.current?.click()
                       )}
                     </motion.div>
 
@@ -831,46 +900,12 @@ export default function AgentOnboarding() {
                         }}
                         className="hidden"
                       />
-                      {uploadProgress.back ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                      ) : formData.ghanaCardBackUrl ? (
-                        <>
-                          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
-                          <p className="text-sm text-emerald-700 font-medium mt-2">Ghana Card Back ✓</p>
-                        </>
-                      ) : (
-                        <div className="space-y-3">
-                          <Camera className="h-8 w-8 text-muted-foreground mx-auto" />
-                          <p className="text-sm text-muted-foreground font-medium">Ghana Card (Back)</p>
-                          <div className="flex gap-2 justify-center">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                backInputRef.current?.click();
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <Camera className="h-4 w-4" />
-                              Capture
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                backUploadRef.current?.click();
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <Upload className="h-4 w-4" />
-                              Upload
-                            </Button>
-                          </div>
-                        </div>
+                      {renderDocumentUploadContent(
+                        uploadProgress.back,
+                        formData.ghanaCardBackUrl,
+                        "Ghana Card (Back)",
+                        () => backInputRef.current?.click(),
+                        () => backUploadRef.current?.click()
                       )}
                     </motion.div>
 
@@ -889,54 +924,18 @@ export default function AgentOnboarding() {
                         ref={selfieInputRef}
                         type="file"
                         accept="image/*"
-                        capture
+                        capture="user"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) handleImageUpload(file, "selfie");
                         }}
                         className="hidden"
                       />
-                      {selfieCountdown !== null ? (
-                        <motion.div
-                          initial={{ scale: 0.5, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="py-8"
-                        >
-                          <motion.div
-                            key={selfieCountdown}
-                            initial={{ scale: 1.5, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="text-6xl font-bold text-primary"
-                          >
-                            {selfieCountdown}
-                          </motion.div>
-                          <p className="text-sm text-muted-foreground mt-2">Get ready...</p>
-                        </motion.div>
-                      ) : uploadProgress.selfie ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                      ) : formData.selfieUrl ? (
-                        <>
-                          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
-                          <p className="text-sm text-emerald-700 font-medium mt-2">Customer Selfie ✓</p>
-                        </>
-                      ) : (
-                        <div className="space-y-3">
-                          <User className="h-8 w-8 text-muted-foreground mx-auto" />
-                          <p className="text-sm text-muted-foreground font-medium">Customer Selfie</p>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startSelfieCapture();
-                            }}
-                            className="flex items-center gap-2 mx-auto"
-                          >
-                            <Camera className="h-4 w-4" />
-                            Open Camera
-                          </Button>
-                        </div>
+                      {renderSelfieUploadContent(
+                        uploadProgress.selfie,
+                        formData.selfieUrl,
+                        "Customer Selfie",
+                        () => selfieInputRef.current?.click()
                       )}
                     </motion.div>
                   </div>
@@ -948,27 +947,26 @@ export default function AgentOnboarding() {
                   <Alert className="bg-emerald-500/10 border-emerald-500/30">
                     <TrendingUp className="h-4 w-4 text-emerald-600" />
                     <AlertDescription className="text-emerald-800 dark:text-emerald-200">
-                      <strong>Tier 1 Limits:</strong> ₵50 - ₵350 | Max tenure: 14 days
+                      <strong>Tier 1 Limits:</strong> GHS 50 - GHS 300 | Max tenure: 14 days
                     </AlertDescription>
                   </Alert>
 
                   <div className="space-y-2">
-                    <Label htmlFor="initialLoanAmount">Loan Amount (₵) *</Label>
+                    <Label htmlFor="initialLoanAmount">Loan Amount (GHS) *</Label>
                     <Select
                       value={formData.initialLoanAmount}
                       onValueChange={(value) => updateField("initialLoanAmount", value)}
                     >
                       <SelectTrigger className="h-12 bg-muted/50 border-0 focus:ring-primary">
-                        <SelectValue placeholder="Select amount" />
+                        <SelectValue placeholder="Enter loan amount" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="50">₵50</SelectItem>
-                        <SelectItem value="100">₵100</SelectItem>
-                        <SelectItem value="150">₵150</SelectItem>
-                        <SelectItem value="200">₵200</SelectItem>
-                        <SelectItem value="250">₵250</SelectItem>
-                        <SelectItem value="300">₵300</SelectItem>
-                        <SelectItem value="350">₵350</SelectItem>
+                        <SelectItem value="50">GHS 50</SelectItem>
+                        <SelectItem value="100">GHS 100</SelectItem>
+                        <SelectItem value="150">GHS 150</SelectItem>
+                        <SelectItem value="200">GHS 200</SelectItem>
+                        <SelectItem value="250">GHS 250</SelectItem>
+                        <SelectItem value="300">GHS 300</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -980,7 +978,7 @@ export default function AgentOnboarding() {
                       onValueChange={(value) => updateField("initialLoanTenure", value)}
                     >
                       <SelectTrigger className="h-12 bg-muted/50 border-0 focus:ring-primary">
-                        <SelectValue placeholder="Select tenure" />
+                        <SelectValue placeholder="Select preferred tenor" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="1">1 Day</SelectItem>
@@ -998,7 +996,7 @@ export default function AgentOnboarding() {
                       onValueChange={(value) => updateField("initialLoanPurpose", value)}
                     >
                       <SelectTrigger className="h-12 bg-muted/50 border-0 focus:ring-primary">
-                        <SelectValue placeholder="Select purpose" />
+                        <SelectValue placeholder="Select purpose of loan" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Business">Business</SelectItem>
@@ -1032,7 +1030,6 @@ export default function AgentOnboarding() {
           {currentStep < 4 ? (
             <Button
               onClick={handleNext}
-              disabled={!validateStep()}
               className="flex-1 h-12 rounded-xl bg-gradient-pink hover:opacity-90"
             >
               Next Step
@@ -1041,7 +1038,7 @@ export default function AgentOnboarding() {
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={!validateStep() || isSubmitting}
+              disabled={isSubmitting || !validateStep()}
               className="flex-1 h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:opacity-90"
             >
               {isSubmitting ? (
