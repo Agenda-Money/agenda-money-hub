@@ -716,6 +716,7 @@ export default function ApplyPage() {
   const frontCardRef = useRef<HTMLInputElement>(null);
   const backCardRef = useRef<HTMLInputElement>(null);
   const selfieRef = useRef<HTMLInputElement>(null);
+  const fallbackUserIdRef = useRef<string>(Date.now().toString());
 
   const currentTier = Number(userData?.currentTier ?? 1);
   const activeTier = TIER_LIMITS[currentTier];
@@ -824,9 +825,9 @@ export default function ApplyPage() {
     exit: (dir: number) => ({ x: dir < 0 ? 200 : -200, opacity: 0 }),
   };
 
-  const resetAutoSubmit = () => {
+  const resetAutoSubmit = useCallback(() => {
     autoSubmitRef.current = false;
-  };
+  }, []);
 
   const handleRequestOtp = async () => {
     setErrorMessage(null);
@@ -929,7 +930,7 @@ export default function ApplyPage() {
     } finally {
       setIsVerifying(false);
     }
-  }, [normalizedMsisdn, otp, setApplicant]);
+  }, [normalizedMsisdn, otp, setApplicant, resetAutoSubmit]);
 
   const handleResend = async () => {
     if (resendSeconds > 0 || isRequesting) return;
@@ -1024,6 +1025,12 @@ export default function ApplyPage() {
     setUploadedFiles(prev => ({ ...prev, [field]: file }));
   };
 
+  const getFileExtension = (file: File): string => {
+    const name = file.name;
+    const lastDot = name.lastIndexOf('.');
+    return lastDot !== -1 ? name.substring(lastDot) : '.jpg';
+  };
+
   const handleOnboardingSubmit = async () => {
     setErrorMessage(null);
 
@@ -1059,15 +1066,16 @@ export default function ApplyPage() {
       let ghanaCardBackUrl = onboardingData.ghanaCardBackUrl;
       let selfieUrl = onboardingData.selfieUrl;
 
-      const userId = userData?.id || normalizedMsisdn || Date.now().toString();
+      const userId = userData?.id || normalizedMsisdn || fallbackUserIdRef.current;
 
       // Upload Ghana Card Front
       if (uploadedFiles.ghanaCardFrontUrl) {
         setUploadingFiles(prev => ({ ...prev, ghanaCardFrontUrl: true }));
+        const fileExt = getFileExtension(uploadedFiles.ghanaCardFrontUrl);
         const result = await uploadToSupabase(
           uploadedFiles.ghanaCardFrontUrl,
           "kyc-documents",
-          `${userId}/ghana-card-front-${Date.now()}.jpg`
+          `${userId}/ghana-card-front-${Date.now()}${fileExt}`
         );
         if (result.success && result.url) {
           ghanaCardFrontUrl = result.url;
@@ -1083,10 +1091,11 @@ export default function ApplyPage() {
       // Upload Ghana Card Back
       if (uploadedFiles.ghanaCardBackUrl) {
         setUploadingFiles(prev => ({ ...prev, ghanaCardBackUrl: true }));
+        const fileExt = getFileExtension(uploadedFiles.ghanaCardBackUrl);
         const result = await uploadToSupabase(
           uploadedFiles.ghanaCardBackUrl,
           "kyc-documents",
-          `${userId}/ghana-card-back-${Date.now()}.jpg`
+          `${userId}/ghana-card-back-${Date.now()}${fileExt}`
         );
         if (result.success && result.url) {
           ghanaCardBackUrl = result.url;
@@ -1102,10 +1111,11 @@ export default function ApplyPage() {
       // Upload Selfie
       if (uploadedFiles.selfieUrl) {
         setUploadingFiles(prev => ({ ...prev, selfieUrl: true }));
+        const fileExt = getFileExtension(uploadedFiles.selfieUrl);
         const result = await uploadToSupabase(
           uploadedFiles.selfieUrl,
           "kyc-documents",
-          `${userId}/selfie-${Date.now()}.jpg`
+          `${userId}/selfie-${Date.now()}${fileExt}`
         );
         if (result.success && result.url) {
           selfieUrl = result.url;
