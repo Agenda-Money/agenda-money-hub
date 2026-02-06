@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 export interface ApplicantUser {
   id?: string;
@@ -26,16 +26,16 @@ export const ApplicantProvider = ({ children }: { children: React.ReactNode }) =
     }
   });
 
-  const storeApplicant = (user: ApplicantUser | null) => {
+  const storeApplicant = useCallback((user: ApplicantUser | null) => {
     setApplicant(user);
     if (user) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
     } else {
       localStorage.removeItem(STORAGE_KEY);
     }
-  };
+  }, []);
 
-  const value = useMemo(() => ({ applicant, setApplicant: storeApplicant }), [applicant]);
+  const value = useMemo(() => ({ applicant, setApplicant: storeApplicant }), [applicant, storeApplicant]);
 
   return <ApplicantContext.Provider value={value}>{children}</ApplicantContext.Provider>;
 };
