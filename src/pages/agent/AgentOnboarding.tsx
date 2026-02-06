@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -243,7 +244,7 @@ export default function AgentOnboarding() {
         const wordCount = formData.address.trim().split(/\s+/).length;
         return (
           formData.region &&
-          formData.address.trim().length > 0 &&
+          formData.address.trim().length >= 10 &&
           formData.accommodationType &&
           formData.yearsAtAddress &&
           formData.educationLevel &&
@@ -296,11 +297,9 @@ export default function AgentOnboarding() {
     setIsSubmitting(true);
 
     try {
-      // Format MSISDN: Ensure it starts with 233
-      let formattedMsisdn = formData.msisdn.replace(/\D/g, "");
-      if (formattedMsisdn.startsWith("0")) {
-        formattedMsisdn = "233" + formattedMsisdn.substring(1);
-      }
+      // Format MSISDN using libphonenumber-js for consistent handling
+      const parsed = parsePhoneNumberFromString(formData.msisdn, "GH");
+      const formattedMsisdn = parsed ? parsed.number.replace("+", "") : formData.msisdn.replace(/\D/g, "");
 
       const payload = {
         fullName: formData.fullName,
@@ -1034,7 +1033,7 @@ export default function AgentOnboarding() {
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !validateStep(currentStep)}
               className="flex-1 h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:opacity-90"
             >
               {isSubmitting ? (
