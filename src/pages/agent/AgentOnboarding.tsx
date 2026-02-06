@@ -17,6 +17,7 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
+
 const STORAGE_KEY = "agent_onboarding_form";
 
 const GHANA_REGIONS = [
@@ -107,7 +108,24 @@ export default function AgentOnboarding() {
   const selfieIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
-  const [selfieCountdown, setSelfieCountdown] = useState<number | null>(null);
+
+  const handleGetLocation = () => {
+    if ("geolocation" in navigator) {
+      toast.info("Getting location...");
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          updateField("address", `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+          toast.success("Location updated");
+        },
+        (error) => {
+          toast.error("Location failed", { description: error.message });
+        }
+      );
+    } else {
+      toast.error("Geolocation not supported");
+    }
+  };
 
   useEffect(() => {
     try {
@@ -202,37 +220,6 @@ export default function AgentOnboarding() {
     }
   };
 
-  // Selfie countdown timer
-  const startSelfieCapture = () => {
-    if (selfieIntervalRef.current) {
-      clearInterval(selfieIntervalRef.current);
-    }
-    let count = 3;
-    setSelfieCountdown(count);
-    selfieIntervalRef.current = setInterval(() => {
-      count--;
-      if (count <= 0) {
-        if (selfieIntervalRef.current) {
-          clearInterval(selfieIntervalRef.current);
-          selfieIntervalRef.current = null;
-        }
-        setSelfieCountdown(null);
-        // Ensure input exists before clicking
-        const input = selfieInputRef.current;
-        if (input) {
-          // Reset value to trigger onChange on same file
-          input.value = "";
-          console.log("� Triggering camera...", input);
-          input.click();
-        } else {
-          console.error("❌ Selfie input ref not found");
-        }
-      } else {
-        setSelfieCountdown(count);
-      }
-    }, 1000);
-  }
-
   // Cleanup interval on unmount
   useEffect(() => {
     return () => {
@@ -256,7 +243,7 @@ export default function AgentOnboarding() {
         const wordCount = formData.address.trim().split(/\s+/).length;
         return (
           formData.region &&
-          wordCount >= 3 &&
+          formData.address.trim().length > 0 &&
           formData.accommodationType &&
           formData.yearsAtAddress &&
           formData.educationLevel &&
@@ -279,7 +266,7 @@ export default function AgentOnboarding() {
           formData.initialLoanTenure &&
           formData.initialLoanPurpose &&
           loanAmount >= 50 &&
-          loanAmount <= 350 &&
+          loanAmount <= 300 &&
           loanTenure >= 1 &&
           loanTenure <= 14
         );
@@ -290,6 +277,12 @@ export default function AgentOnboarding() {
   };
 
   const handleNext = () => {
+    if (!validateStep()) {
+      toast.error("Please complete all required fields correctly", {
+        description: "Check for missing or invalid information.",
+      });
+      return;
+    }
     setDirection(1);
     setCurrentStep(prev => prev + 1);
   };
@@ -303,10 +296,16 @@ export default function AgentOnboarding() {
     setIsSubmitting(true);
 
     try {
+      // Format MSISDN: Ensure it starts with 233
+      let formattedMsisdn = formData.msisdn.replace(/\D/g, "");
+      if (formattedMsisdn.startsWith("0")) {
+        formattedMsisdn = "233" + formattedMsisdn.substring(1);
+      }
+
       const payload = {
         fullName: formData.fullName,
         surname: formData.surname,
-        msisdn: formData.msisdn,
+        msisdn: formattedMsisdn,
         dob: formData.dob,
         gender: formData.gender,
         region: formData.region,
@@ -334,8 +333,15 @@ export default function AgentOnboarding() {
          }
        
         setOnboardedNodeCode(response.data.nodeCode);
+        
+        // Clear storage immediately
         localStorage.removeItem(STORAGE_KEY);
-        toast.success("Onboarding Complete! 🎉", {
+        setFormData(INITIAL_FORM_DATA);
+        
+        // Vibrate if supported
+        if (navigator.vibrate) navigator.vibrate(200);
+        
+        toast.success("Customer Onboarded! 🎉", {
           description: "Customer successfully registered.",
         });
       }
@@ -612,21 +618,26 @@ export default function AgentOnboarding() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="address">Address * (Min 3 words)</Label>
-                    <Textarea
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => updateField("address", e.target.value)}
-                      placeholder="House No. 12, Dzorwulu Street, near Vodafone"
-                      rows={2}
-                      className="resize-none bg-muted/50 border-0 focus-visible:ring-primary"
-                    />
-                    {formData.address && formData.address.trim().split(/\s+/).length < 3 && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        At least 3 words required
-                      </p>
-                    )}
+                    <div className="relative">
+                      <Textarea
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => updateField("address", e.target.value)}
+                        placeholder="House No. 12, Dzorwulu Street (or click GPS)"
+                        rows={2}
+                        className="resize-none bg-muted/50 border-0 focus-visible:ring-primary placeholder:text-muted-foreground/30 pr-12"
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        onClick={handleGetLocation}
+                        className="absolute right-2 top-2 h-8 w-8 text-muted-foreground hover:text-primary"
+                        title="Get Current Location"
+                      >
+                        <MapPin className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -649,10 +660,10 @@ export default function AgentOnboarding() {
                         type="number"
                         value={formData.yearsAtAddress}
                         onChange={(e) => updateField("yearsAtAddress", e.target.value)}
-                        placeholder="5"
+                        placeholder="Enter years"
                         min="0"
                         max="50"
-                        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary"
+                        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary placeholder:text-muted-foreground/30"
                       />
                     </div>
                   </div>
@@ -707,7 +718,7 @@ export default function AgentOnboarding() {
                   <Alert className="bg-blue-500/10 border-blue-500/30">
                     <Camera className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-blue-800 dark:text-blue-200">
-                      Take clear, well-lit photos. Ensure all text is readable.
+                      Take clear photos of ID and customer.
                     </AlertDescription>
                   </Alert>
 
@@ -889,30 +900,14 @@ export default function AgentOnboarding() {
                         ref={selfieInputRef}
                         type="file"
                         accept="image/*"
-                        capture
+                        capture="user"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) handleImageUpload(file, "selfie");
                         }}
                         className="hidden"
                       />
-                      {selfieCountdown !== null ? (
-                        <motion.div
-                          initial={{ scale: 0.5, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="py-8"
-                        >
-                          <motion.div
-                            key={selfieCountdown}
-                            initial={{ scale: 1.5, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="text-6xl font-bold text-primary"
-                          >
-                            {selfieCountdown}
-                          </motion.div>
-                          <p className="text-sm text-muted-foreground mt-2">Get ready...</p>
-                        </motion.div>
-                      ) : uploadProgress.selfie ? (
+                      {uploadProgress.selfie ? (
                         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
                       ) : formData.selfieUrl ? (
                         <>
@@ -929,12 +924,12 @@ export default function AgentOnboarding() {
                             variant="outline"
                             onClick={(e) => {
                               e.stopPropagation();
-                              startSelfieCapture();
+                              selfieInputRef.current?.click();
                             }}
                             className="flex items-center gap-2 mx-auto"
                           >
                             <Camera className="h-4 w-4" />
-                            Open Camera
+                            Take Selfie
                           </Button>
                         </div>
                       )}
@@ -948,27 +943,26 @@ export default function AgentOnboarding() {
                   <Alert className="bg-emerald-500/10 border-emerald-500/30">
                     <TrendingUp className="h-4 w-4 text-emerald-600" />
                     <AlertDescription className="text-emerald-800 dark:text-emerald-200">
-                      <strong>Tier 1 Limits:</strong> ₵50 - ₵350 | Max tenure: 14 days
+                      <strong>Tier 1 Limits:</strong> GHS 50 - GHS 300 | Max tenure: 14 days
                     </AlertDescription>
                   </Alert>
 
                   <div className="space-y-2">
-                    <Label htmlFor="initialLoanAmount">Loan Amount (₵) *</Label>
+                    <Label htmlFor="initialLoanAmount">Loan Amount (GHS) *</Label>
                     <Select
                       value={formData.initialLoanAmount}
                       onValueChange={(value) => updateField("initialLoanAmount", value)}
                     >
                       <SelectTrigger className="h-12 bg-muted/50 border-0 focus:ring-primary">
-                        <SelectValue placeholder="Select amount" />
+                        <SelectValue placeholder="Enter loan amount" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="50">₵50</SelectItem>
-                        <SelectItem value="100">₵100</SelectItem>
-                        <SelectItem value="150">₵150</SelectItem>
-                        <SelectItem value="200">₵200</SelectItem>
-                        <SelectItem value="250">₵250</SelectItem>
-                        <SelectItem value="300">₵300</SelectItem>
-                        <SelectItem value="350">₵350</SelectItem>
+                        <SelectItem value="50">GHS 50</SelectItem>
+                        <SelectItem value="100">GHS 100</SelectItem>
+                        <SelectItem value="150">GHS 150</SelectItem>
+                        <SelectItem value="200">GHS 200</SelectItem>
+                        <SelectItem value="250">GHS 250</SelectItem>
+                        <SelectItem value="300">GHS 300</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -980,7 +974,7 @@ export default function AgentOnboarding() {
                       onValueChange={(value) => updateField("initialLoanTenure", value)}
                     >
                       <SelectTrigger className="h-12 bg-muted/50 border-0 focus:ring-primary">
-                        <SelectValue placeholder="Select tenure" />
+                        <SelectValue placeholder="Select preferred tenor" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="1">1 Day</SelectItem>
@@ -998,7 +992,7 @@ export default function AgentOnboarding() {
                       onValueChange={(value) => updateField("initialLoanPurpose", value)}
                     >
                       <SelectTrigger className="h-12 bg-muted/50 border-0 focus:ring-primary">
-                        <SelectValue placeholder="Select purpose" />
+                        <SelectValue placeholder="Select purpose of loan" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Business">Business</SelectItem>
@@ -1032,7 +1026,6 @@ export default function AgentOnboarding() {
           {currentStep < 4 ? (
             <Button
               onClick={handleNext}
-              disabled={!validateStep()}
               className="flex-1 h-12 rounded-xl bg-gradient-pink hover:opacity-90"
             >
               Next Step
@@ -1041,7 +1034,7 @@ export default function AgentOnboarding() {
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={!validateStep() || isSubmitting}
+              disabled={isSubmitting}
               className="flex-1 h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:opacity-90"
             >
               {isSubmitting ? (
