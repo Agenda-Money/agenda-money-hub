@@ -46,7 +46,7 @@ const TIER_LIMITS: Record<number, TierLimit> = {
   1: { tier: 1, min: 50, max: 300, maxTenure: 14 },
   2: { tier: 2, min: 100, max: 600, maxTenure: 21 },
   3: { tier: 3, min: 150, max: 900, maxTenure: 30 },
-  4: { tier: 4, min: 200, max: 1200, maxTenure: 45 },
+  4: { tier: 4, min: 50, max: 500, maxTenure: 14 },
 };
 
 type TierLimit = {
@@ -68,8 +68,8 @@ type HeaderMeta = {
 const getHeaderMeta = (view: View): HeaderMeta => {
   if (view === "auth") {
     return {
-      title: "Who are you?",
-      description: "Enter your phone number and Node code to get started.",
+      title: "Start your application",
+      description: "Enter your phone number and node code to continue.",
       badgeLabel: "Entry Gate",
       stepLabel: "Step 1 of 2",
     };
@@ -94,9 +94,9 @@ const getHeaderMeta = (view: View): HeaderMeta => {
   }
 
   return {
-    title: "Loan Dashboard",
-    description: "Choose your amount and request a loan instantly.",
-    badgeLabel: "Loan Dashboard",
+    title: "Loan Center",
+    description: "Select your amount and submit a loan request quickly.",
+    badgeLabel: "Loan Center",
     stepLabel: "Next Step",
   };
 };
@@ -150,10 +150,9 @@ const AuthStep = ({
         type="tel"
         value={msisdnInput}
         onChange={(e) => setMsisdnInput(e.target.value)}
-        placeholder="0244123456 or +233541562819"
-        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono"
+        placeholder="+233541689762"
+        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono placeholder:text-muted-foreground/50 placeholder:text-sm"
       />
-      <p className="text-xs text-muted-foreground">We’ll auto-format to country code 233.</p>
     </div>
 
     <div className="space-y-2">
@@ -571,9 +570,9 @@ const LoanDashboardView = ({
 }: LoanDashboardViewProps) => (
   <div className="space-y-6">
     <div className="space-y-1">
-      <p className="text-sm text-muted-foreground">Loan Request</p>
-      <p className="text-xs text-muted-foreground">Step 4 of 4</p>
-      <p className="text-sm text-muted-foreground">Select loan amount, tenure, and purpose</p>
+      <p className="text-sm text-muted-foreground">Loan Request Details</p>
+      <p className="text-xs text-muted-foreground">Final step (4 of 4)</p>
+      <p className="text-sm text-muted-foreground">Provide your loan amount, tenure, and purpose</p>
     </div>
 
     <Alert className="bg-emerald-500/10 border-emerald-500/30">
@@ -704,7 +703,6 @@ export default function ApplyPage() {
   const [isSubmittingOnboarding, setIsSubmittingOnboarding] = useState(false);
   const [isRequestingLoan, setIsRequestingLoan] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
   const [loanSummary, setLoanSummary] = useState<{
     disbursementAmount: number;
@@ -794,14 +792,6 @@ export default function ApplyPage() {
     void restoreSession();
   }, [setApplicant]);
 
-  useEffect(() => {
-    if (view !== "otp") return;
-    if (otp.length !== OTP_LENGTH) return;
-    if (isVerifying) return;
-    if (autoSubmitRef.current) return;
-    autoSubmitRef.current = true;
-    void handleVerifyOtp();
-  }, [otp, isVerifying, view, handleVerifyOtp]);
 
   // Cleanup blob URLs on unmount
   useEffect(() => {
@@ -934,6 +924,15 @@ export default function ApplyPage() {
     }
   }, [normalizedMsisdn, otp, setApplicant, resetAutoSubmit]);
 
+  useEffect(() => {
+    if (view !== "otp") return;
+    if (otp.length !== OTP_LENGTH) return;
+    if (isVerifying) return;
+    if (autoSubmitRef.current) return;
+    autoSubmitRef.current = true;
+    void handleVerifyOtp();
+  }, [otp, isVerifying, view, handleVerifyOtp]);
+
   const handleResend = async () => {
     if (resendSeconds > 0 || isRequesting) return;
     if (!normalizedMsisdn) {
@@ -1015,9 +1014,7 @@ export default function ApplyPage() {
   const handleUpload = async (file: File, field: "ghanaCardFrontUrl" | "ghanaCardBackUrl" | "selfieUrl") => {
     // Revoke the old blob URL if it exists
     const oldUrl = onboardingData[field];
-    if (oldUrl && oldUrl.startsWith("blob:")) {
-      URL.revokeObjectURL(oldUrl);
-    }
+    oldUrl?.startsWith("blob:") && URL.revokeObjectURL(oldUrl);
     
     // Create a blob URL for preview
     const blobUrl = URL.createObjectURL(file);
@@ -1029,109 +1026,80 @@ export default function ApplyPage() {
 
   const getFileExtension = useCallback((file: File): string => {
     const name = file.name;
-    const lastDot = name.lastIndexOf('.');
-    return lastDot !== -1 ? name.substring(lastDot) : '.jpg';
+    const lastDot = name.lastIndexOf(".");
+    if (lastDot === -1) return ".jpg";
+    return name.substring(lastDot);
   }, []);
+
+  const validateOnboarding = () => {
+    if (!authToken) return "Your session expired. Please verify OTP again.";
+    if (!onboardingData.firstName || !onboardingData.surname || !onboardingData.dob) {
+      return "Please complete all personal details.";
+    }
+    if (!onboardingData.gender || !onboardingData.region || !onboardingData.address || !onboardingData.gpsAddress) {
+      return "Please provide your address and GPS digital address.";
+    }
+    if (!isValidGhanaCard(onboardingData.ghanaCardNumber)) {
+      return "Ghana Card number must be in the format GHA-700000000-0.";
+    }
+    if (!onboardingData.ghanaCardFrontUrl || !onboardingData.ghanaCardBackUrl || !onboardingData.selfieUrl) {
+      return "Please upload Ghana Card images and a live selfie.";
+    }
+    return null;
+  };
 
   const handleOnboardingSubmit = async () => {
     setErrorMessage(null);
 
-    if (!authToken) {
-      setErrorMessage("Your session expired. Please verify OTP again.");
-      return;
-    }
-
-    if (!onboardingData.firstName || !onboardingData.surname || !onboardingData.dob) {
-      setErrorMessage("Please complete all personal details.");
-      return;
-    }
-
-    if (!onboardingData.gender || !onboardingData.region || !onboardingData.address || !onboardingData.gpsAddress) {
-      setErrorMessage("Please provide your address and GPS digital address.");
-      return;
-    }
-
-    if (!isValidGhanaCard(onboardingData.ghanaCardNumber)) {
-      setErrorMessage("Ghana Card number must be in the format GHA-700000000-0.");
-      return;
-    }
-
-    if (!onboardingData.ghanaCardFrontUrl || !onboardingData.ghanaCardBackUrl || !onboardingData.selfieUrl) {
-      setErrorMessage("Please upload Ghana Card images and a live selfie.");
+    const validationError = validateOnboarding();
+    if (validationError) {
+      setErrorMessage(validationError);
       return;
     }
 
     setIsSubmittingOnboarding(true);
     try {
-      // Upload files to Supabase first
       let ghanaCardFrontUrl = onboardingData.ghanaCardFrontUrl;
       let ghanaCardBackUrl = onboardingData.ghanaCardBackUrl;
       let selfieUrl = onboardingData.selfieUrl;
 
-      // Determine userId for file storage path:
-      // 1. userData?.id - user's actual ID if available
-      // 2. normalizedMsisdn - phone number as fallback
-      // 3. fallbackUserIdRef.current - stable timestamp generated on mount
-      const userId = userData?.id || normalizedMsisdn || fallbackUserIdRef.current;
+      const userId = normalizedMsisdn || fallbackUserIdRef.current;
 
-      // Upload Ghana Card Front
+      const uploadFile = async (file: File, label: string, errorMessage: string) => {
+        const fileExt = getFileExtension(file);
+        const result = await uploadToSupabase(
+          file,
+          "kyc-documents",
+          `${userId}/${label}-${Date.now()}${fileExt}`
+        );
+        if (!result.success || !result.url) {
+          throw new Error(result.error || errorMessage);
+        }
+        return result.url;
+      };
+
       if (uploadedFiles.ghanaCardFrontUrl) {
-        setUploadingFiles(prev => ({ ...prev, ghanaCardFrontUrl: true }));
-        const fileExt = getFileExtension(uploadedFiles.ghanaCardFrontUrl);
-        const result = await uploadToSupabase(
+        ghanaCardFrontUrl = await uploadFile(
           uploadedFiles.ghanaCardFrontUrl,
-          "kyc-documents",
-          `${userId}/ghana-card-front-${Date.now()}${fileExt}`
+          "ghana-card-front",
+          "Failed to upload Ghana Card front image."
         );
-        if (result.success && result.url) {
-          ghanaCardFrontUrl = result.url;
-        } else {
-          setErrorMessage(result.error || "Failed to upload Ghana Card front image.");
-          setIsSubmittingOnboarding(false);
-          setUploadingFiles(prev => ({ ...prev, ghanaCardFrontUrl: false }));
-          return;
-        }
-        setUploadingFiles(prev => ({ ...prev, ghanaCardFrontUrl: false }));
       }
 
-      // Upload Ghana Card Back
       if (uploadedFiles.ghanaCardBackUrl) {
-        setUploadingFiles(prev => ({ ...prev, ghanaCardBackUrl: true }));
-        const fileExt = getFileExtension(uploadedFiles.ghanaCardBackUrl);
-        const result = await uploadToSupabase(
+        ghanaCardBackUrl = await uploadFile(
           uploadedFiles.ghanaCardBackUrl,
-          "kyc-documents",
-          `${userId}/ghana-card-back-${Date.now()}${fileExt}`
+          "ghana-card-back",
+          "Failed to upload Ghana Card back image."
         );
-        if (result.success && result.url) {
-          ghanaCardBackUrl = result.url;
-        } else {
-          setErrorMessage(result.error || "Failed to upload Ghana Card back image.");
-          setIsSubmittingOnboarding(false);
-          setUploadingFiles(prev => ({ ...prev, ghanaCardBackUrl: false }));
-          return;
-        }
-        setUploadingFiles(prev => ({ ...prev, ghanaCardBackUrl: false }));
       }
 
-      // Upload Selfie
       if (uploadedFiles.selfieUrl) {
-        setUploadingFiles(prev => ({ ...prev, selfieUrl: true }));
-        const fileExt = getFileExtension(uploadedFiles.selfieUrl);
-        const result = await uploadToSupabase(
+        selfieUrl = await uploadFile(
           uploadedFiles.selfieUrl,
-          "kyc-documents",
-          `${userId}/selfie-${Date.now()}${fileExt}`
+          "selfie",
+          "Failed to upload selfie."
         );
-        if (result.success && result.url) {
-          selfieUrl = result.url;
-        } else {
-          setErrorMessage(result.error || "Failed to upload selfie.");
-          setIsSubmittingOnboarding(false);
-          setUploadingFiles(prev => ({ ...prev, selfieUrl: false }));
-          return;
-        }
-        setUploadingFiles(prev => ({ ...prev, selfieUrl: false }));
       }
 
       const response = await fetch(`${baseApiUrl}/api/users/onboard`, {
