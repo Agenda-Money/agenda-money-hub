@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/prefer-string-replace-all */
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
@@ -10,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Sparkles, Upload, CreditCard, TrendingUp } from "lucide-react";
+import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Upload, CreditCard, TrendingUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { uploadToSupabase } from "@/lib/supabase";
@@ -91,6 +92,7 @@ const slideVariants = {
   })
 };
 
+// eslint-disable-next-line sonarjs/cognitive-complexity
 export default function AgentOnboarding() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -167,7 +169,7 @@ export default function AgentOnboarding() {
   // Format Ghana Card Number: GHA-XXXXXXXXX-X
   const formatGhanaCardNumber = (value: string) => {
     // Remove all non-digit characters except existing format
-    const digitsOnly = value.replace(/[^0-9]/g, "");
+    const digitsOnly = value.replace(/\D/g, "");
     
     // Build the formatted value
     if (digitsOnly.length === 0) {
@@ -221,6 +223,98 @@ export default function AgentOnboarding() {
     }
   };
 
+  function renderDocumentUploadContent(
+    isUploading: boolean,
+    hasUrl: string,
+    label: string,
+    onCapture: () => void,
+    onUpload: () => void
+  ) {
+    if (isUploading) {
+      return <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />;
+    }
+    if (hasUrl) {
+      return (
+        <>
+          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
+          <p className="text-sm text-emerald-700 font-medium mt-2">{label} ✓</p>
+        </>
+      );
+    }
+    return (
+      <div className="space-y-3">
+        <Camera className="h-8 w-8 text-muted-foreground mx-auto" />
+        <p className="text-sm text-muted-foreground font-medium">{label}</p>
+        <div className="flex gap-2 justify-center">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCapture();
+            }}
+            className="flex items-center gap-2"
+          >
+            <Camera className="h-4 w-4" />
+            Capture
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpload();
+            }}
+            className="flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Upload
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderSelfieUploadContent(
+    isUploading: boolean,
+    hasUrl: string,
+    label: string,
+    onCapture: () => void
+  ) {
+    if (isUploading) {
+      return <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />;
+    }
+    if (hasUrl) {
+      return (
+        <>
+          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
+          <p className="text-sm text-emerald-700 font-medium mt-2">{label} ✓</p>
+        </>
+      );
+    }
+    return (
+      <div className="space-y-3">
+        <User className="h-8 w-8 text-muted-foreground mx-auto" />
+        <p className="text-sm text-muted-foreground font-medium">{label}</p>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCapture();
+          }}
+          className="flex items-center gap-2 mx-auto"
+        >
+          <Camera className="h-4 w-4" />
+          Take Selfie
+        </Button>
+      </div>
+    );
+  }
+
   // Cleanup interval on unmount
   useEffect(() => {
     return () => {
@@ -240,8 +334,7 @@ export default function AgentOnboarding() {
           formData.dob &&
           formData.gender
         );
-      case 2: {
-        const wordCount = formData.address.trim().split(/\s+/).length;
+      case 2:
         return (
           formData.region &&
           formData.address.trim().length >= 10 &&
@@ -251,7 +344,7 @@ export default function AgentOnboarding() {
           formData.employmentStatus &&
           formData.monthlyIncome
         );
-      }
+      
       case 3:
         return (
           formData.ghanaCardNumber.trim() &&
@@ -260,8 +353,8 @@ export default function AgentOnboarding() {
           formData.selfieUrl
         );
       case 4: {
-        const loanAmount = parseInt(formData.initialLoanAmount, 10);
-        const loanTenure = parseInt(formData.initialLoanTenure, 10);
+        const loanAmount = Number.parseInt(formData.initialLoanAmount, 10);
+        const loanTenure = Number.parseInt(formData.initialLoanTenure, 10);
         return (
           formData.initialLoanAmount &&
           formData.initialLoanTenure &&
@@ -310,7 +403,7 @@ export default function AgentOnboarding() {
         region: formData.region,
         address: formData.address,
         accommodationType: formData.accommodationType,
-        yearsAtAddress: parseInt(formData.yearsAtAddress, 10) || 0,
+        yearsAtAddress: Number.parseInt(formData.yearsAtAddress, 10) || 0,
         educationLevel: formData.educationLevel,
         employmentStatus: formData.employmentStatus,
         monthlyIncome: formData.monthlyIncome,
@@ -318,8 +411,8 @@ export default function AgentOnboarding() {
         ghanaCardFrontUrl: formData.ghanaCardFrontUrl,
         ghanaCardBackUrl: formData.ghanaCardBackUrl,
         selfieUrl: formData.selfieUrl,
-        initialLoanAmount: parseInt(formData.initialLoanAmount, 10) || 0,
-        initialLoanTenure: parseInt(formData.initialLoanTenure, 10) || 0,
+        initialLoanAmount: Number.parseInt(formData.initialLoanAmount, 10) || 0,
+        initialLoanTenure: Number.parseInt(formData.initialLoanTenure, 10) || 0,
         initialLoanPurpose: formData.initialLoanPurpose,
       };
 
@@ -357,7 +450,7 @@ export default function AgentOnboarding() {
     { number: 1, title: "Bio-Data", icon: User, description: "Personal info" },
     { number: 2, title: "Details", icon: MapPin, description: "Location & work" },
     { number: 3, title: "Documents", icon: ImageIcon, description: "ID & photos" },
-    { number: 4, title: "Loan Request", icon: CreditCard, description: "Initial loan" },
+    { number: 4, title: "Loan Request Details", icon: CreditCard, description: "Initial request" },
   ];
 
   // Success Screen
@@ -511,7 +604,7 @@ export default function AgentOnboarding() {
             {currentStep === 1 && "Enter the customer's personal information"}
             {currentStep === 2 && "Capture location and employment details"}
             {currentStep === 3 && "Take clear photos of ID and selfie"}
-            {currentStep === 4 && "Select loan amount, tenure, and purpose"}
+            {currentStep === 4 && "Provide loan amount, tenure, and purpose"}
           </CardDescription>
         </CardHeader>
 
@@ -766,46 +859,12 @@ export default function AgentOnboarding() {
                         }}
                         className="hidden"
                       />
-                      {uploadProgress.front ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                      ) : formData.ghanaCardFrontUrl ? (
-                        <>
-                          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
-                          <p className="text-sm text-emerald-700 font-medium mt-2">Ghana Card Front ✓</p>
-                        </>
-                      ) : (
-                        <div className="space-y-3">
-                          <Camera className="h-8 w-8 text-muted-foreground mx-auto" />
-                          <p className="text-sm text-muted-foreground font-medium">Ghana Card (Front)</p>
-                          <div className="flex gap-2 justify-center">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                frontInputRef.current?.click();
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <Camera className="h-4 w-4" />
-                              Capture
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                frontUploadRef.current?.click();
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <Upload className="h-4 w-4" />
-                              Upload
-                            </Button>
-                          </div>
-                        </div>
+                      {renderDocumentUploadContent(
+                        uploadProgress.front,
+                        formData.ghanaCardFrontUrl,
+                        "Ghana Card (Front)",
+                        () => frontInputRef.current?.click(),
+                        () => frontUploadRef.current?.click()
                       )}
                     </motion.div>
 
@@ -841,46 +900,12 @@ export default function AgentOnboarding() {
                         }}
                         className="hidden"
                       />
-                      {uploadProgress.back ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                      ) : formData.ghanaCardBackUrl ? (
-                        <>
-                          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
-                          <p className="text-sm text-emerald-700 font-medium mt-2">Ghana Card Back ✓</p>
-                        </>
-                      ) : (
-                        <div className="space-y-3">
-                          <Camera className="h-8 w-8 text-muted-foreground mx-auto" />
-                          <p className="text-sm text-muted-foreground font-medium">Ghana Card (Back)</p>
-                          <div className="flex gap-2 justify-center">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                backInputRef.current?.click();
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <Camera className="h-4 w-4" />
-                              Capture
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                backUploadRef.current?.click();
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              <Upload className="h-4 w-4" />
-                              Upload
-                            </Button>
-                          </div>
-                        </div>
+                      {renderDocumentUploadContent(
+                        uploadProgress.back,
+                        formData.ghanaCardBackUrl,
+                        "Ghana Card (Back)",
+                        () => backInputRef.current?.click(),
+                        () => backUploadRef.current?.click()
                       )}
                     </motion.div>
 
@@ -906,31 +931,11 @@ export default function AgentOnboarding() {
                         }}
                         className="hidden"
                       />
-                      {uploadProgress.selfie ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                      ) : formData.selfieUrl ? (
-                        <>
-                          <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
-                          <p className="text-sm text-emerald-700 font-medium mt-2">Customer Selfie ✓</p>
-                        </>
-                      ) : (
-                        <div className="space-y-3">
-                          <User className="h-8 w-8 text-muted-foreground mx-auto" />
-                          <p className="text-sm text-muted-foreground font-medium">Customer Selfie</p>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              selfieInputRef.current?.click();
-                            }}
-                            className="flex items-center gap-2 mx-auto"
-                          >
-                            <Camera className="h-4 w-4" />
-                            Take Selfie
-                          </Button>
-                        </div>
+                      {renderSelfieUploadContent(
+                        uploadProgress.selfie,
+                        formData.selfieUrl,
+                        "Customer Selfie",
+                        () => selfieInputRef.current?.click()
                       )}
                     </motion.div>
                   </div>
@@ -1033,7 +1038,7 @@ export default function AgentOnboarding() {
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || !validateStep(currentStep)}
+              disabled={isSubmitting || !validateStep()}
               className="flex-1 h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:opacity-90"
             >
               {isSubmitting ? (
