@@ -32,55 +32,70 @@ import PendingKycPage from "./pages/PendingKycPage";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <ApplicantProvider>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/check-email" element={<CheckEmailPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/apply" element={<ApplyPage />} />
-            
-            {/* Agent Portal Routes */}
-            <Route path="/agent" element={<RequireAgent><AgentLayout /></RequireAgent>}>
-              <Route index element={<AgentDashboard />} />
-              <Route path="onboard" element={<AgentOnboarding />} />
-              <Route path="portfolio" element={<AgentPortfolio />} />
-              <Route path="profile" element={<AgentProfile />} />
-            </Route>
-            
-            {/* Protected Admin Routes */}
-            <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
-            <Route path="/kyc-approvals" element={<RequireAuth><PendingKycPage /></RequireAuth>} />
-            <Route path="/users" element={<RequireAuth><UsersPage /></RequireAuth>} />
-            <Route path="/users/:id" element={<RequireAuth><UserDetailsPage /></RequireAuth>} />
-            <Route path="/loans" element={<RequireAuth><LoansPage /></RequireAuth>} />
-            <Route path="/loans/pending" element={<RequireAuth><LoansPage /></RequireAuth>} />
-            <Route path="/loans/active" element={<RequireAuth><LoansPage /></RequireAuth>} />
-            <Route path="/loans/closed" element={<RequireAuth><LoansPage /></RequireAuth>} />
-            <Route path="/loans/overdue" element={<RequireAuth><LoansPage /></RequireAuth>} />
-            <Route path="/repayments" element={<RequireAuth><RepaymentsPage /></RequireAuth>} />
-            <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
-            <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
-            <Route path="/agents" element={<RequireAuth><AgentsPage /></RequireAuth>} />
-            
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-    </ApplicantProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const hostname = window.location.hostname;
+  const isApplySubdomain = hostname.startsWith("apply.");
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ApplicantProvider>
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  {isApplySubdomain ? (
+                    <>
+                      <Route path="/" element={<ApplyPage />} />
+                      <Route path="*" element={<ApplyPage />} />
+                    </>
+                  ) : (
+                    <>
+                      {/* Public Routes */}
+                      <Route path="/" element={<Index />} />
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/signup" element={<SignupPage />} />
+                      <Route path="/apply" element={<ApplyPage />} />
+                      <Route path="/check-email" element={<CheckEmailPage />} />
+                      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                      <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+                      {/* Agent Portal Routes */}
+                      <Route path="/agent" element={<RequireAgent><AgentLayout /></RequireAgent>}>
+                        <Route index element={<AgentDashboard />} />
+                        <Route path="onboard" element={<AgentOnboarding />} />
+                        <Route path="portfolio" element={<AgentPortfolio />} />
+                        <Route path="profile" element={<AgentProfile />} />
+                      </Route>
+
+                      {/* Protected Admin Routes */}
+                      <Route path="/admin" element={<RequireAuth><Index /></RequireAuth>} />
+                      <Route path="/kyc-approvals" element={<RequireAuth><PendingKycPage /></RequireAuth>} />
+                      <Route path="/users" element={<RequireAuth><UsersPage /></RequireAuth>} />
+                      <Route path="/users/:id" element={<RequireAuth><UserDetailsPage /></RequireAuth>} />
+                      <Route path="/loans" element={<RequireAuth><LoansPage /></RequireAuth>} />
+                      <Route path="/loans/pending" element={<RequireAuth><LoansPage /></RequireAuth>} />
+                      <Route path="/loans/active" element={<RequireAuth><LoansPage /></RequireAuth>} />
+                      <Route path="/loans/closed" element={<RequireAuth><LoansPage /></RequireAuth>} />
+                      <Route path="/loans/overdue" element={<RequireAuth><LoansPage /></RequireAuth>} />
+                      <Route path="/repayments" element={<RequireAuth><RepaymentsPage /></RequireAuth>} />
+                      <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
+                      <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
+                      <Route path="/agents" element={<RequireAuth><AgentsPage /></RequireAuth>} />
+
+                      <Route path="*" element={<NotFound />} />
+                    </>
+                  )}
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </ThemeProvider>
+        </ApplicantProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
