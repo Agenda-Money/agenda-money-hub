@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ApplicantProvider } from "@/contexts/ApplicantContext";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import RequireAgent from "@/components/auth/RequireAgent";
 import Index from "./pages/Index";
@@ -20,6 +21,7 @@ import SignupPage from "./pages/SignupPage";
 import CheckEmailPage from "./pages/CheckEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import ApplyPage from "./pages/ApplyPage";
 import NotFound from "./pages/NotFound";
 import AgentLayout from "./components/layout/AgentLayout";
 import AgentDashboard from "./pages/agent/AgentDashboard";
@@ -33,6 +35,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <ApplicantProvider>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <TooltipProvider>
         <Toaster />
@@ -44,6 +47,7 @@ const App = () => (
             <Route path="/check-email" element={<CheckEmailPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/apply" element={<ApplyPage />} />
             
             {/* Agent Portal Routes */}
             <Route path="/agent" element={<RequireAgent><AgentLayout /></RequireAgent>}>
@@ -74,6 +78,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
+    </ApplicantProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
