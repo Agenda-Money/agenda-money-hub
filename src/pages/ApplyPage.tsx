@@ -875,6 +875,8 @@ export default function ApplyPage() {
     }
   };
 
+  // Wrapped in useCallback to prevent re-creation on every render and allow
+  // safe inclusion in useEffect dependencies for auto-OTP submission
   const handleVerifyOtp = useCallback(async () => {
     if (!normalizedMsisdn) {
       setErrorMessage("Enter a valid phone number to continue.");
@@ -1025,11 +1027,11 @@ export default function ApplyPage() {
     setUploadedFiles(prev => ({ ...prev, [field]: file }));
   };
 
-  const getFileExtension = (file: File): string => {
+  const getFileExtension = useCallback((file: File): string => {
     const name = file.name;
     const lastDot = name.lastIndexOf('.');
     return lastDot !== -1 ? name.substring(lastDot) : '.jpg';
-  };
+  }, []);
 
   const handleOnboardingSubmit = async () => {
     setErrorMessage(null);
@@ -1066,6 +1068,10 @@ export default function ApplyPage() {
       let ghanaCardBackUrl = onboardingData.ghanaCardBackUrl;
       let selfieUrl = onboardingData.selfieUrl;
 
+      // Determine userId for file storage path:
+      // 1. userData?.id - user's actual ID if available
+      // 2. normalizedMsisdn - phone number as fallback
+      // 3. fallbackUserIdRef.current - stable timestamp generated on mount
       const userId = userData?.id || normalizedMsisdn || fallbackUserIdRef.current;
 
       // Upload Ghana Card Front
