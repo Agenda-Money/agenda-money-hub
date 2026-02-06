@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
+import { uploadToSupabase } from "@/lib/supabase";
 import {
   ArrowLeft,
   ArrowRight,
@@ -594,7 +595,7 @@ const LoanDashboardView = ({
     </div>
 
     <div className="space-y-2">
-      <Label htmlFor="loan-amount">Loan Amount (₵) *</Label>
+      <Label htmlFor="loan-amount">Loan Amount (GHS) *</Label>
       <Select value={String(loanAmount)} onValueChange={(val) => setLoanAmount(Number(val))}>
         <SelectTrigger className="h-12 bg-muted/50 border-0 focus-visible:ring-primary">
           <SelectValue placeholder="Enter loan amount" />
@@ -602,7 +603,7 @@ const LoanDashboardView = ({
         <SelectContent>
           {amountOptions.map((amount) => (
             <SelectItem key={amount} value={String(amount)}>
-              ₵{amount}
+              GHS {amount}
             </SelectItem>
           ))}
         </SelectContent>
@@ -660,7 +661,6 @@ const LoanDashboardView = ({
           <p><span className="text-muted-foreground">Account</span>: {loanSummary.msisdn}</p>
           <p><span className="text-muted-foreground">Repayment amount</span> - GHS {loanSummary.repaymentAmount}</p>
           <p><span className="text-muted-foreground">Repayment date</span> - {loanSummary.repaymentDate}</p>
-          <p>Enter O to</p>
         </div>
       </div>
     )}
@@ -704,6 +704,8 @@ export default function ApplyPage() {
   const [isSubmittingOnboarding, setIsSubmittingOnboarding] = useState(false);
   const [isRequestingLoan, setIsRequestingLoan] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
+  const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
   const [loanSummary, setLoanSummary] = useState<{
     disbursementAmount: number;
     repaymentAmount: number;
@@ -714,6 +716,7 @@ export default function ApplyPage() {
   const frontCardRef = useRef<HTMLInputElement>(null);
   const backCardRef = useRef<HTMLInputElement>(null);
   const selfieRef = useRef<HTMLInputElement>(null);
+  const fallbackUserIdRef = useRef<string>(Date.now().toString());
 
   const currentTier = Number(userData?.currentTier ?? 1);
   const activeTier = TIER_LIMITS[currentTier];
@@ -789,7 +792,7 @@ export default function ApplyPage() {
     };
 
     void restoreSession();
-  }, []);
+  }, [setApplicant]);
 
   useEffect(() => {
     if (view !== "otp") return;
@@ -798,8 +801,22 @@ export default function ApplyPage() {
     if (autoSubmitRef.current) return;
     autoSubmitRef.current = true;
     void handleVerifyOtp();
-  }, [otp, isVerifying, view]);
+  }, [otp, isVerifying, view, handleVerifyOtp]);
 
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (onboardingData.ghanaCardFrontUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(onboardingData.ghanaCardFrontUrl);
+      }
+      if (onboardingData.ghanaCardBackUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(onboardingData.ghanaCardBackUrl);
+      }
+      if (onboardingData.selfieUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(onboardingData.selfieUrl);
+      }
+    };
+  }, [onboardingData.ghanaCardFrontUrl, onboardingData.ghanaCardBackUrl, onboardingData.selfieUrl]);
 
 
   const slideVariants = {
@@ -808,9 +825,9 @@ export default function ApplyPage() {
     exit: (dir: number) => ({ x: dir < 0 ? 200 : -200, opacity: 0 }),
   };
 
-  const resetAutoSubmit = () => {
+  const resetAutoSubmit = useCallback(() => {
     autoSubmitRef.current = false;
-  };
+  }, []);
 
   const handleRequestOtp = async () => {
     setErrorMessage(null);
@@ -858,7 +875,9 @@ export default function ApplyPage() {
     }
   };
 
-  const handleVerifyOtp = async () => {
+  // Wrapped in useCallback to prevent re-creation on every render and allow
+  // safe inclusion in useEffect dependencies for auto-OTP submission
+  const handleVerifyOtp = useCallback(async () => {
     if (!normalizedMsisdn) {
       setErrorMessage("Enter a valid phone number to continue.");
       resetAutoSubmit();
@@ -913,7 +932,7 @@ export default function ApplyPage() {
     } finally {
       setIsVerifying(false);
     }
-  };
+  }, [normalizedMsisdn, otp, setApplicant, resetAutoSubmit]);
 
   const handleResend = async () => {
     if (resendSeconds > 0 || isRequesting) return;
@@ -993,10 +1012,26 @@ export default function ApplyPage() {
     handleOnboardingChange("ghanaCardNumber", formatGhanaCardNumber(value));
   };
 
-  const handleUpload = (file: File, field: "ghanaCardFrontUrl" | "ghanaCardBackUrl" | "selfieUrl") => {
-    const url = URL.createObjectURL(file);
-    handleOnboardingChange(field, url);
+  const handleUpload = async (file: File, field: "ghanaCardFrontUrl" | "ghanaCardBackUrl" | "selfieUrl") => {
+    // Revoke the old blob URL if it exists
+    const oldUrl = onboardingData[field];
+    if (oldUrl && oldUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(oldUrl);
+    }
+    
+    // Create a blob URL for preview
+    const blobUrl = URL.createObjectURL(file);
+    handleOnboardingChange(field, blobUrl);
+    
+    // Store the file for later upload
+    setUploadedFiles(prev => ({ ...prev, [field]: file }));
   };
+
+  const getFileExtension = useCallback((file: File): string => {
+    const name = file.name;
+    const lastDot = name.lastIndexOf('.');
+    return lastDot !== -1 ? name.substring(lastDot) : '.jpg';
+  }, []);
 
   const handleOnboardingSubmit = async () => {
     setErrorMessage(null);
@@ -1028,6 +1063,77 @@ export default function ApplyPage() {
 
     setIsSubmittingOnboarding(true);
     try {
+      // Upload files to Supabase first
+      let ghanaCardFrontUrl = onboardingData.ghanaCardFrontUrl;
+      let ghanaCardBackUrl = onboardingData.ghanaCardBackUrl;
+      let selfieUrl = onboardingData.selfieUrl;
+
+      // Determine userId for file storage path:
+      // 1. userData?.id - user's actual ID if available
+      // 2. normalizedMsisdn - phone number as fallback
+      // 3. fallbackUserIdRef.current - stable timestamp generated on mount
+      const userId = userData?.id || normalizedMsisdn || fallbackUserIdRef.current;
+
+      // Upload Ghana Card Front
+      if (uploadedFiles.ghanaCardFrontUrl) {
+        setUploadingFiles(prev => ({ ...prev, ghanaCardFrontUrl: true }));
+        const fileExt = getFileExtension(uploadedFiles.ghanaCardFrontUrl);
+        const result = await uploadToSupabase(
+          uploadedFiles.ghanaCardFrontUrl,
+          "kyc-documents",
+          `${userId}/ghana-card-front-${Date.now()}${fileExt}`
+        );
+        if (result.success && result.url) {
+          ghanaCardFrontUrl = result.url;
+        } else {
+          setErrorMessage(result.error || "Failed to upload Ghana Card front image.");
+          setIsSubmittingOnboarding(false);
+          setUploadingFiles(prev => ({ ...prev, ghanaCardFrontUrl: false }));
+          return;
+        }
+        setUploadingFiles(prev => ({ ...prev, ghanaCardFrontUrl: false }));
+      }
+
+      // Upload Ghana Card Back
+      if (uploadedFiles.ghanaCardBackUrl) {
+        setUploadingFiles(prev => ({ ...prev, ghanaCardBackUrl: true }));
+        const fileExt = getFileExtension(uploadedFiles.ghanaCardBackUrl);
+        const result = await uploadToSupabase(
+          uploadedFiles.ghanaCardBackUrl,
+          "kyc-documents",
+          `${userId}/ghana-card-back-${Date.now()}${fileExt}`
+        );
+        if (result.success && result.url) {
+          ghanaCardBackUrl = result.url;
+        } else {
+          setErrorMessage(result.error || "Failed to upload Ghana Card back image.");
+          setIsSubmittingOnboarding(false);
+          setUploadingFiles(prev => ({ ...prev, ghanaCardBackUrl: false }));
+          return;
+        }
+        setUploadingFiles(prev => ({ ...prev, ghanaCardBackUrl: false }));
+      }
+
+      // Upload Selfie
+      if (uploadedFiles.selfieUrl) {
+        setUploadingFiles(prev => ({ ...prev, selfieUrl: true }));
+        const fileExt = getFileExtension(uploadedFiles.selfieUrl);
+        const result = await uploadToSupabase(
+          uploadedFiles.selfieUrl,
+          "kyc-documents",
+          `${userId}/selfie-${Date.now()}${fileExt}`
+        );
+        if (result.success && result.url) {
+          selfieUrl = result.url;
+        } else {
+          setErrorMessage(result.error || "Failed to upload selfie.");
+          setIsSubmittingOnboarding(false);
+          setUploadingFiles(prev => ({ ...prev, selfieUrl: false }));
+          return;
+        }
+        setUploadingFiles(prev => ({ ...prev, selfieUrl: false }));
+      }
+
       const response = await fetch(`${baseApiUrl}/api/users/onboard`, {
         method: "POST",
         headers: {
@@ -1044,9 +1150,9 @@ export default function ApplyPage() {
           address: onboardingData.address,
           gpsAddress: onboardingData.gpsAddress,
           ghanaCardNumber: onboardingData.ghanaCardNumber,
-          ghanaCardFrontUrl: onboardingData.ghanaCardFrontUrl,
-          ghanaCardBackUrl: onboardingData.ghanaCardBackUrl,
-          selfieUrl: onboardingData.selfieUrl,
+          ghanaCardFrontUrl,
+          ghanaCardBackUrl,
+          selfieUrl,
         }),
       });
 
