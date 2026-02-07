@@ -12,9 +12,7 @@ export default function AgentLayout() {
   const { isConnected } = useSocket(wsUrl);
 
   useEffect(() => {
-    if (isConnected) {
-      console.log("Agent WebSocket connected - listening for KYC_VERIFIED_SUCCESS");
-    }
+    if (!isConnected) return;
   }, [isConnected]);
 
   // Close sidebar on route change (mobile)

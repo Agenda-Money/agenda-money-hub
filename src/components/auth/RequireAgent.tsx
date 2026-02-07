@@ -21,7 +21,6 @@ export default function RequireAgent({ children }: Readonly<RequireAgentProps>) 
       if (timeout) clearTimeout(timeout);
       
       timeout = setTimeout(() => {
-        console.log("Agent session timed out due to inactivity");
           // Logout functionality will be implemented when backend is ready
       }, INACTIVITY_TIMEOUT);
     };
