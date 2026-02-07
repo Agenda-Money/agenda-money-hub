@@ -118,8 +118,8 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
               tabIndex={0}
               onClick={() => onLoanClick(loan)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
-                  if (e.key !== 'Enter') {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  if (e.key === ' ') {
                     e.preventDefault();
                   }
                   onLoanClick(loan);
