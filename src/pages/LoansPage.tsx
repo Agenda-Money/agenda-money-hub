@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, Clock, CheckCircle, AlertTriangle, Check } from "lucide-react";
+import { Eye, Clock, CheckCircle, AlertTriangle, Check, XCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Loan {
@@ -18,18 +18,20 @@ interface Loan {
   amount: number;
   tenure: string;
   dueDate: string;
-  status: string;
+  status: "PENDING" | "DISBURSING" | "ACTIVE" | "REPAID" | "OVERDUE" | "DEFAULTED" | "REJECTED";
   nodeCode: string;
 }
 
 
 
 const statusConfig = {
-  pending: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
-  active: { label: "Active", icon: CheckCircle, color: "bg-info/10 text-info border-info/20" },
-  overdue: { label: "Overdue", icon: AlertTriangle, color: "bg-destructive/10 text-destructive border-destructive/20" },
-  closed: { label: "Closed", icon: Check, color: "bg-success/10 text-success border-success/20" },
-  repaid: { label: "Repaid", icon: Check, color: "bg-success/10 text-success border-success/20" },
+  PENDING: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
+  DISBURSING: { label: "Disbursing", icon: Loader2, color: "bg-info/10 text-info border-info/20" },
+  ACTIVE: { label: "Active", icon: CheckCircle, color: "bg-info/10 text-info border-info/20" },
+  REPAID: { label: "Repaid", icon: Check, color: "bg-success/10 text-success border-success/20" },
+  OVERDUE: { label: "Overdue", icon: AlertTriangle, color: "bg-destructive/10 text-destructive border-destructive/20" },
+  DEFAULTED: { label: "Defaulted", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
+  REJECTED: { label: "Rejected", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
 };
 
 import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
@@ -65,7 +67,7 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
                 if (!config) {
                   console.warn(`Unexpected loan status: ${loan.status}`);
                 }
-                const displayConfig = config ?? statusConfig.pending;
+                const displayConfig = config ?? statusConfig.PENDING;
                 return (
                   <tr
                     key={loan.id}
@@ -109,13 +111,22 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
       <div className="md:hidden space-y-4">
         {loans.map((loan, index) => {
           const config = statusConfig[loan.status];
-          const displayConfig = config ?? statusConfig.pending;
+          const displayConfig = config ?? statusConfig.PENDING;
           const StatusIcon = displayConfig.icon;
           return (
-            <button
+            <div
               key={loan.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => onLoanClick(loan)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  if (e.key === ' ') {
+                    e.preventDefault();
+                  }
+                  onLoanClick(loan);
+                }
+              }}
               className="w-full text-left bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in cursor-pointer active:bg-muted/50"
               style={{ animationDelay: `${index * 30}ms` }}
             >
@@ -127,7 +138,7 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
                   <p className="text-sm text-muted-foreground">{loan.phone}</p>
                 </div>
                 <Badge variant="outline" className={cn("font-medium flex items-center gap-1", displayConfig.color)}>
-                  <StatusIcon className="h-3 w-3" />
+                  <StatusIcon className={cn("h-3 w-3", loan.status === "DISBURSING" && "animate-spin")} />
                   {loan.status ?? "Unknown"}
                 </Badge>
               </div>
@@ -152,12 +163,12 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
 
               {/* Actions */}
               <div className="pt-3 border-t border-border flex justify-end gap-2">
-                <Button variant="outline" size="sm" className="h-8">
+                <Button variant="outline" size="sm" className="h-8" onClick={(e) => e.stopPropagation()}>
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
