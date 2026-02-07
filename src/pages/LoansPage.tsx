@@ -138,7 +138,7 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
                   <p className="text-sm text-muted-foreground">{loan.phone}</p>
                 </div>
                 <Badge variant="outline" className={cn("font-medium flex items-center gap-1", displayConfig.color)}>
-                  <StatusIcon className="h-3 w-3" />
+                  <StatusIcon className={cn("h-3 w-3", loan.status === "DISBURSING" && "animate-spin")} />
                   {loan.status ?? "Unknown"}
                 </Badge>
               </div>
