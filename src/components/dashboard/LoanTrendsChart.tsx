@@ -14,9 +14,19 @@ export function LoanTrendsChart() {
     const { data: chartData } = useQuery({
       queryKey: ["loan-trends"],
       queryFn: async () => {
-        const res = await api.get("/api/admin/dashboard/trends");
-        return res.data?.data || res.data || [];
+        try {
+          const res = await api.get("/api/admin/analytics");
+          const liquidity = res.data?.data?.liquidity || [];
+          return liquidity.map((item: any) => ({
+            month: item?._id?.month ?? "",
+            disbursed: item?.disbursed ?? 0,
+            repaid: item?.repaid ?? 0,
+          }));
+        } catch {
+          return [];
+        }
       },
+      retry: false,
     });
 
   const dummyData = [

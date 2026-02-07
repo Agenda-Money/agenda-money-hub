@@ -450,7 +450,7 @@ export default function AgentOnboarding() {
     { number: 1, title: "Bio-Data", icon: User, description: "Personal info" },
     { number: 2, title: "Details", icon: MapPin, description: "Location & work" },
     { number: 3, title: "Documents", icon: ImageIcon, description: "ID & photos" },
-    { number: 4, title: "Loan Request Details", icon: CreditCard, description: "Initial request" },
+    { number: 4, title: "Loan Request", icon: CreditCard, description: "Initial loan" },
   ];
 
   // Success Screen
@@ -604,7 +604,7 @@ export default function AgentOnboarding() {
             {currentStep === 1 && "Enter the customer's personal information"}
             {currentStep === 2 && "Capture location and employment details"}
             {currentStep === 3 && "Take clear photos of ID and selfie"}
-            {currentStep === 4 && "Provide loan amount, tenure, and purpose"}
+            {currentStep === 4 && "Select loan amount, tenure, and purpose"}
           </CardDescription>
         </CardHeader>
 

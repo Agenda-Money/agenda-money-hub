@@ -13,11 +13,12 @@ interface Loan {
   id: string;
   reference: string;
   user: string;
+  userId?: string;
   phone: string;
   amount: number;
   tenure: string;
   dueDate: string;
-  status: "pending" | "active" | "overdue" | "closed" | "repaid";
+  status: string;
   nodeCode: string;
 }
 
@@ -33,7 +34,7 @@ const statusConfig = {
 
 import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
 
-function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan: Loan) => void }) {
+function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClick: (loan: Loan) => void }>) {
   if (loans.length === 0) {
     return (
       <div className="bg-card rounded-xl shadow-sm p-12 text-center">
@@ -111,10 +112,11 @@ function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan:
           const displayConfig = config ?? statusConfig.pending;
           const StatusIcon = displayConfig.icon;
           return (
-            <div
+            <button
               key={loan.id}
+              type="button"
               onClick={() => onLoanClick(loan)}
-              className="bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in cursor-pointer active:bg-muted/50"
+              className="w-full text-left bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in cursor-pointer active:bg-muted/50"
               style={{ animationDelay: `${index * 30}ms` }}
             >
               {/* Header with ID and Status */}
@@ -155,7 +157,7 @@ function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan:
                   View
                 </Button>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -183,7 +185,7 @@ export default function LoansPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
-  const [selectedLoan, setSelectedLoan] = useState<any | null>(null);
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
 
   // Determine default tab from URL path
   const getTabFromPath = () => {
@@ -270,24 +272,25 @@ export default function LoansPage() {
   const currentPage = loansData?.pagination?.page || 1;
 
   // Map API fields strictly based on user provided structure
-  // Debug log to check user structure
-  if (rawLoans.length > 0) {
-    console.log("First raw loan user structure:", rawLoans[0].user);
-  }
+  const loans: Loan[] = rawLoans.map((l: any) => {
+    const tenureValue = l.tenureDays === null || l.tenureDays === undefined
+      ? (l.tenure ?? "N/A")
+      : `${l.tenureDays} days`;
 
-  const loans: Loan[] = rawLoans.map((l: any) => ({
+    return {
     id: l.id ?? l._id ?? l.loanReference, // Prioritize DB ID for API calls, only falling back when null/undefined
     reference: l.loanReference ?? "N/A",
     user: l.user?.fullName  ?? l.user ?? "Unknown User", 
     userId: l.user?._id ?? l.userId ?? "", // Extract ID
     phone: l.userMsisdn ?? l.phone ?? "",
     amount: l.principal ?? l.amount ?? 0,
-    tenure: l.tenureDays != null ? `${l.tenureDays} days` : (l.tenure ?? "N/A"),
+    tenure: tenureValue,
     dueDate: l.dueDate ?? l.repaymentDate ?? new Date().toISOString(),
-    status: (l.status?.toLowerCase() ?? "pending") as any,
+    status: l.status?.toLowerCase() ?? "pending",
     // Add Node Code mapping (Personal > Referrer > N/A)
     nodeCode: l.user?.personalNodeCode || l.user?.nodeCode || "N/A"
-  }));
+    };
+  });
 
   return (
     <DashboardLayout>

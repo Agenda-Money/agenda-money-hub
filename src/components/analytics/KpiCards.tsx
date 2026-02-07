@@ -4,11 +4,20 @@ import { TrendingUp, TrendingDown, Banknote, Target, CreditCard, AlertTriangle }
 import { cn } from "@/lib/utils";
 
 interface KpiData {
-  disbursementToday: number;
-  disbursementWeek: number;
-  collectionRate: number;
-  portfolioAtRisk: number;
-  totalActiveDebt: number;
+  disbursedToday: {
+    amount: number;
+    change: number;
+  };
+  disbursedWeek: number;
+  activeDebt: number;
+  collectionRate: {
+    percentage: number;
+    status?: string;
+  };
+  portfolioAtRisk: {
+    percentage: number;
+    status?: string;
+  };
   overdueLoans: number;
 }
 
@@ -16,22 +25,38 @@ interface KpiCardsProps {
   data: KpiData;
 }
 
+const buildDisbursedTrend = (change: number) => {
+  if (change === 0) {
+    return { trend: undefined, label: undefined, className: "text-muted-foreground" } as const;
+  }
+
+  const trend = change > 0 ? "up" : "down";
+  const label = `${change > 0 ? "+" : ""}${change}% vs yesterday`;
+  const className = change > 0 ? "text-[#00e676]" : "text-[#f44336]";
+
+  return { trend, label, className } as const;
+};
+
 const KpiCard = ({
   title,
   value,
   subtitle,
+  subtitleClassName,
   icon: Icon,
   trend,
   trendValue,
+  trendClassName,
   variant = "default",
   delay = 0
 }: {
   title: string;
   value: string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
+  subtitleClassName?: string;
   icon: React.ElementType;
   trend?: "up" | "down";
   trendValue?: string;
+  trendClassName?: string;
   variant?: "default" | "success" | "warning" | "danger" | "primary";
   delay?: number;
 }) => {
@@ -80,12 +105,13 @@ const KpiCard = ({
               </p>
               <p className="text-2xl font-bold">{value}</p>
               {subtitle && (
-                <p className="text-xs text-muted-foreground">{subtitle}</p>
+                <p className={cn("text-xs", subtitleClassName ?? "text-muted-foreground")}>{subtitle}</p>
               )}
               {trend && trendValue && (
                 <div className={cn(
                   "flex items-center gap-1 text-xs font-medium mt-2",
-                  trend === "up" ? "text-success" : "text-destructive"
+                  trend === "up" ? "text-success" : "text-destructive",
+                  trendClassName
                 )}>
                   {trend === "up" ? (
                     <TrendingUp className="h-3 w-3" />
@@ -106,55 +132,70 @@ const KpiCard = ({
   );
 };
 
-export function KpiCards({ data }: KpiCardsProps) {
+export function KpiCards({ data }: Readonly<KpiCardsProps>) {
+  const disbursedTrend = buildDisbursedTrend(data.disbursedToday.change);
+
+  const collectionStatus = (data.collectionRate.status || "").toLowerCase();
+  const collectionStatusClass = collectionStatus.includes("target") || collectionStatus.includes("healthy")
+    ? "text-emerald-400"
+    : "text-rose-400";
+
+  const portfolioStatus = (data.portfolioAtRisk.status || "").toLowerCase();
+  const portfolioStatusClass = portfolioStatus.includes("healthy")
+    ? "text-emerald-400"
+    : "text-rose-400";
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
       <KpiCard
         title="Disbursed Today"
-        value={`₵${data.disbursementToday.toLocaleString()}`}
+        value={`₵${data.disbursedToday.amount.toLocaleString()}`}
         subtitle="24hr volume"
         icon={Banknote}
-        trend="up"
-        trendValue="+12% vs yesterday"
+        trend={disbursedTrend.trend}
+        trendValue={disbursedTrend.label}
+        trendClassName={disbursedTrend.className}
         variant="primary"
         delay={0}
       />
       <KpiCard
         title="Weekly Disbursement"
-        value={`₵${data.disbursementWeek.toLocaleString()}`}
+        value={`₵${data.disbursedWeek.toLocaleString()}`}
         subtitle="Last 7 days"
         icon={Banknote}
-        trend="up"
-        trendValue="+8% vs last week"
         variant="primary"
         delay={0.05}
       />
       <KpiCard
         title="Collection Rate"
-        value={`${data.collectionRate}%`}
-        subtitle="Repaid vs due"
+        value={`${data.collectionRate.percentage}%`}
+        subtitle={data.collectionRate.status || "Repaid vs due"}
+        subtitleClassName={collectionStatusClass}
         icon={Target}
-        trend={data.collectionRate >= 90 ? "up" : "down"}
-        trendValue={data.collectionRate >= 90 ? "On target" : "Below target"}
-        variant={data.collectionRate >= 90 ? "success" : "warning"}
+        trend={data.collectionRate.percentage >= 90 ? "up" : "down"}
+        trendValue={data.collectionRate.percentage >= 90 ? "On target" : "Underperforming"}
+        trendClassName={data.collectionRate.percentage >= 90 ? "text-[#00e676]" : "text-[#f44336]"}
+        variant={data.collectionRate.percentage >= 90 ? "success" : "warning"}
         delay={0.1}
       />
       <KpiCard
         title="Portfolio at Risk"
-        value={`${data.portfolioAtRisk}%`}
-        subtitle="30+ days overdue"
+        value={`${data.portfolioAtRisk.percentage}%`}
+        subtitle={data.portfolioAtRisk.status || "30+ days overdue"}
+        subtitleClassName={portfolioStatusClass}
         icon={AlertTriangle}
-        trend={data.portfolioAtRisk <= 5 ? "up" : "down"}
-        trendValue={data.portfolioAtRisk <= 5 ? "Healthy" : "Needs attention"}
-        variant={data.portfolioAtRisk <= 5 ? "success" : "danger"}
+        trend={data.portfolioAtRisk.percentage <= 5 ? "up" : "down"}
+        trendValue={data.portfolioAtRisk.percentage <= 5 ? "Healthy" : "Needs attention"}
+        trendClassName={data.portfolioAtRisk.percentage <= 5 ? "text-[#00e676]" : "text-[#f44336]"}
+        variant={data.portfolioAtRisk.percentage <= 5 ? "success" : "danger"}
         delay={0.15}
       />
       <KpiCard
         title="Active Debt"
-        value={`₵${data.totalActiveDebt.toLocaleString()}`}
+        value={`₵${data.activeDebt.toLocaleString()}`}
         subtitle="Outstanding principal"
         icon={CreditCard}
-        variant="default"
+        variant="primary"
         delay={0.2}
       />
       <KpiCard

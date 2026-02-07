@@ -28,7 +28,6 @@ export default function PendingKycPage() {
     queryKey: ["pending-kyc-users"],
     queryFn: async () => {
       const res = await api.get("/api/admin/users/pending");
-      console.log("Pending users response:", res.data);
       const users = res.data?.data || res.data || [];
       return Array.isArray(users) ? users : [];
     },
@@ -79,7 +78,7 @@ export default function PendingKycPage() {
               Review and approve pending user identities
             </p>
           </div>
-          <Badge className="bg-amber-500/20 text-amber-700 border border-amber-500/30 text-lg font-semibold px-4 py-2 w-fit">
+          <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-lg font-semibold px-4 py-2 w-fit">
             {filteredUsers.length} pending
           </Badge>
         </div>
@@ -124,7 +123,7 @@ export default function PendingKycPage() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <CardTitle className="text-lg">{user.fullName}</CardTitle>
-                        <Badge className="bg-yellow-500/10 text-yellow-700 border-yellow-500/30">
+                        <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/30">
                           <Clock className="h-3 w-3 mr-1" />
                           Pending
                         </Badge>
@@ -164,7 +163,8 @@ export default function PendingKycPage() {
                     <p className="text-xs text-muted-foreground mb-3 font-medium">Documents</p>
                     <div className="flex gap-3">
                       {user.selfieUrl && (
-                        <div
+                        <button
+                          type="button"
                           className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -179,10 +179,11 @@ export default function PendingKycPage() {
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
                             <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
-                        </div>
+                        </button>
                       )}
                       {user.ghanaCardFrontUrl && (
-                        <div
+                        <button
+                          type="button"
                           className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -197,10 +198,11 @@ export default function PendingKycPage() {
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
                             <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
-                        </div>
+                        </button>
                       )}
                       {user.ghanaCardBackUrl && (
-                        <div
+                        <button
+                          type="button"
                           className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -215,7 +217,7 @@ export default function PendingKycPage() {
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
                             <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
-                        </div>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -247,7 +249,7 @@ export default function PendingKycPage() {
                         <span className="break-all">ID: {selectedUser.ghanaCardNumber}</span>
                       </div>
                     </div>
-                    <Badge className="bg-yellow-500/10 text-yellow-700 border-yellow-500/30 w-fit">
+                    <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/30 w-fit">
                       {selectedUser.kycStatus}
                     </Badge>
                   </div>
@@ -282,7 +284,8 @@ export default function PendingKycPage() {
                     {selectedUser.selfieUrl && (
                       <div className="space-y-2">
                         <p className="text-sm font-medium text-muted-foreground">Selfie Photo</p>
-                        <div
+                        <button
+                          type="button"
                           className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border cursor-pointer hover:border-primary transition-colors group"
                           onClick={() => setZoomedImage(selectedUser.selfieUrl)}
                         >
@@ -291,7 +294,7 @@ export default function PendingKycPage() {
                             alt="Selfie"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                           />
-                        </div>
+                        </button>
                         <p className="text-xs text-muted-foreground text-center">Click to zoom</p>
                       </div>
                     )}
@@ -300,7 +303,8 @@ export default function PendingKycPage() {
                     {selectedUser.ghanaCardFrontUrl && (
                       <div className="space-y-2">
                         <p className="text-sm font-medium text-muted-foreground">Card Front</p>
-                        <div
+                        <button
+                          type="button"
                           className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border cursor-pointer hover:border-primary transition-colors group"
                           onClick={() => setZoomedImage(selectedUser.ghanaCardFrontUrl)}
                         >
@@ -309,7 +313,7 @@ export default function PendingKycPage() {
                             alt="Ghana Card Front"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                           />
-                        </div>
+                        </button>
                         <p className="text-xs text-muted-foreground text-center">Click to zoom</p>
                       </div>
                     )}
@@ -318,7 +322,8 @@ export default function PendingKycPage() {
                     {selectedUser.ghanaCardBackUrl && (
                       <div className="space-y-2">
                         <p className="text-sm font-medium text-muted-foreground">Card Back</p>
-                        <div
+                        <button
+                          type="button"
                           className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border cursor-pointer hover:border-primary transition-colors group"
                           onClick={() => setZoomedImage(selectedUser.ghanaCardBackUrl)}
                         >
@@ -327,7 +332,7 @@ export default function PendingKycPage() {
                             alt="Ghana Card Back"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                           />
-                        </div>
+                        </button>
                         <p className="text-xs text-muted-foreground text-center">Click to zoom</p>
                       </div>
                     )}
