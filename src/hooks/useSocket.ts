@@ -24,12 +24,10 @@ export const useSocket = (url: string, onMessage?: MessageCallback) => {
   useEffect(() => {
     const handleConnect = () => {
       setIsConnected(true);
-      console.log("Socket.io connected");
     };
 
     const handleDisconnect = () => {
       setIsConnected(false);
-      console.log("Socket.io disconnected");
     };
 
     const handleSocketMessage = (message: SocketMessage) => {
@@ -51,7 +49,7 @@ export const useSocket = (url: string, onMessage?: MessageCallback) => {
           description: "A new loan application has been submitted.",
         });
         const audio = new Audio("/notification.mp3");
-        audio.play().catch((e) => console.log("Audio play failed:", e));
+        audio.play().catch(() => undefined);
       }
     };
 

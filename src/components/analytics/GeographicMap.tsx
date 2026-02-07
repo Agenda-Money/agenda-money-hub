@@ -16,7 +16,7 @@ interface GeographicMapProps {
   totalSignups: number;
 }
 
-export function GeographicMap({ data, totalSignups }: GeographicMapProps) {
+export function GeographicMap({ data, totalSignups }: Readonly<GeographicMapProps>) {
   // Sort by signups descending
   const sortedData = [...data].sort((a, b) => b.signups - a.signups);
 
@@ -44,7 +44,7 @@ export function GeographicMap({ data, totalSignups }: GeographicMapProps) {
           <div className="grid grid-cols-4 gap-2 mb-6">
             {sortedData.slice(0, 8).map((region, index) => (
               <motion.div
-                key={region.name}
+                key={`${region.name}-${index}`}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.05 }}
@@ -72,7 +72,7 @@ export function GeographicMap({ data, totalSignups }: GeographicMapProps) {
           <div className="space-y-3">
             {sortedData.map((region, index) => (
               <motion.div
-                key={region.name}
+                key={`${region.name}-${index}`}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.03 }}
@@ -95,19 +95,11 @@ export function GeographicMap({ data, totalSignups }: GeographicMapProps) {
                     </span>
                   </div>
                 </div>
-                <div className="relative">
-                  <Progress 
-                    value={region.percentage} 
-                    className="h-2"
-                  />
-                  <div 
-                    className="absolute inset-0 rounded-full opacity-50"
-                    style={{ 
-                      width: `${region.percentage}%`,
-                      backgroundColor: region.color
-                    }}
-                  />
-                </div>
+                <Progress 
+                  value={region.percentage} 
+                  className="h-2 bg-[#23273d]"
+                  indicatorStyle={{ backgroundColor: region.color }}
+                />
               </motion.div>
             ))}
           </div>

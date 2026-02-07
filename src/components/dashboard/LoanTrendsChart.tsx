@@ -12,11 +12,24 @@ import {
 
 export function LoanTrendsChart() {
     const { data: chartData } = useQuery({
-      queryKey: ["loan-trends"],
+      queryKey: ["admin-analytics"],
       queryFn: async () => {
-        const res = await api.get("/api/admin/dashboard/trends");
-        return res.data?.data || res.data || [];
+        try {
+          const res = await api.get("/api/admin/analytics");
+          return res.data?.data;
+        } catch {
+          return null;
+        }
       },
+      select: (data) => {
+        const liquidity = data?.liquidity || [];
+        return liquidity.map((item: any) => ({
+          month: item?._id?.month ?? "",
+          disbursed: item?.disbursed ?? 0,
+          repaid: item?.repaid ?? 0,
+        }));
+      },
+      retry: false,
     });
 
   const dummyData = [

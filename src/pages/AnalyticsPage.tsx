@@ -2,8 +2,9 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Activity, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 
 import { KpiCards } from "@/components/analytics/KpiCards";
@@ -14,8 +15,6 @@ import { TierDistributionPie } from "@/components/analytics/TierDistributionPie"
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import {
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -23,75 +22,122 @@ import {
   ResponsiveContainer,
   Legend,
   BarChart,
-  Bar
+  Bar,
+  LineChart,
+  Line
 } from "recharts";
-
-// Mock data for charts
-const revenueData = [
-  { month: "Jul", revenue: 12500, disbursed: 45000, repaid: 38000 },
-  { month: "Aug", revenue: 15200, disbursed: 52000, repaid: 44000 },
-  { month: "Sep", revenue: 18100, disbursed: 61000, repaid: 52000 },
-  { month: "Oct", revenue: 21300, disbursed: 72000, repaid: 61000 },
-  { month: "Nov", revenue: 19800, disbursed: 68000, repaid: 58000 },
-  { month: "Dec", revenue: 24500, disbursed: 85000, repaid: 72000 },
-  { month: "Jan", revenue: 28900, disbursed: 98000, repaid: 84000 },
-];
-
-const signupGrowthData = [
-  { date: "Jul", l1Users: 120, graduatedNodes: 15, total: 135 },
-  { date: "Aug", l1Users: 145, graduatedNodes: 22, total: 167 },
-  { date: "Sep", l1Users: 180, graduatedNodes: 28, total: 208 },
-  { date: "Oct", l1Users: 210, graduatedNodes: 35, total: 245 },
-  { date: "Nov", l1Users: 195, graduatedNodes: 42, total: 237 },
-  { date: "Dec", l1Users: 250, graduatedNodes: 55, total: 305 },
-  { date: "Jan", l1Users: 280, graduatedNodes: 68, total: 348 },
-];
-
-const geographicData = [
-  { name: "Greater Accra", signups: 1250, percentage: 35, color: "hsl(330, 86%, 52%)" },
-  { name: "Ashanti", signups: 890, percentage: 25, color: "hsl(175, 100%, 36%)" },
-  { name: "Northern", signups: 520, percentage: 15, color: "hsl(38, 92%, 50%)" },
-  { name: "Upper East", signups: 380, percentage: 11, color: "hsl(160, 84%, 39%)" },
-  { name: "Western", signups: 285, percentage: 8, color: "hsl(217, 91%, 60%)" },
-  { name: "Central", signups: 215, percentage: 6, color: "hsl(280, 65%, 60%)" },
-];
-
-const tierData = [
-  { name: "L1", value: 1850, color: "hsl(330, 86%, 52%)" },
-  { name: "L2", value: 920, color: "hsl(175, 100%, 36%)" },
-  { name: "L3", value: 480, color: "hsl(38, 92%, 50%)" },
-  { name: "L4", value: 195, color: "hsl(160, 84%, 39%)" },
-  { name: "L5", value: 95, color: "hsl(217, 91%, 60%)" },
-];
-
-const repaymentMethodData = [
-  { method: "MoMo (Self)", count: 680, amount: 125000 },
-  { method: "MoMo (Agent)", count: 95, amount: 28000 },
-  { method: "Bank", count: 220, amount: 85000 },
-  { method: "Cash", count: 150, amount: 42000 },
-];
 
 const AnalyticsPage = () => {
   const [timeRange, setTimeRange] = useState("6m");
+  const skeletonKeys = useMemo(() => ["one", "two", "three", "four", "five", "six"], []);
 
-  // Fetch dashboard stats
-  const { data: responseData } = useQuery({
-    queryKey: ["dashboard-stats"],
+  const { data: analyticsResponse, isLoading } = useQuery({
+    queryKey: ["admin-analytics"],
     queryFn: async () => {
-      const res = await api.get("/api/admin/dashboard/stats");
-      return res.data;
+      const res = await api.get("/api/admin/analytics");
+      return res.data?.data;
     },
   });
 
-  // Mock KPI data (would come from API)
+  const growthData = useMemo(() => {
+    const entries = analyticsResponse?.growth ?? [];
+    const merged = new Map<string, { month: string; l1: number; graduated: number; sort: number }>();
+
+    entries.forEach((item: any) => {
+      const month = item?._id?.month ?? "Unknown";
+      const sort = item?._id?.sortOrder ?? 0;
+      const existing = merged.get(month) ?? { month, l1: 0, graduated: 0, sort };
+
+      if (item?._id?.isGraduated) {
+        existing.graduated += item?.count ?? 0;
+      } else {
+        existing.l1 += item?.count ?? 0;
+      }
+
+      existing.sort = sort ?? existing.sort;
+      merged.set(month, existing);
+    });
+
+    return Array.from(merged.values()).sort((a, b) => a.sort - b.sort);
+  }, [analyticsResponse]);
+
+  const liquidityData = useMemo(() => {
+    const items = analyticsResponse?.liquidity ?? [];
+    return items
+      .map((item: any) => ({
+        month: item?._id?.month ?? "",
+        disbursed: item?.disbursed ?? 0,
+        repaid: item?.repaid ?? 0,
+        sort: item?._id?.sort ?? 0,
+      }))
+      .sort((a: any, b: any) => a.sort - b.sort);
+  }, [analyticsResponse]);
+
+  const totalL1 = useMemo(() => {
+    if (typeof analyticsResponse?.distribution?.totalSignups === "number") {
+      return analyticsResponse.distribution.totalSignups;
+    }
+
+    const lastPoint = growthData.at(-1);
+    return lastPoint ? lastPoint.l1 : 0;
+  }, [analyticsResponse, growthData]);
+
+  const totalGraduated = useMemo(() => {
+    const lastPoint = growthData.at(-1);
+    return lastPoint ? lastPoint.graduated : 0;
+  }, [growthData]);
+
+  const regionPalette = useMemo(() => [
+    "#e91e63",
+    "#00e676",
+    "#ffb300",
+    "#42a5f5",
+    "#ab47bc",
+    "#26c6da",
+  ], []);
+
+  const geographicData = useMemo(() => {
+    const regions = analyticsResponse?.distribution?.regions ?? [];
+    return regions.map((region: any, index: number) => ({
+      name: region?.region ?? "Unknown",
+      signups: region?.count ?? 0,
+      percentage: Number(region?.percentage ?? 0),
+      color: regionPalette[index % regionPalette.length],
+    }));
+  }, [analyticsResponse, regionPalette]);
+
+  const tierData = useMemo(() => {
+    const tiers = analyticsResponse?.distribution?.tiers ?? [];
+    return tiers.map((tier: any, index: number) => ({
+      name: `L${tier?._id ?? index + 1}`,
+      value: tier?.count ?? 0,
+      color: regionPalette[index % regionPalette.length],
+    }));
+  }, [analyticsResponse, regionPalette]);
+
+  const totalSignups = analyticsResponse?.distribution?.totalSignups ?? 0;
+
+  const disbursedWeek = liquidityData.reduce((sum, item) => sum + item.disbursed, 0);
+
   const kpiData = {
-    disbursementToday: responseData?.disbursementToday || 45200,
-    disbursementWeek: responseData?.disbursementWeek || 285000,
-    collectionRate: responseData?.collectionRate || 92.4,
-    portfolioAtRisk: responseData?.portfolioAtRisk || 3.8,
-    totalActiveDebt: responseData?.totalActiveDebt || 1250000,
-    overdueLoans: responseData?.overdueLoans || 24,
+    disbursedToday: {
+      amount: analyticsResponse?.summary?.disbursedToday?.amount ?? 0,
+      change: analyticsResponse?.summary?.disbursedToday?.change ?? 0,
+    },
+    disbursedWeek,
+    activeDebt: analyticsResponse?.summary?.activeDebt ?? 0,
+    collectionRate: {
+      percentage: analyticsResponse?.summary?.collectionRate?.percentage ?? 0,
+      status: analyticsResponse?.summary?.collectionRate?.status,
+    },
+    portfolioAtRisk: {
+      percentage: analyticsResponse?.summary?.portfolioAtRisk?.percentage ?? 0,
+      status: analyticsResponse?.summary?.portfolioAtRisk?.status,
+    },
+    overdueLoans: analyticsResponse?.summary?.overdueLoans ?? 0,
   };
+
+  const repaymentMethodData = analyticsResponse?.repaymentMethods ?? [];
 
   return (
     <DashboardLayout>
@@ -125,27 +171,47 @@ const AnalyticsPage = () => {
         </motion.div>
 
         {/* KPI Cards */}
-        <KpiCards data={kpiData} />
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            {skeletonKeys.map((key) => (
+              <Skeleton key={key} className="h-[110px] w-full" />
+            ))}
+          </div>
+        ) : (
+          <KpiCards data={kpiData} />
+        )}
 
         {/* Visual Trends Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Signup Growth Chart */}
-          <SignupGrowthChart 
-            data={signupGrowthData}
-            totalL1={1380}
-            totalGraduated={265}
-          />
+          {isLoading ? (
+            <Skeleton className="h-[420px] w-full" />
+          ) : (
+            <SignupGrowthChart 
+              data={growthData}
+              totalL1={totalL1}
+              totalGraduated={totalGraduated}
+            />
+          )}
 
           {/* Geographic Map */}
-          <GeographicMap 
-            data={geographicData}
-            totalSignups={3540}
-          />
+          {isLoading ? (
+            <Skeleton className="h-[420px] w-full" />
+          ) : (
+            <GeographicMap 
+              data={geographicData}
+              totalSignups={totalSignups}
+            />
+          )}
         </div>
 
         {/* Tier Distribution */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TierDistributionPie data={tierData} />
+          {isLoading ? (
+            <Skeleton className="h-[420px] w-full" />
+          ) : (
+            <TierDistributionPie data={tierData} />
+          )}
 
           {/* Revenue & Disbursement Chart */}
           <motion.div
@@ -167,47 +233,27 @@ const AnalyticsPage = () => {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="h-[280px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={revenueData}>
-                      <defs>
-                        <linearGradient id="colorDisbursed" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="colorRepaid" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
-                      <XAxis dataKey="month" className="text-xs fill-muted-foreground" />
-                      <YAxis className="text-xs fill-muted-foreground" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--background))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
-                        }}
-                      />
-                      <Legend />
-                      <Area
-                        type="monotone"
-                        dataKey="disbursed"
-                        stroke="hsl(var(--primary))"
-                        fill="url(#colorDisbursed)"
-                        strokeWidth={2}
-                        name="Disbursed (₵)"
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="repaid"
-                        stroke="hsl(var(--success))"
-                        fill="url(#colorRepaid)"
-                        strokeWidth={2}
-                        name="Repaid (₵)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  {isLoading ? (
+                    <Skeleton className="h-full w-full" />
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={liquidityData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#2d314d" />
+                        <XAxis dataKey="month" className="text-xs fill-muted-foreground" axisLine={false} tickLine={false} />
+                        <YAxis className="text-xs fill-muted-foreground" axisLine={false} tickLine={false} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--background))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                          }}
+                        />
+                        <Legend />
+                        <Line type="monotone" dataKey="disbursed" name="Disbursed" stroke="#e91e63" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="repaid" name="Repaid" stroke="#00e676" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -215,53 +261,10 @@ const AnalyticsPage = () => {
         </div>
 
         {/* Detailed Charts Tabs */}
-        <Tabs defaultValue="performance" className="space-y-4">
+        <Tabs defaultValue="repayments" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="repayments">Repayment Methods</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="performance">
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue Trends</CardTitle>
-                <CardDescription>Monthly revenue, interest, and fee income</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[350px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={revenueData}>
-                      <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
-                      <XAxis dataKey="month" className="text-xs fill-muted-foreground" />
-                      <YAxis className="text-xs fill-muted-foreground" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--background))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
-                        }}
-                      />
-                      <Legend />
-                      <Area
-                        type="monotone"
-                        dataKey="revenue"
-                        stroke="hsl(var(--primary))"
-                        fill="url(#colorRevenue)"
-                        strokeWidth={2}
-                        name="Revenue (₵)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="repayments">
             <Card>
