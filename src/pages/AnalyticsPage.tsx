@@ -54,7 +54,7 @@ const AnalyticsPage = () => {
         existing.l1 += item?.count ?? 0;
       }
 
-      existing.sort = sort || existing.sort;
+      existing.sort = sort ?? existing.sort;
       merged.set(month, existing);
     });
 
