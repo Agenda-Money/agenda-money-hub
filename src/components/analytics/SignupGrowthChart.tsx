@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, TrendingUp } from "lucide-react";
+import { Users } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -14,10 +14,10 @@ import {
 } from "recharts";
 
 interface SignupDataPoint {
-  date: string;
-  l1Users: number;
-  graduatedNodes: number;
-  total: number;
+  month: string;
+  l1: number;
+  graduated: number;
+  sort: number;
 }
 
 interface SignupGrowthChartProps {
@@ -26,7 +26,7 @@ interface SignupGrowthChartProps {
   totalGraduated: number;
 }
 
-export function SignupGrowthChart({ data, totalL1, totalGraduated }: SignupGrowthChartProps) {
+export function SignupGrowthChart({ data, totalL1, totalGraduated }: Readonly<SignupGrowthChartProps>) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -64,23 +64,27 @@ export function SignupGrowthChart({ data, totalL1, totalGraduated }: SignupGrowt
               <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorL1" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#e91e63" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#e91e63" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="colorGraduated" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#00e676" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#00e676" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#2d314d" />
                 <XAxis 
-                  dataKey="date" 
+                  dataKey="month" 
                   className="text-xs fill-muted-foreground"
                   tick={{ fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
                 />
                 <YAxis 
                   className="text-xs fill-muted-foreground"
                   tick={{ fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
                 />
                 <Tooltip
                   contentStyle={{
@@ -93,17 +97,18 @@ export function SignupGrowthChart({ data, totalL1, totalGraduated }: SignupGrowt
                 <Legend />
                 <Area
                   type="monotone"
-                  dataKey="l1Users"
-                  stroke="hsl(var(--primary))"
+                  dataKey="l1"
+                  stroke="#e91e63"
                   fill="url(#colorL1)"
                   strokeWidth={2}
                   name="L1 Users"
                 />
                 <Area
                   type="monotone"
-                  dataKey="graduatedNodes"
-                  stroke="hsl(var(--success))"
+                  dataKey="graduated"
+                  stroke="#00e676"
                   fill="url(#colorGraduated)"
+                  fillOpacity={0}
                   strokeWidth={2}
                   name="Graduated Nodes"
                 />

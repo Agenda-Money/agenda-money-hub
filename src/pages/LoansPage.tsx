@@ -6,34 +6,37 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, Clock, CheckCircle, AlertTriangle, Check } from "lucide-react";
+import { Eye, Clock, CheckCircle, AlertTriangle, Check, XCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Loan {
   id: string;
   reference: string;
   user: string;
+  userId?: string;
   phone: string;
   amount: number;
   tenure: string;
   dueDate: string;
-  status: "pending" | "active" | "overdue" | "closed" | "repaid";
+  status: "PENDING" | "DISBURSING" | "ACTIVE" | "REPAID" | "OVERDUE" | "DEFAULTED" | "REJECTED";
   nodeCode: string;
 }
 
 
 
 const statusConfig = {
-  pending: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
-  active: { label: "Active", icon: CheckCircle, color: "bg-info/10 text-info border-info/20" },
-  overdue: { label: "Overdue", icon: AlertTriangle, color: "bg-destructive/10 text-destructive border-destructive/20" },
-  closed: { label: "Closed", icon: Check, color: "bg-success/10 text-success border-success/20" },
-  repaid: { label: "Repaid", icon: Check, color: "bg-success/10 text-success border-success/20" },
+  PENDING: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
+  DISBURSING: { label: "Disbursing", icon: Loader2, color: "bg-info/10 text-info border-info/20" },
+  ACTIVE: { label: "Active", icon: CheckCircle, color: "bg-info/10 text-info border-info/20" },
+  REPAID: { label: "Repaid", icon: Check, color: "bg-success/10 text-success border-success/20" },
+  OVERDUE: { label: "Overdue", icon: AlertTriangle, color: "bg-destructive/10 text-destructive border-destructive/20" },
+  DEFAULTED: { label: "Defaulted", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
+  REJECTED: { label: "Rejected", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
 };
 
 import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
 
-function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan: Loan) => void }) {
+function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClick: (loan: Loan) => void }>) {
   if (loans.length === 0) {
     return (
       <div className="bg-card rounded-xl shadow-sm p-12 text-center">
@@ -64,7 +67,7 @@ function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan:
                 if (!config) {
                   console.warn(`Unexpected loan status: ${loan.status}`);
                 }
-                const displayConfig = config ?? statusConfig.pending;
+                const displayConfig = config ?? statusConfig.PENDING;
                 return (
                   <tr
                     key={loan.id}
@@ -108,13 +111,23 @@ function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan:
       <div className="md:hidden space-y-4">
         {loans.map((loan, index) => {
           const config = statusConfig[loan.status];
-          const displayConfig = config ?? statusConfig.pending;
+          const displayConfig = config ?? statusConfig.PENDING;
           const StatusIcon = displayConfig.icon;
           return (
             <div
               key={loan.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onLoanClick(loan)}
-              className="bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in cursor-pointer active:bg-muted/50"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  if (e.key === ' ') {
+                    e.preventDefault();
+                  }
+                  onLoanClick(loan);
+                }
+              }}
+              className="w-full text-left bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in cursor-pointer active:bg-muted/50"
               style={{ animationDelay: `${index * 30}ms` }}
             >
               {/* Header with ID and Status */}
@@ -125,7 +138,7 @@ function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan:
                   <p className="text-sm text-muted-foreground">{loan.phone}</p>
                 </div>
                 <Badge variant="outline" className={cn("font-medium flex items-center gap-1", displayConfig.color)}>
-                  <StatusIcon className="h-3 w-3" />
+                  <StatusIcon className={cn("h-3 w-3", loan.status === "DISBURSING" && "animate-spin")} />
                   {loan.status ?? "Unknown"}
                 </Badge>
               </div>
@@ -150,7 +163,7 @@ function LoansTable({ loans, onLoanClick }: { loans: Loan[]; onLoanClick: (loan:
 
               {/* Actions */}
               <div className="pt-3 border-t border-border flex justify-end gap-2">
-                <Button variant="outline" size="sm" className="h-8">
+                <Button variant="outline" size="sm" className="h-8" onClick={(e) => e.stopPropagation()}>
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
@@ -183,7 +196,7 @@ export default function LoansPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
-  const [selectedLoan, setSelectedLoan] = useState<any | null>(null);
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
 
   // Determine default tab from URL path
   const getTabFromPath = () => {
@@ -270,24 +283,25 @@ export default function LoansPage() {
   const currentPage = loansData?.pagination?.page || 1;
 
   // Map API fields strictly based on user provided structure
-  // Debug log to check user structure
-  if (rawLoans.length > 0) {
-    console.log("First raw loan user structure:", rawLoans[0].user);
-  }
+  const loans: Loan[] = rawLoans.map((l: any) => {
+    const tenureValue = l.tenureDays === null || l.tenureDays === undefined
+      ? (l.tenure ?? "N/A")
+      : `${l.tenureDays} days`;
 
-  const loans: Loan[] = rawLoans.map((l: any) => ({
+    return {
     id: l.id ?? l._id ?? l.loanReference, // Prioritize DB ID for API calls, only falling back when null/undefined
     reference: l.loanReference ?? "N/A",
     user: l.user?.fullName  ?? l.user ?? "Unknown User", 
     userId: l.user?._id ?? l.userId ?? "", // Extract ID
     phone: l.userMsisdn ?? l.phone ?? "",
     amount: l.principal ?? l.amount ?? 0,
-    tenure: l.tenureDays != null ? `${l.tenureDays} days` : (l.tenure ?? "N/A"),
+    tenure: tenureValue,
     dueDate: l.dueDate ?? l.repaymentDate ?? new Date().toISOString(),
-    status: (l.status?.toLowerCase() ?? "pending") as any,
+    status: l.status?.toLowerCase() ?? "pending",
     // Add Node Code mapping (Personal > Referrer > N/A)
     nodeCode: l.user?.personalNodeCode || l.user?.nodeCode || "N/A"
-  }));
+    };
+  });
 
   return (
     <DashboardLayout>

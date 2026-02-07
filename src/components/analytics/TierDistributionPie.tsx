@@ -55,7 +55,11 @@ const renderCustomizedLabel = ({
   ) : null;
 };
 
-export function TierDistributionPie({ data }: TierDistributionPieProps) {
+const legendFormatter = (value: string) => (
+  <span className="text-sm">{value}</span>
+);
+
+export function TierDistributionPie({ data }: Readonly<TierDistributionPieProps>) {
   const totalUsers = data.reduce((sum, item) => sum + item.value, 0);
 
   return (
@@ -109,6 +113,8 @@ export function TierDistributionPie({ data }: TierDistributionPieProps) {
                     borderRadius: "8px",
                     boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
                   }}
+                  itemStyle={{ color: "hsl(var(--foreground))" }}
+                  labelStyle={{ color: "hsl(var(--foreground))" }}
                   formatter={(value: number, name: string) => [
                     `${value.toLocaleString()} users`,
                     name
@@ -117,9 +123,7 @@ export function TierDistributionPie({ data }: TierDistributionPieProps) {
                 <Legend 
                   verticalAlign="bottom" 
                   height={36}
-                  formatter={(value) => (
-                    <span className="text-sm">{value}</span>
-                  )}
+                  formatter={legendFormatter}
                 />
               </PieChart>
             </ResponsiveContainer>
