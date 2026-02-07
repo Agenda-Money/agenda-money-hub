@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, Clock, CheckCircle, AlertTriangle, Check } from "lucide-react";
+import { Eye, Clock, CheckCircle, AlertTriangle, Check, XCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Loan {
@@ -18,18 +18,20 @@ interface Loan {
   amount: number;
   tenure: string;
   dueDate: string;
-  status: "pending" | "active" | "overdue" | "closed" | "repaid";
+  status: "PENDING" | "DISBURSING" | "ACTIVE" | "REPAID" | "OVERDUE" | "DEFAULTED" | "REJECTED";
   nodeCode: string;
 }
 
 
 
 const statusConfig = {
-  pending: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
-  active: { label: "Active", icon: CheckCircle, color: "bg-info/10 text-info border-info/20" },
-  overdue: { label: "Overdue", icon: AlertTriangle, color: "bg-destructive/10 text-destructive border-destructive/20" },
-  closed: { label: "Closed", icon: Check, color: "bg-success/10 text-success border-success/20" },
-  repaid: { label: "Repaid", icon: Check, color: "bg-success/10 text-success border-success/20" },
+  PENDING: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
+  DISBURSING: { label: "Disbursing", icon: Loader2, color: "bg-info/10 text-info border-info/20" },
+  ACTIVE: { label: "Active", icon: CheckCircle, color: "bg-info/10 text-info border-info/20" },
+  REPAID: { label: "Repaid", icon: Check, color: "bg-success/10 text-success border-success/20" },
+  OVERDUE: { label: "Overdue", icon: AlertTriangle, color: "bg-destructive/10 text-destructive border-destructive/20" },
+  DEFAULTED: { label: "Defaulted", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
+  REJECTED: { label: "Rejected", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
 };
 
 import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
@@ -65,7 +67,7 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
                 if (!config) {
                   console.warn(`Unexpected loan status: ${loan.status}`);
                 }
-                const displayConfig = config ?? statusConfig.pending;
+                const displayConfig = config ?? statusConfig.PENDING;
                 return (
                   <tr
                     key={loan.id}
@@ -109,7 +111,7 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
       <div className="md:hidden space-y-4">
         {loans.map((loan, index) => {
           const config = statusConfig[loan.status];
-          const displayConfig = config ?? statusConfig.pending;
+          const displayConfig = config ?? statusConfig.PENDING;
           const StatusIcon = displayConfig.icon;
           return (
             <div
