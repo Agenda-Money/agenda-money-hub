@@ -12,19 +12,22 @@ import {
 
 export function LoanTrendsChart() {
     const { data: chartData } = useQuery({
-      queryKey: ["loan-trends"],
+      queryKey: ["admin-analytics"],
       queryFn: async () => {
         try {
           const res = await api.get("/api/admin/analytics");
-          const liquidity = res.data?.data?.liquidity || [];
-          return liquidity.map((item: any) => ({
-            month: item?._id?.month ?? "",
-            disbursed: item?.disbursed ?? 0,
-            repaid: item?.repaid ?? 0,
-          }));
+          return res.data?.data;
         } catch {
-          return [];
+          return null;
         }
+      },
+      select: (data) => {
+        const liquidity = data?.liquidity || [];
+        return liquidity.map((item: any) => ({
+          month: item?._id?.month ?? "",
+          disbursed: item?.disbursed ?? 0,
+          repaid: item?.repaid ?? 0,
+        }));
       },
       retry: false,
     });
