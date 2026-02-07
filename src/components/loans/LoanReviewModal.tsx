@@ -68,6 +68,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   const loanId = loan?.id || loan?._id;
   // Normalize loan.user to avoid type errors when accessing properties
   const loanUser = typeof loan?.user === "string" ? undefined : loan?.user;
+  const userNameString = typeof loan?.user === "string" ? loan.user : undefined;
   const userId = loan?.userId || loanUser?.id || loanUser?._id;
 
   // Fetch full user details to get Node Code if missing
@@ -217,7 +218,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
             </SheetDescription>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-lg font-semibold text-foreground">{loanUser?.fullName || (typeof loan.user === 'string' ? loan.user : null) || "Unknown User"}</p>
+                <p className="text-lg font-semibold text-foreground">{loanUser?.fullName || userNameString || "Unknown User"}</p>
                 <p className="text-sm text-muted-foreground">{loan.userMsisdn || loan.phone}</p>
               </div>
               <Badge variant="outline" className={tierColors[`L${loan.tier}`] || tierColors.L1}>
