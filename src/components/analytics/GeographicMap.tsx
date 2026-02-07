@@ -98,7 +98,7 @@ export function GeographicMap({ data, totalSignups }: Readonly<GeographicMapProp
                 <Progress 
                   value={region.percentage} 
                   className="h-2 bg-[#23273d]"
-                  indicatorClassName="bg-[#e91e63]"
+                  indicatorStyle={{ backgroundColor: region.color }}
                 />
               </motion.div>
             ))}

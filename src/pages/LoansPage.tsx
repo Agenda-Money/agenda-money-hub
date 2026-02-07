@@ -18,7 +18,7 @@ interface Loan {
   amount: number;
   tenure: string;
   dueDate: string;
-  status: string;
+  status: "pending" | "active" | "overdue" | "closed" | "repaid";
   nodeCode: string;
 }
 
@@ -112,10 +112,17 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
           const displayConfig = config ?? statusConfig.pending;
           const StatusIcon = displayConfig.icon;
           return (
-            <button
+            <div
               key={loan.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => onLoanClick(loan)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onLoanClick(loan);
+                }
+              }}
               className="w-full text-left bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in cursor-pointer active:bg-muted/50"
               style={{ animationDelay: `${index * 30}ms` }}
             >
@@ -152,12 +159,12 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
 
               {/* Actions */}
               <div className="pt-3 border-t border-border flex justify-end gap-2">
-                <Button variant="outline" size="sm" className="h-8">
+                <Button variant="outline" size="sm" className="h-8" onClick={(e) => e.stopPropagation()}>
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>

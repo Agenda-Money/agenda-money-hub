@@ -66,7 +66,9 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   const queryClient = useQueryClient();
 
   const loanId = loan?.id || loan?._id;
-  const userId = loan?.userId || loan?.user?.id || (typeof loan?.user === 'string' ? null : loan?.user?._id);
+  // Normalize loan.user to avoid type errors when accessing properties
+  const loanUser = typeof loan?.user === "string" ? undefined : loan?.user;
+  const userId = loan?.userId || loanUser?.id || loanUser?._id;
 
   // Fetch full user details to get Node Code if missing
   const { data: userResponse } = useQuery({
@@ -82,8 +84,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   const userDetails = userResponse?.data?.user || userResponse?.data || userResponse || {};
   // Prioritize fetched personalNodeCode -> fetched nodeCode -> loan prop nodeCode -> N/A
   const displayNodeCode = userDetails.personalNodeCode || userDetails.nodeCode || loan?.nodeCode || "N/A";
-  const kycStatus = (loan?.kycStatus || loan?.user?.kycStatus || "Unknown") as string;
-  const selfieUrl = loan?.selfieUrl || loan?.user?.selfieUrl || userDetails?.selfieUrl || "";
+  const kycStatus = (loan?.kycStatus || loanUser?.kycStatus || "Unknown") as string;
+  const selfieUrl = loan?.selfieUrl || loanUser?.selfieUrl || userDetails?.selfieUrl || "";
   const status = (loan?.status || "PENDING").toString().toUpperCase();
   const isPending = status === "PENDING";
   const isDisbursing = status === "DISBURSING";
@@ -215,7 +217,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
             </SheetDescription>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-lg font-semibold text-foreground">{loan.user?.fullName || loan.user || "Unknown User"}</p>
+                <p className="text-lg font-semibold text-foreground">{loanUser?.fullName || (typeof loan.user === 'string' ? loan.user : null) || "Unknown User"}</p>
                 <p className="text-sm text-muted-foreground">{loan.userMsisdn || loan.phone}</p>
               </div>
               <Badge variant="outline" className={tierColors[`L${loan.tier}`] || tierColors.L1}>
