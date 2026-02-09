@@ -69,7 +69,7 @@ export default function UsersPage() {
     phone: u.msisdn,
     name: u.fullName,
     tier: `L${u.currentTier ?? 1}`, // Default to L1 if missing
-    totalBorrowed: u.totalLoansRepaid ?? 0, // Using this for now, check if API s totalBorrowed
+    totalBorrowed: u.totalLoansRepaid ?? 0, // Using this for now; verify if the API exposes a totalBorrowed field
     activeLoan: false, // API doesn't seem to return this in the list view user object yet
     status: u.isBlocked ? "blocked" : "active",
     joinedAt: u.createdAt,

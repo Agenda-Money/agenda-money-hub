@@ -21,7 +21,10 @@ export const useSocket = (url?: string | null, onMessage?: MessageCallback) => {
   }, [url]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      setIsConnected(false);
+      return;
+    }
 
     const handleConnect = () => {
       setIsConnected(true);
@@ -63,6 +66,7 @@ export const useSocket = (url?: string | null, onMessage?: MessageCallback) => {
       socket.off("disconnect", handleDisconnect);
       socket.off("message", handleSocketMessage);
       socket.off("error", handleSocketError);
+      setIsConnected(false);
       socket.disconnect();
     };
   }, [socket, onMessage]);
