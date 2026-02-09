@@ -9,19 +9,20 @@ interface SocketMessage {
 
 type MessageCallback = (message: SocketMessage) => void;
 
-export const useSocket = (url: string, onMessage?: MessageCallback) => {
+export const useSocket = (url?: string | null, onMessage?: MessageCallback) => {
   const [isConnected, setIsConnected] = useState(false);
 
-  const socket: Socket = useMemo(
-    () =>
-      io(url, {
-        transports: ["websocket"],
-        autoConnect: true,
-      }),
-    [url]
-  );
+  const socket: Socket | null = useMemo(() => {
+    if (!url) return null;
+    return io(url, {
+      transports: ["websocket"],
+      autoConnect: true,
+    });
+  }, [url]);
 
   useEffect(() => {
+    if (!socket) return;
+
     const handleConnect = () => {
       setIsConnected(true);
     };
@@ -31,19 +32,14 @@ export const useSocket = (url: string, onMessage?: MessageCallback) => {
     };
 
     const handleSocketMessage = (message: SocketMessage) => {
-      // Call custom callback if provided
-      if (onMessage) {
-        onMessage(message);
-      }
+      if (onMessage) onMessage(message);
 
-      // Handle KYC verification success for agents
       if (message.type === "KYC_VERIFIED_SUCCESS") {
         toast.success("KYC Verified! 🎉", {
           description: "Your user can now borrow. Great work!",
         });
       }
 
-      // Handle new application notifications for admins
       if (message.type === "NEW_APPLICATION") {
         toast.info("New Lead! 🔔", {
           description: "A new loan application has been submitted.",
@@ -72,7 +68,7 @@ export const useSocket = (url: string, onMessage?: MessageCallback) => {
   }, [socket, onMessage]);
 
   const sendMessage = (message: SocketMessage) => {
-    if (socket.connected) {
+    if (socket?.connected) {
       socket.emit("message", message);
     }
   };
