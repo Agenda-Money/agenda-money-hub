@@ -68,9 +68,9 @@ type HeaderMeta = {
 const getHeaderMeta = (view: View): HeaderMeta => {
   if (view === "auth") {
     return {
-      title: "Start your application",
-      description: "Enter your phone number and node code to continue.",
-      badgeLabel: "Entry Gate",
+      title: "Welcome to Agenda Money",
+      description: "Verify your identity to get started.",
+      badgeLabel: "",
       stepLabel: "Step 1 of 2",
     };
   }
@@ -90,6 +90,15 @@ const getHeaderMeta = (view: View): HeaderMeta => {
       description: "Complete your Ghana Card and personal details to request a loan.",
       badgeLabel: "Onboarding",
       stepLabel: "Next Step",
+    };
+  }
+
+  if (view === "success") {
+    return {
+      title: "Application Submitted",
+      description: "Your application is pending verification.",
+      badgeLabel: "",
+      stepLabel: "Done",
     };
   }
 
@@ -141,32 +150,33 @@ const AuthStep = ({
 }: AuthStepProps) => (
   <div className="space-y-5">
     <div className="space-y-2">
-      <Label htmlFor="msisdn" className="flex items-center gap-2">
+      <Label htmlFor="msisdn" className="flex items-center gap-2 text-sm font-semibold text-foreground">
         <Phone className="h-4 w-4 text-muted-foreground" />
-        Phone Number (MSISDN)
+        Mobile Number
       </Label>
       <Input
         id="msisdn"
         type="tel"
         value={msisdnInput}
         onChange={(e) => setMsisdnInput(e.target.value)}
-        placeholder="+233541689762"
+        placeholder="233 54 XXX XXXX"
         className="h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono placeholder:text-muted-foreground/50 placeholder:text-sm"
       />
     </div>
 
     <div className="space-y-2">
-      <Label htmlFor="nodeCode" className="flex items-center gap-2">
+      <Label htmlFor="nodeCode" className="flex items-center gap-2 text-sm font-semibold text-foreground">
         <Hash className="h-4 w-4 text-muted-foreground" />
-        Node Code
+        Agent Code
       </Label>
       <Input
         id="nodeCode"
         value={nodeCode}
         onChange={(e) => setNodeCode(e.target.value)}
-        placeholder="SA521884"
+        placeholder="Agent Code"
         className="h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono"
       />
+      <p className="text-xs text-muted-foreground">Enter the unique code provided by your agent.</p>
     </div>
 
     <Button
@@ -270,7 +280,7 @@ type OnboardingViewProps = {
     gender: string;
     region: string;
     address: string;
-    gpsAddress: string;
+    // gpsAddress removed — digital address no longer required
     ghanaCardNumber: string;
     ghanaCardFrontUrl: string;
     ghanaCardBackUrl: string;
@@ -279,24 +289,19 @@ type OnboardingViewProps = {
   frontCardRef: React.RefObject<HTMLInputElement>;
   backCardRef: React.RefObject<HTMLInputElement>;
   selfieRef: React.RefObject<HTMLInputElement>;
-  handleOnboardingChange: (field: "firstName" | "surname" | "dob" | "gender" | "region" | "address" | "gpsAddress" | "ghanaCardNumber" | "ghanaCardFrontUrl" | "ghanaCardBackUrl" | "selfieUrl", value: string) => void;
+  handleOnboardingChange: (field: "firstName" | "surname" | "dob" | "gender" | "region" | "address" | "ghanaCardNumber" | "ghanaCardFrontUrl" | "ghanaCardBackUrl" | "selfieUrl", value: string) => void;
   handleGhanaCardChange: (value: string) => void;
   handleUpload: (file: File, field: "ghanaCardFrontUrl" | "ghanaCardBackUrl" | "selfieUrl") => void;
   isSubmitting: boolean;
   onContinue: () => void;
 };
 
-const OnboardingView = ({
-  onboardingData,
-  frontCardRef,
-  backCardRef,
-  selfieRef,
-  handleOnboardingChange,
-  handleGhanaCardChange,
-  handleUpload,
-  isSubmitting,
-  onContinue,
-}: OnboardingViewProps) => (
+// Step 1: Personal Details (no digital address)
+const OnboardingStep1 = ({ onboardingData, handleOnboardingChange, onNext }: {
+  onboardingData: OnboardingViewProps["onboardingData"];
+  handleOnboardingChange: OnboardingViewProps["handleOnboardingChange"];
+  onNext: () => void;
+}) => (
   <div className="space-y-6">
     <div className="grid gap-5 sm:grid-cols-2">
       <div className="space-y-2">
@@ -373,18 +378,101 @@ const OnboardingView = ({
       </div>
     </div>
 
-    <div className="space-y-2">
-      <Label htmlFor="gpsAddress">Digital Address (GPS) *</Label>
-      <Input
-        id="gpsAddress"
-        value={onboardingData.gpsAddress}
-        onChange={(e) => handleOnboardingChange("gpsAddress", e.target.value)}
-        placeholder="GA-492-9012"
-        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono"
-      />
-      <p className="text-xs text-muted-foreground">Format: GA-123-4567</p>
+    <div className="grid gap-5 sm:grid-cols-2">
+      <div className="space-y-2">
+        <Label htmlFor="accommodationType">Accommodation *</Label>
+        <Select value={onboardingData.accommodationType} onValueChange={(val) => handleOnboardingChange("accommodationType", val)}>
+          <SelectTrigger className="h-12 bg-muted/50 border-0 focus-visible:ring-primary">
+            <SelectValue placeholder="Select accommodation" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="owned">Owned</SelectItem>
+            <SelectItem value="rented">Rented</SelectItem>
+            <SelectItem value="family">Living with family</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="yearsAtAddress">Years at Address *</Label>
+        <Input
+          id="yearsAtAddress"
+          type="number"
+          min={0}
+          value={onboardingData.yearsAtAddress}
+          onChange={(e) => handleOnboardingChange("yearsAtAddress", e.target.value)}
+          placeholder="e.g., 5"
+          className="h-12 bg-muted/50 border-0 focus-visible:ring-primary"
+        />
+      </div>
     </div>
 
+    <div className="grid gap-5 sm:grid-cols-2">
+      <div className="space-y-2">
+        <Label htmlFor="educationLevel">Education Level *</Label>
+        <Select value={onboardingData.educationLevel} onValueChange={(val) => handleOnboardingChange("educationLevel", val)}>
+          <SelectTrigger className="h-12 bg-muted/50 border-0 focus-visible:ring-primary">
+            <SelectValue placeholder="Select education" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="primary">Primary</SelectItem>
+            <SelectItem value="secondary">Secondary</SelectItem>
+            <SelectItem value="tertiary">Tertiary</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="employmentStatus">Employment *</Label>
+        <Select value={onboardingData.employmentStatus} onValueChange={(val) => handleOnboardingChange("employmentStatus", val)}>
+          <SelectTrigger className="h-12 bg-muted/50 border-0 focus-visible:ring-primary">
+            <SelectValue placeholder="Select employment" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="employed">Employed</SelectItem>
+            <SelectItem value="self-employed">Self-Employed</SelectItem>
+            <SelectItem value="unemployed">Unemployed</SelectItem>
+            <SelectItem value="student">Student</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+
+    <div className="space-y-2">
+      <Label htmlFor="monthlyIncome">Monthly Income *</Label>
+      <Select value={onboardingData.monthlyIncome} onValueChange={(val) => handleOnboardingChange("monthlyIncome", val)}>
+        <SelectTrigger className="h-12 bg-muted/50 border-0 focus-visible:ring-primary">
+          <SelectValue placeholder="Select income range" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="<1000">Below GHS 1000</SelectItem>
+          <SelectItem value="1000-2000">GHS 1000-2000</SelectItem>
+          <SelectItem value="2000-5000">GHS 2000-5000</SelectItem>
+          <SelectItem value=">5000">Above GHS 5000</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+
+    <div className="flex justify-end">
+      <Button type="button" onClick={onNext} className="w-40 h-12 bg-gradient-pink">Next</Button>
+    </div>
+  </div>
+);
+
+// Step 2: Documents (Ghana card number + uploads)
+const OnboardingStep2 = ({ onboardingData, frontCardRef, backCardRef, selfieRef, handleOnboardingChange, handleGhanaCardChange, handleUpload, isSubmitting, onBack, onContinue }: {
+  onboardingData: OnboardingViewProps["onboardingData"];
+  frontCardRef: React.RefObject<HTMLInputElement>;
+  backCardRef: React.RefObject<HTMLInputElement>;
+  selfieRef: React.RefObject<HTMLInputElement>;
+  handleOnboardingChange: OnboardingViewProps["handleOnboardingChange"];
+  handleGhanaCardChange: (value: string) => void;
+  handleUpload: OnboardingViewProps["handleUpload"];
+  isSubmitting: boolean;
+  onBack: () => void;
+  onContinue: () => void;
+}) => (
+  <div className="space-y-6">
     <div className="space-y-2">
       <Label htmlFor="ghanaCardNumber">Ghana Card Number *</Label>
       <Input
@@ -513,16 +601,19 @@ const OnboardingView = ({
       </div>
     </div>
 
-    <Button
-      type="button"
-      onClick={onContinue}
-      disabled={isSubmitting}
-      className="w-full h-12 bg-gradient-pink hover:opacity-90"
-    >
-      {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-      Continue to Loan Dashboard
-      <ArrowRight className="h-4 w-4 ml-2" />
-    </Button>
+      <div className="flex items-center gap-3">
+      <Button type="button" variant="outline" onClick={onBack}>Back</Button>
+      <Button
+        type="button"
+        onClick={onContinue}
+        disabled={isSubmitting}
+        className="ml-auto w-44 h-12 bg-gradient-pink hover:opacity-90"
+      >
+        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+        Continue
+        <ArrowRight className="h-4 w-4 ml-2" />
+      </Button>
+    </div>
   </div>
 );
 
@@ -595,18 +686,31 @@ const LoanDashboardView = ({
 
     <div className="space-y-2">
       <Label htmlFor="loan-amount">Loan Amount (GHS) *</Label>
-      <Select value={String(loanAmount)} onValueChange={(val) => setLoanAmount(Number(val))}>
-        <SelectTrigger className="h-12 bg-muted/50 border-0 focus-visible:ring-primary">
-          <SelectValue placeholder="Enter loan amount" />
-        </SelectTrigger>
-        <SelectContent>
-          {amountOptions.map((amount) => (
-            <SelectItem key={amount} value={String(amount)}>
-              GHS {amount}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex gap-3">
+        <Input
+          id="loan-amount"
+          type="number"
+          min={tierMin || 0}
+          max={tierMax || undefined}
+          value={String(loanAmount)}
+          onChange={(e) => setLoanAmount(Number(e.target.value || 0))}
+          placeholder={`Min ${tierMin} - Max ${tierMax}`}
+          className="h-12 bg-muted/50 border-0 focus-visible:ring-primary"
+        />
+
+        <Select value={String(loanAmount)} onValueChange={(val) => setLoanAmount(Number(val))}>
+          <SelectTrigger className="h-12 bg-muted/50 border-0 focus-visible:ring-primary w-40">
+            <SelectValue placeholder="Presets" />
+          </SelectTrigger>
+          <SelectContent>
+            {amountOptions.map((amount) => (
+              <SelectItem key={amount} value={String(amount)}>
+                GHS {amount}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
 
     <div className="space-y-2">
@@ -641,6 +745,12 @@ const LoanDashboardView = ({
       </Select>
     </div>
 
+    {/* Estimated term sheet (client-side preview) */}
+    <div className="rounded-xl border border-primary/10 p-4 bg-muted/30">
+      <p className="font-semibold text-sm">Estimated term sheet (preview)</p>
+      <EstimatedTermSheet amount={loanAmount} tenure={loanTenure} />
+    </div>
+
     <Button
       type="button"
       onClick={onRequestLoan}
@@ -666,10 +776,30 @@ const LoanDashboardView = ({
   </div>
 );
 
-type View = "auth" | "otp" | "onboarding" | "loan-dashboard";
+// Small helper component to show estimated term sheet client-side
+function EstimatedTermSheet({ amount, tenure }: { amount: number; tenure: number }) {
+  const interestRate = 0.08; // 8% simple estimate
+  const serviceFeeRate = 0.02; // 2% service fee
+  const interest = Math.round(amount * interestRate);
+  const serviceFee = Math.round(amount * serviceFeeRate);
+  const repaymentAmount = amount + interest + serviceFee;
+  const repaymentDate = new Date(Date.now() + tenure * 24 * 60 * 60 * 1000).toDateString();
+
+  return (
+    <div className="mt-2 text-sm space-y-1">
+      <p><span className="text-muted-foreground">Principal:</span> GHS {amount}</p>
+      <p><span className="text-muted-foreground">Interest (est {Math.round(interestRate*100)}%):</span> GHS {interest}</p>
+      <p><span className="text-muted-foreground">Service fee (est {Math.round(serviceFeeRate*100)}%):</span> GHS {serviceFee}</p>
+      <p className="font-semibold"><span className="text-muted-foreground">Estimated repayment:</span> GHS {repaymentAmount}</p>
+      <p className="text-muted-foreground">Estimated repayment date: {repaymentDate}</p>
+    </div>
+  );
+}
+
+type View = "auth" | "otp" | "onboarding" | "loan-dashboard" | "success";
 
 export default function ApplyPage() {
-  const { setApplicant } = useApplicant();
+  const { setApplicant, applicant } = useApplicant();
 
   const [view, setView] = useState<View>("auth");
   const [direction, setDirection] = useState(0);
@@ -690,17 +820,26 @@ export default function ApplyPage() {
     gender: "",
     region: "",
     address: "",
-    gpsAddress: "",
     ghanaCardNumber: "GHA-",
     ghanaCardFrontUrl: "",
     ghanaCardBackUrl: "",
     selfieUrl: "",
+    accommodationType: "",
+    yearsAtAddress: "",
+    educationLevel: "",
+    employmentStatus: "",
+    monthlyIncome: "",
   });
+
+  // onboarding step (1 = personal details, 2 = documents)
+  const [onboardingStep, setOnboardingStep] = useState<number>(1);
 
   const [loanAmount, setLoanAmount] = useState(100);
   const [loanTenure, setLoanTenure] = useState(14);
   const [loanPurpose, setLoanPurpose] = useState("Business");
   const [isSubmittingOnboarding, setIsSubmittingOnboarding] = useState(false);
+  const [onboardingSubmitted, setOnboardingSubmitted] = useState(false);
+  const [successNodeCode, setSuccessNodeCode] = useState<string | null>(null);
   const [isRequestingLoan, setIsRequestingLoan] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
@@ -732,6 +871,15 @@ export default function ApplyPage() {
   }, [activeTier, currentTier, loanTenure]);
 
   useEffect(() => {
+    // Protect onboarding view: only allow if applicant is new or kycStatus is pending
+    if (view === "onboarding") {
+      const kyc = (applicant as any)?.kycStatus as string | undefined;
+      const isNew = (applicant as any)?.isNewUser as boolean | undefined;
+      if (!isNew && kyc && kyc.toLowerCase() !== "pending") {
+        // already verified or not eligible — send to loan dashboard
+        setView("loan-dashboard");
+      }
+    }
     if (amountOptions.length && !amountOptions.includes(loanAmount)) {
       setLoanAmount(amountOptions[0]);
     }
@@ -823,7 +971,7 @@ export default function ApplyPage() {
     setErrorMessage(null);
 
     if (!nodeCode.trim()) {
-      setErrorMessage("Please enter your Node code.");
+      setErrorMessage("Please enter your Agent code.");
       return;
     }
 
@@ -1031,14 +1179,31 @@ export default function ApplyPage() {
     return name.substring(lastDot);
   }, []);
 
-  const validateOnboarding = () => {
+  const validateOnboardingStep1 = () => {
     if (!authToken) return "Your session expired. Please verify OTP again.";
     if (!onboardingData.firstName || !onboardingData.surname || !onboardingData.dob) {
       return "Please complete all personal details.";
     }
-    if (!onboardingData.gender || !onboardingData.region || !onboardingData.address || !onboardingData.gpsAddress) {
-      return "Please provide your address and GPS digital address.";
+    if (!onboardingData.gender || !onboardingData.region || !onboardingData.address) {
+      return "Please provide your region and residential address.";
     }
+
+    // Address must be at least 3 words
+    const wordCount = onboardingData.address.trim().split(/\s+/).filter(Boolean).length;
+    if (wordCount < 3) {
+      return "Please provide a full residential address (at least 3 words).";
+    }
+    // Ensure residence/employment/education fields are present
+    if (!onboardingData.accommodationType || !onboardingData.yearsAtAddress) {
+      return "Please provide your accommodation type and years at address.";
+    }
+    if (!onboardingData.educationLevel || !onboardingData.employmentStatus || !onboardingData.monthlyIncome) {
+      return "Please provide your education, employment status and monthly income.";
+    }
+    return null;
+  };
+
+  const validateOnboardingStep2 = () => {
     if (!isValidGhanaCard(onboardingData.ghanaCardNumber)) {
       return "Ghana Card number must be in the format GHA-700000000-0.";
     }
@@ -1051,7 +1216,7 @@ export default function ApplyPage() {
   const handleOnboardingSubmit = async () => {
     setErrorMessage(null);
 
-    const validationError = validateOnboarding();
+    const validationError = validateOnboardingStep2();
     if (validationError) {
       setErrorMessage(validationError);
       return;
@@ -1109,19 +1274,28 @@ export default function ApplyPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({
-          firstName: onboardingData.firstName,
-          surname: onboardingData.surname,
-          dob: onboardingData.dob,
-          gender: onboardingData.gender,
-          region: onboardingData.region,
-          address: onboardingData.address,
-          gpsAddress: onboardingData.gpsAddress,
-          ghanaCardNumber: onboardingData.ghanaCardNumber,
-          ghanaCardFrontUrl,
-          ghanaCardBackUrl,
-          selfieUrl,
-        }),
+          body: JSON.stringify({
+            fullName: `${onboardingData.firstName} ${onboardingData.surname}`,
+            firstName: onboardingData.firstName,
+            surname: onboardingData.surname,
+            dob: onboardingData.dob,
+            gender: onboardingData.gender,
+            region: onboardingData.region,
+            address: onboardingData.address,
+            accommodationType: onboardingData.accommodationType,
+            yearsAtAddress: onboardingData.yearsAtAddress,
+            educationLevel: onboardingData.educationLevel,
+            employmentStatus: onboardingData.employmentStatus,
+            monthlyIncome: onboardingData.monthlyIncome,
+            ghanaCardNumber: onboardingData.ghanaCardNumber,
+            ghanaCardFrontUrl,
+            ghanaCardBackUrl,
+            selfieUrl,
+            // 🎯 Backend expects these keys to trigger initial loan request
+            initialLoanAmount: Number(loanAmount),
+            initialLoanTenure: Number(loanTenure),
+            initialLoanPurpose: loanPurpose,
+          }),
       });
 
       const payload = await response.json();
@@ -1132,9 +1306,12 @@ export default function ApplyPage() {
       if (payload?.user) {
         setApplicant(payload.user);
         setUserData(payload.user);
+        setSuccessNodeCode(payload.user.nodeCode || payload.user.node || payload.nodeCode || null);
       }
 
-      setView("loan-dashboard");
+      // mark onboarding as submitted and show the success view
+      setOnboardingSubmitted(true);
+      setView("success");
     } catch (error: any) {
       setErrorMessage(error?.message || "Unable to submit onboarding. Try again.");
     } finally {
@@ -1147,6 +1324,12 @@ export default function ApplyPage() {
 
     if (!authToken) {
       setErrorMessage("Your session expired. Please verify OTP again.");
+      return;
+    }
+    // If onboarding hasn't been submitted yet, submit it first using the users/onboard controller
+    if (!onboardingSubmitted) {
+      // reuse existing onboarding submit which handles uploads and shows success view
+      await handleOnboardingSubmit();
       return;
     }
 
@@ -1188,8 +1371,8 @@ export default function ApplyPage() {
     }
   };
 
-  let entryButtonLabel = "Get Started";
-  if (isRequesting) entryButtonLabel = "Checking Node...";
+  let entryButtonLabel = "Verify Account";
+  if (isRequesting) entryButtonLabel = "Sending...";
 
   let verifyButtonLabel = "Verify";
   if (isVerifying) verifyButtonLabel = "Verifying...";
@@ -1210,15 +1393,15 @@ export default function ApplyPage() {
 
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-2"
-        >
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Start Your Loan Application</h1>
-          <p className="text-muted-foreground">
-            Secure verification in two quick steps.
-          </p>
-        </motion.div>
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center space-y-2"
+              >
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Welcome to Agenda Money</h1>
+                <p className="text-muted-foreground">
+                  Verify your identity to get started.
+                </p>
+              </motion.div>
 
         <Card className="border-0 shadow-2xl overflow-hidden">
           <div className="h-1.5 bg-gradient-pink" />
@@ -1229,7 +1412,9 @@ export default function ApplyPage() {
                 <p className="text-xl font-semibold">{headerMeta.title}</p>
                 <p className="text-sm text-muted-foreground mt-1">{headerMeta.description}</p>
               </div>
-              <Badge variant="secondary">{headerMeta.badgeLabel}</Badge>
+              {headerMeta.badgeLabel && (
+                <Badge variant="secondary">{headerMeta.badgeLabel}</Badge>
+              )}
             </div>
 
             {errorMessage && (
@@ -1278,17 +1463,48 @@ export default function ApplyPage() {
                 )}
 
                 {view === "onboarding" && (
-                  <OnboardingView
-                    onboardingData={onboardingData}
-                    frontCardRef={frontCardRef}
-                    backCardRef={backCardRef}
-                    selfieRef={selfieRef}
-                    handleOnboardingChange={handleOnboardingChange}
-                    handleGhanaCardChange={handleGhanaCardChange}
-                    handleUpload={handleUpload}
-                    isSubmitting={isSubmittingOnboarding}
-                    onContinue={handleOnboardingSubmit}
-                  />
+                  onboardingStep === 1 ? (
+                    <OnboardingStep1
+                      onboardingData={onboardingData}
+                      handleOnboardingChange={handleOnboardingChange}
+                      onNext={() => {
+                          const err = validateOnboardingStep1();
+                          console.log("Onboarding step1 validation:", err, onboardingData);
+                          if (err) {
+                            setErrorMessage(err);
+                            // scroll to top so user sees the error
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                            return;
+                          }
+                          setErrorMessage(null);
+                          setDirection(1);
+                          setOnboardingStep(2);
+                      }}
+                    />
+                  ) : (
+                    <OnboardingStep2
+                      onboardingData={onboardingData}
+                      frontCardRef={frontCardRef}
+                      backCardRef={backCardRef}
+                      selfieRef={selfieRef}
+                      handleOnboardingChange={handleOnboardingChange}
+                      handleGhanaCardChange={handleGhanaCardChange}
+                      handleUpload={handleUpload}
+                      isSubmitting={isSubmittingOnboarding}
+                      onBack={() => setOnboardingStep(1)}
+                      onContinue={() => {
+                        // Validate step2 before continuing
+                        const err = validateOnboardingStep2();
+                        if (err) {
+                          setErrorMessage(err);
+                          return;
+                        }
+                        setErrorMessage(null);
+                        // Do not submit to API yet; move to loan dashboard where final submit will trigger users/onboard
+                        setView("loan-dashboard");
+                      }}
+                    />
+                  )
                 )}
 
                 {view === "loan-dashboard" && (
@@ -1311,6 +1527,25 @@ export default function ApplyPage() {
                     setLoanPurpose={setLoanPurpose}
                   />
                 )}
+
+                {view === "success" && (
+                  <div className="text-center space-y-6">
+                    <h2 className="text-2xl font-semibold">Application Submitted</h2>
+                    <p className="text-muted-foreground">Application Pending. We will notify you via SMS once verified.</p>
+                    {successNodeCode && (
+                      <div className="inline-block bg-muted/50 p-4 rounded-lg">
+                        <p className="text-sm text-muted-foreground">Your Node Code</p>
+                        <p className="font-mono font-bold text-lg">{successNodeCode}</p>
+                      </div>
+                    )}
+                    <div>
+                      <Button onClick={() => {
+                        // After success, navigate to loan dashboard view
+                        setView("loan-dashboard");
+                      }} className="mt-4 h-12 w-44 bg-gradient-pink">Go to Loan Center</Button>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             </AnimatePresence>
 
@@ -1327,7 +1562,7 @@ export default function ApplyPage() {
               </Button>
 
               <div className="text-xs text-muted-foreground">
-                Secure OTP verification • Powered by Agenda Money
+                🔒 Secure OTP verification • Powered by Agenda Money
               </div>
             </div>
           </CardContent>

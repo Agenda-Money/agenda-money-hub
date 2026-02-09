@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft, User, MapPin, Briefcase, Calendar, Phone, Mail, Hash } from "lucide-react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 import { IdentityKycSection } from "@/components/user/IdentityKycSection";
 import { FinancialHealthSection } from "@/components/user/FinancialHealthSection";
@@ -144,6 +145,19 @@ export default function UserDetailsPage() {
 
   const isLoading = isUserLoading || isWalletLoading || isLoansLoading;
 
+  // 🎯 Custom Logic for User Archetypes
+  const isFirstTimeUser = (user.totalBorrowed || 0) === 0 && user.kycStatus !== "verified";
+  const hasOverdueLoan = !!currentLoan && ((currentLoan.status || "").toString().toLowerCase() === "overdue" || (currentLoan.status || "").toString().toUpperCase() === "OVERDUE");
+
+  // Tier color mapping (local copy similar to UsersPage)
+  const tierColors: Record<string, string> = {
+    L1: "bg-muted text-muted-foreground border-muted",
+    L2: "bg-info/10 text-info border-info/20",
+    L3: "bg-primary/10 text-primary border-primary/20",
+    L4: "bg-success/10 text-success border-success/20",
+    L5: "bg-warning/10 text-warning border-warning/20",
+  };
+
   // Mutations
   const { mutate: toggleBlock, isPending: isBlocking } = useMutation({
     mutationFn: async () => {
@@ -228,51 +242,64 @@ export default function UserDetailsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6 pb-24 lg:pb-6">
-        {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col gap-4"
-        >
-          <Button 
-            variant="ghost" 
-            className="w-fit -ml-2 text-muted-foreground hover:text-foreground"
-            onClick={() => navigate("/users")}
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back to Users
-          </Button>
+        {/* Dynamic Alert Banner & Header */}
+        <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              className="w-fit -ml-2 text-muted-foreground hover:text-foreground"
+              onClick={() => navigate("/users")}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back to Users
+            </Button>
+          </div>
 
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground text-2xl font-bold shadow-lg shrink-0">
-                {user.name.charAt(0)}
+          {/* KYC Priority Banner */}
+          {user.kycStatus === "pending" && (
+            <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} className="bg-warning/10 border border-warning/20 p-4 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className="bg-warning text-warning-foreground animate-pulse">Action Required</Badge>
+                <p className="text-sm font-medium text-warning-800">First-time user awaiting KYC verification</p>
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{user.name}</h1>
-                  <Badge variant={user.status === "active" ? "default" : "destructive"} className="uppercase text-xs">
-                    {user.status}
-                  </Badge>
-                  <Badge variant="outline" className="border-primary text-primary font-bold">
-                    {user.tier}
-                  </Badge>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => approveKyc()} disabled={isApprovingKyc}>Approve Identity</Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Header with Tier Visualizer */}
+          <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
+            <div className="flex flex-col lg:flex-row justify-between gap-6">
+              <div className="flex gap-4">
+                <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center text-primary text-3xl font-bold">
+                  {user.name.charAt(0)}
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3.5 w-3.5" />
-                    {user.phone}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3.5 w-3.5" />
-                    {user.email}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Hash className="h-3.5 w-3.5" />
-                    {user.nodeCode}
-                  </span>
+                <div>
+                  <h1 className="text-2xl font-bold">{user.name}</h1>
+                  <p className="text-muted-foreground">{user.phone}</p>
+                  <div className="flex gap-2 mt-2">
+                    <Badge className={cn("px-3 py-1", tierColors[user.tier] ?? tierColors.L1)}>{user.tier}</Badge>
+                    <Badge variant="secondary" className="bg-muted text-xs">Joined {user.joinedAt}</Badge>
+                  </div>
                 </div>
               </div>
+
+              {/* Tier Progress (for returning users) */}
+              {!isFirstTimeUser && (
+                <div className="lg:w-64 space-y-2">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span>Progress to {`L${parseInt(user.tier.slice(1)) + 1}`}</span>
+                    <span>{user.totalLoansTaken % 5}/5 Loans</span>
+                  </div>
+                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-500"
+                      style={{ width: `${(user.totalLoansTaken % 5) * 20}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
@@ -292,18 +319,45 @@ export default function UserDetailsPage() {
           }}
         />
 
-        {/* Financial Health Snapshot */}
-        <FinancialHealthSection
-          creditScore={user.creditScore}
-          walletBalance={user.walletBalance}
-          totalBorrowed={user.totalBorrowed}
-          totalInterestPaid={user.totalInterestPaid}
-          onTimeRepaymentPercent={user.onTimeRepaymentPercent}
-          currentLoan={currentLoan}
-        />
+        {/* Loan & Health Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Active Loan Card (Priority for Returning Users) */}
+          <Card className={cn(hasOverdueLoan ? "border-destructive/50 bg-destructive/5" : "bg-primary/5 border-primary/20")}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Current Obligation</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {currentLoan ? (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">₵{currentLoan.balance.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Due on {currentLoan.dueDate}</p>
+                  </div>
+                  <Badge className={hasOverdueLoan ? "bg-destructive" : "bg-primary"}>
+                    {currentLoan.status.toString().toUpperCase()}
+                  </Badge>
+                </div>
+              ) : (
+                <div className="py-4 text-center">
+                  <p className="text-sm text-muted-foreground">No active loan</p>
+                  <Button variant="link" className="text-primary text-xs" onClick={() => navigate('/loans/new')}>Disburse New</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <FinancialHealthSection
+            creditScore={user.creditScore}
+            walletBalance={user.walletBalance}
+            totalBorrowed={user.totalBorrowed}
+            totalInterestPaid={user.totalInterestPaid}
+            onTimeRepaymentPercent={user.onTimeRepaymentPercent}
+            currentLoan={currentLoan}
+          />
+        </div>
 
         {/* Tabs for History */}
-        <Tabs defaultValue="transactions" className="space-y-4">
+        <Tabs defaultValue={isFirstTimeUser ? "details" : "loans"} className="space-y-4 w-full">
           <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
             <TabsTrigger value="transactions">Wallet History</TabsTrigger>
             <TabsTrigger value="loans">Loan History</TabsTrigger>
