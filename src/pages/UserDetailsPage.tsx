@@ -340,7 +340,7 @@ export default function UserDetailsPage() {
               ) : (
                 <div className="py-4 text-center">
                   <p className="text-sm text-muted-foreground">No active loan</p>
-                  <Button variant="link" className="text-primary text-xs" onClick={() => navigate('/loans/new')}>Disburse New</Button>
+                  <Button variant="link" className="text-primary text-xs" onClick={() => navigate('/loans')}>Disburse New</Button>
                 </div>
               )}
             </CardContent>

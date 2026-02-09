@@ -43,15 +43,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export const uploadToSupabase = async (
   file: File,
-  _unusedBucket: string, // Renamed to show we aren't using the passed-in string
+  bucket: string, // Optional bucket name; overridden by VITE_SUPABASE_BUCKET when set
   path: string
 ): Promise<{ success: boolean; url?: string; error?: string }> => {
   try {
     // Prefer an explicit env var for the bucket name so it's configurable per environment.
     const envBucket = import.meta.env.VITE_SUPABASE_BUCKET as string | undefined;
-    const BUCKET_ID = envBucket || _unusedBucket || "KYC-BUCKET";
+    const BUCKET_ID = envBucket || bucket || "KYC-BUCKET";
 
-    console.log(`🚀 Attempting upload to bucket: "${BUCKET_ID}" | Path: ${path}`);
+    console.log(`🚀 Attempting upload to bucket: "${BUCKET_ID}"`);
 
     const { data, error } = await supabase.storage
       .from(BUCKET_ID)

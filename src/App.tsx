@@ -42,13 +42,13 @@ function AdminRoute({ children }: { readonly children: React.ReactNode }) {
 }
 
 // Role-aware root handler: show admin dashboard to admins, redirect agents to /agent,
-// and show public Index for unauthenticated visitors.
+// and redirect unauthenticated visitors to /login.
 function RoleHome() {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
   if (user?.role === "admin") return <Index />;
   if (user?.role === "agent") return <Navigate to="/agent" replace />;
-  return <Index />;
+  return <Navigate to="/login" replace />;
 }
 
 const App = () => {

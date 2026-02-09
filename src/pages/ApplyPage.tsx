@@ -285,11 +285,16 @@ type OnboardingViewProps = {
     ghanaCardFrontUrl: string;
     ghanaCardBackUrl: string;
     selfieUrl: string;
+    accommodationType: string;
+    yearsAtAddress: string;
+    educationLevel: string;
+    employmentStatus: string;
+    monthlyIncome: string;
   };
   frontCardRef: React.RefObject<HTMLInputElement>;
   backCardRef: React.RefObject<HTMLInputElement>;
   selfieRef: React.RefObject<HTMLInputElement>;
-  handleOnboardingChange: (field: "firstName" | "surname" | "dob" | "gender" | "region" | "address" | "ghanaCardNumber" | "ghanaCardFrontUrl" | "ghanaCardBackUrl" | "selfieUrl", value: string) => void;
+  handleOnboardingChange: (field: "firstName" | "surname" | "dob" | "gender" | "region" | "address" | "ghanaCardNumber" | "ghanaCardFrontUrl" | "ghanaCardBackUrl" | "selfieUrl" | "accommodationType" | "yearsAtAddress" | "educationLevel" | "employmentStatus" | "monthlyIncome", value: string) => void;
   handleGhanaCardChange: (value: string) => void;
   handleUpload: (file: File, field: "ghanaCardFrontUrl" | "ghanaCardBackUrl" | "selfieUrl") => void;
   isSubmitting: boolean;
@@ -886,7 +891,7 @@ export default function ApplyPage() {
     if (tenureOptions.length && !tenureOptions.includes(loanTenure)) {
       setLoanTenure(tenureOptions[0]);
     }
-  }, [amountOptions, tenureOptions, loanAmount, loanTenure]);
+  }, [amountOptions, tenureOptions, loanAmount, loanTenure, view, applicant]);
 
   const autoSubmitRef = useRef(false);
 
@@ -1326,8 +1331,14 @@ export default function ApplyPage() {
       setErrorMessage("Your session expired. Please verify OTP again.");
       return;
     }
+
+    // Treat any user that is not explicitly marked as returning (isNewUser === false)
+    // as new/unknown, preserving existing behavior for new users.
+    const isNewUser = (applicant as any)?.isNewUser !== false;
+
     // If onboarding hasn't been submitted yet, submit it first using the users/onboard controller
-    if (!onboardingSubmitted) {
+    // Only enforce this for new users; returning users should be able to request a loan directly.
+    if (!onboardingSubmitted && isNewUser) {
       // reuse existing onboarding submit which handles uploads and shows success view
       await handleOnboardingSubmit();
       return;
@@ -1469,7 +1480,9 @@ export default function ApplyPage() {
                       handleOnboardingChange={handleOnboardingChange}
                       onNext={() => {
                           const err = validateOnboardingStep1();
-                          console.log("Onboarding step1 validation:", err, onboardingData);
+                          if (import.meta.env.DEV) {
+                            console.log("Onboarding step1 validation:", err, onboardingData);
+                          }
                           if (err) {
                             setErrorMessage(err);
                             // scroll to top so user sees the error
