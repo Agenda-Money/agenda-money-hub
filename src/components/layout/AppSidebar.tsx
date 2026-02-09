@@ -117,7 +117,7 @@ interface AppSidebarProps {
 import { useAuth } from "@/contexts/AuthContext";
 
 export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [pendingCount, setPendingCount] = useState(0);
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
 
@@ -129,6 +129,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
       const users = res.data?.data || res.data || [];
       return Array.isArray(users) ? users : [];
     },
+    enabled: user?.role === "admin",
     refetchInterval: 30000, // Refetch every 30 seconds as fallback
   });
 
@@ -140,7 +141,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
   }, [pendingData]);
 
   // WebSocket listener for NEW_APPLICATION
-  useSocket(wsUrl, (message) => {
+  useSocket(user?.role === "admin" ? wsUrl : null, (message) => {
     if (message?.type === "NEW_APPLICATION") {
       // Increment count and refetch to get accurate data
       setPendingCount(prev => prev + 1);
@@ -150,7 +151,15 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
 
   const navItems: NavItemProps[] = [
     { to: "/", icon: Home, label: "Dashboard" },
-    { to: "/kyc-approvals", icon: CheckCircle, label: "KYC Approvals", badge: pendingCount },
+    // Admin-only items
+    ...(user?.role === "admin"
+      ? [
+          { to: "/kyc-approvals", icon: CheckCircle, label: "KYC Approvals", badge: pendingCount },
+          { to: "/agents", icon: UserCheck, label: "Agents" },
+          { to: "/analytics", icon: BarChart3, label: "Analytics" },
+        ]
+      : []),
+    // Accessible to both admin and agents
     { to: "/users", icon: Users, label: "Users" },
     {
       to: "/loans",
@@ -164,8 +173,6 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
       ],
     },
     { to: "/repayments", icon: Banknote, label: "Repayments" },
-    { to: "/agents", icon: UserCheck, label: "Agents" },
-    { to: "/analytics", icon: BarChart3, label: "Analytics" },
     { to: "/settings", icon: Settings, label: "Settings" },
   ];
 

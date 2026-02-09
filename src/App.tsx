@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ApplicantProvider } from "@/contexts/ApplicantContext";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import RequireAgent from "@/components/auth/RequireAgent";
@@ -32,8 +33,26 @@ import PendingKycPage from "./pages/PendingKycPage";
 
 const queryClient = new QueryClient();
 
+// AdminRoute wrapper to guard admin-only pages
+function AdminRoute({ children }: { readonly children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
+  if (user?.role !== "admin") return <Navigate to="/agent" replace />;
+  return <>{children}</>;
+}
+
+// Role-aware root handler: show admin dashboard to admins, redirect agents to /agent,
+// and redirect unauthenticated visitors to /login.
+function RoleHome() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
+  if (user?.role === "admin") return <Index />;
+  if (user?.role === "agent") return <Navigate to="/agent" replace />;
+  return <Navigate to="/login" replace />;
+}
+
 const App = () => {
-  const hostname = window.location.hostname;
+  const hostname = globalThis.location?.hostname ?? "";
   const isApplySubdomain = hostname.startsWith("apply.");
 
   return (
@@ -48,13 +67,13 @@ const App = () => {
                 <Routes>
                   {isApplySubdomain ? (
                     <>
-                      <Route path="/" element={<ApplyPage />} />
-                      <Route path="*" element={<ApplyPage />} />
+                          <Route path="/" element={<ApplyPage />} />
+                          <Route path="*" element={<ApplyPage />} />
                     </>
                   ) : (
                     <>
                       {/* Public Routes */}
-                      <Route path="/" element={<Index />} />
+                      <Route path="/" element={<RoleHome />} />
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/signup" element={<SignupPage />} />
                       <Route path="/apply" element={<ApplyPage />} />
@@ -71,19 +90,19 @@ const App = () => {
                       </Route>
 
                       {/* Protected Admin Routes */}
-                      <Route path="/admin" element={<RequireAuth><Index /></RequireAuth>} />
-                      <Route path="/kyc-approvals" element={<RequireAuth><PendingKycPage /></RequireAuth>} />
-                      <Route path="/users" element={<RequireAuth><UsersPage /></RequireAuth>} />
-                      <Route path="/users/:id" element={<RequireAuth><UserDetailsPage /></RequireAuth>} />
-                      <Route path="/loans" element={<RequireAuth><LoansPage /></RequireAuth>} />
-                      <Route path="/loans/pending" element={<RequireAuth><LoansPage /></RequireAuth>} />
-                      <Route path="/loans/active" element={<RequireAuth><LoansPage /></RequireAuth>} />
-                      <Route path="/loans/closed" element={<RequireAuth><LoansPage /></RequireAuth>} />
-                      <Route path="/loans/overdue" element={<RequireAuth><LoansPage /></RequireAuth>} />
-                      <Route path="/repayments" element={<RequireAuth><RepaymentsPage /></RequireAuth>} />
-                      <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
-                      <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
-                      <Route path="/agents" element={<RequireAuth><AgentsPage /></RequireAuth>} />
+                      <Route path="/admin" element={<RequireAuth><AdminRoute><Index /></AdminRoute></RequireAuth>} />
+                      <Route path="/kyc-approvals" element={<RequireAuth><AdminRoute><PendingKycPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/users" element={<RequireAuth><AdminRoute><UsersPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/users/:id" element={<RequireAuth><AdminRoute><UserDetailsPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/loans" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/loans/pending" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/loans/active" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/loans/closed" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/loans/overdue" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/repayments" element={<RequireAuth><AdminRoute><RepaymentsPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/analytics" element={<RequireAuth><AdminRoute><AnalyticsPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/settings" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/agents" element={<RequireAuth><AdminRoute><AgentsPage /></AdminRoute></RequireAuth>} />
 
                       <Route path="*" element={<NotFound />} />
                     </>
