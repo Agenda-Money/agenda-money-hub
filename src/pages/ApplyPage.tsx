@@ -550,18 +550,18 @@ export default function ApplyPage() {
             </svg>
           </div>
 
-          <div className="flex flex-col items-center justify-center z-20 -mt-24 mb-16">
+          <div className="flex flex-col items-center justify-center z-20 -mt-20 mb-8">
             <div className="relative group">
               <div className="absolute -inset-4 bg-white/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition duration-500"></div>
-              <img src={agendaLogo} alt="Agenda Money" className="h-auto w-72 object-contain rounded-[32px] shadow-2xl hover:scale-105 transition-transform duration-300" />
+              <img src={agendaLogo} alt="Agenda Money" className="h-auto w-48 object-contain rounded-2xl shadow-xl hover:scale-105 transition-transform duration-300" />
             </div>
           </div>
 
-          <div className="bg-white/95 backdrop-blur-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] z-10 w-full rounded-[50px] p-8 sm:min-w-[440px] lg:p-14 border border-white/60 relative overflow-visible">
+          <div className="bg-white/95 backdrop-blur-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] z-10 w-full rounded-[40px] p-8 sm:min-w-[440px] lg:p-10 border border-white/60 relative overflow-visible">
             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-pink-50 to-transparent rounded-bl-[100px] opacity-50 pointer-events-none" />
             
-            <div className="text-center relative z-10 space-y-2">
-              <h3 className="text-gray-800 text-3xl font-bold tracking-tight">
+            <div className="text-center relative z-10 space-y-2 mb-8">
+              <h3 className="text-gray-800 text-2xl font-bold tracking-tight">
                 {view === "auth" ? "Enter your phone number" : "Verify OTP"}
               </h3>
               <p className="text-base-content/80 text-sm text-muted-foreground">
@@ -583,9 +583,9 @@ export default function ApplyPage() {
                 <>
                   <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleRequestOtp(); }}>
                     <div>
-                      <Label className="label-text font-medium" htmlFor="msisdn">Mobile Number</Label>
-                      <div className="relative flex items-center w-full h-16 bg-[#F4F9FF] border border-blue-50/50 rounded-full px-6 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] transition-all focus-within:ring-4 focus-within:ring-pink-500/10 focus-within:border-pink-500/50 group">
-                        <span className="text-gray-600 font-bold text-xl select-none flex items-center pr-4 border-r border-gray-200/60 h-8 ml-1 font-sans tracking-tight">
+                      <Label className="label-text font-medium ml-1 mb-1.5 block text-gray-700" htmlFor="msisdn">Mobile Number</Label>
+                      <div className="relative flex items-center w-full h-14 bg-[#F8FAFC] border border-blue-50/50 rounded-full px-6 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] transition-all focus-within:ring-4 focus-within:ring-pink-500/10 focus-within:border-pink-500/50 group">
+                        <span className="text-gray-600 font-bold text-lg select-none flex items-center pr-4 border-r border-gray-200/60 h-8 ml-1 font-sans tracking-tight">
                           +233
                         </span>
                         <Input 
@@ -599,19 +599,19 @@ export default function ApplyPage() {
                             }
                           }}
                           placeholder="50 XXX XXXX"
-                          className="flex-1 bg-transparent border-0 h-full text-2xl font-mono font-medium tracking-wider text-gray-800 focus:ring-0 focus:outline-none placeholder:text-gray-300 ml-2"
+                          className="flex-1 bg-transparent border-0 h-full text-xl font-mono font-medium tracking-wider text-gray-800 focus:ring-0 focus:outline-none placeholder:text-gray-400 ml-2"
                         />
                       </div>
-                      <p className="text-sm text-gray-500 mt-4 text-center font-medium">
+                      <p className="text-xs text-gray-400 mt-2 text-center font-medium">
                         The number must be your mobile money number
                       </p>
                     </div>
                     
-                    <div className="mt-24"> 
+                    <div className="mt-10"> 
                     <Button 
                       type="submit" 
                       disabled={!canSubmitEntry || isRequesting}
-                      className="btn btn-lg w-full h-16 rounded-full bg-gradient-to-r from-pink-600 to-rose-500 text-white font-bold tracking-widest uppercase shadow-lg hover:shadow-pink-500/40 transition-all text-lg"
+                      className="btn btn-lg w-full h-14 rounded-full bg-gradient-to-r from-pink-600 to-rose-500 text-white font-bold tracking-widest uppercase shadow-lg hover:shadow-pink-500/40 transition-all text-base"
                     >
                        {isRequesting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                        {isRequesting ? "SENDING CODE..." : "CONTINUE"}
