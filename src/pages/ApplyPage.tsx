@@ -550,10 +550,10 @@ export default function ApplyPage() {
             </svg>
           </div>
 
-          <div className="flex flex-col items-center justify-center z-20 -mt-20 mb-8">
+          <div className="flex flex-col items-center justify-center z-20 -mt-12 mb-6">
             <div className="relative group">
               <div className="absolute -inset-4 bg-white/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition duration-500"></div>
-              <img src={agendaLogo} alt="Agenda Money" className="h-auto w-48 object-contain rounded-2xl shadow-xl hover:scale-105 transition-transform duration-300" />
+              <img src={agendaLogo} alt="Agenda Money" className="h-auto w-24 object-contain rounded-xl shadow-lg hover:scale-105 transition-transform duration-300" />
             </div>
           </div>
 
@@ -564,7 +564,7 @@ export default function ApplyPage() {
               <h3 className="text-gray-800 text-2xl font-bold tracking-tight">
                 {view === "auth" ? "Enter your phone number" : "Verify OTP"}
               </h3>
-              <p className="text-base-content/80 text-sm text-muted-foreground">
+              <p className="text-base-content/80 text-xs text-muted-foreground tracking-tight">
                 {view === "auth" 
                   ? "We’ll send a one-time code to verify your number" 
                   : `Enter the code sent to ${normalizedMsisdn || "your phone"}`
