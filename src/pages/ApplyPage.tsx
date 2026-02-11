@@ -24,7 +24,9 @@ import {
   ArrowRight,
   ArrowLeft,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Camera,
+  Upload
 } from "lucide-react";
 
 const baseApiUrl = import.meta.env.VITE_API_URL || "";
@@ -91,7 +93,7 @@ const STEPS = [
 
 /* ─── Shared Header ─── */
 /* ─── Shared Header ─── */
-function PageHeader({ user, onAvatarClick, onNotificationClick }: { user: any; onAvatarClick?: () => void; onNotificationClick?: () => void }) {
+function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick }: { user?: any; subtitle?: string; onAvatarClick?: () => void; onNotificationClick?: () => void }) {
   const firstName = user?.firstName || user?.fullName?.split(" ")[0] || "User";
   const initials = firstName[0]?.toUpperCase() || "U";
 
@@ -99,34 +101,43 @@ function PageHeader({ user, onAvatarClick, onNotificationClick }: { user: any; o
     <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-gray-100/50 transition-all duration-300">
       <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
         
-        {/* Left: Avatar & Greeting */}
-        <button onClick={onAvatarClick} className="flex items-center gap-3 group">
-          <div className="relative">
-            <div className="h-10 w-10 number-flow-char rounded-full bg-gray-100 border-2 border-[#E91E63]/20 flex items-center justify-center text-primary font-bold overflow-hidden shadow-sm group-active:scale-95 transition-transform">
-               {/* Use AvatarImage if available, else Initials */}
-               <span className="text-lg">{initials}</span> 
+        {user ? (
+          <>
+            {/* Left: Avatar & Greeting */}
+            <button onClick={onAvatarClick} className="flex items-center gap-3 group">
+              <div className="relative">
+                <div className="h-10 w-10 number-flow-char rounded-full bg-gray-100 border-2 border-[#E91E63]/20 flex items-center justify-center text-primary font-bold overflow-hidden shadow-sm group-active:scale-95 transition-transform">
+                   <span className="text-lg">{initials}</span> 
+                </div>
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold text-gray-900 leading-tight">Hi, {firstName}</p>
+              </div>
+            </button>
+
+            {/* Center: Brand Logo */}
+            <div className="absolute left-1/2 transform -translate-x-1/2">
+               <img src={agendaLogo} alt="Agenda Money" className="h-6 w-auto opacity-90 rounded-xl" />
             </div>
-          </div>
-          <div className="text-left">
-            <p className="text-sm font-bold text-gray-900 leading-tight">Hi, {firstName}</p>
-            {/* Tier info removed per request */}
-          </div>
-        </button>
 
-        {/* Center: Brand Logo */}
-        <div className="absolute left-1/2 transform -translate-x-1/2">
-           <img src={agendaLogo} alt="Agenda Money" className="h-6 w-auto opacity-90 rounded-xl" />
-        </div>
-
-        {/* Right: Notification Bell */}
-        <button 
-          onClick={onNotificationClick}
-          className="relative w-10 h-10 rounded-full bg-white/50 border border-white/20 shadow-sm flex items-center justify-center active:scale-95 transition-transform backdrop-blur-sm hover:bg-white/80"
-        >
-           <Bell className="w-5 h-5 text-gray-700" />
-           {/* Notification Pulse */}
-           <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 border border-white" />
-        </button>
+            {/* Right: Notification Bell */}
+            <button 
+              onClick={onNotificationClick}
+              className="relative w-10 h-10 rounded-full bg-white/50 border border-white/20 shadow-sm flex items-center justify-center active:scale-95 transition-transform backdrop-blur-sm hover:bg-white/80"
+            >
+               <Bell className="w-5 h-5 text-gray-700" />
+               <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 border border-white" />
+            </button>
+          </>
+        ) : (
+          /* Simple Header for Onboarding */
+          <>
+             <img src={agendaLogo} alt="Agenda Money" className="h-8 rounded-xl" />
+             {subtitle && (
+               <span className="text-xs font-medium text-muted-foreground">{subtitle}</span>
+             )}
+          </>
+        )}
 
       </div>
     </header>
@@ -518,36 +529,7 @@ export default function ApplyPage() {
     );
   }
 
-  // ═══════════════════════════════════════
-  // SUCCESS VIEW
-  // ═══════════════════════════════════════
-  if (view === "success") {
-    return (
-      <div className="min-h-screen bg-background">
-        <PageHeader />
-        <main className="max-w-md mx-auto px-4 py-16 text-center space-y-8">
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300 }}>
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="h-8 w-8 text-primary" />
-            </div>
-          </motion.div>
-          <div className="space-y-2">
-            <h1 className="text-xl font-semibold">Application Submitted</h1>
-            <p className="text-sm text-muted-foreground">We're reviewing your application. You'll receive an SMS once a decision is made.</p>
-          </div>
-          {successNodeCode && (
-            <div className="bg-muted/50 rounded-xl p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Your Node Code</p>
-              <p className="text-2xl font-mono font-bold text-primary mt-1">{successNodeCode}</p>
-            </div>
-          )}
-          <Button onClick={() => setView("loan-dashboard")} className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90">
-            Go to Loan Centre <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        </main>
-      </div>
-    );
-  }
+
 
   // ═══════════════════════════════════════
   // AUTH & OTP VIEWS
