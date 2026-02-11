@@ -12,18 +12,19 @@ import { cn } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { uploadToSupabase } from "@/lib/supabase";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
+import { ActionCard } from "@/components/dashboard/ActionCard";
+import { UserDashboard } from "@/pages/User";
+import { LoansTab } from "@/pages/LoansTab";
+import { ProfileTab } from "@/pages/ProfileTab";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Camera,
-  Check,
-  CheckCircle2,
-  CreditCard,
-  Loader2,
-  Upload,
+  Bell,
+  Home,
   User,
-  Eye,
-  EyeOff,
+  Wallet,
+  ArrowRight,
+  ArrowLeft,
+  Loader2,
+  CheckCircle2
 } from "lucide-react";
 
 const baseApiUrl = import.meta.env.VITE_API_URL || "";
@@ -77,11 +78,7 @@ const buildTenureOptions = (tier?: TierLimit) => {
   return Array.from(new Set(base)).sort((a, b) => a - b);
 };
 
-const slideVariants = {
-  enter: (dir: number) => ({ x: dir > 0 ? 200 : -200, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir < 0 ? 200 : -200, opacity: 0 }),
-};
+
 
 type View = "auth" | "otp" | "onboarding" | "loan-dashboard" | "success";
 
@@ -93,14 +90,44 @@ const STEPS = [
 ];
 
 /* ─── Shared Header ─── */
-function PageHeader({ subtitle }: { subtitle?: string }) {
+/* ─── Shared Header ─── */
+function PageHeader({ user, onAvatarClick, onNotificationClick }: { user: any; onAvatarClick?: () => void; onNotificationClick?: () => void }) {
+  const firstName = user?.firstName || user?.fullName?.split(" ")[0] || "User";
+  const initials = firstName[0]?.toUpperCase() || "U";
+
   return (
-    <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50">
+    <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-gray-100/50 transition-all duration-300">
       <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-        <img src={agendaLogo} alt="Agenda Money" className="h-8 rounded-lg" />
-        {subtitle && (
-          <span className="text-xs font-medium text-muted-foreground">{subtitle}</span>
-        )}
+        
+        {/* Left: Avatar & Greeting */}
+        <button onClick={onAvatarClick} className="flex items-center gap-3 group">
+          <div className="relative">
+            <div className="h-10 w-10 number-flow-char rounded-full bg-gray-100 border-2 border-[#E91E63]/20 flex items-center justify-center text-primary font-bold overflow-hidden shadow-sm group-active:scale-95 transition-transform">
+               {/* Use AvatarImage if available, else Initials */}
+               <span className="text-lg">{initials}</span> 
+            </div>
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-bold text-gray-900 leading-tight">Hi, {firstName}</p>
+            {/* Tier info removed per request */}
+          </div>
+        </button>
+
+        {/* Center: Brand Logo */}
+        <div className="absolute left-1/2 transform -translate-x-1/2">
+           <img src={agendaLogo} alt="Agenda Money" className="h-6 w-auto opacity-90 rounded-xl" />
+        </div>
+
+        {/* Right: Notification Bell */}
+        <button 
+          onClick={onNotificationClick}
+          className="relative w-10 h-10 rounded-full bg-white/50 border border-white/20 shadow-sm flex items-center justify-center active:scale-95 transition-transform backdrop-blur-sm hover:bg-white/80"
+        >
+           <Bell className="w-5 h-5 text-gray-700" />
+           {/* Notification Pulse */}
+           <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 border border-white" />
+        </button>
+
       </div>
     </header>
   );
@@ -129,6 +156,18 @@ function EstimatedTermSheet({ amount, tenure }: { amount: number; tenure: number
   );
 }
 
+const slideVariants = {
+  enter: (direction: number) => ({ x: direction > 0 ? 100 : -100, opacity: 0 }),
+  center: { zIndex: 1, x: 0, opacity: 1 },
+  exit: (direction: number) => ({ zIndex: 0, x: direction < 0 ? 100 : -100, opacity: 0 }),
+};
+
+const tabVariants = {
+  enter: { opacity: 0, y: 10, scale: 0.95 },
+  center: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: -10, scale: 0.95 },
+};
+
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export default function ApplyPage() {
   const { setApplicant, applicant } = useApplicant();
@@ -148,6 +187,10 @@ export default function ApplyPage() {
 
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [onboardingDirection, setOnboardingDirection] = useState(0);
+  const [activeTab, setActiveTab] = useState("home"); // home, loans, profile
+  const [isRepaymentOpen, setIsRepaymentOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const [onboardingData, setOnboardingData] = useState({
     firstName: "", surname: "", dob: "", gender: "",
@@ -275,7 +318,7 @@ export default function ApplyPage() {
     try {
       const r = await fetch(`${baseApiUrl}/api/auth/request`, {
         method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({ msisdn: normalizedMsisdn, nodeCode: nodeCode.trim() }),
+        body: JSON.stringify({ msisdn: normalizedMsisdn, nodeCode: "" }), // Node code moved to Onboarding Step 4
       });
       const p = await r.json();
       if (!r.ok) throw new Error(p?.message || "Unable to request OTP.");
@@ -394,13 +437,19 @@ export default function ApplyPage() {
           monthlyIncome: onboardingData.monthlyIncome, ghanaCardNumber: onboardingData.ghanaCardNumber,
           ghanaCardFrontUrl, ghanaCardBackUrl, selfieUrl,
           initialLoanAmount: Number(loanAmount), initialLoanTenure: Number(loanTenure), initialLoanPurpose: loanPurpose,
+          nodeCode: nodeCode.trim(), // Include referral code
         }),
       });
       const p = await r.json();
       if (!r.ok) throw new Error(p?.message || "Submission failed.");
-      if (p?.user) { setApplicant(p.user); setUserData(p.user); setSuccessNodeCode(p.user.nodeCode || p.user.node || p.nodeCode || null); }
-      setOnboardingSubmitted(true); setView("success");
-    } catch (e: any) { setErrorMessage(e?.message || "Submission failed."); } finally { setIsSubmittingOnboarding(false); }
+      
+      setSuccessNodeCode(p.nodeCode || "AM-NEW");
+      setUserData(p.user);
+      setApplicant(p.user);
+      
+      // Go to Success Screen
+      setView("success");
+    } catch (e: any) { setErrorMessage(e?.message || "Onboarding failed."); } finally { setIsSubmittingOnboarding(false); }
   };
 
   const handleLoanRequest = async () => {
@@ -426,7 +475,7 @@ export default function ApplyPage() {
     } catch (e: any) { setErrorMessage(e?.message || "Loan request failed."); } finally { setIsRequestingLoan(false); }
   };
 
-  const canSubmitEntry = Boolean(normalizedMsisdn && nodeCode.trim());
+  const canSubmitEntry = Boolean(msisdnInput.length === 9 && normalizedMsisdn);
   const canVerify = otp.length === OTP_LENGTH;
 
   // ─── Upload Box ───
@@ -550,10 +599,10 @@ export default function ApplyPage() {
             </svg>
           </div>
 
-          <div className="flex flex-col items-center justify-center z-20 -mt-12 mb-6">
+          <div className="flex flex-col items-center justify-center z-20 -mt-20 mb-8">
             <div className="relative group">
               <div className="absolute -inset-4 bg-white/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition duration-500"></div>
-              <img src={agendaLogo} alt="Agenda Money" className="h-auto w-24 object-contain rounded-xl shadow-lg hover:scale-105 transition-transform duration-300" />
+              <img src={agendaLogo} alt="Agenda Money" className="h-auto w-44 object-contain rounded-2xl shadow-xl hover:scale-105 transition-transform duration-300" />
             </div>
           </div>
 
@@ -588,6 +637,7 @@ export default function ApplyPage() {
                         <span className="text-gray-600 font-bold text-lg select-none flex items-center pr-4 border-r border-gray-200/60 h-8 ml-1 font-sans tracking-tight">
                           +233
                         </span>
+                        <div className="h-8 w-px bg-gray-200/60 mx-2" /> {/* Thin vertical divider */}
                         <Input 
                           id="msisdn"
                           type="tel"
@@ -662,96 +712,224 @@ export default function ApplyPage() {
   }
 
   // ═══════════════════════════════════════
+  // SUCCESS VIEW
+  // ═══════════════════════════════════════
+  if (view === "success") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in duration-500">
+        <div className="w-32 h-32 bg-green-100 rounded-full flex items-center justify-center mb-8 shadow-xl shadow-green-100/50">
+          <CheckCircle2 className="h-16 w-16 text-green-600" />
+        </div>
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">Application Submitted!</h2>
+        <p className="text-muted-foreground text-lg mb-8 max-w-xs mx-auto">
+          We are verifying your documents. Your Node Code is <span className="font-bold text-gray-900">{successNodeCode}</span>.
+        </p>
+        <Button onClick={() => setView("loan-dashboard")} className="w-full max-w-sm h-14 rounded-full bg-primary text-primary-foreground text-lg uppercase font-bold tracking-widest shadow-lg hover:shadow-primary/25 transition-all">
+          Go to Loan Center
+        </Button>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════
   // LOAN DASHBOARD (returning users)
   // ═══════════════════════════════════════
   if (view === "loan-dashboard") {
-    return (
-      <div className="min-h-screen bg-background pb-24">
-        <PageHeader subtitle="Loan Centre" />
-        <main className="max-w-md mx-auto px-4 py-6 space-y-5">
-          <div className="bg-muted/40 rounded-xl p-4">
-            <p className="text-xs text-muted-foreground">Welcome back</p>
-            <p className="text-base font-semibold">{(userData?.fullName as string) || "Applicant"}</p>
-            {tierMin > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Tier {currentTier} · GHS {tierMin}–{tierMax} · Max {tierMaxTenure} days
-              </p>
-            )}
-          </div>
+    // Determine Logic State
+    // Default to 'eligible' if no loan status
+    const loanStatus = (applicant as any)?.loanStatus || "ELIGIBLE"; // PENDING, ACTIVE, OVERDUE, ELIGIBLE
+    const isUnderReview = loanStatus === "PENDING_VERIFICATION" || loanStatus === "PENDING";
+    const isActive = loanStatus === "ACTIVE";
+    const isOverdue = loanStatus === "OVERDUE";
+    // For manual testing/dev, you can force a state here:
+    // const isUnderReview = true; 
+    const isEligible = !isUnderReview && !isActive && !isOverdue;
 
-          {errorMessage && (
-            <Alert className="border-destructive/30 bg-destructive/5">
+    return (
+      <div className={cn("min-h-screen pb-24 transition-colors duration-500 bg-[#FAFAFA] relative overflow-hidden", isOverdue && "bg-red-50/50")}>
+        
+        {/* Mesh Gradient Background */}
+        <div className="absolute inset-0 pointer-events-none opacity-60">
+           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-pink-200/30 rounded-full blur-[100px]" />
+           <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-rose-100/30 rounded-full blur-[100px]" />
+        </div>
+
+        {/* Sticky Top Bar - Redesigned */}
+        <PageHeader 
+          user={userData || onboardingData} 
+          onAvatarClick={() => setActiveTab("profile")}
+          onNotificationClick={() => setIsNotificationOpen(true)}
+        />
+
+        <main className="max-w-md mx-auto px-4 pt-14 pb-32 relative z-10 min-h-screen">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              variants={tabVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.3, ease: "anticipate" }}
+              className="space-y-6"
+            >
+
+          {/* Profile Tab Badge (Moved from Home) */}
+          {activeTab === "profile" && errorMessage && (
+            <Alert className="border-destructive/30 bg-destructive/5 rounded-2xl mb-4">
               <AlertDescription className="text-sm text-destructive">{errorMessage}</AlertDescription>
             </Alert>
           )}
 
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-sm">Amount (GHS)</Label>
-              <Select value={String(loanAmount)} onValueChange={(v) => setLoanAmount(Number(v))}>
-                <SelectTrigger className="h-11 bg-muted/40 border-border/50"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {amountOptions.map((a) => <SelectItem key={a} value={String(a)}>GHS {a}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* HOME TAB (ACTION FEED) */}
+          {activeTab === "home" && (
+             <UserDashboard 
+                applicant={applicant} 
+                loanStatus={(applicant as any)?.loanStatus || "ELIGIBLE"}
+                onAction={(action) => {
+                   if (action === "apply") window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); // Placeholder
+                   if (action === "repay") setIsRepaymentOpen(true);
+                   if (action === "share") setIsShareOpen(true);
+                   if (action === "history") setActiveTab("loans");
+                }}
+             />
+          )}
 
-            <div className="space-y-1.5">
-              <Label className="text-sm">Tenure</Label>
-              <div className="flex flex-wrap gap-2">
-                {tenureOptions.map((t) => (
-                  <Button key={t} type="button" size="sm"
-                    variant={loanTenure === t ? "default" : "outline"}
-                    onClick={() => setLoanTenure(t)}
-                    className={cn("h-9", loanTenure === t && "bg-primary text-primary-foreground")}>
-                    {t} {t === 1 ? "day" : "days"}
-                  </Button>
-                ))}
-              </div>
-            </div>
+           {/* MY LOANS TAB */}
+           {activeTab === "loans" && <LoansTab onBack={() => setActiveTab("home")} />}
 
-            <div className="space-y-1.5">
-              <Label className="text-sm">Purpose</Label>
-              <Select value={loanPurpose} onValueChange={setLoanPurpose}>
-                <SelectTrigger className="h-11 bg-muted/40 border-border/50"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {LOAN_PURPOSES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+           {/* PROFILE TAB */}
+           {activeTab === "profile" && (
+             <ProfileTab onboardingData={onboardingData} userData={userData} />
+           )}
 
-            <div className="rounded-xl border border-border p-4">
-              <p className="text-sm font-medium mb-3">Estimate</p>
-              <EstimatedTermSheet amount={loanAmount} tenure={loanTenure} />
-            </div>
-
-            {loanSummary && (
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
-                <p className="text-sm font-medium">Confirmed</p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                  <span className="text-muted-foreground">Disbursement</span>
-                  <span className="text-right font-medium">GHS {loanSummary.disbursementAmount}</span>
-                  <span className="text-muted-foreground">Account</span>
-                  <span className="text-right font-medium">{loanSummary.msisdn}</span>
-                  <span className="text-muted-foreground">Repayment</span>
-                  <span className="text-right font-medium">GHS {loanSummary.repaymentAmount}</span>
-                  <span className="text-muted-foreground">Due</span>
-                  <span className="text-right font-medium">{loanSummary.repaymentDate}</span>
-                </div>
-              </div>
-            )}
-          </div>
+            </motion.div>
+          </AnimatePresence>
         </main>
 
-        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 z-50">
-          <div className="max-w-md mx-auto">
-            <Button onClick={handleLoanRequest} disabled={isRequestingLoan}
-              className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90">
-              {isRequestingLoan ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Request Loan <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
+
+
+        {/* Fixed Bottom Navigation */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe-bottom z-50">
+           <div className="max-w-md mx-auto flex items-center justify-around h-20 px-2">
+            
+            <button onClick={() => setActiveTab("home")} className="flex flex-col items-center justify-center w-16 gap-1 group">
+               <div className={cn("p-1.5 rounded-xl transition-all", activeTab === "home" ? "bg-primary/10 text-primary" : "text-gray-400 group-hover:text-gray-600")}>
+                 <Home className={cn("h-6 w-6 transition-transform", activeTab === "home" && "scale-110")} />
+               </div>
+               <span className={cn("text-[10px] font-medium transition-colors", activeTab === "home" ? "text-primary" : "text-gray-400")}>Home</span>
+            </button>
+
+            <button onClick={() => setActiveTab("loans")} className="flex flex-col items-center justify-center w-16 gap-1 group">
+               <div className={cn("p-1.5 rounded-xl transition-all", activeTab === "loans" ? "bg-primary/10 text-primary" : "text-gray-400 group-hover:text-gray-600")}>
+                 <Wallet className={cn("h-6 w-6 transition-transform", activeTab === "loans" && "scale-110")} />
+               </div>
+               <span className={cn("text-[10px] font-medium transition-colors", activeTab === "loans" ? "text-primary" : "text-gray-400")}>My Loans</span>
+            </button>
+
+            <button onClick={() => setActiveTab("profile")} className="flex flex-col items-center justify-center w-16 gap-1 group relative">
+               <div className={cn("p-1.5 rounded-xl transition-all", activeTab === "profile" ? "bg-primary/10 text-primary" : "text-gray-400 group-hover:text-gray-600")}>
+                 <User className={cn("h-6 w-6 transition-transform", activeTab === "profile" && "scale-110")} />
+                 {errorMessage && <div className="absolute top-1 right-3 h-2 w-2 rounded-full bg-red-500 border border-white" />}
+               </div>
+               <span className={cn("text-[10px] font-medium transition-colors", activeTab === "profile" ? "text-primary" : "text-gray-400")}>Profile</span>
+            </button>
+            
           </div>
         </div>
+
+        {/* Repayment Drawer */}
+        <AnimatePresence>
+          {isRepaymentOpen && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsRepaymentOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" />
+              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-6 z-[70] pb-10">
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Make Payment</h3>
+                <p className="text-muted-foreground mb-6">Enter amount to repay via Mobile Money.</p>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Amount (GHS)</Label>
+                    <Input type="number" placeholder="Enter amount" className="h-14 rounded-xl text-lg bg-gray-50 border-gray-100" />
+                  </div>
+                  <Button className="w-full h-14 rounded-full bg-gray-900 text-white text-lg font-bold shadow-lg">
+                    Pay Now
+                  </Button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Share & Earn Drawer */}
+        <AnimatePresence>
+          {isShareOpen && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsShareOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" />
+              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-6 z-[70] pb-10">
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+                <div className="text-center mb-6">
+                  <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <User className="h-10 w-10 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900">Share & Earn</h3>
+                  <p className="text-muted-foreground">Invite friends and unlock higher tiers faster.</p>
+                </div>
+                
+                <div className="bg-gray-50 rounded-2xl p-6 mb-6 text-center border border-gray-100">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Your Referral Code</p>
+                  <p className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{(userData?.nodeCode as string) || "AM-123"}</p>
+                </div>
+
+                <Button onClick={() => { navigator.clipboard.writeText(String(userData?.nodeCode || "")); setIsShareOpen(false); }} className="w-full h-14 rounded-full bg-primary text-primary-foreground text-lg font-bold shadow-lg">
+                  Copy Code
+                </Button>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Notification Drawer */}
+        <AnimatePresence>
+          {isNotificationOpen && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsNotificationOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" />
+              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-6 z-[70] pb-10 max-h-[80vh] overflow-y-auto">
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-2xl font-bold text-gray-900">Notifications</h3>
+                    <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-full">2 New</span>
+                </div>
+                
+                <div className="space-y-4">
+                   {/* Mock Notification 1 */}
+                   <div className="flex gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 items-start">
+                      <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                         <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                         <h4 className="font-bold text-gray-900 text-sm">KYC Approved</h4>
+                         <p className="text-xs text-muted-foreground mt-1">Your identity has been verified. You can now apply for higher tier loans.</p>
+                         <p className="text-[10px] text-gray-400 mt-2">2 hours ago</p>
+                      </div>
+                   </div>
+
+                   {/* Mock Notification 2 */}
+                   <div className="flex gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 items-start">
+                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                         <Bell className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                         <h4 className="font-bold text-gray-900 text-sm">Repayment Reminder</h4>
+                         <p className="text-xs text-muted-foreground mt-1">Your loan repayment of GHS 150 is due in 3 days. Pay early to boost your credit score!</p>
+                         <p className="text-[10px] text-gray-400 mt-2">1 day ago</p>
+                      </div>
+                   </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -796,26 +974,26 @@ export default function ApplyPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-sm">First Name</Label>
+                    <Label className="text-sm ml-1">First Name</Label>
                     <Input value={onboardingData.firstName} onChange={(e) => handleOnboardingChange("firstName", e.target.value)}
-                      placeholder="Kwame" className="h-11 bg-muted/40 border-border/50" />
+                      placeholder="Kwame" className="h-12 rounded-full bg-[#F8FAFC] border-border/50" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Surname</Label>
+                    <Label className="text-sm ml-1">Surname</Label>
                     <Input value={onboardingData.surname} onChange={(e) => handleOnboardingChange("surname", e.target.value)}
-                      placeholder="Mensah" className="h-11 bg-muted/40 border-border/50" />
+                      placeholder="Mensah" className="h-12 rounded-full bg-[#F8FAFC] border-border/50" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Date of Birth</Label>
+                    <Label className="text-sm ml-1">Date of Birth</Label>
                     <Input type="date" value={onboardingData.dob} onChange={(e) => handleOnboardingChange("dob", e.target.value)}
-                      max={new Date().toISOString().split("T")[0]} className="h-11 bg-muted/40 border-border/50" />
+                      max={new Date().toISOString().split("T")[0]} className="h-12 rounded-full bg-[#F8FAFC] border-border/50" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Gender</Label>
+                    <Label className="text-sm ml-1">Gender</Label>
                     <Select value={onboardingData.gender} onValueChange={(v) => handleOnboardingChange("gender", v)}>
-                      <SelectTrigger className="h-11 bg-muted/40 border-border/50"><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>{GENDERS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
@@ -827,51 +1005,51 @@ export default function ApplyPage() {
             {onboardingStep === 2 && (
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Region</Label>
+                  <Label className="text-sm ml-1">Region</Label>
                   <Select value={onboardingData.region} onValueChange={(v) => handleOnboardingChange("region", v)}>
-                    <SelectTrigger className="h-11 bg-muted/40 border-border/50"><SelectValue placeholder="Select region" /></SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Select region" /></SelectTrigger>
                     <SelectContent>{GHANA_REGIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Address</Label>
+                  <Label className="text-sm ml-1">Address</Label>
                   <Textarea value={onboardingData.address} onChange={(e) => handleOnboardingChange("address", e.target.value)}
-                    placeholder="House No. 12, Dzorwulu Street, Accra" rows={2} className="resize-none bg-muted/40 border-border/50" />
+                    placeholder="House No. 12, Dzorwulu Street, Accra" rows={2} className="resize-none rounded-3xl bg-[#F8FAFC] border-border/50" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Accommodation</Label>
+                    <Label className="text-sm ml-1">Accommodation</Label>
                     <Select value={onboardingData.accommodationType} onValueChange={(v) => handleOnboardingChange("accommodationType", v)}>
-                      <SelectTrigger className="h-11 bg-muted/40 border-border/50"><SelectValue placeholder="Type" /></SelectTrigger>
+                      <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Type" /></SelectTrigger>
                       <SelectContent>{ACCOMMODATION_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Years at Address</Label>
+                    <Label className="text-sm ml-1">Years at Address</Label>
                     <Input type="number" value={onboardingData.yearsAtAddress}
                       onChange={(e) => handleOnboardingChange("yearsAtAddress", e.target.value)}
-                      placeholder="3" min="0" max="50" className="h-11 bg-muted/40 border-border/50" />
+                      placeholder="3" min="0" max="50" className="h-12 rounded-full bg-[#F8FAFC] border-border/50" />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Education</Label>
+                  <Label className="text-sm ml-1">Education</Label>
                   <Select value={onboardingData.educationLevel} onValueChange={(v) => handleOnboardingChange("educationLevel", v)}>
-                    <SelectTrigger className="h-11 bg-muted/40 border-border/50"><SelectValue placeholder="Level" /></SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Level" /></SelectTrigger>
                     <SelectContent>{EDUCATION_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Employment</Label>
+                    <Label className="text-sm ml-1">Employment</Label>
                     <Select value={onboardingData.employmentStatus} onValueChange={(v) => handleOnboardingChange("employmentStatus", v)}>
-                      <SelectTrigger className="h-11 bg-muted/40 border-border/50"><SelectValue placeholder="Status" /></SelectTrigger>
+                      <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Status" /></SelectTrigger>
                       <SelectContent>{EMPLOYMENT_OPTIONS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Monthly Income</Label>
+                    <Label className="text-sm ml-1">Monthly Income</Label>
                     <Select value={onboardingData.monthlyIncome} onValueChange={(v) => handleOnboardingChange("monthlyIncome", v)}>
-                      <SelectTrigger className="h-11 bg-muted/40 border-border/50"><SelectValue placeholder="Range" /></SelectTrigger>
+                      <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Range" /></SelectTrigger>
                       <SelectContent>{INCOME_BRACKETS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
@@ -883,12 +1061,12 @@ export default function ApplyPage() {
             {onboardingStep === 3 && (
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Ghana Card Number</Label>
+                  <Label className="text-sm ml-1">Ghana Card Number</Label>
                   <Input value={onboardingData.ghanaCardNumber || "GHA-"}
                     onChange={(e) => handleGhanaCardChange(e.target.value)}
                     placeholder="GHA-123456789-0" maxLength={16}
-                    className="h-11 font-mono bg-muted/40 border-border/50" />
-                  <p className="text-xs text-muted-foreground">Format: GHA-XXXXXXXXX-X</p>
+                    className="h-12 rounded-full font-mono bg-[#F8FAFC] border-border/50" />
+                  <p className="text-xs text-muted-foreground ml-1">Format: GHA-XXXXXXXXX-X</p>
                 </div>
                 <div className="space-y-3">
                   {renderUploadBox("Ghana Card (Front)", onboardingData.ghanaCardFrontUrl, !!uploadProgress.ghanaCardFrontUrl, frontCardRef, "environment", (f) => handleUpload(f, "ghanaCardFrontUrl"))}
@@ -905,34 +1083,45 @@ export default function ApplyPage() {
                   <strong>Tier 1:</strong> GHS 50–300 · Max 14 days
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Amount (GHS)</Label>
+                  <Label className="text-sm ml-1">Amount (GHS)</Label>
                   <Select value={String(loanAmount)} onValueChange={(v) => setLoanAmount(Number(v))}>
-                    <SelectTrigger className="h-11 bg-muted/40 border-border/50"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue /></SelectTrigger>
                     <SelectContent>{amountOptions.map((a) => <SelectItem key={a} value={String(a)}>GHS {a}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Tenure</Label>
+                  <Label className="text-sm ml-1">Tenure</Label>
                   <div className="flex flex-wrap gap-2">
                     {tenureOptions.map((t) => (
                       <Button key={t} type="button" size="sm" variant={loanTenure === t ? "default" : "outline"}
                         onClick={() => setLoanTenure(t)}
-                        className={cn("h-9", loanTenure === t && "bg-primary text-primary-foreground")}>
+                        className={cn("h-10 rounded-full px-4", loanTenure === t && "bg-primary text-primary-foreground")}>
                         {t} {t === 1 ? "day" : "days"}
                       </Button>
                     ))}
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Purpose</Label>
+                  <Label className="text-sm ml-1">Purpose</Label>
                   <Select value={loanPurpose} onValueChange={setLoanPurpose}>
-                    <SelectTrigger className="h-11 bg-muted/40 border-border/50"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue /></SelectTrigger>
                     <SelectContent>{LOAN_PURPOSES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="rounded-xl border border-border p-4">
                   <p className="text-sm font-medium mb-3">Estimate</p>
                   <EstimatedTermSheet amount={loanAmount} tenure={loanTenure} />
+                </div>
+                
+                <div className="pt-4 border-t border-border/50">
+                  <Label className="text-sm font-medium mb-1.5 block ml-1">Referred by someone?</Label>
+                  <Input 
+                    value={nodeCode} 
+                    onChange={(e) => setNodeCode(e.target.value.toUpperCase())}
+                    placeholder="Enter their Node Code (Optional)" 
+                    className="h-12 rounded-full bg-[#F8FAFC] border-border/50 font-mono tracking-wider text-center uppercase placeholder:normal-case placeholder:font-sans" 
+                    maxLength={6}
+                  />
                 </div>
               </div>
             )}
@@ -943,19 +1132,19 @@ export default function ApplyPage() {
       {/* Fixed Bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 z-50">
         <div className="max-w-md mx-auto flex gap-3">
-          <Button variant="outline" onClick={onboardingStep === 1 ? handleBack : handleOnboardingBack} className="flex-1 h-11">
+          <Button variant="outline" onClick={onboardingStep === 1 ? handleBack : handleOnboardingBack} className="flex-1 h-12 rounded-full shadow-sm">
             <ArrowLeft className="h-4 w-4 mr-1" /> Back
           </Button>
           {onboardingStep < 4 ? (
-            <Button onClick={handleOnboardingNext} className="flex-1 h-11 bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button onClick={handleOnboardingNext} className="flex-1 h-12 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg">
               Next <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
             <Button onClick={handleOnboardingSubmit} disabled={isSubmittingOnboarding}
-              className="flex-1 h-11 bg-primary text-primary-foreground hover:bg-primary/90">
-              {isSubmittingOnboarding ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              {isSubmittingOnboarding ? "Submitting..." : "Submit"}
-              {!isSubmittingOnboarding && <CheckCircle2 className="h-4 w-4 ml-1" />}
+              className="flex-1 h-12 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg text-base uppercase font-bold tracking-wide">
+              {isSubmittingOnboarding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {isSubmittingOnboarding ? "SUBMITTING..." : "SUBMIT APPLICATION"}
+              {!isSubmittingOnboarding && <CheckCircle2 className="h-4 w-4 ml-1.5" />}
             </Button>
           )}
         </div>
@@ -963,3 +1152,5 @@ export default function ApplyPage() {
     </div>
   );
 }
+
+
