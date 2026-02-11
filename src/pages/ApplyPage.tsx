@@ -112,6 +112,7 @@ function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick }: { us
               </div>
               <div className="text-left">
                 <p className="text-sm font-bold text-gray-900 leading-tight">Hi, {firstName}</p>
+                <p className="text-[10px] text-gray-500 font-medium">Tier {user?.currentTier || 1} Member</p>
               </div>
             </button>
 
@@ -768,7 +769,7 @@ export default function ApplyPage() {
                 applicant={applicant} 
                 loanStatus={(applicant as any)?.loanStatus || "ELIGIBLE"}
                 onAction={(action) => {
-                   if (action === "apply") window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); // Placeholder
+                   if (action === "apply") setView("onboarding");
                    if (action === "repay") setIsRepaymentOpen(true);
                    if (action === "share") setIsShareOpen(true);
                    if (action === "history") setActiveTab("loans");
@@ -805,7 +806,7 @@ export default function ApplyPage() {
                <div className={cn("p-1.5 rounded-xl transition-all", activeTab === "loans" ? "bg-primary/10 text-primary" : "text-gray-400 group-hover:text-gray-600")}>
                  <Wallet className={cn("h-6 w-6 transition-transform", activeTab === "loans" && "scale-110")} />
                </div>
-               <span className={cn("text-[10px] font-medium transition-colors", activeTab === "loans" ? "text-primary" : "text-gray-400")}>My Loans</span>
+               <span className={cn("text-[10px] font-medium transition-colors", activeTab === "loans" ? "text-primary" : "text-gray-400")}>Loans</span>
             </button>
 
             <button onClick={() => setActiveTab("profile")} className="flex flex-col items-center justify-center w-16 gap-1 group relative">
@@ -813,7 +814,7 @@ export default function ApplyPage() {
                  <User className={cn("h-6 w-6 transition-transform", activeTab === "profile" && "scale-110")} />
                  {errorMessage && <div className="absolute top-1 right-3 h-2 w-2 rounded-full bg-red-500 border border-white" />}
                </div>
-               <span className={cn("text-[10px] font-medium transition-colors", activeTab === "profile" ? "text-primary" : "text-gray-400")}>Profile</span>
+               <span className={cn("text-[10px] font-medium transition-colors", activeTab === "profile" ? "text-primary" : "text-gray-400")}>Settings</span>
             </button>
             
           </div>
