@@ -21,9 +21,26 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   
   // Handle potential field mismatches (Agent onboarding uses fullName, Self uses firstName)
-  const firstName = userData?.firstName || userData?.fullName || onboardingData?.firstName || "User";
-  const surname = userData?.surname || onboardingData?.surname || "Name";
-  const fullName = `${firstName} ${surname}`.toUpperCase();
+  // Handle potential field mismatches
+  const rawFirstName = userData?.firstName || onboardingData?.firstName;
+  // Check for surname OR lastName
+  const rawSurname = userData?.surname || userData?.lastName || onboardingData?.surname || onboardingData?.lastName;
+  const rawFullName = userData?.fullName || "";
+
+  let displayFirstName = rawFirstName;
+  let displaySurname = rawSurname;
+
+  if (!displayFirstName && rawFullName) {
+    displayFirstName = rawFullName.split(" ")[0];
+  }
+  if (!displaySurname && rawFullName) {
+    const parts = rawFullName.split(" ");
+    if (parts.length > 1) displaySurname = parts.slice(1).join(" ");
+  }
+
+  const firstName = displayFirstName || "User";
+  const surname = displaySurname || ""; // Removed "Name" default
+  const fullName = `${firstName} ${surname}`.trim().toUpperCase();
   const initials = `${firstName?.[0] || ""}${surname?.[0] || ""}`.toUpperCase();
   const phone = userData?.mobileNumber || userData?.msisdn || onboardingData?.mobileNumber || "+233 -- --- ----";
 
