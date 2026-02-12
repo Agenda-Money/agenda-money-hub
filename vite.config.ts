@@ -6,6 +6,8 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
+    // Setting host: true makes the dev server listen on all network interfaces.
+    // This is useful for development when accessing from other devices on the same network.
     host: true, 
     port: 8081,
   },

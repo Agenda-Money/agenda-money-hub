@@ -3,7 +3,6 @@ import { ArrowLeft, Briefcase, Stethoscope, GraduationCap, Home, MoreHorizontal,
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
 
 interface LoanApplicationPageProps {
   tierLimit: number;
@@ -22,7 +21,7 @@ const PURPOSES = [
 const TENURE_OPTIONS = [1, 5, 10, 14];
 
 export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({ tierLimit, onBack, onContinue }) => {
-  const [amount, setAmount] = useState<number>(Math.min(140, tierLimit));
+  const [amount, setAmount] = useState<number>(Math.max(50, Math.min(140, tierLimit)));
   const [tenure, setTenure] = useState<number>(10);
   const [purpose, setPurpose] = useState<string>("Business");
 

@@ -6,9 +6,7 @@ import {
   HelpCircle, 
   LogOut, 
   ChevronRight, 
-  CheckCircle2,
-  ShieldCheck,
-  X
+  ShieldCheck
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
