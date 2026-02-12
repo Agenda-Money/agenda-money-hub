@@ -66,7 +66,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
         if (process.env.NODE_ENV !== "production") {
           console.log("Payload:", payload);
         }
-        const agendaToken = typeof window !== "undefined" ? localStorage.getItem("agenda_token") : null;
+        const agendaToken = localStorage.getItem("agenda_token");
         const response = await api.post(
           '/api/loans/request',
           payload,
