@@ -8,6 +8,7 @@ interface RepaymentPageProps {
   amountDue: number;
   dueDate: string;
   msisdn: string;
+  userName?: string;
   onBack: () => void;
   onRepay: (amount: number, method: string) => void;
 }
@@ -16,6 +17,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
   amountDue, 
   dueDate, 
   msisdn, 
+  userName,
   onBack, 
   onRepay 
 }) => {
@@ -24,11 +26,20 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleNext = () => {
+    const finalAmount = paymentType === "full" ? amountDue : Number(partialAmount);
+    
+    // Validate partial amount
+    if (paymentType === "partial") {
+      const parsedAmount = Number(partialAmount);
+      if (!Number.isFinite(parsedAmount) || parsedAmount < 5 || parsedAmount > amountDue) {
+        return; // Don't proceed if invalid
+      }
+    }
+    
     setIsProcessing(true);
     // Simulate API call or processing delay
     setTimeout(() => {
         setIsProcessing(false);
-        const finalAmount = paymentType === "full" ? amountDue : Number(partialAmount);
         onRepay(finalAmount, "MTN Mobile Money");
     }, 1500);
   };
@@ -132,6 +143,8 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
                                 type="number" 
                                 value={partialAmount}
                                 onChange={(e) => setPartialAmount(e.target.value)}
+                                min={5}
+                                max={amountDue}
                                 placeholder="0"
                                 className="w-full bg-transparent border-b border-gray-200 text-center text-4xl font-bold text-gray-900 focus:outline-none focus:border-gray-900 pb-2 placeholder:text-gray-300"
                                 autoFocus
@@ -155,7 +168,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
                         MTN
                     </div>
                     <div>
-                        <p className="text-sm font-bold text-gray-900 uppercase">ENOCK QUEENSON</p>
+                        <p className="text-sm font-bold text-gray-900 uppercase">{userName || "User"}</p>
                         <p className="text-xs text-gray-500">+{msisdn}</p>
                     </div>
                 </div>
@@ -169,7 +182,14 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
       <div className="bg-white p-6 border-t border-gray-100 pb-8">
         <Button 
             onClick={handleNext}
-            disabled={isProcessing || (paymentType === "partial" && (!partialAmount || Number(partialAmount) <= 0))}
+            disabled={
+              isProcessing || 
+              (paymentType === "partial" && (
+                !partialAmount || 
+                Number(partialAmount) < 5 || 
+                Number(partialAmount) > amountDue
+              ))
+            }
             className="w-full h-14 rounded-full bg-[#D1D5DB] hover:bg-[#9CA3AF] text-gray-900 font-bold text-lg shadow-sm disabled:opacity-70 transition-all"
         >
             {isProcessing ? "Processing..." : (paymentType === "partial" ? "Confirm Payment" : "Next")}

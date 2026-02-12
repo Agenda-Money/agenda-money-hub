@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { uploadToSupabase } from "@/lib/supabase";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
-import { ActionCard } from "@/components/dashboard/ActionCard";
 import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
 import { ProfileTab } from "./ProfileTab";
@@ -230,8 +229,7 @@ export default function ApplyPage() {
   const [direction, setDirection] = useState(0);
   const [msisdnInput, setMsisdnInput] = useState("");
   const [nodeCode, setNodeCode] = useState("");
-  const [nodeName, setNodeName] = useState<string | null>(null);
-  const [showNodeCode, setShowNodeCode] = useState(false);
+  const [, setNodeName] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [userData, setUserData] = useState<Record<string, unknown> | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
@@ -256,17 +254,17 @@ export default function ApplyPage() {
   const [isSubmittingOnboarding, setIsSubmittingOnboarding] = useState(false);
   const [onboardingSubmitted, setOnboardingSubmitted] = useState(false);
   const [successNodeCode, setSuccessNodeCode] = useState<string | null>(null);
-  const [isRequestingLoan, setIsRequestingLoan] = useState(false);
+  const [, setIsRequestingLoan] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
-  const [loanSummary, setLoanSummary] = useState<{
+  const [, setLoanSummary] = useState<{
     disbursementAmount: number; repaymentAmount: number; repaymentDate: string; msisdn: string;
   } | null>(null);
   
   // Mock Data States
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
-  const [recentActivity, setRecentActivity] = useState(MOCK_ACTIVITY);
+  const [notifications] = useState(MOCK_NOTIFICATIONS);
+  const [recentActivity] = useState(MOCK_ACTIVITY);
 
   const frontCardRef = useRef<HTMLInputElement>(null);
   const backCardRef = useRef<HTMLInputElement>(null);
@@ -859,7 +857,6 @@ export default function ApplyPage() {
     const isOverdue = loanStatus === "OVERDUE";
     // For manual testing/dev, you can force a state here:
     // const isUnderReview = true; 
-    const isEligible = !isUnderReview && !isActive && !isOverdue;
 
     return (
       <div className={cn("min-h-screen pb-24 transition-colors duration-500 bg-[#FAFAFA] relative overflow-hidden", isOverdue && "bg-red-50/50")}>

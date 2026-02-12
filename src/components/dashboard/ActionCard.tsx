@@ -36,7 +36,16 @@ export const ActionCard: React.FC<ActionCardProps> = ({
         "hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.08),0_20px_40px_-5px_rgba(0,0,0,0.04)]",
         className
       )}
+      role="button"
+      tabIndex={0}
       onClick={onAction}
+      onKeyDown={(e) => {
+        if (!onAction) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onAction();
+        }
+      }}
     >
       <div className="flex items-center justify-between gap-4 relative z-10">
         <div className="flex items-center gap-4">

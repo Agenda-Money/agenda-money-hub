@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Send, AlertCircle, Share2, TrendingUp } from "lucide-react";
+import { Send, Share2, TrendingUp } from "lucide-react";
 
 export type LoanStatus = "eligible" | "active" | "overdue" | "review" | "progress" | "node";
 
@@ -120,7 +120,16 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
         current.bgClass,
         className
       )}
+      role="button"
+      tabIndex={0}
       onClick={() => onAction && current.buttonAction && onAction(current.buttonAction)}
+      onKeyDown={(e) => {
+        if (!onAction || !current.buttonAction) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onAction(current.buttonAction);
+        }
+      }}
     >
       {/* Top Section */}
       <div className="flex justify-between items-start mb-4 relative z-10">
