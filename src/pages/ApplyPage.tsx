@@ -70,6 +70,24 @@ const MOCK_ACTIVITY = [
   { id: 3, title: "Loan Disbursed", date: "01 Feb 2026, 09:00 AM", amount: 300, type: "loan" }
 ];
 
+interface OnboardingData {
+  firstName: string;
+  surname: string;
+  dob: string;
+  gender: string;
+  region: string;
+  address: string;
+  accommodationType: string;
+  yearsAtAddress: string;
+  educationLevel: string;
+  employmentStatus: string;
+  monthlyIncome: string;
+  ghanaCardNumber: string;
+  ghanaCardFrontUrl: string;
+  ghanaCardBackUrl: string;
+  selfieUrl: string;
+}
+
 type TierLimit = {
   tier: number;
   min: number;
