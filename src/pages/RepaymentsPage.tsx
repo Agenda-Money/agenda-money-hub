@@ -113,7 +113,7 @@ export default function RepaymentsPage() {
               Payment Recorded!
             </h2>
             <p className="text-muted-foreground mb-6">
-              {resultData.message || `Successfully recorded GHS${amount} repayment`}
+              {resultData.message || `Successfully recorded GHS ${Number(amount || 0).toFixed(2)} repayment`}
             </p>
             
             <div className="bg-muted/50 rounded-lg p-4 text-left mb-6">

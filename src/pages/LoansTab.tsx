@@ -37,7 +37,7 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan }) => 
               </div>
               <div>
                   <h3 className="text-lg font-bold text-gray-900">No Active Loans</h3>
-                  <p className="text-gray-500 text-sm">You verify your history here once you have a loan.</p>
+                  <p className="text-gray-500 text-sm">You can view your loan history here once you have a loan.</p>
               </div>
           </div>
       );
@@ -62,7 +62,10 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan }) => 
       />
 
       {/* Repay Action Card - Make a Repayment */}
-      <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 shadow-lg text-white flex items-center justify-between cursor-pointer active:scale-95 transition-transform hover:scale-[1.02] duration-200" onClick={onRepay}>
+      <button 
+        className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 shadow-lg text-white flex items-center justify-between cursor-pointer active:scale-95 transition-transform hover:scale-[1.02] duration-200 w-full" 
+        onClick={onRepay}
+      >
           <div>
               <h3 className="font-bold text-lg">Make a Repayment</h3>
               <p className="text-gray-300 text-sm">Pay off your loan now</p>
@@ -74,7 +77,7 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan }) => 
                 <path d="M8 12H16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
              </svg>
           </div>
-      </div>
+      </button>
 
       {/* 3. Repayment Progress Card */}
       <div className="bg-white rounded-[32px] p-6 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] border border-gray-100 space-y-6">

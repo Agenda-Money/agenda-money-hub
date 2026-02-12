@@ -54,19 +54,34 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
     setIsSubmitting(true);
     setError(null); // Clear previous errors
     try {
-        console.log("Submitting loan request to /api/loans/request...");
+        if (process.env.NODE_ENV !== "production") {
+          console.log("Submitting loan request to /api/loans/request...");
+        }
         const payload = {
             msisdn: applicant?.msisdn,
-            amount: loanData.amount,
-            tenureDays: loanData.tenure,
-            purpose: loanData.purpose
+            loanAmount: loanData.amount,
+            loanTenure: loanData.tenure,
+            loanPurpose: loanData.purpose
         };
-        console.log("Payload:", payload);
-        const response = await api.post('/api/loans/request', payload);
-        console.log("Loan submission success:", response.data);
+        if (process.env.NODE_ENV !== "production") {
+          console.log("Payload:", payload);
+        }
+        const agendaToken = typeof window !== "undefined" ? localStorage.getItem("agenda_token") : null;
+        const response = await api.post(
+          '/api/loans/request',
+          payload,
+          agendaToken
+            ? { headers: { Authorization: `Bearer ${agendaToken}` } }
+            : undefined
+        );
+        if (process.env.NODE_ENV !== "production") {
+          console.log("Loan submission success:", response.data);
+        }
         setIsSuccess(true);
     } catch (error: any) {
-        console.error("Loan submission failed:", error);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Loan submission failed:", error);
+        }
         // Extract error message if available
         const message = error.response?.data?.message || "Failed to submit loan application. Please try again.";
         setError(message);
@@ -123,7 +138,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Personal Details</h3>
                <div className="space-y-2">
                  <div className="flex justify-between items-center text-sm">
-                   <span className="text-gray-400">Amount to repay</span>
+                   <span className="text-gray-400">Full name</span>
                    <span className="font-bold text-gray-900 uppercase">{applicant?.firstName} {applicant?.lastName}</span>
                  </div>
                  <div className="flex justify-between items-center text-sm">
