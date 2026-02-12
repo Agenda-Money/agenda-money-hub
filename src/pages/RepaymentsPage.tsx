@@ -113,7 +113,7 @@ export default function RepaymentsPage() {
               Payment Recorded!
             </h2>
             <p className="text-muted-foreground mb-6">
-              {resultData.message || `Successfully recorded ₵${amount} repayment`}
+              {resultData.message || `Successfully recorded GHS${amount} repayment`}
             </p>
             
             <div className="bg-muted/50 rounded-lg p-4 text-left mb-6">
@@ -130,11 +130,11 @@ export default function RepaymentsPage() {
                  </div>
                  <div>
                    <p className="text-muted-foreground">Wallet Balance</p>
-                   <p className="font-medium text-lg text-primary">₵{resultData.walletBalance ?? "0.00"}</p>
+                   <p className="font-medium text-lg text-primary">GHS{resultData.walletBalance ?? "0.00"}</p>
                  </div>
                  <div>
                    <p className="text-muted-foreground">Remaining Loan Balance</p>
-                   <p className="font-bold text-lg">₵{resultData.remainingBalance ?? "0.00"}</p>
+                   <p className="font-bold text-lg">GHS{resultData.remainingBalance ?? "0.00"}</p>
                  </div>
               </div>
             </div>

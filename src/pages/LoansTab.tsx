@@ -1,43 +1,80 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { LoanStatusCard } from "@/components/dashboard/LoanStatusCard";
+import { cn } from "@/lib/utils";
 
 interface LoansTabProps {
   onBack?: () => void;
+  onRepay?: () => void;
+  loan?: any; // We'll type this properly if possible, but 'any' is safe for now given the context
 }
 
-export const LoansTab: React.FC<LoansTabProps> = ({ onBack }) => {
-  // Mock Data
-  const activeLoan = {
-    amount: 141,
-    totalDue: 354,
-    paidAmount: 296,
-    dueDate: "24 Feb 2026",
-    disbursementDate: "01 Feb 2026",
-    history: [
-      { amount: 50, date: "05 Feb 2026", status: "Paid" },
-      { amount: 70, date: "13 Feb 2026", status: "Paid" },
-      { amount: 30, date: "20 Feb 2026", status: "Paid" },
-    ]
-  };
+export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan }) => {
+  // Use passed loan data or fall back to a safe empty state (or the previous mock if needed for demo, but user wants real data)
+  // For now, let's map the 'loan' prop to the structure LoansTab expects.
+  // The 'loan' prop likely comes from 'applicant' in ApplyPage.
 
-  const progress = (activeLoan.paidAmount / activeLoan.totalDue) * 100;
+  // Map the new deep detailed loan object
+  const activeLoan = loan ? {
+    amount: loan.amount || 0,
+    totalDue: loan.totalPayable || loan.totalDue || 0,
+    paidAmount: loan.paidAmount || 0, // Used for progress labels
+    outstandingBalance: loan.outstandingBalance || 0, // Used for main bold currency
+    dueDate: loan.dueDate ? new Date(loan.dueDate).toDateString() : "N/A",
+    disbursementDate: loan.disbursementDate ? new Date(loan.disbursementDate).toDateString() : "N/A",
+    history: loan.history || [], // New history array
+    progressPercent: loan.repaymentProgress?.percentage || 0, // New progress field
+    daysRemaining: loan.daysRemaining || 0 // Map daysRemaining
+  } : null;
+
+  if (!activeLoan) {
+      return (
+          <div className="flex flex-col items-center justify-center h-64 text-center p-6 space-y-4">
+              <div className="bg-gray-100 p-4 rounded-full">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+              </div>
+              <div>
+                  <h3 className="text-lg font-bold text-gray-900">No Active Loans</h3>
+                  <p className="text-gray-500 text-sm">You verify your history here once you have a loan.</p>
+              </div>
+          </div>
+      );
+  }
+
+  // Urgency Logic
+  const isUrgent = activeLoan.daysRemaining < 3 && activeLoan.daysRemaining >= 0;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 pb-32 pt-0">
       
-      {/* 1. Header Removed as per request */}
-      {/* <div className="flex items-center justify-center mb-6 pt-4">
-        <h2 className="text-lg font-bold text-gray-900">Active Loan</h2>
-      </div> */}
-
       {/* 2. Active Loan Card */}
       <LoanStatusCard 
         status="active"
-        amount={activeLoan.amount}
+        amount={activeLoan.outstandingBalance} // Use Outstanding Balance
         dueDate={activeLoan.dueDate}
+        progress={activeLoan.progressPercent / 100} // Pass 0-1 range if component expects it, or just use percentage
         className="shadow-sm"
+        onAction={(action) => {
+          if (action === 'repay') onRepay?.();
+        }}
       />
+
+      {/* Repay Action Card - Make a Repayment */}
+      <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 shadow-lg text-white flex items-center justify-between cursor-pointer active:scale-95 transition-transform hover:scale-[1.02] duration-200" onClick={onRepay}>
+          <div>
+              <h3 className="font-bold text-lg">Make a Repayment</h3>
+              <p className="text-gray-300 text-sm">Pay off your loan now</p>
+          </div>
+          <div className="bg-white/10 p-3 rounded-full">
+             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 8V16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 12H16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+             </svg>
+          </div>
+      </div>
 
       {/* 3. Repayment Progress Card */}
       <div className="bg-white rounded-[32px] p-6 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] border border-gray-100 space-y-6">
@@ -46,27 +83,29 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack }) => {
               <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Repayment Progress</span>
            </div>
            
-           {/* Progress Bar */}
+           {/* Progress Bar (Grey background) */}
            <div className="h-4 bg-gray-100 rounded-full overflow-hidden mb-2">
               <motion.div 
                 initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
+                animate={{ width: `${activeLoan.progressPercent}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
                 className="h-full bg-gray-500 rounded-full"
               />
            </div>
            
            <div className="flex justify-between items-center text-sm font-bold text-gray-900">
-              <span>₵{activeLoan.paidAmount}/{activeLoan.totalDue}</span>
-              <span>{Math.round(progress)}%</span>
+              <span>GHS {activeLoan.paidAmount}/GHS {activeLoan.totalDue}</span>
+              <span>{Math.round(activeLoan.progressPercent)}%</span>
            </div>
         </div>
 
         <div className="space-y-3 pt-2">
            <p className="text-sm font-bold text-gray-900">Loan Details</p>
            <div className="flex justify-between text-sm">
-              <span className="text-gray-500 font-medium">Due Date</span>
-              <span className="text-gray-900 font-bold">{activeLoan.dueDate}</span>
+              <span className={cn("font-medium", isUrgent ? "text-[#EC1B84]" : "text-gray-500")}>Due Date</span>
+              <span className={cn("font-bold", isUrgent ? "text-[#EC1B84]" : "text-gray-900")}>
+                  {activeLoan.dueDate} {isUrgent && activeLoan.daysRemaining > 0 && `(${activeLoan.daysRemaining} days left)`}
+              </span>
            </div>
            <div className="flex justify-between text-sm">
               <span className="text-gray-500 font-medium">Disbursement Date</span>
@@ -89,19 +128,22 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack }) => {
 
             {/* Rows */}
             <div className="divide-y divide-gray-50">
-               {activeLoan.history.map((item, i) => (
-                  <div key={i} className="flex justify-between px-6 py-4 items-center">
-                     <span className="w-1/3 font-bold text-gray-900">₵{item.amount}</span>
-                     <span className="w-1/3 text-center text-sm text-gray-500 font-medium">{item.date}</span>
-                     <div className="w-1/3 flex justify-end">
-                        <div className="w-4 h-4 rounded-full bg-[#82D616]" /> {/* Green dot from screenshot */}
-                     </div>
-                  </div>
-               ))}
+               {activeLoan.history.length === 0 ? (
+                   <div className="p-6 text-center text-xs text-gray-400">No repayments yet</div>
+               ) : (
+                   activeLoan.history.map((item: any, i: number) => (
+                      <div key={i} className="flex justify-between px-6 py-4 items-center">
+                         <span className="w-1/3 font-bold text-gray-900">GHS {item.amount}</span>
+                         <span className="w-1/3 text-center text-sm text-gray-500 font-medium">{new Date(item.paymentDate || item.date).toLocaleDateString("en-GB", { day: '2-digit', month: 'short' })}</span>
+                         <div className="w-1/3 flex justify-end">
+                            <div className="w-4 h-4 rounded-full bg-[#82D616]" title="Success" /> {/* Success Green dot */}
+                         </div>
+                      </div>
+                   ))
+               )}
             </div>
          </div>
       </div>
-
     </div>
   );
 };
