@@ -66,12 +66,12 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
         if (process.env.NODE_ENV !== "production") {
           console.log("Payload:", payload);
         }
-        const agendaToken = localStorage.getItem("agenda_token");
+        const applicantAuthToken = localStorage.getItem("agenda_token");
         const response = await api.post(
           '/api/loans/request',
           payload,
-          agendaToken
-            ? { headers: { Authorization: `Bearer ${agendaToken}` } }
+          applicantAuthToken
+            ? { headers: { Authorization: `Bearer ${applicantAuthToken}` } }
             : undefined
         );
         if (process.env.NODE_ENV !== "production") {
