@@ -13,6 +13,8 @@ interface RepaymentPageProps {
   onRepay: (amount: number, method: string) => void;
 }
 
+const MIN_PARTIAL_PAYMENT = 5;
+
 export const RepaymentPage: React.FC<RepaymentPageProps> = ({ 
   amountDue, 
   dueDate, 
@@ -29,7 +31,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
   const isPartialAmountValid = () => {
     if (paymentType !== "partial") return true;
     const parsedAmount = Number(partialAmount);
-    return Number.isFinite(parsedAmount) && parsedAmount >= 5 && parsedAmount <= amountDue;
+    return Number.isFinite(parsedAmount) && parsedAmount >= MIN_PARTIAL_PAYMENT && parsedAmount <= amountDue;
   };
 
   const handleNext = () => {
@@ -146,7 +148,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
                                 type="number" 
                                 value={partialAmount}
                                 onChange={(e) => setPartialAmount(e.target.value)}
-                                min={5}
+                                min={MIN_PARTIAL_PAYMENT}
                                 max={amountDue}
                                 placeholder="0"
                                 className="w-full bg-transparent border-b border-gray-200 text-center text-4xl font-bold text-gray-900 focus:outline-none focus:border-gray-900 pb-2 placeholder:text-gray-300"
@@ -155,7 +157,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
                         </div>
 
                         <p className="text-xs text-gray-400 font-medium pt-2 border-t border-gray-100 w-full">
-                           Min. GHS5
+                           Min. GHS{MIN_PARTIAL_PAYMENT}
                         </p>
                     </motion.div>
                 )}
@@ -171,7 +173,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
                         MTN
                     </div>
                     <div>
-                        <p className="text-sm font-bold text-gray-900 uppercase">{userName || "User"}</p>
+                        <p className="text-sm font-bold text-gray-900 uppercase">{userName || "Account Holder"}</p>
                         <p className="text-xs text-gray-500">+{msisdn}</p>
                     </div>
                 </div>
