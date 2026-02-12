@@ -25,16 +25,19 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
   const [partialAmount, setPartialAmount] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Validation helper for partial payments
+  const isPartialAmountValid = () => {
+    if (paymentType !== "partial") return true;
+    const parsedAmount = Number(partialAmount);
+    return Number.isFinite(parsedAmount) && parsedAmount >= 5 && parsedAmount <= amountDue;
+  };
+
   const handleNext = () => {
-    const finalAmount = paymentType === "full" ? amountDue : Number(partialAmount);
-    
-    // Validate partial amount
-    if (paymentType === "partial") {
-      const parsedAmount = Number(partialAmount);
-      if (!Number.isFinite(parsedAmount) || parsedAmount < 5 || parsedAmount > amountDue) {
-        return; // Don't proceed if invalid
-      }
+    if (!isPartialAmountValid()) {
+      return; // Don't proceed if invalid
     }
+    
+    const finalAmount = paymentType === "full" ? amountDue : Number(partialAmount);
     
     setIsProcessing(true);
     // Simulate API call or processing delay
@@ -182,14 +185,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
       <div className="bg-white p-6 border-t border-gray-100 pb-8">
         <Button 
             onClick={handleNext}
-            disabled={
-              isProcessing || 
-              (paymentType === "partial" && (
-                !partialAmount || 
-                Number(partialAmount) < 5 || 
-                Number(partialAmount) > amountDue
-              ))
-            }
+            disabled={isProcessing || !isPartialAmountValid()}
             className="w-full h-14 rounded-full bg-[#D1D5DB] hover:bg-[#9CA3AF] text-gray-900 font-bold text-lg shadow-sm disabled:opacity-70 transition-all"
         >
             {isProcessing ? "Processing..." : (paymentType === "partial" ? "Confirm Payment" : "Next")}
