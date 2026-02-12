@@ -573,29 +573,6 @@ export default function ApplyPage() {
     } catch (e: any) { setErrorMessage(e?.message || "Onboarding failed."); } finally { setIsSubmittingOnboarding(false); }
   };
 
-  const handleLoanRequest = async () => {
-    setErrorMessage(null);
-    if (!authToken) { setErrorMessage("Session expired. Please verify again."); return; }
-    const isNewUser = (applicant as any)?.isNewUser !== false;
-    if (!onboardingSubmitted && isNewUser) { await handleOnboardingSubmit(); return; }
-    setIsRequestingLoan(true);
-    try {
-      const r = await fetch(`${baseApiUrl}/api/loans/request`, {
-        method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ loanAmount, loanTenure, loanPurpose }),
-      });
-      const p = await r.json();
-      if (!r.ok) throw new Error(p?.message || "Loan request failed.");
-      setLoanSummary({
-        disbursementAmount: Number(p?.disbursementAmount ?? loanAmount),
-        repaymentAmount: Number(p?.repaymentAmount ?? loanAmount),
-        repaymentDate: p?.repaymentDate ? new Date(p.repaymentDate).toDateString() : new Date(Date.now() + loanTenure * 86400000).toDateString(),
-        msisdn: String(p?.msisdn ?? userData?.msisdn ?? ""),
-      });
-    } catch (e: any) { setErrorMessage(e?.message || "Loan request failed."); } finally { setIsRequestingLoan(false); }
-  };
-
   const canSubmitEntry = Boolean(msisdnInput.length === 9 && normalizedMsisdn);
   const canVerify = otp.length === OTP_LENGTH;
 
