@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { LoanStatusCard, LoanStatus } from "@/components/dashboard/LoanStatusCard";
+import { Wallet, CheckCircle2 } from "lucide-react";
 
 interface UserDashboardProps {
   applicant: any;
@@ -11,9 +12,10 @@ interface UserDashboardProps {
   recentActivity?: any[];
   isLoading?: boolean;
   activeLoanDetails?: any;
+  loanStatus?: string;
 }
 
-export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLimit = 300, onAction, notifications = [], recentActivity = [], isLoading = false, activeLoanDetails }) => {
+export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLimit = 300, onAction, notifications = [], recentActivity = [], isLoading = false, activeLoanDetails, loanStatus }) => {
 
   const hasActiveLoan = !!activeLoanDetails;
   
