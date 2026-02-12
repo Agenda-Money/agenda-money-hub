@@ -38,14 +38,17 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
   // Configuration for each state
   const config: Record<LoanStatus, any> = {
     eligible: {
-      title: "Apply for Your First Loan",
-      subtext: "Up to ₵300",
-      mainText: null, // No large text for this state, just button
+      title: "Get instant access to funds",
+      subtext: "Fast approval, secure process.",
+      icon: Send, 
+      mainText: `Up to GHS ${amount}`,
+      mainTextClass: "text-3xl font-extrabold tracking-tight text-[#EC1B84] mt-2 mb-1", 
       bottomText: null,
-      buttonLabel: "Apply for loan",
+      bottomTextClass: null,
+      buttonLabel: "Apply Now",
       buttonAction: "apply",
-      bgClass: "bg-gray-100",
-      btnClass: "bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-full px-6 py-2 text-sm font-medium",
+      bgClass: "bg-white border border-pink-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
+      btnClass: "bg-[#EC1B84] text-white hover:bg-[#D41472] rounded-full px-8 py-3 text-sm font-bold shadow-lg shadow-pink-200 transform transition hover:scale-105",
     },
     review: {
       title: "Application under review",
@@ -61,7 +64,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
     active: {
       title: "Your Active Loan",
       subtext: "Outstanding Balance",
-      mainText: `₵${amount.toFixed(2)}`,
+      mainText: `GHS ${amount.toFixed(2)}`,
       mainTextClass: "text-4xl font-bold tracking-tight text-gray-900",
       bottomText: `Due: ${dueDate || "Unknown"}`,
       buttonLabel: "Repay",
@@ -72,7 +75,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
     overdue: {
       title: "Payment Overdue",
       subtext: "Your loan repayment is past due",
-      mainText: `₵${amount.toFixed(2)}`,
+      mainText: `GHS ${amount.toFixed(2)}`,
       mainTextClass: "text-4xl font-bold tracking-tight text-red-600",
       bottomText: overdueDays ? `Overdue by ${overdueDays} days` : "Payment is late",
       bottomTextClass: "text-red-600 font-medium",
@@ -138,31 +141,64 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       <div className="flex items-end justify-between relative z-10">
          <div>
             {current.mainText && (
-                <div className={current.mainTextClass}>
+                <div className={cn("relative z-10", current.mainTextClass)}>
                     {current.mainText}
                 </div>
             )}
+            
             {current.bottomText && (
-                <p className={cn("text-xs text-gray-500 mt-1", (current as any).bottomTextClass)}>
-                    {current.bottomText}
+                <p className={cn(
+                    "text-xs mt-1", 
+                    status === 'node' && points && points > 0 
+                        ? "inline-block bg-green-100/80 text-green-700 px-2 py-0.5 rounded-md font-bold mt-2" 
+                        : "text-gray-500",
+                    (current as any).bottomTextClass
+                )}>
+                    {/* Badge for Tier Progress if complete */}
+                    {status === 'progress' && totalLoansRepaid >= targetLoans 
+                        ? <span className="inline-block bg-[#EC1B84] text-white px-2 py-0.5 rounded-md font-bold animate-pulse">Tier 2 Unlocked!</span>
+                        : current.bottomText}
                 </p>
             )}
          </div>
 
-         {/* Button */}
-         {current.buttonLabel && (
-           <button className={current.btnClass}>
-              {current.buttonLabel}
-           </button>
+         {/* Active Loan Circular Ring (Replacing Icon/Button area if active) */}
+         {status === 'active' && typeof progress === 'number' ? (
+             <div className="relative w-16 h-16 flex items-center justify-center">
+                 {/* Background Circle */}
+                 <svg className="w-full h-full transform -rotate-90">
+                     <circle cx="32" cy="32" r="28" stroke="#F3F4F6" strokeWidth="4" fill="none" />
+                     {/* Progress Circle */}
+                     <motion.circle 
+                        cx="32" cy="32" r="28" 
+                        stroke="#EC1B84" 
+                        strokeWidth="4" 
+                        fill="none" 
+                        strokeDasharray={2 * Math.PI * 28}
+                        initial={{ strokeDashoffset: 2 * Math.PI * 28 }}
+                        animate={{ strokeDashoffset: 2 * Math.PI * 28 * (1 - progress) }}
+                        transition={{ duration: 1.5, ease: "easeOut" }}
+                        strokeLinecap="round"
+                     />
+                 </svg>
+                 <span className="absolute text-xs font-bold text-gray-900">{Math.round(progress * 100)}%</span>
+             </div>
+         ) : (
+             /* Standard Button */
+             current.buttonLabel && (
+                <button className={current.btnClass}>
+                   {current.buttonLabel}
+                </button>
+             )
          )}
       </div>
 
-      {/* Progress Bar (Specific for active loan) */}
-      {status === 'active' && typeof progress === 'number' && (
+      {/* Progress Bar (Tier Progress - Horizontal) */}
+      {status === 'progress' && (
         <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-100">
           <motion.div 
             initial={{ width: 0 }} 
-            animate={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }} 
+            animate={{ width: `${Math.min(100, Math.max(0, (totalLoansRepaid / targetLoans) * 100))}%` }} 
             transition={{ duration: 1, ease: "easeOut" }}
             className="h-full bg-[#EC1B84]" 
           />

@@ -15,7 +15,10 @@ import agendaLogo from "@/assets/agenda-money-logo.jpg";
 import { ActionCard } from "@/components/dashboard/ActionCard";
 import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
-import { ProfileTab } from "@/pages/ProfileTab";
+import { ProfileTab } from "./ProfileTab";
+import { LoanApplicationPage } from "./LoanApplicationPage";
+import { LoanSummaryPage } from "./LoanSummaryPage";
+import { RepaymentPage } from "./RepaymentPage";
 import {
   Bell,
   Home,
@@ -33,6 +36,7 @@ const baseApiUrl = import.meta.env.VITE_API_URL || "";
 const OTP_LENGTH = 6;
 const OTP_SLOTS = ["one", "two", "three", "four", "five", "six"];
 const RESEND_SECONDS = 60;
+import { X } from "lucide-react";
 
 const GHANA_REGIONS = [
   "Greater Accra", "Ashanti", "Central", "Eastern", "Northern",
@@ -46,6 +50,25 @@ const ACCOMMODATION_TYPES = ["Owned", "Rented", "Living with family", "Other"];
 const EDUCATION_LEVELS = ["None", "Primary", "Secondary", "Tertiary"];
 const EMPLOYMENT_OPTIONS = ["Employed", "Self-Employed", "Unemployed", "Student"];
 const INCOME_BRACKETS = ["Below GHS 1000", "GHS 1000-2000", "GHS 2000-5000", "Above GHS 5000"];
+const TERMS_LIST = [
+  "Interest rate: 0.5% per day",
+  "Processing fee: GHS 30 flat",
+  "Requirement: 18+ years",
+  "Requirement: Valid Ghana Card",
+  "Late payment affects credit score",
+  "Penal interest: 2% per day on overdue amount"
+];
+
+const MOCK_NOTIFICATIONS = [
+  { id: 1, title: "Repayment Reminder", message: "Your loan repayment of GHS 150 is due in 3 days. Pay early to boost your credit score!", time: "1 day ago", type: "reminder" },
+  { id: 2, title: "Loan Approved", message: "Your loan application for GHS 300 has been approved and moved to disbursement queue.", time: "2 days ago", type: "success" }
+];
+
+const MOCK_ACTIVITY = [
+  { id: 1, title: "Loan Disbursed", date: "Today, 10:23 AM", amount: 140, type: "loan" },
+  { id: 2, title: "Repayment Received", date: "Yesterday, 4:15 PM", amount: -50, type: "payment" },
+  { id: 3, title: "Loan Disbursed", date: "01 Feb 2026, 09:00 AM", amount: 300, type: "loan" }
+];
 
 type TierLimit = {
   tier: number;
@@ -92,13 +115,12 @@ const STEPS = [
 ];
 
 /* ─── Shared Header ─── */
-/* ─── Shared Header ─── */
-function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick }: { user?: any; subtitle?: string; onAvatarClick?: () => void; onNotificationClick?: () => void }) {
+function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick, hasNotifications }: { user?: any; subtitle?: string; onAvatarClick?: () => void; onNotificationClick?: () => void, hasNotifications?: boolean }) {
   const firstName = user?.firstName || user?.fullName?.split(" ")[0] || "User";
   const initials = firstName[0]?.toUpperCase() || "U";
 
   return (
-    <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-gray-100/50 transition-all duration-300">
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100/50 transition-all duration-300">
       <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
         
         {user ? (
@@ -111,14 +133,14 @@ function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick }: { us
                 </div>
               </div>
               <div className="text-left">
-                <p className="text-sm font-bold text-gray-900 leading-tight">Hi, {firstName}</p>
-                <p className="text-[10px] text-gray-500 font-medium">Tier {user?.currentTier || 1} Member</p>
+                <p className="text-xs text-gray-400 font-medium">Welcome back,</p>
+                <p className="text-sm font-bold text-gray-900 leading-tight">{firstName}</p>
               </div>
             </button>
 
             {/* Center: Brand Logo */}
-            <div className="absolute left-1/2 transform -translate-x-1/2">
-               <img src={agendaLogo} alt="Agenda Money" className="h-6 w-auto opacity-90 rounded-xl" />
+            <div className="absolute left-1/2 transform -translate-x-1/2 opacity-0 pointer-events-none">
+               {/* Hidden on main dash to avoid clutter, kept for structure if needed */}
             </div>
 
             {/* Right: Notification Bell */}
@@ -127,7 +149,9 @@ function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick }: { us
               className="relative w-10 h-10 rounded-full bg-white/50 border border-white/20 shadow-sm flex items-center justify-center active:scale-95 transition-transform backdrop-blur-sm hover:bg-white/80"
             >
                <Bell className="w-5 h-5 text-gray-700" />
-               <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 border border-white" />
+               {hasNotifications && (
+                 <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#EC1B84] border border-white animate-pulse" />
+               )}
             </button>
           </>
         ) : (
@@ -203,14 +227,10 @@ export default function ApplyPage() {
   const [isRepaymentOpen, setIsRepaymentOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
 
-  const [onboardingData, setOnboardingData] = useState({
-    firstName: "", surname: "", dob: "", gender: "",
-    region: "", address: "", ghanaCardNumber: "GHA-",
-    ghanaCardFrontUrl: "", ghanaCardBackUrl: "", selfieUrl: "",
-    accommodationType: "", yearsAtAddress: "",
-    educationLevel: "", employmentStatus: "", monthlyIncome: "",
-  });
+  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>({});
+  const [loanApplicationData, setLoanApplicationData] = useState<{ amount: number; tenure: number; purpose: string } | null>(null);
 
   const [loanAmount, setLoanAmount] = useState(100);
   const [loanTenure, setLoanTenure] = useState(14);
@@ -225,6 +245,10 @@ export default function ApplyPage() {
   const [loanSummary, setLoanSummary] = useState<{
     disbursementAmount: number; repaymentAmount: number; repaymentDate: string; msisdn: string;
   } | null>(null);
+  
+  // Mock Data States
+  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [recentActivity, setRecentActivity] = useState(MOCK_ACTIVITY);
 
   const frontCardRef = useRef<HTMLInputElement>(null);
   const backCardRef = useRef<HTMLInputElement>(null);
@@ -253,7 +277,39 @@ export default function ApplyPage() {
     return parsed.number.replace("+", "");
   }, [msisdnInput]);
 
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
   // ─── Effects ───
+  useEffect(() => {
+    const checkAuth = async () => {
+       const storedToken = globalThis.localStorage.getItem("agenda_token");
+       if (!storedToken) {
+          setIsCheckingAuth(false);
+          return;
+       }
+
+       setAuthToken(storedToken);
+       try {
+         const r = await fetch(`${baseApiUrl}/api/auth/me`, { headers: { Accept: "application/json", Authorization: `Bearer ${storedToken}` } });
+         const p = await r.json();
+         if (r.ok && p?.user) {
+           setApplicant(p.user); setUserData(p.user);
+           setView(p.user.kycStatus === "VERIFIED" ? "loan-dashboard" : "onboarding");
+         } else {
+           globalThis.localStorage.removeItem("agenda_token"); setAuthToken(null);
+         }
+       } catch (e) { 
+         console.error("Session check failed", e); 
+         globalThis.localStorage.removeItem("agenda_token"); setAuthToken(null);
+       } finally {
+         // Add a small delay for smoother transition
+         setTimeout(() => setIsCheckingAuth(false), 500);
+       }
+    };
+    
+    checkAuth();
+  }, [setApplicant]);
+
   useEffect(() => {
     if (view === "onboarding") {
       const kyc = (applicant as any)?.kycStatus as string | undefined;
@@ -270,24 +326,39 @@ export default function ApplyPage() {
     return () => globalThis.clearInterval(timer);
   }, [resendSeconds]);
 
+  // ─── Active Loan Fetching ───
+  const [activeLoanDetails, setActiveLoanDetails] = useState<any>(null);
+
   useEffect(() => {
-    const storedToken = globalThis.localStorage.getItem("agenda_token");
-    if (!storedToken) return;
-    setAuthToken(storedToken);
-    const restoreSession = async () => {
+    const fetchActiveLoan = async () => {
+      // Auth-First: No longer need msisdn in URL
+      const token = authToken || localStorage.getItem("agenda_token");
+      if (!token) return;
+
       try {
-        const r = await fetch(`${baseApiUrl}/api/auth/me`, { headers: { Accept: "application/json", Authorization: `Bearer ${storedToken}` } });
-        const p = await r.json();
+        const r = await fetch(`${baseApiUrl}/api/loans/active`, {
+            headers: { 
+                Accept: "application/json", 
+                Authorization: `Bearer ${token}` 
+            }
+        });
         if (r.ok) {
-          if (p?.user) { setApplicant(p.user); setUserData(p.user); }
-          setView(p?.user?.kycStatus === "VERIFIED" ? "loan-dashboard" : "onboarding");
-          return;
+            const data = await r.json();
+            if (data.hasActiveLoan) {
+                setActiveLoanDetails(data.loanDetails);
+            } else {
+                setActiveLoanDetails(null);
+            }
         }
-        globalThis.localStorage.removeItem("agenda_token"); setAuthToken(null);
-      } catch (e) { console.error("Session check failed", e); }
+      } catch (error) {
+        console.error("Failed to fetch active loan:", error);
+      }
     };
-    void restoreSession();
-  }, [setApplicant]);
+
+    if (view === "loan-dashboard") {
+        fetchActiveLoan();
+    }
+  }, [view, baseApiUrl, authToken]);
 
   useEffect(() => {
     return () => {
@@ -298,6 +369,7 @@ export default function ApplyPage() {
   }, [onboardingData.ghanaCardFrontUrl, onboardingData.ghanaCardBackUrl, onboardingData.selfieUrl]);
 
   // ─── Handlers ───
+
   const resetAutoSubmit = useCallback(() => { autoSubmitRef.current = false; }, []);
   const handleOnboardingChange = (field: keyof typeof onboardingData, value: string) => setOnboardingData((p) => ({ ...p, [field]: value }));
 
@@ -340,28 +412,49 @@ export default function ApplyPage() {
     } catch (e: any) { setErrorMessage(e?.message || "Unable to request OTP."); } finally { setIsRequesting(false); }
   };
 
-  const handleVerifyOtp = useCallback(async () => {
-    if (!normalizedMsisdn) { setErrorMessage("Enter a valid phone number."); resetAutoSubmit(); return; }
-    if (otp.length !== OTP_LENGTH) { resetAutoSubmit(); return; }
+  const handleVerifyOtp = useCallback(async (code?: string) => {
+    const otpToVerify = typeof code === 'string' ? code : otp;
+    if (!normalizedMsisdn) { setErrorMessage("Enter a valid phone number."); return; }
+    if (otpToVerify.length !== OTP_LENGTH) return;
+    
+    // Prevent multiple calls
+    if (isVerifying) return;
+
     setIsVerifying(true); setErrorMessage(null);
     try {
       const r = await fetch(`${baseApiUrl}/api/auth/verify`, {
         method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({ msisdn: normalizedMsisdn, otp }),
+        body: JSON.stringify({ msisdn: normalizedMsisdn, otp: otpToVerify }),
       });
       const p = await r.json();
       if (!r.ok) throw new Error(p?.message || "OTP verification failed.");
       if (p?.user) { setApplicant(p.user); setUserData(p.user); }
-      if (p?.token) { globalThis.localStorage.setItem("agenda_token", p.token); setAuthToken(p.token); }
-      if (p?.isNewUser) { setView("onboarding"); } else { setView("loan-dashboard"); }
-    } catch (e: any) { setErrorMessage(e?.message || "OTP verification failed."); resetAutoSubmit(); } finally { setIsVerifying(false); }
-  }, [normalizedMsisdn, otp, setApplicant, resetAutoSubmit]);
+      if (p?.token) { 
+        globalThis.localStorage.setItem("agenda_token", p.token); 
+        setAuthToken(p.token); 
 
-  useEffect(() => {
-    if (view !== "otp" || otp.length !== OTP_LENGTH || isVerifying || autoSubmitRef.current) return;
-    autoSubmitRef.current = true;
-    void handleVerifyOtp();
-  }, [otp, isVerifying, view, handleVerifyOtp]);
+        // 🚀 Fix: Fetch full profile immediately to ensure Name/NodeCode display
+        try {
+          const profileRes = await fetch(`${baseApiUrl}/api/auth/me`, {
+            headers: { Accept: "application/json", Authorization: `Bearer ${p.token}` }
+          });
+          if (profileRes.ok) {
+             const profileData = await profileRes.json();
+             if (profileData?.user) {
+                setApplicant(profileData.user);
+                setUserData(profileData.user);
+             }
+          }
+        } catch (err) {
+          console.error("Post-login profile fetch failed", err);
+        }
+      }
+
+      if (p?.isNewUser) { setView("onboarding"); } else { setView("loan-dashboard"); }
+    } catch (e: any) { setErrorMessage(e?.message || "OTP verification failed."); } finally { setIsVerifying(false); }
+  }, [normalizedMsisdn, otp, setApplicant, isVerifying]);
+
+
 
   const handleResend = async () => {
     if (resendSeconds > 0 || isRequesting) return;
@@ -533,6 +626,28 @@ export default function ApplyPage() {
 
 
   // ═══════════════════════════════════════
+  // LOADING VIEW
+  // ═══════════════════════════════════════
+  if (isCheckingAuth) {
+    return (
+      <div className="fixed inset-0 bg-white flex flex-col items-center justify-center z-50">
+        <motion.img 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            src={agendaLogo} 
+            alt="Agenda Money" 
+            className="h-24 w-auto rounded-[32px] mb-6 object-contain" 
+        />
+        <div className="flex flex-col items-center gap-3">
+             <Loader2 className="w-6 h-6 text-primary animate-spin shrink-0" />
+             <p className="text-sm font-medium text-gray-400">Securely logging you in...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════
   // AUTH & OTP VIEWS
   // ═══════════════════════════════════════
   // ═══════════════════════════════════════
@@ -655,7 +770,7 @@ export default function ApplyPage() {
               ) : (
                 <div className="space-y-6">
                    <div className="flex justify-center">
-                     <InputOTP value={otp} onChange={(v) => { setOtp(v); if (v.length < OTP_LENGTH) resetAutoSubmit(); }} maxLength={OTP_LENGTH}>
+                     <InputOTP value={otp} onChange={(v) => { setOtp(v); if (v.length === OTP_LENGTH) handleVerifyOtp(v); }} maxLength={OTP_LENGTH}>
                        <InputOTPGroup>
                          {OTP_SLOTS.map((slot, i) => <InputOTPSlot key={slot} index={i} className="h-14 w-10 sm:w-12 bg-transparent border-b-2 border-border/50 rounded-none text-xl focus:border-primary focus:ring-0 transition-all font-bold" />)}
                        </InputOTPGroup>
@@ -664,7 +779,7 @@ export default function ApplyPage() {
                    
                    <div className="flex flex-col gap-3">
                      <Button 
-                       onClick={handleVerifyOtp} 
+                       onClick={() => handleVerifyOtp()} 
                        disabled={!canVerify || isVerifying}
                        className="btn btn-lg w-full bg-gradient-pink text-white border-0 hover:opacity-90 h-11"
                      >
@@ -738,13 +853,19 @@ export default function ApplyPage() {
         </div>
 
         {/* Sticky Top Bar - Redesigned */}
-        <PageHeader 
-          user={userData || onboardingData} 
-          onAvatarClick={() => setActiveTab("profile")}
-          onNotificationClick={() => setIsNotificationOpen(true)}
-        />
+        {activeTab !== "application" && activeTab !== "summary" && (
+          <PageHeader 
+            user={userData || onboardingData} 
+            onAvatarClick={() => setActiveTab("profile")}
+            onNotificationClick={() => setIsNotificationOpen(true)}
+            hasNotifications={notifications.length > 0}
+          />
+        )}
 
-        <main className="max-w-md mx-auto px-4 pt-14 pb-32 relative z-10 min-h-screen">
+        <main className={cn(
+          "max-w-md mx-auto relative z-10 min-h-screen",
+          (activeTab === "application" || activeTab === "summary") ? "p-0" : "px-4 pt-6 pb-32"
+        )}>
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -768,21 +889,53 @@ export default function ApplyPage() {
              <UserDashboard 
                 applicant={applicant} 
                 loanStatus={(applicant as any)?.loanStatus || "ELIGIBLE"}
+                tierLimit={tierMax}
                 onAction={(action) => {
-                   if (action === "apply") setView("onboarding");
+                   if (action === "apply") setActiveTab("application");
                    if (action === "repay") setIsRepaymentOpen(true);
                    if (action === "share") setIsShareOpen(true);
                    if (action === "history") setActiveTab("loans");
                 }}
+                notifications={notifications}
+                recentActivity={recentActivity}
+                activeLoanDetails={activeLoanDetails}
              />
           )}
 
            {/* MY LOANS TAB */}
-           {activeTab === "loans" && <LoansTab onBack={() => setActiveTab("home")} />}
+           {activeTab === "loans" && (
+             <LoansTab 
+               onBack={() => setActiveTab("home")} 
+               onRepay={() => setIsRepaymentOpen(true)}
+               loan={activeLoanDetails || (applicant as any)?.activeLoan}
+             />
+           )}
 
            {/* PROFILE TAB */}
            {activeTab === "profile" && (
-             <ProfileTab onboardingData={onboardingData} userData={userData} />
+             <ProfileTab onboardingData={onboardingData} userData={userData} onShowTerms={() => setIsTermsOpen(true)} />
+           )}
+
+           {/* LOAN APPLICATION PAGE */}
+           {activeTab === "application" && (
+             <LoanApplicationPage 
+               tierLimit={tierMax} 
+               onBack={() => setActiveTab("home")}
+               onContinue={(data) => {
+                 setLoanApplicationData(data);
+                 setActiveTab("summary");
+               }}
+             />
+           )}
+
+           {/* LOAN SUMMARY PAGE */}
+           {activeTab === "summary" && loanApplicationData && (
+             <LoanSummaryPage
+               loanData={loanApplicationData}
+               applicant={userData || onboardingData}
+               onBack={() => setActiveTab("application")}
+               onHome={() => setActiveTab("home")}
+             />
            )}
 
             </motion.div>
@@ -792,7 +945,8 @@ export default function ApplyPage() {
 
 
         {/* Fixed Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe-bottom z-50">
+        {activeTab !== "application" && activeTab !== "summary" && !isTermsOpen && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe-bottom z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
            <div className="max-w-md mx-auto flex items-center justify-around h-20 px-2">
             
             <button onClick={() => setActiveTab("home")} className="flex flex-col items-center justify-center w-16 gap-1 group">
@@ -819,6 +973,7 @@ export default function ApplyPage() {
             
           </div>
         </div>
+        )}
 
         {/* Repayment Drawer */}
         <AnimatePresence>
@@ -872,6 +1027,56 @@ export default function ApplyPage() {
           )}
         </AnimatePresence>
 
+
+        {/* Terms & Conditions Overlay */}
+        <AnimatePresence>
+          {isTermsOpen && (
+              <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 sm:p-0"
+                  onClick={() => setIsTermsOpen(false)}
+              >
+                  <motion.div 
+                      initial={{ y: "100%" }}
+                      animate={{ y: 0 }}
+                      exit={{ y: "100%" }}
+                      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                      className="bg-white w-full max-w-md rounded-[32px] p-6 pb-8 space-y-6 relative overflow-hidden"
+                      onClick={(e) => e.stopPropagation()}
+                  >
+                      {/* Header */}
+                      <div className="flex items-center justify-between">
+                          <h3 className="text-xl font-bold text-gray-900">Agenda Money T&Cs</h3>
+                          <button 
+                              onClick={() => setIsTermsOpen(false)}
+                              className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                          >
+                              <X className="w-5 h-5 text-gray-500" />
+                          </button>
+                      </div>
+
+                      {/* Content */}
+                      <div className="space-y-4">
+                          {TERMS_LIST.map((term, i) => (
+                              <div key={i} className="flex items-start gap-3 p-3 rounded-2xl bg-gray-50 border border-gray-100">
+                                  <div className="mt-0.5 min-w-[20px] h-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                                      {i + 1}
+                                  </div>
+                                  <p className="text-sm font-medium text-gray-700 leading-relaxed">
+                                      {term}
+                                  </p>
+                              </div>
+                          ))}
+                      </div>
+
+                      {/* Footer / Visual Element - Removed per request */}
+                  </motion.div>
+              </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Notification Drawer */}
         <AnimatePresence>
           {isNotificationOpen && (
@@ -881,33 +1086,31 @@ export default function ApplyPage() {
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
                 <div className="flex items-center justify-between mb-6">
                     <h3 className="text-2xl font-bold text-gray-900">Notifications</h3>
-                    <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-full">2 New</span>
+                    {notifications.length > 0 && (
+                      <span className="bg-[#EC1B84]/10 text-[#EC1B84] text-xs font-bold px-2 py-1 rounded-full">{notifications.length} New</span>
+                    )}
                 </div>
                 
                 <div className="space-y-4">
-                   {/* Mock Notification 1 */}
-                   <div className="flex gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 items-start">
-                      <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                         <CheckCircle2 className="h-5 w-5 text-green-600" />
+                   {notifications.length === 0 ? (
+                      <div className="text-center py-10 text-gray-400">
+                        <Bell className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p className="text-sm">No new notifications</p>
                       </div>
-                      <div>
-                         <h4 className="font-bold text-gray-900 text-sm">KYC Approved</h4>
-                         <p className="text-xs text-muted-foreground mt-1">Your identity has been verified. You can now apply for higher tier loans.</p>
-                         <p className="text-[10px] text-gray-400 mt-2">2 hours ago</p>
-                      </div>
-                   </div>
-
-                   {/* Mock Notification 2 */}
-                   <div className="flex gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 items-start">
-                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                         <Bell className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                         <h4 className="font-bold text-gray-900 text-sm">Repayment Reminder</h4>
-                         <p className="text-xs text-muted-foreground mt-1">Your loan repayment of GHS 150 is due in 3 days. Pay early to boost your credit score!</p>
-                         <p className="text-[10px] text-gray-400 mt-2">1 day ago</p>
-                      </div>
-                   </div>
+                   ) : (
+                      notifications.map((notif) => (
+                        <div key={notif.id} className="flex gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 items-start">
+                          <div className={cn("h-10 w-10 rounded-full flex items-center justify-center shrink-0", notif.type === 'success' ? "bg-green-100" : "bg-blue-100")}>
+                             {notif.type === 'success' ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <Bell className="h-5 w-5 text-blue-600" />}
+                          </div>
+                          <div>
+                             <h4 className="font-bold text-gray-900 text-sm">{notif.title}</h4>
+                             <p className="text-xs text-muted-foreground mt-1">{notif.message}</p>
+                             <p className="text-[10px] text-gray-400 mt-2">{notif.time}</p>
+                          </div>
+                        </div>
+                      ))
+                   )}
                 </div>
               </motion.div>
             </>
@@ -1111,6 +1314,23 @@ export default function ApplyPage() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* Repayment Page Overlay */}
+      <AnimatePresence>
+        {isRepaymentOpen && (
+           <RepaymentPage 
+             amountDue={354} // Mock data for now, replace with real data later
+             dueDate="24 Feb 2026"
+             msisdn={userData?.msisdn ? String(userData.msisdn) : "233..."}
+             onBack={() => setIsRepaymentOpen(false)}
+             onRepay={(amount) => {
+                console.log("Repaying:", amount);
+                setIsRepaymentOpen(false);
+                // logic to process payment
+             }}
+           />
+        )}
+      </AnimatePresence>
 
       {/* Fixed Bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 z-50">

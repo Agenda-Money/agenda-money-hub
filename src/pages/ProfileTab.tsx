@@ -7,7 +7,8 @@ import {
   LogOut, 
   ChevronRight, 
   CheckCircle2,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,9 +16,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 interface ProfileTabProps {
   onboardingData: any;
   userData: any;
+  onShowTerms: () => void;
 }
 
-export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData }) => {
+export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData, onShowTerms }) => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   
   // Handle potential field mismatches (Agent onboarding uses fullName, Self uses firstName)
@@ -28,7 +30,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData
   const phone = userData?.mobileNumber || userData?.msisdn || onboardingData?.mobileNumber || "+233 -- --- ----";
 
   const menuItems = [
-    { icon: FileText, label: "Terms & Conditions", action: () => {} },
+    { icon: FileText, label: "Terms & Conditions", action: onShowTerms },
     { icon: Lock, label: "Privacy Policy", action: () => {} },
     { icon: HelpCircle, label: "Help", action: () => {} },
   ];
@@ -99,7 +101,6 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData
          <LogOut className="w-5 h-5 text-gray-900" />
          <span className="text-gray-900 font-medium">Logout</span>
       </button>
-
     </div>
   );
 };
