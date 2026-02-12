@@ -1,13 +1,10 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { HandCoins, TrendingUp, ChevronRight, CheckCircle2, Wallet, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ActionCard } from "@/components/dashboard/ActionCard";
 import { LoanStatusCard, LoanStatus } from "@/components/dashboard/LoanStatusCard";
 
 interface UserDashboardProps {
   applicant: any;
-  loanStatus: string; // ELIGIBLE, PENDING, ACTIVE, OVERDUE, PENDING_VERIFICATION
   tierLimit?: number;
   onAction: (action: string) => void;
   notifications?: any[];
@@ -16,7 +13,7 @@ interface UserDashboardProps {
   activeLoanDetails?: any;
 }
 
-export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, loanStatus: initialLoanStatus, tierLimit = 300, onAction, notifications = [], recentActivity = [], isLoading = false, activeLoanDetails }) => {
+export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLimit = 300, onAction, notifications = [], recentActivity = [], isLoading = false, activeLoanDetails }) => {
 
   const hasActiveLoan = !!activeLoanDetails;
   
@@ -28,7 +25,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, loanSta
   const isEligible = !isActive && !isPending && !isOverdue;
 
   // Determine Main Feed Card Status
-  let feedStatus: LoanStatus | null = null;
+  let feedStatus: LoanStatus = "eligible";
   if (isPending) feedStatus = "review";
   else if (isOverdue) feedStatus = "overdue";
   else if (isActive) feedStatus = "active";
@@ -57,8 +54,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, loanSta
       className="space-y-4 pb-32"
     >
       {/* 1. DYNAMIC ACTION FEED (Top Card) */}
-      {feedStatus && (
-        <motion.div variants={item} className="relative group">
+      <motion.div variants={item} className="relative group">
           {/* Glassmorphism Glow for Eligible State */}
           {feedStatus === 'eligible' && (
              <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500 to-blue-500 rounded-[32px] opacity-20 group-hover:opacity-40 blur transition duration-1000 group-hover:duration-200"></div>
@@ -82,7 +78,6 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, loanSta
             className="shadow-sm relative bg-white"
           />
         </motion.div>
-      )}
 
       {/* 2. PERMANENT: TIER PROGRESS */}
       <motion.div variants={item}>

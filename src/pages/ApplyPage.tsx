@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { uploadToSupabase } from "@/lib/supabase";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
-import { ActionCard } from "@/components/dashboard/ActionCard";
 import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
 import { ProfileTab } from "./ProfileTab";
@@ -230,8 +229,7 @@ export default function ApplyPage() {
   const [direction, setDirection] = useState(0);
   const [msisdnInput, setMsisdnInput] = useState("");
   const [nodeCode, setNodeCode] = useState("");
-  const [nodeName, setNodeName] = useState<string | null>(null);
-  const [showNodeCode, setShowNodeCode] = useState(false);
+  const [, setNodeName] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [userData, setUserData] = useState<Record<string, unknown> | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
@@ -256,17 +254,17 @@ export default function ApplyPage() {
   const [isSubmittingOnboarding, setIsSubmittingOnboarding] = useState(false);
   const [onboardingSubmitted, setOnboardingSubmitted] = useState(false);
   const [successNodeCode, setSuccessNodeCode] = useState<string | null>(null);
-  const [isRequestingLoan, setIsRequestingLoan] = useState(false);
+  const [, setIsRequestingLoan] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
-  const [loanSummary, setLoanSummary] = useState<{
+  const [, setLoanSummary] = useState<{
     disbursementAmount: number; repaymentAmount: number; repaymentDate: string; msisdn: string;
   } | null>(null);
   
   // Mock Data States
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
-  const [recentActivity, setRecentActivity] = useState(MOCK_ACTIVITY);
+  const [notifications] = useState(MOCK_NOTIFICATIONS);
+  const [recentActivity] = useState(MOCK_ACTIVITY);
 
   const frontCardRef = useRef<HTMLInputElement>(null);
   const backCardRef = useRef<HTMLInputElement>(null);
@@ -575,29 +573,6 @@ export default function ApplyPage() {
     } catch (e: any) { setErrorMessage(e?.message || "Onboarding failed."); } finally { setIsSubmittingOnboarding(false); }
   };
 
-  const handleLoanRequest = async () => {
-    setErrorMessage(null);
-    if (!authToken) { setErrorMessage("Session expired. Please verify again."); return; }
-    const isNewUser = (applicant as any)?.isNewUser !== false;
-    if (!onboardingSubmitted && isNewUser) { await handleOnboardingSubmit(); return; }
-    setIsRequestingLoan(true);
-    try {
-      const r = await fetch(`${baseApiUrl}/api/loans/request`, {
-        method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ loanAmount, loanTenure, loanPurpose }),
-      });
-      const p = await r.json();
-      if (!r.ok) throw new Error(p?.message || "Loan request failed.");
-      setLoanSummary({
-        disbursementAmount: Number(p?.disbursementAmount ?? loanAmount),
-        repaymentAmount: Number(p?.repaymentAmount ?? loanAmount),
-        repaymentDate: p?.repaymentDate ? new Date(p.repaymentDate).toDateString() : new Date(Date.now() + loanTenure * 86400000).toDateString(),
-        msisdn: String(p?.msisdn ?? userData?.msisdn ?? ""),
-      });
-    } catch (e: any) { setErrorMessage(e?.message || "Loan request failed."); } finally { setIsRequestingLoan(false); }
-  };
-
   const canSubmitEntry = Boolean(msisdnInput.length === 9 && normalizedMsisdn);
   const canVerify = otp.length === OTP_LENGTH;
 
@@ -859,7 +834,6 @@ export default function ApplyPage() {
     const isOverdue = loanStatus === "OVERDUE";
     // For manual testing/dev, you can force a state here:
     // const isUnderReview = true; 
-    const isEligible = !isUnderReview && !isActive && !isOverdue;
 
     return (
       <div className={cn("min-h-screen pb-24 transition-colors duration-500 bg-[#FAFAFA] relative overflow-hidden", isOverdue && "bg-red-50/50")}>
