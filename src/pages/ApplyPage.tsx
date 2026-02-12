@@ -712,32 +712,6 @@ export default function ApplyPage() {
               </p>
             </div>
 
-        {/* Form Card */}
-        <Card className="border-0 shadow-lg overflow-hidden">
-          <div className={cn(
-            "h-1.5 transition-all duration-300",
-            onboardingStep === 1 && "bg-gradient-to-r from-blue-500 to-blue-600",
-            onboardingStep === 2 && "bg-gradient-to-r from-amber-500 to-orange-500",
-            onboardingStep === 3 && "bg-gradient-pink",
-            onboardingStep === 4 && "bg-gradient-to-r from-emerald-500 to-emerald-600"
-          )} />
-
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-3">
-              {ONBOARDING_STEPS[onboardingStep - 1].title}
-              <Badge variant="secondary" className="font-normal">
-                Step {onboardingStep} of 4
-              </Badge>
-            </CardTitle>
-            <CardDescription>
-              {onboardingStep === 1 && "Provide your full name, date of birth, and gender."}
-              {onboardingStep === 2 && "Tell us about your residence and employment."}
-              {onboardingStep === 3 && "Upload clear photos of your Ghana Card and a live selfie."}
-              {onboardingStep === 4 && "Select your preferred loan amount, tenure, and purpose."}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
             {errorMessage && (
               <Alert className="border-destructive/30 bg-destructive/5 text-destructive">
                 <AlertDescription>{errorMessage}</AlertDescription>
