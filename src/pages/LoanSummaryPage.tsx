@@ -22,9 +22,10 @@ interface LoanSummaryPageProps {
   applicant: any; // User data
   onBack: () => void;
   onHome: () => void; // New prop for navigating home
+  onSubmit?: () => Promise<void>; // Optional external submit handler
 }
 
-export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, applicant, onBack, onHome }) => {
+export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, applicant, onBack, onHome, onSubmit }) => {
   const [agreed, setAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -53,36 +54,34 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
     if (!agreed) return;
     setIsSubmitting(true);
     setError(null); // Clear previous errors
+    
     try {
-        if (process.env.NODE_ENV !== "production") {
-          console.log("Submitting loan request to /api/loans/request...");
+        if (onSubmit) {
+            await onSubmit();
+            setIsSuccess(true);
+        } else {
+            // Internal logic (Fallback)
+            if (process.env.NODE_ENV !== "production") {
+              console.log("Submitting loan request to /api/loans/request...");
+            }
+            const payload = {
+                msisdn: applicant?.msisdn,
+                loanAmount: loanData.amount,
+                loanTenure: loanData.tenure,
+                loanPurpose: loanData.purpose
+            };
+            const applicantAuthToken = localStorage.getItem("agenda_token");
+            const response = await api.post(
+              '/api/loans/request',
+              payload,
+              applicantAuthToken
+                ? { headers: { Authorization: `Bearer ${applicantAuthToken}` } }
+                : undefined
+            );
+            setIsSuccess(true);
         }
-        const payload = {
-            msisdn: applicant?.msisdn,
-            loanAmount: loanData.amount,
-            loanTenure: loanData.tenure,
-            loanPurpose: loanData.purpose
-        };
-        if (process.env.NODE_ENV !== "production") {
-          console.log("Payload:", payload);
-        }
-        const applicantAuthToken = localStorage.getItem("agenda_token");
-        const response = await api.post(
-          '/api/loans/request',
-          payload,
-          applicantAuthToken
-            ? { headers: { Authorization: `Bearer ${applicantAuthToken}` } }
-            : undefined
-        );
-        if (process.env.NODE_ENV !== "production") {
-          console.log("Loan submission success:", response.data);
-        }
-        setIsSuccess(true);
     } catch (error: any) {
-        if (process.env.NODE_ENV !== "production") {
-          console.error("Loan submission failed:", error);
-        }
-        // Extract error message if available
+        console.error("Loan submission failed:", error);
         const message = error.response?.data?.message || "Failed to submit loan application. Please try again.";
         setError(message);
     } finally {
