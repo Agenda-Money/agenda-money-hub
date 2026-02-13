@@ -238,12 +238,15 @@ const tabVariants = {
 
 /**
  * Normalizes a phone number to the format 233XXXXXXXXX
- * Handles numbers starting with 0 or 233
+ * Handles three cases:
+ * - Numbers starting with 0: Replaces 0 with 233
+ * - Numbers starting with 233: Returns as-is
+ * - Other numbers: Prepends 233
  */
 function normalizeMsisdn(msisdn: string | undefined): string {
   if (!msisdn) return "";
   
-  const msisdnStr = msisdn.toString();
+  const msisdnStr = String(msisdn);
   
   if (msisdnStr.startsWith('0')) {
     return `233${msisdnStr.slice(1)}`;
