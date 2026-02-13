@@ -1607,6 +1607,7 @@ export default function ApplyPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-10 w-10 rounded-full hover:bg-white hover:shadow-sm text-gray-500"
+                                        aria-label="Decrease years at address"
                                         onClick={() => {
                                             const current = parseInt(onboardingData.yearsAtAddress || "0");
                                             if (current > 0) handleOnboardingChange("yearsAtAddress", String(current - 1));
@@ -1623,6 +1624,7 @@ export default function ApplyPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-10 w-10 rounded-full hover:bg-white hover:shadow-sm text-gray-900 bg-white shadow-sm"
+                                        aria-label="Increase years at address"
                                         onClick={() => {
                                             const current = parseInt(onboardingData.yearsAtAddress || "0");
                                             if (current < 50) handleOnboardingChange("yearsAtAddress", String(current + 1));
