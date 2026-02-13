@@ -6,7 +6,10 @@ import {
   HelpCircle, 
   LogOut, 
   ChevronRight, 
-  ShieldCheck
+  ShieldCheck,
+  CheckCircle,
+  Clock,
+  XCircle
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -78,12 +81,15 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData
           if (status === "VERIFIED") {
             label = "ID Verified";
             colorClass = "text-green-700 bg-green-50 border-green-200";
+            Icon = CheckCircle;
           } else if (status === "PENDING" || status === "REVIEW") {
             label = "ID Pending";
             colorClass = "text-amber-700 bg-amber-50 border-amber-200";
+            Icon = Clock;
           } else if (status === "REJECTED") {
             label = "ID Rejected";
             colorClass = "text-red-700 bg-red-50 border-red-200";
+            Icon = XCircle;
           }
 
           return (
