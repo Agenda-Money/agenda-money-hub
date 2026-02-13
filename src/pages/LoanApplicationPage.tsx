@@ -171,7 +171,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
              </div>
              
              <Button 
-               onClick={() => onContinue({ amount, tenure, purpose, nodeCode })}
+               onClick={() => onContinue({ amount, tenure, purpose, ...(nodeCode && { nodeCode }) })}
                disabled={!amount || !tenure || !purpose}
                className="w-full h-14 rounded-full bg-[#EC1B84] hover:bg-[#D41472] text-white font-bold text-lg uppercase tracking-widest shadow-lg shadow-pink-200 disabled:opacity-50 disabled:shadow-none transition-all"
              >

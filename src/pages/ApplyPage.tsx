@@ -8,12 +8,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Textarea } from "@/components/ui/textarea";
 import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
-import { LOAN_PURPOSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { uploadToSupabase } from "@/lib/supabase";
@@ -30,6 +27,8 @@ import {
   Wallet,
   ArrowRight,
   ArrowLeft,
+  Minus,
+  Plus,
   Loader2,
   CheckCircle2,
   Camera,
@@ -237,6 +236,26 @@ const tabVariants = {
   exit: { opacity: 0, y: -10, scale: 0.95 },
 };
 
+/**
+ * Normalizes a phone number to the format 233XXXXXXXXX
+ * Handles numbers starting with 0 or 233
+ */
+function normalizeMsisdn(msisdn: string | undefined): string {
+  if (!msisdn) return "";
+  
+  const msisdnStr = msisdn.toString();
+  
+  if (msisdnStr.startsWith('0')) {
+    return `233${msisdnStr.slice(1)}`;
+  }
+  
+  if (msisdnStr.startsWith('233')) {
+    return msisdnStr;
+  }
+  
+  return `233${msisdnStr}`;
+}
+
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export default function ApplyPage() {
   const { setApplicant, applicant } = useApplicant();
@@ -263,23 +282,7 @@ export default function ApplyPage() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
-  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>({
-    firstName: "",
-    surname: "",
-    dob: "",
-    gender: "",
-    region: "",
-    address: "",
-    accommodationType: "",
-    yearsAtAddress: "",
-    educationLevel: "",
-    employmentStatus: "",
-    monthlyIncome: "",
-    ghanaCardNumber: "",
-    ghanaCardFrontUrl: "",
-    ghanaCardBackUrl: "",
-    selfieUrl: "",
-  });
+  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>({});
   const [loanApplicationData, setLoanApplicationData] = useState<{ amount: number; tenure: number; purpose: string } | null>(null);
 
   const [loanAmount, setLoanAmount] = useState(100);
@@ -415,13 +418,6 @@ export default function ApplyPage() {
     
     checkAuth();
   }, [setApplicant, handleAuthResponse]);
-
-  useEffect(() => {
-    // Removed legacy view redirection logic to rely on backend-driven nextStep
-    // This effect now only manages option synchronization - DISABLED as it conflicts with granular slider states
-    // if (amountOptions.length && !amountOptions.includes(loanAmount)) setLoanAmount(amountOptions[0]);
-    // if (tenureOptions.length && !tenureOptions.includes(loanTenure)) setLoanTenure(tenureOptions[0]);
-  }, [amountOptions, tenureOptions, loanAmount, loanTenure]);
 
   useEffect(() => {
     if (resendSeconds <= 0) return;
@@ -997,11 +993,10 @@ export default function ApplyPage() {
 
         <Button 
           onClick={() => {
-             // Force state update for immediate feedback without reload
+             // Update context with nodeCode and user identifiers
              if (applicant) {
                 setApplicant({ 
                    ...applicant, 
-                   loanStatus: "PENDING_VERIFICATION",
                    nodeCode: successNodeCode || applicant.nodeCode,
                    // Ensure MSISDN/ID is preserved or set from input if missing
                    msisdn: applicant.msisdn || msisdnInput || (userData as any)?.msisdn,
@@ -1349,11 +1344,7 @@ export default function ApplyPage() {
               ...(userData || {}),
               firstName: onboardingData.firstName || (userData as any)?.firstName,
               lastName: onboardingData.surname || (userData as any)?.lastName || (userData as any)?.surname,
-              msisdn: (msisdnInput || (userData as any)?.msisdn)?.toString().startsWith('0')
-                ? `233${(msisdnInput || (userData as any)?.msisdn).toString().slice(1)}`
-                : (msisdnInput || (userData as any)?.msisdn)?.toString().startsWith('233')
-                  ? (msisdnInput || (userData as any)?.msisdn)
-                  : `233${(msisdnInput || (userData as any)?.msisdn)}`
+              msisdn: normalizeMsisdn(msisdnInput || (userData as any)?.msisdn)
             }}
             onBack={() => setOnboardingStep(4)}
             onHome={() => {
@@ -1621,7 +1612,7 @@ export default function ApplyPage() {
                                             if (current > 0) handleOnboardingChange("yearsAtAddress", String(current - 1));
                                         }}
                                     >
-                                        <ArrowLeft className="h-4 w-4" /> {/* Minus Icon replacement since we have ArrowLeft imported */}
+                                        <Minus className="h-4 w-4" />
                                     </Button>
                                     
                                     <span className="text-xl font-bold text-gray-900 w-16 text-center">
@@ -1637,7 +1628,7 @@ export default function ApplyPage() {
                                             if (current < 50) handleOnboardingChange("yearsAtAddress", String(current + 1));
                                         }}
                                     >
-                                        <ArrowRight className="h-4 w-4" /> {/* Plus Icon replacement since we have ArrowRight imported */}
+                                        <Plus className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </motion.div>
@@ -1800,8 +1791,10 @@ export default function ApplyPage() {
                         <Button 
                            onClick={handleOnboardingNext}
                            disabled={!identityConsent}
-                           className="w-full h-12 rounded-full font-bold bg-gray-200 text-gray-500 hover:bg-gray-300 disabled:opacity-50 transition-all data-[state=active]:bg-primary data-[state=active]:text-white"
-                           data-state={identityConsent ? 'active' : 'inactive'}
+                           className={cn(
+                             "w-full h-12 rounded-full font-bold hover:bg-gray-300 disabled:opacity-50 transition-all",
+                             identityConsent ? "bg-primary text-white" : "bg-gray-200 text-gray-500"
+                           )}
                         >
                            Continue
                         </Button>
