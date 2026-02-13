@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Textarea } from "@/components/ui/textarea";
+import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
+import { LOAN_PURPOSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { uploadToSupabase } from "@/lib/supabase";
@@ -15,7 +21,6 @@ import agendaLogo from "@/assets/agenda-money-logo.jpg";
 import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
 import { ProfileTab } from "./ProfileTab";
-import { LoanApplicationPage } from "./LoanApplicationPage";
 import { LoanSummaryPage } from "./LoanSummaryPage";
 import { RepaymentPage } from "./RepaymentPage";
 import {
@@ -28,7 +33,14 @@ import {
   Loader2,
   CheckCircle2,
   Camera,
-  Upload
+  Upload,
+  Check,
+  CalendarIcon,
+  Shield,
+  ChevronRight,
+  CreditCard,
+  Users,
+  Copy
 } from "lucide-react";
 
 const baseApiUrl = import.meta.env.VITE_API_URL || "";
@@ -44,7 +56,6 @@ const GHANA_REGIONS = [
 ];
 
 const GENDERS = ["Male", "Female"];
-const LOAN_PURPOSES = ["Business", "Education", "Medical", "Home", "Other"];
 const ACCOMMODATION_TYPES = ["Owned", "Rented", "Living with family", "Other"];
 const EDUCATION_LEVELS = ["None", "Primary", "Secondary", "Tertiary"];
 const EMPLOYMENT_OPTIONS = ["Employed", "Self-Employed", "Unemployed", "Student"];
@@ -125,10 +136,11 @@ const buildTenureOptions = (tier?: TierLimit) => {
 type View = "auth" | "otp" | "onboarding" | "loan-dashboard" | "success";
 
 const STEPS = [
-  { number: 1, label: "Personal" },
-  { number: 2, label: "Residence" },
-  { number: 3, label: "Documents" },
+  { number: 1, label: "Personal Info" },
+  { number: 2, label: "Work & Income" },
+  { number: 3, label: "Background" },
   { number: 4, label: "Loan" },
+  { number: 5, label: "Review" },
 ];
 
 /* ─── Shared Header ─── */
@@ -194,17 +206,21 @@ function EstimatedTermSheet({ amount, tenure }: { amount: number; tenure: number
   const dueDate = new Date(Date.now() + tenure * 86400000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-      <span className="text-muted-foreground">Principal</span>
-      <span className="text-right font-medium">GHS {amount}</span>
-      <span className="text-muted-foreground">Interest (8%)</span>
-      <span className="text-right font-medium">GHS {interest}</span>
-      <span className="text-muted-foreground">Service fee (2%)</span>
-      <span className="text-right font-medium">GHS {fee}</span>
-      <span className="text-muted-foreground border-t border-border pt-2">Total repayment</span>
-      <span className="text-right font-semibold border-t border-border pt-2">GHS {total}</span>
-      <span className="text-muted-foreground">Due date</span>
-      <span className="text-right font-medium">{dueDate}</span>
+    <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm animate-in fade-in duration-300">
+      <span className="text-gray-500">Principal</span>
+      <span className="text-right font-medium text-gray-900">GHS {amount}</span>
+      <span className="text-gray-500">Interest (8%)</span>
+      <span className="text-right font-medium text-gray-900">GHS {interest}</span>
+      <span className="text-gray-500">Service fee (2%)</span>
+      <span className="text-right font-medium text-gray-900">GHS {fee}</span>
+      
+      <div className="col-span-2 my-2 border-t border-dashed border-gray-200" />
+      
+      <span className="text-gray-600 font-medium pt-1">Total repayment</span>
+      <span className="text-right font-bold text-xl text-[#EC1B84] pt-1">GHS {total}</span>
+      
+      <span className="text-gray-500 text-xs mt-1">Due date</span>
+      <span className="text-right font-medium text-gray-900 text-xs mt-1">{dueDate}</span>
     </div>
   );
 }
@@ -232,6 +248,8 @@ export default function ApplyPage() {
   const [, setNodeName] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [userData, setUserData] = useState<Record<string, unknown> | null>(null);
+  const [dobInput, setDobInput] = useState(""); // Local state for DD/MM/YYYY input
+  const [dobError, setDobError] = useState<string | null>(null); // Validation error message
   const [isRequesting, setIsRequesting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(0);
@@ -245,13 +263,35 @@ export default function ApplyPage() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
-  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>({});
+  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>({
+    firstName: "",
+    surname: "",
+    dob: "",
+    gender: "",
+    region: "",
+    address: "",
+    accommodationType: "",
+    yearsAtAddress: "",
+    educationLevel: "",
+    employmentStatus: "",
+    monthlyIncome: "",
+    ghanaCardNumber: "",
+    ghanaCardFrontUrl: "",
+    ghanaCardBackUrl: "",
+    selfieUrl: "",
+  });
   const [loanApplicationData, setLoanApplicationData] = useState<{ amount: number; tenure: number; purpose: string } | null>(null);
 
   const [loanAmount, setLoanAmount] = useState(100);
   const [loanTenure, setLoanTenure] = useState(14);
   const [loanPurpose, setLoanPurpose] = useState("Business");
   const [isSubmittingOnboarding, setIsSubmittingOnboarding] = useState(false);
+  
+  // Identity Verification Sub-step State
+  const [identityStep, setIdentityStep] = useState<'intro' | 'upload'>('intro');
+  const [identityConsent, setIdentityConsent] = useState(false);
+  const [expandedUpload, setExpandedUpload] = useState<'id' | 'selfie' | null>(null);
+
   const [onboardingSubmitted, setOnboardingSubmitted] = useState(false);
   const [successNodeCode, setSuccessNodeCode] = useState<string | null>(null);
   const [, setIsRequestingLoan] = useState(false);
@@ -295,6 +335,53 @@ export default function ApplyPage() {
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
+
+  // ─── Backend-Driven Navigation Helper ───
+  const handleAuthResponse = useCallback((data: any) => {
+    if (data.user) {
+      setApplicant(data.user);
+      setUserData(data.user);
+    }
+
+    // Handle Active Loan Summary (if available)
+    if (data.summary) {
+       // Future optimization: Pre-set active loan state if summary.hasActiveLoan is false
+       if (data.summary.hasActiveLoan === false) {
+          setActiveLoanDetails(null);
+       }
+    }
+
+    // Handle Global Navigation (Route Guard)
+    const nextStep = data.nextStep;
+    console.log("Navigation Decision:", nextStep);
+
+    switch (nextStep) {
+      case 'ONBOARDING_PERSONAL':
+        setView('onboarding');
+        setOnboardingStep(1);
+        break;
+      case 'ONBOARDING_KYC':
+        setView('onboarding');
+        setOnboardingStep(3); // Direct to Background/Documents step
+        break;
+      case 'DASHBOARD':
+        setView('loan-dashboard');
+        break;
+      default:
+        // Fallback: Use legacy logic if nextStep is missing
+        const status = data.user?.kycStatus?.toUpperCase();
+        const shouldGoToDashboard = ["VERIFIED", "PENDING", "REJECTED", "REVIEW"].includes(status);
+        if (shouldGoToDashboard) {
+           setView('loan-dashboard');
+        } else {
+           setView('onboarding');
+           // Default to step 1 for safety
+           setOnboardingStep(1); 
+        }
+        break;
+    }
+  }, [setApplicant, setUserData, setView, setOnboardingStep]);
+
   // ─── Effects ───
   useEffect(() => {
     const checkAuth = async () => {
@@ -308,33 +395,33 @@ export default function ApplyPage() {
        try {
          const r = await fetch(`${baseApiUrl}/api/auth/me`, { headers: { Accept: "application/json", Authorization: `Bearer ${storedToken}` } });
          const p = await r.json();
+         
          if (r.ok && p?.user) {
-           setApplicant(p.user); setUserData(p.user);
-           setView(p.user.kycStatus === "VERIFIED" ? "loan-dashboard" : "onboarding");
+            // Use centralized handler for session recovery
+            handleAuthResponse(p);
          } else {
+           console.error("Session check failed: API Error", r.status, p);
            globalThis.localStorage.removeItem("agenda_token"); setAuthToken(null);
          }
        } catch (e) { 
-         console.error("Session check failed", e); 
+         console.error("Session check failed: Network/Code Error", e); 
+         // Optional: Don't remove token immediately on network error? 
+         // For now, keep existing behavior but log it.
          globalThis.localStorage.removeItem("agenda_token"); setAuthToken(null);
        } finally {
-         // Add a small delay for smoother transition
          setTimeout(() => setIsCheckingAuth(false), 500);
        }
     };
     
     checkAuth();
-  }, [setApplicant]);
+  }, [setApplicant, handleAuthResponse]);
 
   useEffect(() => {
-    if (view === "onboarding") {
-      const kyc = (applicant as any)?.kycStatus as string | undefined;
-      const isNew = (applicant as any)?.isNewUser as boolean | undefined;
-      if (!isNew && kyc && kyc.toLowerCase() !== "pending") setView("loan-dashboard");
-    }
-    if (amountOptions.length && !amountOptions.includes(loanAmount)) setLoanAmount(amountOptions[0]);
-    if (tenureOptions.length && !tenureOptions.includes(loanTenure)) setLoanTenure(tenureOptions[0]);
-  }, [amountOptions, tenureOptions, loanAmount, loanTenure, view, applicant]);
+    // Removed legacy view redirection logic to rely on backend-driven nextStep
+    // This effect now only manages option synchronization - DISABLED as it conflicts with granular slider states
+    // if (amountOptions.length && !amountOptions.includes(loanAmount)) setLoanAmount(amountOptions[0]);
+    // if (tenureOptions.length && !tenureOptions.includes(loanTenure)) setLoanTenure(tenureOptions[0]);
+  }, [amountOptions, tenureOptions, loanAmount, loanTenure]);
 
   useEffect(() => {
     if (resendSeconds <= 0) return;
@@ -444,31 +531,32 @@ export default function ApplyPage() {
       });
       const p = await r.json();
       if (!r.ok) throw new Error(p?.message || "OTP verification failed.");
-      if (p?.user) { setApplicant(p.user); setUserData(p.user); }
+      
       if (p?.token) { 
         globalThis.localStorage.setItem("agenda_token", p.token); 
         setAuthToken(p.token); 
-
-        // 🚀 Fix: Fetch full profile immediately to ensure Name/NodeCode display
-        try {
-          const profileRes = await fetch(`${baseApiUrl}/api/auth/me`, {
-            headers: { Accept: "application/json", Authorization: `Bearer ${p.token}` }
-          });
-          if (profileRes.ok) {
-             const profileData = await profileRes.json();
-             if (profileData?.user) {
-                setApplicant(profileData.user);
-                setUserData(profileData.user);
-             }
-          }
-        } catch (err) {
-          console.error("Post-login profile fetch failed", err);
+        
+        // Pass the verify response directly to handler (assuming it matches expected structure)
+        // If verify doesn't return full nextStep, we fetch 'me'
+        if (p.nextStep) {
+            handleAuthResponse(p);
+        } else {
+            // Fallback: Fetch full profile if nextStep missing in verify response
+            try {
+              const profileRes = await fetch(`${baseApiUrl}/api/auth/me`, {
+                headers: { Accept: "application/json", Authorization: `Bearer ${p.token}` }
+              });
+              if (profileRes.ok) {
+                 const profileData = await profileRes.json();
+                 handleAuthResponse(profileData);
+              }
+            } catch (err) {
+              console.error("Post-login profile fetch failed", err);
+            }
         }
       }
-
-      if (p?.isNewUser) { setView("onboarding"); } else { setView("loan-dashboard"); }
     } catch (e: any) { setErrorMessage(e?.message || "OTP verification failed."); } finally { setIsVerifying(false); }
-  }, [normalizedMsisdn, otp, setApplicant, isVerifying]);
+  }, [normalizedMsisdn, otp, setApplicant, isVerifying, handleAuthResponse]);
 
 
 
@@ -500,10 +588,10 @@ export default function ApplyPage() {
       case 1:
         if (!onboardingData.firstName || !onboardingData.surname || !onboardingData.dob) return "Complete all personal details.";
         if (!onboardingData.gender) return "Select your gender.";
-        return null;
-      case 2:
         if (!onboardingData.region || !onboardingData.address) return "Provide your region and address.";
         if (onboardingData.address.trim().split(/\s+/).filter(Boolean).length < 3) return "Provide a full address (at least 3 words).";
+        return null;
+      case 2:
         if (!onboardingData.accommodationType || !onboardingData.yearsAtAddress) return "Complete accommodation details.";
         if (!onboardingData.educationLevel || !onboardingData.employmentStatus || !onboardingData.monthlyIncome) return "Complete employment details.";
         return null;
@@ -519,11 +607,36 @@ export default function ApplyPage() {
   };
 
   const handleOnboardingNext = () => {
+    // If on Step 3 (Identity) and in 'intro' mode, move to 'upload'
+    if (onboardingStep === 3 && identityStep === 'intro') {
+        if (!identityConsent) {
+             setErrorMessage("Please agree to the terms to continue.");
+             return;
+        }
+        setIdentityStep('upload');
+        setErrorMessage(null);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+    }
+
     const err = validateOnboardingStep(onboardingStep);
     if (err) { setErrorMessage(err); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    
     setErrorMessage(null); setOnboardingDirection(1); setOnboardingStep((p) => p + 1);
+    
+    // If moving TO step 3 from step 2, ensure we start at 'intro'
+    if (onboardingStep === 2) {
+        setIdentityStep('intro');
+        setIdentityConsent(false); // Reset consent
+    }
   };
-  const handleOnboardingBack = () => { setErrorMessage(null); setOnboardingDirection(-1); setOnboardingStep((p) => p - 1); };
+  const handleOnboardingBack = () => { 
+    if (onboardingStep === 3 && identityStep === 'upload') {
+        setIdentityStep('intro');
+        return;
+    }
+    setErrorMessage(null); setOnboardingDirection(-1); setOnboardingStep((p) => p - 1); 
+};
 
   const handleOnboardingSubmit = async () => {
     setErrorMessage(null);
@@ -808,15 +921,100 @@ export default function ApplyPage() {
   if (view === "success") {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in duration-500">
-        <div className="w-32 h-32 bg-green-100 rounded-full flex items-center justify-center mb-8 shadow-xl shadow-green-100/50">
-          <CheckCircle2 className="h-16 w-16 text-green-600" />
+        
+        {/* Success Icon */}
+        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-green-100/50">
+          <CheckCircle2 className="h-12 w-12 text-green-600" />
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Application Submitted!</h2>
-        <p className="text-muted-foreground text-lg mb-8 max-w-xs mx-auto">
-          We are verifying your documents. Your Node Code is <span className="font-bold text-gray-900">{successNodeCode}</span>.
-        </p>
-        <Button onClick={() => setView("loan-dashboard")} className="w-full max-w-sm h-14 rounded-full bg-primary text-primary-foreground text-lg uppercase font-bold tracking-widest shadow-lg hover:shadow-primary/25 transition-all">
-          Go to Loan Center
+
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h2>
+        <p className="text-muted-foreground text-sm mb-8">We've received your loan request.</p>
+
+        {/* What Happens Next Timeline */}
+        <div className="w-full max-w-sm bg-gray-50 rounded-2xl p-5 mb-8 text-left border border-gray-100">
+           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 pl-1">What Happens Next</h3>
+           <div className="space-y-6 relative">
+              {/* Vertical Line */}
+              <div className="absolute top-2 left-[11px] bottom-2 w-0.5 bg-gray-200 -z-10" />
+
+              {/* Step 1 */}
+              <div className="flex gap-4 items-start">
+                 <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0 border-2 border-white shadow-sm">
+                    <Check className="w-3 h-3 text-white" />
+                 </div>
+                 <div>
+                    <p className="text-sm font-bold text-gray-900">Application Received</p>
+                    <p className="text-xs text-green-600 font-medium">Completed</p>
+                 </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className="flex gap-4 items-start">
+                 <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                 </div>
+                 <div>
+                    <p className="text-sm font-bold text-gray-900">Identity Verification</p>
+                    <p className="text-xs text-blue-600 font-medium">In Progress...</p>
+                 </div>
+              </div>
+
+               {/* Step 3 */}
+              <div className="flex gap-4 items-start">
+                 <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center shrink-0 border-2 border-white z-10">
+                    <div className="w-2 h-2 rounded-full bg-gray-400" />
+                 </div>
+                 <div>
+                    <p className="text-sm font-medium text-gray-500">Loan Disbursement</p>
+                    <p className="text-xs text-gray-400">Pending Approval</p>
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        {/* Node Code Card */}
+        <div className="w-full max-w-sm bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl p-5 mb-8 border border-pink-100">
+            <div className="flex justify-between items-start mb-2">
+               <div className="text-left">
+                  <p className="text-xs text-pink-600 font-bold uppercase tracking-wider mb-1">Your Node Code</p>
+                  <div className="flex items-center gap-2">
+                     <span className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{successNodeCode || "---"}</span>
+                  </div>
+               </div>
+               <Button 
+                 variant="ghost" 
+                 size="sm" 
+                 onClick={() => { navigator.clipboard.writeText(successNodeCode || ""); }}
+                 className="h-10 w-10 rounded-full bg-white/80 hover:bg-white text-pink-600 shadow-sm p-0"
+               >
+                  <Copy className="w-4 h-4" />
+               </Button>
+            </div>
+            <p className="text-left text-xs text-gray-600 leading-relaxed max-w-[90%]">
+               Share this code with friends. You earn commissions when they borrow!
+            </p>
+        </div>
+
+        <Button 
+          onClick={() => {
+             // Force state update for immediate feedback without reload
+             if (applicant) {
+                setApplicant({ 
+                   ...applicant, 
+                   loanStatus: "PENDING_VERIFICATION",
+                   nodeCode: successNodeCode || applicant.nodeCode,
+                   // Ensure MSISDN/ID is preserved or set from input if missing
+                   msisdn: applicant.msisdn || msisdnInput || (userData as any)?.msisdn,
+                   userId: applicant.userId || (userData as any)?.userId 
+                });
+             }
+             setIsSubmittingOnboarding(false); // Ensure onboarding mode is off
+             setOnboardingStep(0); 
+             setView("loan-dashboard");
+          }} 
+          className="w-full max-w-sm h-14 rounded-full bg-primary text-primary-foreground text-lg uppercase font-bold tracking-widest shadow-lg hover:shadow-primary/25 transition-all"
+        >
+          View Loan Status
         </Button>
       </div>
     );
@@ -1008,10 +1206,10 @@ export default function ApplyPage() {
                 
                 <div className="bg-gray-50 rounded-2xl p-6 mb-6 text-center border border-gray-100">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Your Referral Code</p>
-                  <p className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{(userData?.nodeCode as string) || "AM-123"}</p>
+                  <p className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{applicant?.nodeCode || "---"}</p>
                 </div>
 
-                <Button onClick={() => { navigator.clipboard.writeText(String(userData?.nodeCode || "")); setIsShareOpen(false); }} className="w-full h-14 rounded-full bg-primary text-primary-foreground text-lg font-bold shadow-lg">
+                <Button onClick={() => { navigator.clipboard.writeText(applicant?.nodeCode || ""); setIsShareOpen(false); }} className="w-full h-14 rounded-full bg-primary text-primary-foreground text-lg font-bold shadow-lg">
                   Copy Code
                 </Button>
               </motion.div>
@@ -1115,25 +1313,89 @@ export default function ApplyPage() {
   // ═══════════════════════════════════════
   // ONBOARDING (new users)
   // ═══════════════════════════════════════
+
+  // Step 4: Loan Application (Full Screen)
+  if (onboardingStep === 4) {
+      return (
+        <LoanApplicationPage 
+            tierLimit={tierMax}
+            onBack={() => setOnboardingStep(3)}
+            showNodeCode={true}
+            initialNodeCode={nodeCode}
+            initialAmount={loanAmount}
+            initialTenure={loanTenure}
+            initialPurpose={loanPurpose}
+            onContinue={(data) => {
+              setLoanAmount(data.amount);
+              setLoanTenure(data.tenure);
+              setLoanPurpose(data.purpose);
+              if (data.nodeCode) setNodeCode(data.nodeCode);
+              setOnboardingStep(5);
+            }}
+        />
+      );
+  }
+
+  // Step 5: Loan Summary (Full Screen)
+  if (onboardingStep === 5) {
+      return (
+        <LoanSummaryPage 
+            loanData={{
+              amount: loanAmount,
+              tenure: loanTenure,
+              purpose: loanPurpose
+            }}
+            applicant={{
+              ...(userData || {}),
+              firstName: onboardingData.firstName || (userData as any)?.firstName,
+              lastName: onboardingData.surname || (userData as any)?.lastName || (userData as any)?.surname,
+              msisdn: (msisdnInput || (userData as any)?.msisdn)?.toString().startsWith('0')
+                ? `233${(msisdnInput || (userData as any)?.msisdn).toString().slice(1)}`
+                : (msisdnInput || (userData as any)?.msisdn)?.toString().startsWith('233')
+                  ? (msisdnInput || (userData as any)?.msisdn)
+                  : `233${(msisdnInput || (userData as any)?.msisdn)}`
+            }}
+            onBack={() => setOnboardingStep(4)}
+            onHome={() => {
+              setIsSubmittingOnboarding(false);
+              setOnboardingStep(0);
+              setView('loan-dashboard');
+            }}
+            onSubmit={handleOnboardingSubmit}
+        />
+      );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-24">
-      <PageHeader subtitle={`Step ${onboardingStep} of 4`} />
+      <PageHeader subtitle={`Step ${onboardingStep} of 5`} />
 
       <main className="max-w-md mx-auto px-4 py-5 space-y-5">
-        {/* Minimal step indicator */}
-        <div className="flex gap-1.5">
-          {STEPS.map((s) => (
-            <div key={s.number} className="flex-1 flex flex-col items-center gap-1.5">
-              <div className={cn(
-                "h-1.5 w-full rounded-full transition-all",
-                onboardingStep >= s.number ? "bg-primary" : "bg-muted"
-              )} />
-              <span className={cn(
-                "text-[10px] font-medium transition-colors",
-                onboardingStep === s.number ? "text-foreground" : "text-muted-foreground"
-              )}>{s.label}</span>
-            </div>
-          ))}
+        {/* Circle Step Indicator */}
+        <div className="relative flex justify-between items-start px-2 mb-8">
+           {/* Connecting Line */}
+           <div className="absolute top-3.5 left-6 right-6 h-[1px] bg-gray-100 -z-10" />
+           
+           {STEPS.map((s) => {
+             const isActive = onboardingStep === s.number;
+             const isCompleted = onboardingStep > s.number;
+             
+             return (
+               <div key={s.number} className="flex flex-col items-center gap-2 bg-background z-10">
+                 <div className={cn(
+                   "w-7 h-7 rounded-full flex items-center justify-center border text-xs font-semibold transition-all",
+                   isActive ? "border-gray-900 text-gray-900 bg-white" : 
+                   isCompleted ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-300 bg-white"
+                 )}>
+                   {isCompleted ? <Check className="w-3.5 h-3.5" /> : s.number}
+                 </div>
+                 <span className={cn(
+                   "text-[10px] font-medium",
+                   isActive ? "text-gray-900" : "text-gray-400"
+                 )}>{s.label}</span>
+               </div>
+             );
+           })}
         </div>
 
         {errorMessage && (
@@ -1147,162 +1409,510 @@ export default function ApplyPage() {
             initial="enter" animate="center" exit="exit"
             transition={{ type: "spring", stiffness: 300, damping: 30 }}>
 
-            {/* Step 1: Personal */}
+            {/* Step 1: Personal Info */}
             {onboardingStep === 1 && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm ml-1">First Name</Label>
-                    <Input value={onboardingData.firstName} onChange={(e) => handleOnboardingChange("firstName", e.target.value)}
-                      placeholder="Kwame" className="h-12 rounded-full bg-[#F8FAFC] border-border/50" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm ml-1">Surname</Label>
-                    <Input value={onboardingData.surname} onChange={(e) => handleOnboardingChange("surname", e.target.value)}
-                      placeholder="Mensah" className="h-12 rounded-full bg-[#F8FAFC] border-border/50" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm ml-1">Date of Birth</Label>
-                    <Input type="date" value={onboardingData.dob} onChange={(e) => handleOnboardingChange("dob", e.target.value)}
-                      max={new Date().toISOString().split("T")[0]} className="h-12 rounded-full bg-[#F8FAFC] border-border/50" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm ml-1">Gender</Label>
-                    <Select value={onboardingData.gender} onValueChange={(v) => handleOnboardingChange("gender", v)}>
-                      <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>{GENDERS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-800">Personal Information</h2>
+
+                <div className="space-y-5">
+                   <div className="space-y-1.5">
+                     <Label className="text-sm font-medium text-gray-500">First Name</Label>
+                     <Input 
+                        value={onboardingData.firstName} 
+                        onChange={(e) => handleOnboardingChange("firstName", e.target.value)}
+                        className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900 placeholder:text-gray-300" 
+                     />
+                     <p className="text-[10px] text-gray-400 font-medium">As shown on ID Card</p>
+                   </div>
+
+                   <div className="space-y-1.5">
+                     <Label className="text-sm font-medium text-gray-500">Surname</Label>
+                     <Input 
+                        value={onboardingData.surname} 
+                        onChange={(e) => handleOnboardingChange("surname", e.target.value)}
+                        className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900 placeholder:text-gray-300" 
+                     />
+                     <p className="text-[10px] text-gray-400 font-medium">As shown on ID Card</p>
+                   </div>
+
+                   <div className="space-y-1.5">
+                     <Label className="text-sm font-medium text-gray-500">Date of Birth</Label>
+                     <div className="relative flex gap-2">
+                        <Input
+                          type="text"
+                          placeholder="DD / MM / YYYY"
+                          maxLength={14}
+                          value={dobInput}
+                          onChange={(e) => {
+                             let val = e.target.value.replace(/\D/g, "");
+                             if (val.length > 8) val = val.slice(0, 8);
+                             
+                             let formatted = val;
+                             if (val.length >= 5) {
+                                formatted = val.slice(0, 2) + " / " + val.slice(2, 4) + " / " + val.slice(4);
+                             } else if (val.length >= 3) {
+                                formatted = val.slice(0, 2) + " / " + val.slice(2);
+                             }
+                             setDobInput(formatted);
+
+                             if (val.length === 8) {
+                                const d = parseInt(val.slice(0,2));
+                                const m = parseInt(val.slice(2,4));
+                                const y = parseInt(val.slice(4,8));
+                                
+                                // Proper JS Date validation handles leap years etc.
+                                const dateObj = new Date(y, m - 1, d);
+                                const isValidDate = dateObj.getFullYear() === y && dateObj.getMonth() === m - 1 && dateObj.getDate() === d;
+                                const isFuture = dateObj > new Date();
+                                const isTooOld = y < 1900;
+
+                                if (isValidDate && !isFuture && !isTooOld) {
+                                   const iso = `${y}-${m.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+                                   handleOnboardingChange("dob", iso);
+                                   setDobError(null);
+                                } else {
+                                   handleOnboardingChange("dob", "");
+                                   if (!isValidDate) setDobError("Invalid date (e.g. 31st Feb)");
+                                   else if (isFuture) setDobError("Date cannot be in the future");
+                                   else if (isTooOld) setDobError("Year must be 1900 or later");
+                                }
+                             } else {
+                                if (onboardingData.dob) handleOnboardingChange("dob", "");
+                                setDobError(null);
+                             }
+                          }}
+                          className={cn(
+                            "h-12 w-full rounded-lg border-gray-300 bg-transparent px-3 py-2 text-sm font-medium shadow-sm transition-all focus:border-gray-900 focus:ring-0 placeholder:text-gray-300 font-mono",
+                            dobError && "border-red-500 focus:border-red-500"
+                          )}
+                        />
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="h-12 w-12 px-0 shrink-0 border-gray-300 text-gray-500">
+                               <CalendarIcon className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="end">
+                            <Calendar
+                              mode="single"
+                              selected={onboardingData.dob ? new Date(onboardingData.dob) : undefined}
+                              onSelect={(date) => {
+                                 if (date) {
+                                     const iso = format(date, "yyyy-MM-dd");
+                                     handleOnboardingChange("dob", iso);
+                                     setDobInput(format(date, "dd / MM / yyyy"));
+                                 }
+                              }}
+                              disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                     </div>
+                     {dobError ? (
+                        <p className="text-[10px] text-red-500 font-medium animate-in slide-in-from-left-1">{dobError}</p>
+                     ) : (
+                        <p className="text-[10px] text-gray-400 font-medium">As shown on ID Card</p>
+                     )}
+                   </div>
+
+                   <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-1.5">
+                       <Label className="text-sm font-medium text-gray-500">Gender</Label>
+                       <Select value={onboardingData.gender} onValueChange={(v) => handleOnboardingChange("gender", v)}>
+                         <SelectTrigger className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900"><SelectValue /></SelectTrigger>
+                         <SelectContent>{GENDERS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
+                       </Select>
+                     </div>
+                     <div className="space-y-1.5">
+                       <Label className="text-sm font-medium text-gray-500">Region</Label>
+                       <Select value={onboardingData.region} onValueChange={(v) => handleOnboardingChange("region", v)}>
+                         <SelectTrigger className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900"><SelectValue /></SelectTrigger>
+                         <SelectContent>{GHANA_REGIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                       </Select>
+                     </div>
+                   </div>
+
+                   <div className="space-y-1.5">
+                     <Label className="text-sm font-medium text-gray-500">Address</Label>
+                     <Input 
+                        value={onboardingData.address} 
+                        onChange={(e) => handleOnboardingChange("address", e.target.value)}
+                        className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900 placeholder:text-gray-300" 
+                     />
+                   </div>
+                   
+                   <Button 
+                      onClick={handleOnboardingNext}
+                      disabled={!onboardingData.firstName || !onboardingData.surname || !onboardingData.dob || !onboardingData.gender || !onboardingData.region || !onboardingData.address}
+                      className={cn(
+                        "w-full h-12 rounded-full font-bold mt-4 transition-all",
+                        (onboardingData.firstName && onboardingData.surname && onboardingData.dob && onboardingData.gender && onboardingData.region && onboardingData.address)
+                          ? "bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200"
+                          : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      )}
+                   >
+                      Continue
+                   </Button>
                 </div>
               </div>
             )}
 
-            {/* Step 2: Residence */}
+            {/* Step 2: Work & Income */}
             {onboardingStep === 2 && (
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-sm ml-1">Region</Label>
-                  <Select value={onboardingData.region} onValueChange={(v) => handleOnboardingChange("region", v)}>
-                    <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Select region" /></SelectTrigger>
-                    <SelectContent>{GHANA_REGIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm ml-1">Address</Label>
-                  <Textarea value={onboardingData.address} onChange={(e) => handleOnboardingChange("address", e.target.value)}
-                    placeholder="House No. 12, Dzorwulu Street, Accra" rows={2} className="resize-none rounded-3xl bg-[#F8FAFC] border-border/50" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm ml-1">Accommodation</Label>
-                    <Select value={onboardingData.accommodationType} onValueChange={(v) => handleOnboardingChange("accommodationType", v)}>
-                      <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Type" /></SelectTrigger>
-                      <SelectContent>{ACCOMMODATION_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm ml-1">Years at Address</Label>
-                    <Input type="number" value={onboardingData.yearsAtAddress}
-                      onChange={(e) => handleOnboardingChange("yearsAtAddress", e.target.value)}
-                      placeholder="3" min="0" max="50" className="h-12 rounded-full bg-[#F8FAFC] border-border/50" />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm ml-1">Education</Label>
-                  <Select value={onboardingData.educationLevel} onValueChange={(v) => handleOnboardingChange("educationLevel", v)}>
-                    <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Level" /></SelectTrigger>
-                    <SelectContent>{EDUCATION_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm ml-1">Employment</Label>
-                    <Select value={onboardingData.employmentStatus} onValueChange={(v) => handleOnboardingChange("employmentStatus", v)}>
-                      <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Status" /></SelectTrigger>
-                      <SelectContent>{EMPLOYMENT_OPTIONS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm ml-1">Monthly Income</Label>
-                    <Select value={onboardingData.monthlyIncome} onValueChange={(v) => handleOnboardingChange("monthlyIncome", v)}>
-                      <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue placeholder="Range" /></SelectTrigger>
-                      <SelectContent>{INCOME_BRACKETS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Documents */}
-            {onboardingStep === 3 && (
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-sm ml-1">Ghana Card Number</Label>
-                  <Input value={onboardingData.ghanaCardNumber || "GHA-"}
-                    onChange={(e) => handleGhanaCardChange(e.target.value)}
-                    placeholder="GHA-123456789-0" maxLength={16}
-                    className="h-12 rounded-full font-mono bg-[#F8FAFC] border-border/50" />
-                  <p className="text-xs text-muted-foreground ml-1">Format: GHA-XXXXXXXXX-X</p>
-                </div>
-                <div className="space-y-3">
-                  {renderUploadBox("Ghana Card (Front)", onboardingData.ghanaCardFrontUrl, !!uploadProgress.ghanaCardFrontUrl, frontCardRef, "environment", (f) => handleUpload(f, "ghanaCardFrontUrl"))}
-                  {renderUploadBox("Ghana Card (Back)", onboardingData.ghanaCardBackUrl, !!uploadProgress.ghanaCardBackUrl, backCardRef, "environment", (f) => handleUpload(f, "ghanaCardBackUrl"))}
-                  {renderUploadBox("Live Selfie", onboardingData.selfieUrl, !!uploadProgress.selfieUrl, selfieRef, "user", (f) => handleUpload(f, "selfieUrl"))}
-                </div>
-              </div>
-            )}
-
-            {/* Step 4: Loan */}
-            {onboardingStep === 4 && (
-              <div className="space-y-4">
-                <div className="bg-muted/40 rounded-lg p-3 text-sm">
-                  <strong>Tier 1:</strong> GHS 50–300 · Max 14 days
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm ml-1">Amount (GHS)</Label>
-                  <Select value={String(loanAmount)} onValueChange={(v) => setLoanAmount(Number(v))}>
-                    <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue /></SelectTrigger>
-                    <SelectContent>{amountOptions.map((a) => <SelectItem key={a} value={String(a)}>GHS {a}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm ml-1">Tenure</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {tenureOptions.map((t) => (
-                      <Button key={t} type="button" size="sm" variant={loanTenure === t ? "default" : "outline"}
-                        onClick={() => setLoanTenure(t)}
-                        className={cn("h-10 rounded-full px-4", loanTenure === t && "bg-primary text-primary-foreground")}>
-                        {t} {t === 1 ? "day" : "days"}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm ml-1">Purpose</Label>
-                  <Select value={loanPurpose} onValueChange={setLoanPurpose}>
-                    <SelectTrigger className="h-12 rounded-full bg-[#F8FAFC] border-border/50"><SelectValue /></SelectTrigger>
-                    <SelectContent>{LOAN_PURPOSES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="rounded-xl border border-border p-4">
-                  <p className="text-sm font-medium mb-3">Estimate</p>
-                  <EstimatedTermSheet amount={loanAmount} tenure={loanTenure} />
-                </div>
+              <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
                 
-                <div className="pt-4 border-t border-border/50">
-                  <Label className="text-sm font-medium mb-1.5 block ml-1">Referred by someone?</Label>
-                  <Input 
-                    value={nodeCode} 
-                    onChange={(e) => setNodeCode(e.target.value.toUpperCase())}
-                    placeholder="Enter their Node Code (Optional)" 
-                    className="h-12 rounded-full bg-[#F8FAFC] border-border/50 font-mono tracking-wider text-center uppercase placeholder:normal-case placeholder:font-sans" 
-                    maxLength={6}
-                  />
+                {/* Section 1: Living Situation */}
+                <div className="space-y-5">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                            <Home className="h-4 w-4" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900">Accommodation</h3>
+                        {onboardingData.accommodationType && onboardingData.yearsAtAddress && (
+                            <CheckCircle2 className="h-5 w-5 text-green-500 ml-auto animate-in zoom-in spin-in-90 duration-300" />
+                        )}
+                    </div>
+
+                    {/* Accommodation - CHIPS */}
+                    <div className="space-y-3">
+                        <Label className="text-sm font-medium text-gray-500 ml-1">Accommodation Type</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                            {[
+                                { val: "Owned", icon: Home, label: "Owned" },
+                                { val: "Rented", icon: Wallet, label: "Rented" },
+                                { val: "Living with family", icon: Users, label: "Family" },
+                                { val: "Other", icon: Shield, label: "Other" }
+                            ].map((opt) => (
+                                <button
+                                    key={opt.val}
+                                    onClick={() => handleOnboardingChange("accommodationType", opt.val)}
+                                    className={cn(
+                                        "flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border-2 transition-all duration-200",
+                                        onboardingData.accommodationType === opt.val
+                                            ? "border-blue-500 bg-blue-50/50 text-blue-700 shadow-sm scale-[1.02]"
+                                            : "border-gray-100 bg-white text-gray-500 hover:border-blue-200 hover:bg-blue-50/10"
+                                    )}
+                                >
+                                    <opt.icon className={cn("h-5 w-5", onboardingData.accommodationType === opt.val ? "text-blue-500" : "text-gray-400")} />
+                                    <span className="text-xs font-bold">{opt.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Years at Address - PROGRESSIVE DISCLOSURE & STEPPER */}
+                    <AnimatePresence>
+                        {onboardingData.accommodationType && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0, y: -10 }}
+                                animate={{ opacity: 1, height: "auto", y: 0 }}
+                                exit={{ opacity: 0, height: 0, y: -10 }}
+                                className="space-y-3 pt-2"
+                            >
+                                <Label className="text-sm font-medium text-gray-500 ml-1">Years at Current Address</Label>
+                                <div className="flex items-center justify-between bg-[#F8FAFC] p-2 rounded-full border border-gray-100">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-10 w-10 rounded-full hover:bg-white hover:shadow-sm text-gray-500"
+                                        onClick={() => {
+                                            const current = parseInt(onboardingData.yearsAtAddress || "0");
+                                            if (current > 0) handleOnboardingChange("yearsAtAddress", String(current - 1));
+                                        }}
+                                    >
+                                        <ArrowLeft className="h-4 w-4" /> {/* Minus Icon replacement since we have ArrowLeft imported */}
+                                    </Button>
+                                    
+                                    <span className="text-xl font-bold text-gray-900 w-16 text-center">
+                                        {onboardingData.yearsAtAddress || "0"} <span className="text-xs text-gray-400 font-medium">yrs</span>
+                                    </span>
+
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-10 w-10 rounded-full hover:bg-white hover:shadow-sm text-gray-900 bg-white shadow-sm"
+                                        onClick={() => {
+                                            const current = parseInt(onboardingData.yearsAtAddress || "0");
+                                            if (current < 50) handleOnboardingChange("yearsAtAddress", String(current + 1));
+                                        }}
+                                    >
+                                        <ArrowRight className="h-4 w-4" /> {/* Plus Icon replacement since we have ArrowRight imported */}
+                                    </Button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
+
+                <div className="h-px bg-gray-100 w-full my-6" />
+
+                {/* Section 2: Work & Finances */}
+                <div className="space-y-5">
+                    <div className="flex items-center gap-2 mb-2">
+                         <div className="h-8 w-8 rounded-full bg-pink-50 flex items-center justify-center text-pink-600">
+                            <Wallet className="h-4 w-4" />
+                         </div>
+                        <h3 className="text-lg font-bold text-gray-900">Work & Finances</h3>
+                        {onboardingData.employmentStatus && onboardingData.monthlyIncome && onboardingData.educationLevel && (
+                             <CheckCircle2 className="h-5 w-5 text-green-500 ml-auto animate-in zoom-in spin-in-90 duration-300" />
+                        )}
+                    </div>
+
+                    {/* Employment - PILLS */}
+                    <div className="space-y-3">
+                        <Label className="text-sm font-medium text-gray-500 ml-1">Employment Status</Label>
+                        <div className="flex flex-wrap gap-2">
+                             {EMPLOYMENT_OPTIONS.map((status) => (
+                                 <button
+                                     key={status}
+                                     onClick={() => handleOnboardingChange("employmentStatus", status)}
+                                     className={cn(
+                                         "px-4 py-2.5 rounded-full text-sm font-bold border transition-all duration-200",
+                                         onboardingData.employmentStatus === status
+                                             ? "bg-gray-900 text-white border-gray-900 shadow-md transform scale-[1.02]"
+                                             : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                                     )}
+                                 >
+                                     {status}
+                                 </button>
+                             ))}
+                        </div>
+                    </div>
+
+                    {/* Education - PILLS */}
+                    <div className="space-y-3">
+                        <Label className="text-sm font-medium text-gray-500 ml-1">Highest Education</Label>
+                        <div className="flex flex-wrap gap-2">
+                             {EDUCATION_LEVELS.map((level) => (
+                                 <button
+                                     key={level}
+                                     onClick={() => handleOnboardingChange("educationLevel", level)}
+                                     className={cn(
+                                         "px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-200",
+                                         onboardingData.educationLevel === level
+                                             ? "bg-pink-50 text-pink-700 border-pink-200 shadow-sm"
+                                             : "bg-white text-gray-500 border-gray-100 hover:bg-gray-50"
+                                     )}
+                                 >
+                                     {level}
+                                 </button>
+                             ))}
+                        </div>
+                    </div>
+
+                    {/* Monthly Income - SLIDER */}
+                     <div className="space-y-4 pt-2">
+                        <div className="flex justify-between items-end">
+                            <Label className="text-sm font-medium text-gray-500 ml-1">Monthly Income Range</Label>
+                            <span className="text-sm font-bold text-pink-600 bg-pink-50 px-3 py-1 rounded-lg">
+                                {onboardingData.monthlyIncome || "Slide to select"}
+                            </span>
+                        </div>
+                        
+                        <div className="px-2 pb-6">
+                            {/* Custom Slider Simulation since we don't have the Slider component imported yet, 
+                                but to avoid build errors if Slider isn't in scope, I'll use a styled input range 
+                                for immediate reliability without checking imports */}
+                            <input 
+                                type="range" 
+                                min="0" 
+                                max="3" 
+                                step="1"
+                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#EC1B84]"
+                                value={INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "") === -1 ? 0 : INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "")}
+                                onChange={(e) => handleOnboardingChange("monthlyIncome", INCOME_BRACKETS[parseInt(e.target.value)])}
+                            />
+                            <div className="flex justify-between mt-2 text-[10px] text-gray-400 font-medium">
+                                <span>&lt;1k</span>
+                                <span>1-2k</span>
+                                <span>2-5k</span>
+                                <span>5k+</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+
               </div>
             )}
+
+            {/* Step 3: Identity Verification */}
+            {onboardingStep === 3 && (
+              <div className="space-y-6">
+                 {/* ─── Screen 1: Intro / Consent ─── */}
+                 {identityStep === 'intro' && (
+                    <div className="space-y-6">
+                        {/* Header */}
+                        <div className="mt-2">
+                           <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2 mb-2 rounded-full" onClick={handleOnboardingBack}>
+                             <ArrowLeft className="h-4 w-4" />
+                           </Button>
+                           <h2 className="text-2xl font-bold text-gray-900">Identity Verification</h2>
+                        </div>
+
+                        <div className="space-y-4">
+                           <p className="text-gray-600 font-medium leading-relaxed">
+                             To keep your account safe and meet regulations, we need to verify your identity.
+                           </p>
+                           
+                           <div className="space-y-3">
+                              <p className="text-sm font-bold text-gray-700">We'll ask for your:</p>
+                              <ul className="space-y-3">
+                                 <li className="flex items-center gap-3 text-sm text-gray-500 font-medium">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                    Your Ghana Card Number
+                                 </li>
+                                 <li className="flex items-center gap-3 text-sm text-gray-500 font-medium">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                    Front & Back Photo Of Your Ghana Card
+                                 </li>
+                                 <li className="flex items-center gap-3 text-sm text-gray-500 font-medium">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                    A Quick Selfie
+                                 </li>
+                              </ul>
+                           </div>
+                        </div>
+
+                        <div className="pt-4">
+                           <div className="flex items-start gap-3">
+                              <div className="flex items-center h-5">
+                                 <input 
+                                   id="consent-checkbox" 
+                                   type="checkbox" 
+                                   checked={identityConsent}
+                                   onChange={(e) => setIdentityConsent(e.target.checked)}
+                                   className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary" 
+                                 />
+                              </div>
+                              <label htmlFor="consent-checkbox" className="text-sm font-medium text-gray-600 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                 I agree to share my information for verification
+                              </label>
+                           </div>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-400 text-center">
+                           Your information is encrypted and securely stored.
+                        </div>
+                        
+                        <Button 
+                           onClick={handleOnboardingNext}
+                           disabled={!identityConsent}
+                           className="w-full h-12 rounded-full font-bold bg-gray-200 text-gray-500 hover:bg-gray-300 disabled:opacity-50 transition-all data-[state=active]:bg-primary data-[state=active]:text-white"
+                           data-state={identityConsent ? 'active' : 'inactive'}
+                        >
+                           Continue
+                        </Button>
+                    </div>
+                 )}
+
+                 {/* ─── Screen 2: Uploads ─── */}
+                 {identityStep === 'upload' && (
+                    <div className="space-y-6">
+                        <div className="mt-2">
+                           <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2 mb-2 rounded-full" onClick={handleOnboardingBack}>
+                             <ArrowLeft className="h-4 w-4" />
+                           </Button>
+                           <h2 className="text-2xl font-bold text-gray-900">Verify Your Identity</h2>
+                        </div>
+
+                        <div className="space-y-6">
+                            {/* Ghana Card Input */}
+                            <div className="space-y-1.5">
+                               <Label className="text-sm font-medium text-gray-600">Ghana Card Number</Label>
+                               <Input value={onboardingData.ghanaCardNumber || "GHA-"}
+                                 onChange={(e) => handleGhanaCardChange(e.target.value)}
+                                 placeholder="GHA-XXXXXXXXX-X" maxLength={16}
+                                 className="h-12 rounded-lg border-gray-300 focus:border-gray-900 font-medium placeholder:text-gray-300" />
+                               <p className="text-xs text-muted-foreground ml-1">Include "GHA" and the dashes</p>
+                            </div>
+
+                            {/* Picture of ID Card */}
+                            <div className="border border-gray-200 rounded-xl overflow-hidden bg-white transition-all">
+                               <button 
+                                 onClick={() => setExpandedUpload(expandedUpload === 'id' ? null : 'id')}
+                                 className="w-full flex items-center justify-between p-4 bg-white hover:bg-gray-50 transition-colors"
+                               >
+                                  <div className="flex items-center gap-4">
+                                     <div className="h-10 w-10 shrink-0 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500">
+                                        <CreditCard className="w-5 h-5" />
+                                     </div>
+                                     <div className="text-left">
+                                        <h3 className="text-sm font-bold text-gray-900">Picture of ID</h3>
+                                        <p className="text-xs text-gray-500 font-medium">Please provide a clear photo of the <span className="text-gray-700 font-bold">Front</span> and <span className="text-gray-700 font-bold">Back</span> of your ID card.</p>
+                                     </div>
+                                  </div>
+                                  <ChevronRight className={cn("w-5 h-5 text-gray-400 transition-transform", expandedUpload === 'id' ? "rotate-90" : "")} />
+                               </button>
+                               
+                               <AnimatePresence>
+                               {expandedUpload === 'id' && (
+                                  <motion.div 
+                                    initial={{ height: 0, opacity: 0 }} 
+                                    animate={{ height: "auto", opacity: 1 }} 
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden bg-gray-50/50"
+                                  >
+                                     <div className="p-4 space-y-3 pt-0 border-t border-gray-100">
+                                        <div className="mt-4" /> {/* Spacer */}
+                                        {renderUploadBox("Front Side", onboardingData.ghanaCardFrontUrl, !!uploadProgress.ghanaCardFrontUrl, frontCardRef, "environment", (f) => handleUpload(f, "ghanaCardFrontUrl"))}
+                                        {renderUploadBox("Back Side", onboardingData.ghanaCardBackUrl, !!uploadProgress.ghanaCardBackUrl, backCardRef, "environment", (f) => handleUpload(f, "ghanaCardBackUrl"))}
+                                     </div>
+                                  </motion.div>
+                               )}
+                               </AnimatePresence>
+                            </div>
+
+                            {/* Selfie Card */}
+                            <div className="border border-gray-200 rounded-xl overflow-hidden bg-white transition-all">
+                               <button 
+                                 onClick={() => setExpandedUpload(expandedUpload === 'selfie' ? null : 'selfie')}
+                                 className="w-full flex items-center justify-between p-4 bg-white hover:bg-gray-50 transition-colors"
+                               >
+                                  <div className="flex items-center gap-4">
+                                     <div className="h-10 w-10 shrink-0 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500">
+                                        <User className="w-5 h-5" />
+                                     </div>
+                                     <div className="text-left">
+                                        <h3 className="text-sm font-bold text-gray-900">Selfie</h3>
+                                        <p className="text-xs text-gray-500 font-medium">Share a selfie to verify your identity</p>
+                                     </div>
+                                  </div>
+                                  <ChevronRight className={cn("w-5 h-5 text-gray-400 transition-transform", expandedUpload === 'selfie' ? "rotate-90" : "")} />
+                               </button>
+
+                               <AnimatePresence>
+                               {expandedUpload === 'selfie' && (
+                                  <motion.div 
+                                    initial={{ height: 0, opacity: 0 }} 
+                                    animate={{ height: "auto", opacity: 1 }} 
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden bg-gray-50/50"
+                                  >
+                                     <div className="p-4 pt-0 border-t border-gray-100">
+                                        <div className="mt-4" /> {/* Spacer */}
+                                        {renderUploadBox("Live Selfie", onboardingData.selfieUrl, !!uploadProgress.selfieUrl, selfieRef, "user", (f) => handleUpload(f, "selfieUrl"))}
+                                     </div>
+                                  </motion.div>
+                               )}
+                               </AnimatePresence>
+                            </div>
+                        </div>
+
+                        <Button 
+                           onClick={handleOnboardingNext}
+                           className="w-full h-12 rounded-full font-bold bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200 mt-6"
+                        >
+                           Continue
+                        </Button>
+                    </div>
+                 )}
+              </div>
+            )}
+
+            {/* Step 4 & 5 Removed from here as they are now full-page */}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -1324,26 +1934,29 @@ export default function ApplyPage() {
         )}
       </AnimatePresence>
 
-      {/* Fixed Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 z-50">
-        <div className="max-w-md mx-auto flex gap-3">
-          <Button variant="outline" onClick={onboardingStep === 1 ? handleBack : handleOnboardingBack} className="flex-1 h-12 rounded-full shadow-sm">
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back
-          </Button>
-          {onboardingStep < 4 ? (
-            <Button onClick={handleOnboardingNext} className="flex-1 h-12 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg">
-              Next <ArrowRight className="h-4 w-4 ml-1" />
+      {/* Fixed Bottom - Only for Step 2. (Step 4 has internal nav via LoanApplicationPage) */}
+      {onboardingStep === 2 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-4 z-50">
+          <div className="max-w-md mx-auto flex gap-3">
+            <Button variant="outline" onClick={handleOnboardingBack} className="flex-1 h-12 rounded-full shadow-sm">
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back
             </Button>
-          ) : (
-            <Button onClick={handleOnboardingSubmit} disabled={isSubmittingOnboarding}
-              className="flex-1 h-12 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg text-base uppercase font-bold tracking-wide">
-              {isSubmittingOnboarding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {isSubmittingOnboarding ? "SUBMITTING..." : "SUBMIT APPLICATION"}
-              {!isSubmittingOnboarding && <CheckCircle2 className="h-4 w-4 ml-1.5" />}
-            </Button>
-          )}
+            
+              <Button 
+                onClick={handleOnboardingNext} 
+                disabled={onboardingStep === 2 && !((onboardingData.accommodationType && onboardingData.yearsAtAddress && onboardingData.educationLevel && onboardingData.employmentStatus && onboardingData.monthlyIncome))}
+                className={cn(
+                  "flex-1 h-12 rounded-full shadow-lg transition-all",
+                  onboardingStep === 2
+                    ? ((onboardingData.accommodationType && onboardingData.yearsAtAddress && onboardingData.educationLevel && onboardingData.employmentStatus && onboardingData.monthlyIncome) ? "bg-[#EC1B84] text-white hover:bg-[#D41574]" : "bg-gray-200 text-gray-400 cursor-not-allowed")
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+              >
+                {onboardingStep === 2 ? "Continue" : "Next"} <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

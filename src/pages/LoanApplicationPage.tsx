@@ -7,7 +7,12 @@ import { cn } from "@/lib/utils";
 interface LoanApplicationPageProps {
   tierLimit: number;
   onBack: () => void;
-  onContinue: (data: { amount: number; tenure: number; purpose: string }) => void;
+  onContinue: (data: { amount: number; tenure: number; purpose: string; nodeCode?: string }) => void;
+  showNodeCode?: boolean;
+  initialNodeCode?: string;
+  initialAmount?: number;
+  initialTenure?: number;
+  initialPurpose?: string;
 }
 
 const PURPOSES = [
@@ -20,10 +25,20 @@ const PURPOSES = [
 
 const TENURE_OPTIONS = [1, 5, 10, 14];
 
-export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({ tierLimit, onBack, onContinue }) => {
-  const [amount, setAmount] = useState<number>(Math.max(50, Math.min(140, tierLimit)));
-  const [tenure, setTenure] = useState<number>(10);
-  const [purpose, setPurpose] = useState<string>("Business");
+export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({ 
+  tierLimit, 
+  onBack, 
+  onContinue, 
+  showNodeCode, 
+  initialNodeCode, 
+  initialAmount, 
+  initialTenure, 
+  initialPurpose 
+}) => {
+  const [amount, setAmount] = useState<number>(initialAmount || Math.max(50, Math.min(140, tierLimit)));
+  const [tenure, setTenure] = useState<number>(initialTenure || 10);
+  const [purpose, setPurpose] = useState<string>(initialPurpose || "Business");
+  const [nodeCode, setNodeCode] = useState<string>(initialNodeCode || "");
 
   return (
     <div className="h-screen bg-white flex flex-col relative overflow-hidden">
@@ -37,7 +52,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({ tierLi
       </div>
 
       {/* Main Content - Scrollable */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-10 pb-10">
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-10 pb-32">
         
         {/* Loan Amount Section (Hybrid Slider) */}
         <div className="space-y-14 mt-4">
@@ -130,6 +145,23 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({ tierLi
            </div>
         </div>
 
+        {/* Node Code Section (Optional) */}
+        {showNodeCode && (
+           <div className="space-y-4">
+              <h2 className="text-md font-bold text-gray-900">Referred by someone?</h2>
+              <div className="relative">
+                 <input
+                    type="text"
+                    value={nodeCode}
+                    onChange={(e) => setNodeCode(e.target.value.toUpperCase())}
+                    placeholder="Enter Node Code (Optional)"
+                    className="w-full h-14 rounded-2xl border border-gray-200 px-4 font-mono text-center text-lg uppercase tracking-widest focus:border-[#EC1B84] focus:ring-1 focus:ring-[#EC1B84] outline-none transition-all placeholder:normal-case placeholder:font-sans placeholder:text-gray-400 placeholder:text-sm placeholder:tracking-normal"
+                    maxLength={10}
+                 />
+              </div>
+           </div>
+        )}
+
         {/* Footer (Now inside scroll view) */}
         <div className="pt-8 pb-4">
           <div className="max-w-md mx-auto space-y-4">
@@ -139,7 +171,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({ tierLi
              </div>
              
              <Button 
-               onClick={() => onContinue({ amount, tenure, purpose })}
+               onClick={() => onContinue({ amount, tenure, purpose, nodeCode })}
                disabled={!amount || !tenure || !purpose}
                className="w-full h-14 rounded-full bg-[#EC1B84] hover:bg-[#D41472] text-white font-bold text-lg uppercase tracking-widest shadow-lg shadow-pink-200 disabled:opacity-50 disabled:shadow-none transition-all"
              >

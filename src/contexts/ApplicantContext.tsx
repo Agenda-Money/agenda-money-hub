@@ -4,6 +4,7 @@ export interface ApplicantUser {
   id?: string;
   fullName?: string;
   currentTier?: string | number;
+  nodeCode?: string;
   [key: string]: unknown;
 }
 
