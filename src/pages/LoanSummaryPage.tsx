@@ -71,7 +71,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                 loanPurpose: loanData.purpose
             };
             const applicantAuthToken = localStorage.getItem("agenda_token");
-            const response = await api.post(
+            await api.post(
               '/api/loans/request',
               payload,
               applicantAuthToken
@@ -81,7 +81,9 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
             setIsSuccess(true);
         }
     } catch (error: any) {
-        console.error("Loan submission failed:", error);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Loan submission failed:", error);
+        }
         const message = error.response?.data?.message || "Failed to submit loan application. Please try again.";
         setError(message);
     } finally {
