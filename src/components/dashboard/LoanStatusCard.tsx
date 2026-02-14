@@ -173,7 +173,10 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
 
          {/* Active Loan Circular Ring (Replacing Icon/Button area if active) */}
          {status === 'active' && typeof progress === 'number' ? (
-             <div className="relative w-16 h-16 flex items-center justify-center">
+             <div 
+                 className="relative w-16 h-16 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+                 onClick={() => onAction?.("repay")}
+             >
                  {/* Background Circle */}
                  <svg className="w-full h-full transform -rotate-90">
                      <circle cx="32" cy="32" r="28" stroke="#F3F4F6" strokeWidth="4" fill="none" />
@@ -195,7 +198,10 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
          ) : (
              /* Standard Button */
              current.buttonLabel && (
-                <button className={current.btnClass}>
+                <button 
+                   className={current.btnClass}
+                   onClick={() => onAction?.(current.buttonAction)}
+                >
                    {current.buttonLabel}
                 </button>
              )
