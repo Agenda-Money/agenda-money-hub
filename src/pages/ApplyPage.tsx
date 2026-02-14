@@ -14,6 +14,7 @@ import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
 import { cn } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { uploadToSupabase } from "@/lib/supabase";
+import { TIER_LIMITS, type TierConfig } from "@/lib/constants";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
 import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
@@ -97,23 +98,7 @@ interface OnboardingData {
   selfieUrl: string;
 }
 
-type TierLimit = {
-  tier: number;
-  min: number;
-  max: number;
-  maxTenure: number;
-  amounts?: number[];
-  tenures?: number[];
-};
-
-const TIER_LIMITS: Record<number, TierLimit> = {
-  1: { tier: 1, min: 50, max: 300, maxTenure: 14 },
-  2: { tier: 2, min: 100, max: 600, maxTenure: 21 },
-  3: { tier: 3, min: 150, max: 900, maxTenure: 30 },
-  4: { tier: 4, min: 50, max: 500, maxTenure: 14 },
-};
-
-const buildAmountOptions = (tier?: TierLimit) => {
+const buildAmountOptions = (tier?: TierConfig) => {
   if (!tier) return [];
   if (tier.amounts?.length) return tier.amounts;
   if (!tier.min || !tier.max) return [];
@@ -122,7 +107,7 @@ const buildAmountOptions = (tier?: TierLimit) => {
   return Array.from({ length: count }, (_, i) => tier.min + i * step);
 };
 
-const buildTenureOptions = (tier?: TierLimit) => {
+const buildTenureOptions = (tier?: TierConfig) => {
   if (!tier) return [];
   if (tier.tenures?.length) return tier.tenures;
   if (!tier.maxTenure) return [];
@@ -345,44 +330,47 @@ export default function ApplyPage() {
   // ─── Backend-Driven Navigation Helper ───
   const handleAuthResponse = useCallback((data: any) => {
     if (data.user) {
-      setApplicant(data.user);
-      setUserData(data.user);
+      // Merge summary into user object if present, so UserDashboard can read applicant.summary
+      const userWithSummary = data.summary 
+         ? { ...data.user, summary: data.summary }
+         : data.user;
+         
+      setApplicant(userWithSummary);
+      setUserData(userWithSummary);
     }
 
-    // Handle Active Loan Summary (if available)
+    // Handle Active Loan Summary (if available) - Keeping this for state hydration
     if (data.summary) {
-       // Future optimization: Pre-set active loan state if summary.hasActiveLoan is false
        if (data.summary.hasActiveLoan === false) {
           setActiveLoanDetails(null);
        }
     }
 
-    // Handle Global Navigation (Route Guard)
-    const nextStep = data.nextStep;
+    // 🎯 THE SOURCE OF TRUTH: backend-provided nextStep
+    const nextStep = data.nextStep; 
     console.log("Navigation Decision:", nextStep);
 
     switch (nextStep) {
-      case 'ONBOARDING_PERSONAL':
-        setView('onboarding');
-        setOnboardingStep(1);
-        break;
-      case 'ONBOARDING_KYC':
-        setView('onboarding');
-        setOnboardingStep(3); // Direct to Background/Documents step
-        break;
       case 'DASHBOARD':
         setView('loan-dashboard');
         break;
+      case 'ONBOARDING_KYC':
+        setView('onboarding');
+        setOnboardingStep(3); // Direct to ID upload step
+        break;
+      case 'ONBOARDING_PERSONAL':
+        setView('onboarding');
+        setOnboardingStep(1); // Direct to Bio-data
+        break;
       default:
-        // Fallback: Use legacy logic if nextStep is missing
-        const status = data.user?.kycStatus?.toUpperCase();
-        const shouldGoToDashboard = ["VERIFIED", "PENDING", "REJECTED", "REVIEW"].includes(status);
-        if (shouldGoToDashboard) {
-           setView('loan-dashboard');
+        // Safety fallback: If backend doesn't provide a valid nextStep
+        console.warn("Unknown or missing nextStep; choosing fallback view", nextStep);
+        // If we have user data, we assume the user is authenticated and prefer dashboard
+        if (data.user) {
+          setView('loan-dashboard');
         } else {
-           setView('onboarding');
-           // Default to step 1 for safety
-           setOnboardingStep(1); 
+          // No user data means we cannot treat this as an authenticated session
+          setView('auth');
         }
         break;
     }
@@ -535,23 +523,27 @@ export default function ApplyPage() {
         globalThis.localStorage.setItem("agenda_token", p.token); 
         setAuthToken(p.token); 
         
-        // Pass the verify response directly to handler (assuming it matches expected structure)
-        // If verify doesn't return full nextStep, we fetch 'me'
-        if (p.nextStep) {
-            handleAuthResponse(p);
-        } else {
-            // Fallback: Fetch full profile if nextStep missing in verify response
-            try {
-              const profileRes = await fetch(`${baseApiUrl}/api/auth/me`, {
+        // Fetch full profile to ensure we have nodeCode and latest details
+        try {
+            const profileRes = await fetch(`${baseApiUrl}/api/auth/me`, {
                 headers: { Accept: "application/json", Authorization: `Bearer ${p.token}` }
-              });
-              if (profileRes.ok) {
-                 const profileData = await profileRes.json();
-                 handleAuthResponse(profileData);
-              }
-            } catch (err) {
-              console.error("Post-login profile fetch failed", err);
+            });
+            if (profileRes.ok) {
+                const profileData = await profileRes.json();
+                // Merge verify response (has nextStep) with profile data (has full user)
+                handleAuthResponse({
+                    ...p, // Base verify response (has nextStep)
+                    ...profileData, // Overwrites with full profile data where appropriate
+                    nextStep: p.nextStep, // Explicitly preserve nextStep from verify response
+                    user: profileData.user || p.user // Explicitly prefer profile user
+                });
+            } else {
+                 console.warn("Profile fetch failed, using verify response");
+                 handleAuthResponse(p);
             }
+        } catch (err) {
+            console.error("Post-login profile fetch failed", err);
+            handleAuthResponse(p);
         }
       }
     } catch (e: any) { setErrorMessage(e?.message || "OTP verification failed."); } finally { setIsVerifying(false); }
@@ -669,7 +661,7 @@ export default function ApplyPage() {
           educationLevel: onboardingData.educationLevel, employmentStatus: onboardingData.employmentStatus,
           monthlyIncome: onboardingData.monthlyIncome, ghanaCardNumber: onboardingData.ghanaCardNumber,
           ghanaCardFrontUrl, ghanaCardBackUrl, selfieUrl,
-          initialLoanAmount: Number(loanAmount), initialLoanTenure: Number(loanTenure), initialLoanPurpose: loanPurpose,
+          loanAmount: Number(loanAmount), loanTenure: Number(loanTenure), loanPurpose: loanPurpose,
           nodeCode: nodeCode.trim(), // Include referral code
         }),
       });
@@ -1096,6 +1088,7 @@ export default function ApplyPage() {
                onBack={() => setActiveTab("home")} 
                onRepay={() => setIsRepaymentOpen(true)}
                loan={activeLoanDetails || (applicant as any)?.activeLoan}
+               isPending={(applicant as any)?.summary?.isPending || activeLoanDetails?.status === 'PENDING'}
              />
            )}
 
