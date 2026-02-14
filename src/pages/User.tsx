@@ -48,6 +48,33 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
     show: { opacity: 1, y: 0 }
   };
 
+  // Tier Configuration
+  const TIERS = [
+    { level: 1, minAmount: 50, maxAmount: 300 },
+    { level: 2, minAmount: 50, maxAmount: 350 },
+    { level: 3, minAmount: 50, maxAmount: 400 },
+    { level: 4, minAmount: 50, maxAmount: 500 },
+    { level: 5, minAmount: 50, maxAmount: 550 },
+    { level: 6, minAmount: 50, maxAmount: 600 },
+    { level: 7, minAmount: 50, maxAmount: 700 },
+    { level: 8, minAmount: 50, maxAmount: 800 },
+    { level: 9, minAmount: 50, maxAmount: 900 },
+    { level: 10, minAmount: 50, maxAmount: 1100 },
+  ];
+
+  const activeTierLevel = Number(applicant?.currentTier || 1);
+  const currentTierConfig = TIERS.find(t => t.level === activeTierLevel) || TIERS[0];
+  const nextTierConfig = TIERS.find(t => t.level === activeTierLevel + 1) || TIERS[TIERS.length - 1];
+  
+  // Logic: You need to complete 'Level' number of loans to pass that level? 
+  // Or just 1 repayment per level to advance?
+  // User said: "1 full payment away". If I am Tier 1 (0 repaid), target is 1.
+  // If I am Tier 2 (1 repaid), target is 2? -> 1/2 -> 1 away.
+  // This maintains "1 away" logic continuously.
+  const totalRepaid = applicant?.summary?.totalLoansRepaid || 0;
+  // If totalRepaid is somehow greater than tier (fast track), ensure target is at least tier
+  const targetLoans = Math.max(activeTierLevel, totalRepaid + 1);
+
   return (
     <motion.div 
       variants={container}
@@ -66,7 +93,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
             status={feedStatus}
             amount={
                 isActive ? (activeLoanDetails?.outstandingBalance || 0) :
-                isEligible ? tierLimit : 
+                isEligible ? currentTierConfig.maxAmount : 
                 (activeLoanDetails?.outstandingBalance || 0)
             } 
             dueDate={activeLoanDetails?.dueDate ? new Date(activeLoanDetails.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : undefined}
@@ -85,8 +112,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
       <motion.div variants={item}>
          <LoanStatusCard
             status="progress"
-            totalLoansRepaid={applicant?.summary?.totalLoansRepaid || 0}
-            targetLoans={5} // Tier 1 target
+            totalLoansRepaid={totalRepaid}
+            targetLoans={targetLoans}
+            amount={currentTierConfig.maxAmount}
+            nextTierLimit={nextTierConfig.maxAmount}
+            activeTier={{ tier: activeTierLevel }}
             onAction={onAction}
             className="shadow-sm"
          />

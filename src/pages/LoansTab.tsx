@@ -7,11 +7,11 @@ interface LoansTabProps {
   onBack?: () => void;
   onRepay?: () => void;
   loan?: any; // We'll type this properly if possible, but 'any' is safe for now given the context
+  isPending?: boolean;
 }
 
-export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan }) => {
+export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, isPending }) => {
   // Use passed loan data or fall back to a safe empty state (or the previous mock if needed for demo, but user wants real data)
-  // For now, let's map the 'loan' prop to the structure LoansTab expects.
   // The 'loan' prop likely comes from 'applicant' in ApplyPage.
 
   // Map the new deep detailed loan object
@@ -26,6 +26,14 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan }) => 
     progressPercent: loan.repaymentProgress?.percentage || 0, // New progress field
     daysRemaining: loan.daysRemaining || 0 // Map daysRemaining
   } : null;
+
+  if (isPending) {
+     return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 pb-32 pt-0 mx-auto max-w-md px-4 mt-6">
+            <LoanStatusCard status="review" className="shadow-sm" />
+        </div>
+     )
+  }
 
   if (!activeLoan) {
       return (
