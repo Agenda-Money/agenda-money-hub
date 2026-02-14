@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Send, Share2, TrendingUp, Crown, Lock } from "lucide-react";
+import { Send, Share2, Crown, Lock } from "lucide-react";
 
 export type LoanStatus = "eligible" | "active" | "overdue" | "review" | "progress" | "node";
 
@@ -18,6 +18,7 @@ interface LoanStatusCardProps {
   targetLoans?: number;
   activeTier?: { tier: number }; // Pass plain object or similar
   nextTierLimit?: number;
+  isMaxTier?: boolean;
   onAction?: (action: string) => void;
   className?: string;
 }
@@ -36,7 +37,8 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
   onAction,
   className,
   activeTier,
-  nextTierLimit = 600
+  nextTierLimit = 600,
+  isMaxTier = false
 }) => {
     
   // Configuration for each state
@@ -96,46 +98,71 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
         buttonLabel: null,
         bgClass: "bg-white border border-gray-100 relative overflow-hidden",
         icon: Crown,
-        // Custom Render Logic for Progress Card
-        customRender: (
-            <div className="w-full mt-2">
-                <div className="flex justify-between items-center mb-2">
-                    <div className="flex flex-col">
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Current Limit</span>
-                        <span className="text-xl font-bold text-gray-900">GHS {amount || 300}</span>
+        // Custom Render Logic for Progress Card (as function to use latest props)
+        customRender: () => {
+            const remaining = Math.max(0, (targetLoans || 0) - (totalLoansRepaid || 0));
+            const progressPercentage = targetLoans && targetLoans > 0 
+                ? Math.min(100, ((totalLoansRepaid || 0) / targetLoans) * 100) 
+                : 0;
+            
+            return (
+                <div className="w-full mt-2">
+                    <div className="flex justify-between items-center mb-2">
+                        <div className="flex flex-col">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Current Limit</span>
+                            <span className="text-xl font-bold text-gray-900">GHS {amount || 300}</span>
+                        </div>
+                        {!isMaxTier && nextTierLimit && (
+                            <div className="flex flex-col items-end">
+                                <span className="text-xs font-semibold text-[#EC1B84] uppercase tracking-wider flex items-center gap-1">
+                                    Next Limit <Lock className="w-3 h-3" />
+                                </span>
+                                <span className="text-xl font-bold text-gray-400">GHS {nextTierLimit}</span>
+                            </div>
+                        )}
+                        {isMaxTier && (
+                            <div className="flex flex-col items-end">
+                                <span className="text-xs font-semibold text-green-600 uppercase tracking-wider flex items-center gap-1">
+                                    Max Tier <Crown className="w-3 h-3" />
+                                </span>
+                                <span className="text-xl font-bold text-green-600">Reached!</span>
+                            </div>
+                        )}
                     </div>
-                    <div className="flex flex-col items-end">
-                        <span className="text-xs font-semibold text-[#EC1B84] uppercase tracking-wider flex items-center gap-1">
-                            Next Limit <Lock className="w-3 h-3" />
+
+                    {/* Progress Bar */}
+                    <div className="relative h-3 w-full bg-gray-100 rounded-full overflow-hidden">
+                        <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progressPercentage}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#EC1B84] to-[#ff479d]"
+                        />
+                    </div>
+
+                    <div className="flex justify-between items-center mt-2 text-xs font-medium">
+                        <span className="text-gray-600">
+                            {totalLoansRepaid} / {targetLoans} Repayments
                         </span>
-                        <span className="text-xl font-bold text-gray-400">GHS {nextTierLimit}</span>
+                        {!isMaxTier && (
+                            <span className="text-[#EC1B84]">
+                                {remaining <= 0 
+                                    ? `You're ready for Tier ${(activeTier?.tier || 1) + 1}!`
+                                    : `${remaining} full payment${remaining !== 1 ? "s" : ""} away from Tier ${(activeTier?.tier || 1) + 1}`
+                                }
+                            </span>
+                        )}
                     </div>
-                </div>
 
-                {/* Progress Bar */}
-                <div className="relative h-3 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(100, (totalLoansRepaid / targetLoans) * 100)}%` }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#EC1B84] to-[#ff479d]"
-                    />
+                    <p className="text-xs text-gray-400 mt-3 text-center bg-gray-50 py-1.5 rounded-lg border border-gray-100">
+                        {isMaxTier 
+                            ? "Congratulations! You've reached the maximum tier!"
+                            : "Repay your loan on time to unlock higher tier!"
+                        }
+                    </p>
                 </div>
-
-                <div className="flex justify-between items-center mt-2 text-xs font-medium">
-                    <span className="text-gray-600">
-                        {totalLoansRepaid} / {targetLoans} Repayments
-                    </span>
-                    <span className="text-[#EC1B84]">
-                        {Math.max(0, targetLoans - totalLoansRepaid)} full payment{Math.max(0, targetLoans - totalLoansRepaid) !== 1 ? "s" : ""} away from Tier {(activeTier?.tier || 1) + 1}
-                    </span>
-                </div>
-
-                <p className="text-[10px] text-gray-400 mt-3 text-center bg-gray-50 py-1.5 rounded-lg border border-gray-100">
-                    Repay your loan on time to unlock higher tier!
-                </p>
-            </div>
-        )
+            );
+        }
     },
     node: {
         title: "Node Code",
@@ -192,7 +219,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       {/* Middle/Bottom Section */}
       <div className="flex items-end justify-between relative z-10 w-full">
         {current.customRender ? (
-            current.customRender
+            typeof current.customRender === 'function' ? current.customRender() : current.customRender
         ) : (
             <>
                 <div>

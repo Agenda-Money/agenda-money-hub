@@ -50,9 +50,9 @@ interface FormData {
   ghanaCardFrontUrl: string;
   ghanaCardBackUrl: string;
   selfieUrl: string;
-  initialLoanAmount: string;
-  initialLoanTenure: string;
-  initialLoanPurpose: string;
+  loanAmount: string;
+  loanTenure: string;
+  loanPurpose: string;
 }
 
 const INITIAL_FORM_DATA: FormData = {
@@ -72,9 +72,9 @@ const INITIAL_FORM_DATA: FormData = {
   ghanaCardFrontUrl: "",
   ghanaCardBackUrl: "",
   selfieUrl: "",
-  initialLoanAmount: "100",
-  initialLoanTenure: "14",
-  initialLoanPurpose: "Business",
+  loanAmount: "100",
+  loanTenure: "14",
+  loanPurpose: "Business",
 };
 
 const slideVariants = {
@@ -353,12 +353,12 @@ export default function AgentOnboarding() {
           formData.selfieUrl
         );
       case 4: {
-        const loanAmount = Number.parseInt(formData.initialLoanAmount, 10);
-        const loanTenure = Number.parseInt(formData.initialLoanTenure, 10);
+        const loanAmount = Number.parseInt(formData.loanAmount, 10);
+        const loanTenure = Number.parseInt(formData.loanTenure, 10);
         return (
-          formData.initialLoanAmount &&
-          formData.initialLoanTenure &&
-          formData.initialLoanPurpose &&
+          formData.loanAmount &&
+          formData.loanTenure &&
+          formData.loanPurpose &&
           loanAmount >= 50 &&
           loanAmount <= 300 &&
           loanTenure >= 1 &&
@@ -411,9 +411,9 @@ export default function AgentOnboarding() {
         ghanaCardFrontUrl: formData.ghanaCardFrontUrl,
         ghanaCardBackUrl: formData.ghanaCardBackUrl,
         selfieUrl: formData.selfieUrl,
-        initialLoanAmount: Number.parseInt(formData.initialLoanAmount, 10) || 0,
-        initialLoanTenure: Number.parseInt(formData.initialLoanTenure, 10) || 0,
-        initialLoanPurpose: formData.initialLoanPurpose,
+        loanAmount: Number.parseInt(formData.loanAmount, 10) || 0,
+        loanTenure: Number.parseInt(formData.loanTenure, 10) || 0,
+        loanPurpose: formData.loanPurpose,
       };
 
       const response = await api.post("/api/agents/onboard", payload);
@@ -952,10 +952,10 @@ export default function AgentOnboarding() {
                   </Alert>
 
                   <div className="space-y-2">
-                    <Label htmlFor="initialLoanAmount">Loan Amount (GHS) *</Label>
+                    <Label htmlFor="loanAmount">Loan Amount (GHS) *</Label>
                     <Select
-                      value={formData.initialLoanAmount}
-                      onValueChange={(value) => updateField("initialLoanAmount", value)}
+                      value={formData.loanAmount}
+                      onValueChange={(value) => updateField("loanAmount", value)}
                     >
                       <SelectTrigger className="h-12 bg-muted/50 border-0 focus:ring-primary">
                         <SelectValue placeholder="Enter loan amount" />
@@ -972,10 +972,10 @@ export default function AgentOnboarding() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="initialLoanTenure">Loan Tenure (Days) *</Label>
+                    <Label htmlFor="loanTenure">Loan Tenure (Days) *</Label>
                     <Select
-                      value={formData.initialLoanTenure}
-                      onValueChange={(value) => updateField("initialLoanTenure", value)}
+                      value={formData.loanTenure}
+                      onValueChange={(value) => updateField("loanTenure", value)}
                     >
                       <SelectTrigger className="h-12 bg-muted/50 border-0 focus:ring-primary">
                         <SelectValue placeholder="Select preferred tenor" />
@@ -990,10 +990,10 @@ export default function AgentOnboarding() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="initialLoanPurpose">Loan Purpose *</Label>
+                    <Label htmlFor="loanPurpose">Loan Purpose *</Label>
                     <Select
-                      value={formData.initialLoanPurpose}
-                      onValueChange={(value) => updateField("initialLoanPurpose", value)}
+                      value={formData.loanPurpose}
+                      onValueChange={(value) => updateField("loanPurpose", value)}
                     >
                       <SelectTrigger className="h-12 bg-muted/50 border-0 focus:ring-primary">
                         <SelectValue placeholder="Select purpose of loan" />
