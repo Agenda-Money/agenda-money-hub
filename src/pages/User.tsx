@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { LoanStatusCard, LoanStatus } from "@/components/dashboard/LoanStatusCard";
 import { Wallet, CheckCircle2 } from "lucide-react";
+import { TIERS, getTierByLevel } from "@/lib/constants";
 
 interface UserDashboardProps {
   applicant: any;
@@ -48,6 +49,16 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
     show: { opacity: 1, y: 0 }
   };
 
+  const activeTierLevel = Number(applicant?.currentTier || 1);
+  const isMaxTier = activeTierLevel >= TIERS[TIERS.length - 1].level;
+  const currentTierConfig = getTierByLevel(activeTierLevel);
+  const nextTierConfig = isMaxTier ? null : getTierByLevel(activeTierLevel + 1);
+  
+  // Tier progression logic: To advance from tier N to tier N+1, complete N total loan repayments
+  // Example: Tier 1 requires 1 repayment, Tier 2 requires 2 total repayments, etc.
+  const totalRepaid = applicant?.summary?.totalLoansRepaid || 0;
+  const targetLoans = activeTierLevel;
+
   return (
     <motion.div 
       variants={container}
@@ -66,7 +77,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
             status={feedStatus}
             amount={
                 isActive ? (activeLoanDetails?.outstandingBalance || 0) :
-                isEligible ? tierLimit : 
+                isEligible ? currentTierConfig.maxAmount : 
                 (activeLoanDetails?.outstandingBalance || 0)
             } 
             dueDate={activeLoanDetails?.dueDate ? new Date(activeLoanDetails.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : undefined}
@@ -85,8 +96,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
       <motion.div variants={item}>
          <LoanStatusCard
             status="progress"
-            totalLoansRepaid={applicant?.summary?.totalLoansRepaid || 0}
-            targetLoans={5} // Tier 1 target
+            totalLoansRepaid={totalRepaid}
+            targetLoans={targetLoans}
+            amount={currentTierConfig.maxAmount}
+            nextTierLimit={nextTierConfig?.maxAmount}
+            activeTier={{ tier: activeTierLevel }}
+            isMaxTier={isMaxTier}
             onAction={onAction}
             className="shadow-sm"
          />

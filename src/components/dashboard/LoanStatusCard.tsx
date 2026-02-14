@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Send, Share2, TrendingUp } from "lucide-react";
+import { Send, Share2, Crown, Lock } from "lucide-react";
 
 export type LoanStatus = "eligible" | "active" | "overdue" | "review" | "progress" | "node";
 
@@ -16,6 +16,9 @@ interface LoanStatusCardProps {
   points?: number;
   totalLoansRepaid?: number;
   targetLoans?: number;
+  activeTier?: { tier: number }; // Pass plain object or similar
+  nextTierLimit?: number;
+  isMaxTier?: boolean;
   onAction?: (action: string) => void;
   className?: string;
 }
@@ -33,6 +36,9 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
   targetLoans = 1,
   onAction,
   className,
+  activeTier,
+  nextTierLimit = 600,
+  isMaxTier = false
 }) => {
     
   // Configuration for each state
@@ -85,14 +91,78 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       btnClass: "bg-red-600 text-white hover:bg-red-700 rounded-xl px-6 py-3 font-bold shadow-lg shadow-red-200 animate-pulse",
     },
     progress: {
-        title: "Tier Progress",
-        subtext: "Reach & Earn", // "Reach & Earn"
-        mainText: `${totalLoansRepaid}/${targetLoans}`, 
-        mainTextClass: "text-3xl font-bold tracking-tight text-gray-900",
-        bottomText: "Complete 1 loan to level up",
+        title: `Tier ${activeTier?.tier || 1} Status`,
+        subtext: "Unlock higher limits",
+        mainText: null, 
+        bottomText: null,
         buttonLabel: null,
-        bgClass: "bg-gray-50 border border-gray-100",
-        icon: TrendingUp,
+        bgClass: "bg-white border border-gray-100 relative overflow-hidden",
+        icon: Crown,
+        // Custom Render Logic for Progress Card (as function to use latest props)
+        customRender: () => {
+            const remaining = Math.max(0, (targetLoans || 0) - (totalLoansRepaid || 0));
+            const progressPercentage = targetLoans && targetLoans > 0 
+                ? Math.min(100, ((totalLoansRepaid || 0) / targetLoans) * 100) 
+                : 0;
+            
+            return (
+                <div className="w-full mt-2">
+                    <div className="flex justify-between items-center mb-2">
+                        <div className="flex flex-col">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Current Limit</span>
+                            <span className="text-xl font-bold text-gray-900">GHS {amount || 300}</span>
+                        </div>
+                        {!isMaxTier && nextTierLimit && (
+                            <div className="flex flex-col items-end">
+                                <span className="text-xs font-semibold text-[#EC1B84] uppercase tracking-wider flex items-center gap-1">
+                                    Next Limit <Lock className="w-3 h-3" />
+                                </span>
+                                <span className="text-xl font-bold text-gray-400">GHS {nextTierLimit}</span>
+                            </div>
+                        )}
+                        {isMaxTier && (
+                            <div className="flex flex-col items-end">
+                                <span className="text-xs font-semibold text-green-600 uppercase tracking-wider flex items-center gap-1">
+                                    Max Tier <Crown className="w-3 h-3" />
+                                </span>
+                                <span className="text-xl font-bold text-green-600">Reached!</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="relative h-3 w-full bg-gray-100 rounded-full overflow-hidden">
+                        <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progressPercentage}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#EC1B84] to-[#ff479d]"
+                        />
+                    </div>
+
+                    <div className="flex justify-between items-center mt-2 text-xs font-medium">
+                        <span className="text-gray-600">
+                            {totalLoansRepaid} / {targetLoans} Repayments
+                        </span>
+                        {!isMaxTier && (
+                            <span className="text-[#EC1B84]">
+                                {remaining <= 0 
+                                    ? `You're ready for Tier ${(activeTier?.tier || 1) + 1}!`
+                                    : `${remaining} full payment${remaining !== 1 ? "s" : ""} away from Tier ${(activeTier?.tier || 1) + 1}`
+                                }
+                            </span>
+                        )}
+                    </div>
+
+                    <p className="text-xs text-gray-400 mt-3 text-center bg-gray-50 py-1.5 rounded-lg border border-gray-100">
+                        {isMaxTier 
+                            ? "Congratulations! You've reached the maximum tier!"
+                            : "Repay your loan on time to unlock higher tier!"
+                        }
+                    </p>
+                </div>
+            );
+        }
     },
     node: {
         title: "Node Code",
@@ -147,78 +217,55 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       </div>
 
       {/* Middle/Bottom Section */}
-      <div className="flex items-end justify-between relative z-10">
-         <div>
-            {current.mainText && (
-                <div className={cn("relative z-10", current.mainTextClass)}>
-                    {current.mainText}
+      <div className="flex items-end justify-between relative z-10 w-full">
+        {current.customRender ? (
+            typeof current.customRender === 'function' ? current.customRender() : current.customRender
+        ) : (
+            <>
+                <div>
+                   {current.mainText && <h4 className={cn("leading-none", current.mainTextClass)}>{current.mainText}</h4>}
+                   {current.bottomText && <p className={cn("text-xs font-semibold mt-1", current.bottomTextClass || "text-gray-500")}>
+                       {current.bottomText}
+                   </p>}
                 </div>
-            )}
-            
-            {current.bottomText && (
-                <p className={cn(
-                    "text-xs mt-1", 
-                    status === 'node' && points && points > 0 
-                        ? "inline-block bg-green-100/80 text-green-700 px-2 py-0.5 rounded-md font-bold mt-2" 
-                        : "text-gray-500",
-                    (current as any).bottomTextClass
-                )}>
-                    {/* Badge for Tier Progress if complete */}
-                    {status === 'progress' && totalLoansRepaid >= targetLoans 
-                        ? <span className="inline-block bg-[#EC1B84] text-white px-2 py-0.5 rounded-md font-bold animate-pulse">Tier 2 Unlocked!</span>
-                        : current.bottomText}
-                </p>
-            )}
-         </div>
 
-         {/* Active Loan Circular Ring (Replacing Icon/Button area if active) */}
-         {status === 'active' && typeof progress === 'number' ? (
-             <div 
-                 className="relative w-16 h-16 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
-                 onClick={() => onAction?.("repay")}
-             >
-                 {/* Background Circle */}
-                 <svg className="w-full h-full transform -rotate-90">
-                     <circle cx="32" cy="32" r="28" stroke="#F3F4F6" strokeWidth="4" fill="none" />
-                     {/* Progress Circle */}
-                     <motion.circle 
-                        cx="32" cy="32" r="28" 
-                        stroke="#EC1B84" 
-                        strokeWidth="4" 
-                        fill="none" 
-                        strokeDasharray={2 * Math.PI * 28}
-                        initial={{ strokeDashoffset: 2 * Math.PI * 28 }}
-                        animate={{ strokeDashoffset: 2 * Math.PI * 28 * (1 - progress) }}
-                        transition={{ duration: 1.5, ease: "easeOut" }}
-                        strokeLinecap="round"
-                     />
-                 </svg>
-                 <span className="absolute text-xs font-bold text-gray-900">{Math.round(progress * 100)}%</span>
-             </div>
-         ) : (
-             /* Standard Button */
-             current.buttonLabel && (
-                <button 
-                   className={current.btnClass}
-                   onClick={() => onAction?.(current.buttonAction)}
-                >
-                   {current.buttonLabel}
-                </button>
-             )
-         )}
+                {status === 'active' && typeof progress === 'number' ? (
+                     <div 
+                         className="relative w-16 h-16 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+                         onClick={(e) => { e.stopPropagation(); onAction?.("repay"); }}
+                     >
+                         <svg className="w-full h-full transform -rotate-90">
+                             <circle cx="32" cy="32" r="28" stroke="#F3F4F6" strokeWidth="4" fill="none" />
+                             <motion.circle 
+                                cx="32" cy="32" r="28" 
+                                stroke="#EC1B84" 
+                                strokeWidth="4" 
+                                fill="none" 
+                                strokeDasharray={2 * Math.PI * 28}
+                                initial={{ strokeDashoffset: 2 * Math.PI * 28 }}
+                                animate={{ strokeDashoffset: 2 * Math.PI * 28 * (1 - (progress || 0)) }}
+                                transition={{ duration: 1.5, ease: "easeOut" }}
+                                strokeLinecap="round"
+                             />
+                         </svg>
+                         <span className="absolute text-xs font-bold text-gray-900">{Math.round((progress || 0) * 100)}%</span>
+                     </div>
+                ) : (
+                    current.buttonLabel && (
+                      <button 
+                        className={current.btnClass}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onAction && current.buttonAction && onAction(current.buttonAction);
+                        }}
+                      >
+                            {current.buttonLabel}
+                      </button>
+                    )
+                )}
+            </>
+        )}
       </div>
-
-      {/* Progress Bar (Tier Progress - Horizontal) */}
-      {status === 'progress' && (
-        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-100">
-          <motion.div 
-            initial={{ width: 0 }} 
-            animate={{ width: `${Math.min(100, Math.max(0, (totalLoansRepaid / targetLoans) * 100))}%` }} 
-            transition={{ duration: 1, ease: "easeOut" }}
-            className="h-full bg-[#EC1B84]" 
-          />
-        </div>
-      )}
     </motion.div>
   );
 };
