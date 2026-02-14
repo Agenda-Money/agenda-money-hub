@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { ArrowLeft, ChevronRight, CheckSquare, Square, Send, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, ChevronRight, CheckSquare, Square, Send, Loader2, AlertCircle, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
@@ -172,10 +172,14 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                    <span className="font-extrabold text-gray-900 text-lg">GHS{totalRepayment}</span>
                  </div>
                  
-                 <div className="flex justify-between items-center text-sm pt-1">
-                   <span className="text-gray-400">Due Date</span>
-                   <span className="font-bold text-gray-900">{dueDate}</span>
-                 </div>
+                  <div className="flex justify-between items-center text-sm pt-2">
+                    <span className="text-gray-400">Due Date</span>
+                    <div className="flex items-center gap-1.5 bg-orange-50 text-orange-700 px-2 py-1 rounded-lg border border-orange-100">
+                        <CalendarClock className="w-3.5 h-3.5" />
+                        <span className="font-bold text-xs">Due in {loanData.tenure} days</span>
+                        <span className="text-[10px] opacity-70 border-l border-orange-200 pl-1.5 ml-0.5">{dueDate}</span>
+                    </div>
+                  </div>
                </div>
                <div className="border-t border-dashed border-gray-200 mt-2"></div>
              </div>
