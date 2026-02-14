@@ -70,8 +70,16 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                         type="number"
                         value={amount}
                         onChange={(e) => {
-                           const val = Number(e.target.value);
-                           if (val <= tierLimit) setAmount(val);
+                           const raw = e.target.value;
+                           // If input is cleared, reset to minimum allowed amount
+                           if (raw === "") {
+                             setAmount(50);
+                             return;
+                           }
+                           const val = Number(raw);
+                           if (!Number.isNaN(val) && val >= 50 && val <= tierLimit) {
+                             setAmount(val);
+                           }
                         }}
                         onBlur={() => {
                            // Clamp on blur to ensure valid range
@@ -79,6 +87,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                            setAmount(clamped);
                         }}
                         className="w-40 h-16 bg-gray-50 rounded-2xl text-center text-3xl font-bold text-gray-900 border-2 border-transparent focus:border-[#EC1B84] focus:bg-white outline-none transition-all pl-8 pr-4 shadow-sm"
+                        aria-label="Enter loan amount"
                      />
                      <div className="absolute -right-3 -top-2 bg-white rounded-full p-1.5 shadow-sm border border-gray-100 pointer-events-none group-hover:scale-110 transition-transform">
                         <Pencil className="w-3 h-3 text-[#EC1B84]" />
