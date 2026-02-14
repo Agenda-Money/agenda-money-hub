@@ -14,6 +14,7 @@ import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
 import { cn } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { uploadToSupabase } from "@/lib/supabase";
+import { TIER_LIMITS, type TierConfig } from "@/lib/constants";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
 import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
@@ -97,23 +98,7 @@ interface OnboardingData {
   selfieUrl: string;
 }
 
-type TierLimit = {
-  tier: number;
-  min: number;
-  max: number;
-  maxTenure: number;
-  amounts?: number[];
-  tenures?: number[];
-};
-
-const TIER_LIMITS: Record<number, TierLimit> = {
-  1: { tier: 1, min: 50, max: 300, maxTenure: 14 },
-  2: { tier: 2, min: 100, max: 600, maxTenure: 21 },
-  3: { tier: 3, min: 150, max: 900, maxTenure: 30 },
-  4: { tier: 4, min: 50, max: 500, maxTenure: 14 },
-};
-
-const buildAmountOptions = (tier?: TierLimit) => {
+const buildAmountOptions = (tier?: TierConfig) => {
   if (!tier) return [];
   if (tier.amounts?.length) return tier.amounts;
   if (!tier.min || !tier.max) return [];
@@ -122,7 +107,7 @@ const buildAmountOptions = (tier?: TierLimit) => {
   return Array.from({ length: count }, (_, i) => tier.min + i * step);
 };
 
-const buildTenureOptions = (tier?: TierLimit) => {
+const buildTenureOptions = (tier?: TierConfig) => {
   if (!tier) return [];
   if (tier.tenures?.length) return tier.tenures;
   if (!tier.maxTenure) return [];
@@ -343,7 +328,6 @@ export default function ApplyPage() {
 
 
   // ─── Backend-Driven Navigation Helper ───
-  // ─── Backend-Driven Navigation Helper ───
   const handleAuthResponse = useCallback((data: any) => {
     if (data.user) {
       // Merge summary into user object if present, so UserDashboard can read applicant.summary
@@ -379,14 +363,15 @@ export default function ApplyPage() {
         setOnboardingStep(1); // Direct to Bio-data
         break;
       default:
-        // Safety fallback: If backend doesn't know, send to login/auth
-        console.warn("Unknown nextStep, defaulting to Auth", nextStep);
-        // If we are already authenticated but nextStep is missing, 
-        // it might be safer to show dashboard rather than Auth if we have user data?
-        // User instruction said: "default: setView('auth')"
-        // But if checkAuth calls this, setting 'auth' might look like a logout.
-        // However, the strict instruction was: case default: setView('auth');
-        setView('auth'); 
+        // Safety fallback: If backend doesn't provide a valid nextStep
+        console.warn("Unknown or missing nextStep; choosing fallback view", nextStep);
+        // If we have user data, we assume the user is authenticated and prefer dashboard
+        if (data.user) {
+          setView('loan-dashboard');
+        } else {
+          // No user data means we cannot treat this as an authenticated session
+          setView('auth');
+        }
         break;
     }
   }, [setApplicant, setUserData, setView, setOnboardingStep]);
@@ -547,8 +532,9 @@ export default function ApplyPage() {
                 const profileData = await profileRes.json();
                 // Merge verify response (has nextStep) with profile data (has full user)
                 handleAuthResponse({
-                    ...p, // Preserves nextStep
-                    ...profileData, // Overwrites user with full profile
+                    ...p, // Base verify response (has nextStep)
+                    ...profileData, // Overwrites with full profile data where appropriate
+                    nextStep: p.nextStep, // Explicitly preserve nextStep from verify response
                     user: profileData.user || p.user // Explicitly prefer profile user
                 });
             } else {
