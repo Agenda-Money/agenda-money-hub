@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowLeft, Briefcase, Stethoscope, GraduationCap, Home, MoreHorizontal, Info } from "lucide-react";
+import { ArrowLeft, Briefcase, Stethoscope, GraduationCap, Home, MoreHorizontal, Info, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ const PURPOSES = [
 ];
 
 const TENURE_OPTIONS = [1, 5, 10, 14];
+const MIN_LOAN_AMOUNT = 50;
 
 export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({ 
   tierLimit, 
@@ -35,7 +36,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
   initialTenure, 
   initialPurpose 
 }) => {
-  const [amount, setAmount] = useState<number>(initialAmount || Math.max(50, Math.min(140, tierLimit)));
+  const [amount, setAmount] = useState<number>(initialAmount || Math.max(MIN_LOAN_AMOUNT, Math.min(140, tierLimit)));
   const [tenure, setTenure] = useState<number>(initialTenure || 10);
   const [purpose, setPurpose] = useState<string>(initialPurpose || "Business");
   const [nodeCode, setNodeCode] = useState<string>(initialNodeCode || "");
@@ -55,34 +56,61 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-10 pb-32">
         
         {/* Loan Amount Section (Hybrid Slider) */}
-        <div className="space-y-14 mt-4">
+        <div className="space-y-8 mt-4">
            <div className="text-center space-y-1">
              <h2 className="text-lg font-bold text-gray-900">Loan Amount</h2>
              <p className="text-sm text-gray-500">You are eligible for loan up to GHS{tierLimit}</p>
            </div>
 
-           <div className="relative px-2">
-              {/* Tooltip Bubble */}
-              <div className="absolute left-0 right-0 -top-12 flex justify-center pointer-events-none">
-                  <div className="bg-slate-800 text-white font-bold text-xl py-2 px-6 rounded-2xl relative shadow-xl min-w-[100px] text-center">
-                     <span>GHS{amount}</span>
-                     <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-slate-800 rotate-45"></div>
+           <div className="px-2 space-y-6">
+              {/* Dynamic Input Amount Display */}
+              <div className="flex justify-center">
+                  <div className="relative group">
+                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">GHS</span>
+                     <input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => {
+                           const raw = e.target.value;
+                           // If input is cleared, reset to minimum allowed amount
+                           if (raw === "") {
+                             setAmount(MIN_LOAN_AMOUNT);
+                             return;
+                           }
+                           const val = Number(raw);
+                           if (!Number.isNaN(val) && val >= MIN_LOAN_AMOUNT && val <= tierLimit) {
+                             setAmount(val);
+                           }
+                        }}
+                        onBlur={() => {
+                           // Clamp on blur to ensure valid range
+                           const clamped = Math.max(MIN_LOAN_AMOUNT, Math.min(amount, tierLimit));
+                           setAmount(clamped);
+                        }}
+                        className="w-40 h-16 bg-gray-50 rounded-2xl text-center text-3xl font-bold text-gray-900 border-2 border-transparent focus:border-[#EC1B84] focus:bg-white outline-none transition-all pl-8 pr-4 shadow-sm"
+                        aria-label="Enter loan amount"
+                     />
+                     <div className="absolute -right-3 -top-2 bg-white rounded-full p-1.5 shadow-sm border border-gray-100 pointer-events-none group-hover:scale-110 transition-transform">
+                        <Pencil className="w-3 h-3 text-[#EC1B84]" />
+                     </div>
                   </div>
               </div>
 
               {/* Slider */}
-              <Slider 
-                value={[amount]} 
-                onValueChange={(vals) => setAmount(vals[0])} 
-                max={tierLimit} 
-                min={50} 
-                step={10} 
-                className="my-10 [&_[role=slider]]:bg-[#EC1B84] [&_[role=slider]]:border-[#EC1B84] [&_[role=slider]]:h-6 [&_[role=slider]]:w-6"
-              />
-              
-              <div className="flex justify-between text-xs font-bold text-gray-300 -mt-6 px-1">
-                 <span>GHS50</span>
-                 <span>GHS{tierLimit}</span>
+              <div className="pt-2 pb-6">
+                <Slider 
+                  value={[amount]} 
+                  onValueChange={(vals) => setAmount(vals[0])} 
+                  max={tierLimit} 
+                  min={MIN_LOAN_AMOUNT} 
+                  step={5} 
+                  className="[&_[role=slider]]:bg-[#EC1B84] [&_[role=slider]]:border-[#EC1B84] [&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:shadow-lg [&_[role=slider]]:shadow-pink-200"
+                />
+                
+                <div className="flex justify-between text-xs font-bold text-gray-400 mt-3 px-1">
+                  <span>Min: GHS{MIN_LOAN_AMOUNT}</span>
+                  <span>Max: GHS{tierLimit}</span>
+                </div>
               </div>
            </div>
         </div>

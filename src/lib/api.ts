@@ -11,14 +11,17 @@ const api = axios.create({
 // Request interceptor for API calls
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    // Check for both admin token and applicant token
+    const adminToken = localStorage.getItem('token');
+    const applicantToken = localStorage.getItem('agenda_token');
+    const token = adminToken || applicantToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => {
-    throw error;
+    return Promise.reject(error);
   }
 );
 
@@ -33,11 +36,23 @@ api.interceptors.response.use(
     // Handle 401 Unauthorized
     // Don't redirect on login failure (which is also a 401)
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes("/auth/login")) {
+      // Remove both tokens to support both authentication flows
       localStorage.removeItem('token');
-      globalThis.location.href = "/login";
+      localStorage.removeItem('agenda_token');
+      window.location.href = "/login";
     }
-    throw error;
+    return Promise.reject(error);
   }
 );
+
+export const initiateRepayment = async (amount: number, msisdn: string) => {
+  const response = await api.post('/api/repayments/initiate', { amount, msisdn });
+  return response.data;
+};
+
+export const getMe = async () => {
+    const response = await api.get('/api/users/me');
+    return response.data;
+};
 
 export default api;

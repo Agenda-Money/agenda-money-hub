@@ -1163,29 +1163,7 @@ export default function ApplyPage() {
         </div>
         )}
 
-        {/* Repayment Drawer */}
-        <AnimatePresence>
-          {isRepaymentOpen && (
-            <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsRepaymentOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" />
-              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-6 z-[70] pb-10">
-                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Make Payment</h3>
-                <p className="text-muted-foreground mb-6">Enter amount to repay via Mobile Money.</p>
-                
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Amount (GHS)</Label>
-                    <Input type="number" placeholder="Enter amount" className="h-14 rounded-xl text-lg bg-gray-50 border-gray-100" />
-                  </div>
-                  <Button className="w-full h-14 rounded-full bg-gray-900 text-white text-lg font-bold shadow-lg">
-                    Pay Now
-                  </Button>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+
 
         {/* Share & Earn Drawer */}
         <AnimatePresence>
@@ -1304,6 +1282,26 @@ export default function ApplyPage() {
             </>
           )}
         </AnimatePresence>
+      {/* RepaymentPage Overlay */}
+      <AnimatePresence>
+        {isRepaymentOpen && (
+           <RepaymentPage 
+             amountDue={activeLoanDetails?.outstandingBalance || 0} 
+             dueDate={activeLoanDetails?.dueDate || "Unknown"}
+             msisdn={userData?.msisdn ? String(userData.msisdn) : ""}
+             userName={userData ? `${userData.firstName} ${userData.lastName}` : "User"}
+             onBack={() => setIsRepaymentOpen(false)}
+             onRepay={(amount) => {
+                // Refresh Dashboard data after success
+                if (userData?.msisdn) {
+                    // Force refresh by reloading the page so dashboard APIs run again
+                    window.location.reload();
+                }
+                setIsRepaymentOpen(false);
+             }}
+           />
+        )}
+      </AnimatePresence>
       </div>
     );
   }
@@ -1915,22 +1913,7 @@ export default function ApplyPage() {
         </AnimatePresence>
       </main>
 
-      {/* Repayment Page Overlay */}
-      <AnimatePresence>
-        {isRepaymentOpen && (
-           <RepaymentPage 
-             amountDue={354} // Mock data for now, replace with real data later
-             dueDate="24 Feb 2026"
-             msisdn={userData?.msisdn ? String(userData.msisdn) : "233..."}
-             onBack={() => setIsRepaymentOpen(false)}
-             onRepay={(amount) => {
-                console.log("Repaying:", amount);
-                setIsRepaymentOpen(false);
-                // logic to process payment
-             }}
-           />
-        )}
-      </AnimatePresence>
+
 
       {/* Fixed Bottom - Only for Step 2. (Step 4 has internal nav via LoanApplicationPage) */}
       {onboardingStep === 2 && (
