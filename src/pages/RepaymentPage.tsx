@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ArrowLeft, ChevronRight, XCircle, CheckCircle2, RefreshCw, CloudOff, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, RefreshCw, CloudOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -19,11 +19,21 @@ const MIN_PARTIAL_PAYMENT = 5;
 // Helper to determine network from MSISDN
 const getNetwork = (msisdn: string) => {
     const cleanNum = msisdn.replace(/\D/g, '');
-    const prefix = cleanNum.slice(0, 3);
+    const localPrefix = cleanNum.slice(0, 3);
+    const intlPrefix = cleanNum.startsWith('233') ? cleanNum.slice(0, 5) : '';
     // Rough logic for Ghana prefixes
-    if (['024', '054', '055', '059', '025'].includes(prefix) || msisdn.startsWith('23324') || msisdn.startsWith('23354')) return 'MTN';
-    if (['020', '050'].includes(prefix) || msisdn.startsWith('23320') || msisdn.startsWith('23350')) return 'Telecel';
-    if (['027', '057', '026', '056'].includes(prefix) || msisdn.startsWith('23327') || msisdn.startsWith('23357')) return 'AT';
+    if (
+      ['024', '054', '055', '059', '025'].includes(localPrefix) ||
+      ['23324', '23354'].includes(intlPrefix)
+    ) return 'MTN';
+    if (
+      ['020', '050'].includes(localPrefix) ||
+      ['23320', '23350'].includes(intlPrefix)
+    ) return 'Telecel';
+    if (
+      ['027', '057', '026', '056'].includes(localPrefix) ||
+      ['23327', '23357'].includes(intlPrefix)
+    ) return 'AT';
     return 'MTN'; // Defaulting to MTN as per user preference
 };
 
@@ -45,6 +55,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
   // Polling Refs
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const initialBalanceRef = useRef<number>(amountDue);
+  const attemptsRef = useRef<number>(0);
 
   useEffect(() => {
      initialBalanceRef.current = amountDue;
@@ -103,11 +114,11 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
       // Clear any existing interval
       if (pollingRef.current) clearInterval(pollingRef.current);
 
-      let attempts = 0;
+      attemptsRef.current = 0;
       const maxAttempts = 20; // 60 seconds total (3s interval)
 
       pollingRef.current = setInterval(async () => {
-          attempts++;
+          attemptsRef.current++;
           try {
               const userData = await getMe();
               const currentBalance = userData.activeLoan?.outstandingBalance || 0;
@@ -118,7 +129,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
               if (currentBalance < initialBalanceRef.current || loanStatus === 'REPAID') {
                   if (pollingRef.current) clearInterval(pollingRef.current);
                   setViewState("success");
-              } else if (attempts >= maxAttempts) {
+              } else if (attemptsRef.current >= maxAttempts) {
                   if (pollingRef.current) clearInterval(pollingRef.current);
                   setViewState("failed");
                   setErrorMessage("Payment taking longer than expected. We'll update your balance shortly.");
@@ -139,6 +150,11 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
 
 
   const handleRetry = () => {
+      // Stop any ongoing polling before resetting state
+      if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+      }
       setViewState("input");
       setErrorMessage("");
   };
@@ -217,14 +233,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
             </div>
             
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful</h2>
-            <p className="text-base text-gray-500 max-w-xs mb-14">Your repayment has been received.</p>
-
-            {paymentType === 'partial' && (
-                <div className="bg-gray-50 px-6 py-4 rounded-2xl mb-10 w-full max-w-xs border border-gray-100">
-                    <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">New Balance</p>
-                    <p className="text-2xl font-bold text-gray-900">GHS {amountDue - Number(partialAmount)}</p>
-                </div>
-            )}
+            <p className="text-base text-gray-500 max-w-xs mb-14">Your repayment has been received. Your updated balance will be available in your account overview shortly.</p>
 
             <div className="w-full max-w-xs">
                 <Button 
@@ -269,11 +278,13 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
                 <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-500 font-medium">Due Date</span>
                     <span className="font-bold text-gray-900">
-                        {new Date(dueDate).toLocaleDateString("en-GB", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric"
-                        })}
+                        {dueDate === "Unknown"
+                          ? "Unknown"
+                          : new Date(dueDate).toLocaleDateString("en-GB", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric"
+                            })}
                     </span>
                 </div>
             </div>
@@ -349,12 +360,25 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
                             <input 
                                 type="number" 
                                 value={partialAmount}
-                                onChange={(e) => setPartialAmount(e.target.value)}
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  // Allow empty string for clearing
+                                  if (raw === "") {
+                                    setPartialAmount("");
+                                    return;
+                                  }
+                                  const val = Number(raw);
+                                  // Only update if it's a valid number and not negative
+                                  if (!Number.isNaN(val) && val >= 0) {
+                                    setPartialAmount(raw);
+                                  }
+                                }}
                                 min={MIN_PARTIAL_PAYMENT}
                                 max={amountDue}
                                 placeholder="0"
                                 className="w-full bg-transparent text-4xl font-bold text-gray-900 focus:outline-none placeholder:text-gray-300 min-w-[60px]"
                                 autoFocus
+                                aria-label="Enter partial payment amount"
                             />
                         </div>
 
@@ -404,7 +428,6 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
                         <p className="text-xs text-gray-500">+{msisdn}</p>
                     </div>
                 </div>
-                <button className="text-xs font-bold text-[#EC1B84] hover:underline px-2">Change</button>
             </div>
         </div>
 
