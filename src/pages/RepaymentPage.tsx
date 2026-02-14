@@ -24,15 +24,15 @@ const getNetwork = (msisdn: string) => {
     // Rough logic for Ghana prefixes
     if (
       ['024', '054', '055', '059', '025'].includes(localPrefix) ||
-      ['23324', '23354'].includes(intlPrefix)
+      (intlPrefix && ['23324', '23354'].includes(intlPrefix))
     ) return 'MTN';
     if (
       ['020', '050'].includes(localPrefix) ||
-      ['23320', '23350'].includes(intlPrefix)
+      (intlPrefix && ['23320', '23350'].includes(intlPrefix))
     ) return 'Telecel';
     if (
       ['027', '057', '026', '056'].includes(localPrefix) ||
-      ['23327', '23357'].includes(intlPrefix)
+      (intlPrefix && ['23327', '23357'].includes(intlPrefix))
     ) return 'AT';
     return 'MTN'; // Defaulting to MTN as per user preference
 };

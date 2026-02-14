@@ -24,6 +24,7 @@ const PURPOSES = [
 ];
 
 const TENURE_OPTIONS = [1, 5, 10, 14];
+const MIN_LOAN_AMOUNT = 50;
 
 export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({ 
   tierLimit, 
@@ -35,7 +36,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
   initialTenure, 
   initialPurpose 
 }) => {
-  const [amount, setAmount] = useState<number>(initialAmount || Math.max(50, Math.min(140, tierLimit)));
+  const [amount, setAmount] = useState<number>(initialAmount || Math.max(MIN_LOAN_AMOUNT, Math.min(140, tierLimit)));
   const [tenure, setTenure] = useState<number>(initialTenure || 10);
   const [purpose, setPurpose] = useState<string>(initialPurpose || "Business");
   const [nodeCode, setNodeCode] = useState<string>(initialNodeCode || "");
@@ -73,17 +74,17 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                            const raw = e.target.value;
                            // If input is cleared, reset to minimum allowed amount
                            if (raw === "") {
-                             setAmount(50);
+                             setAmount(MIN_LOAN_AMOUNT);
                              return;
                            }
                            const val = Number(raw);
-                           if (!Number.isNaN(val) && val >= 50 && val <= tierLimit) {
+                           if (!Number.isNaN(val) && val >= MIN_LOAN_AMOUNT && val <= tierLimit) {
                              setAmount(val);
                            }
                         }}
                         onBlur={() => {
                            // Clamp on blur to ensure valid range
-                           const clamped = Math.max(50, Math.min(amount, tierLimit));
+                           const clamped = Math.max(MIN_LOAN_AMOUNT, Math.min(amount, tierLimit));
                            setAmount(clamped);
                         }}
                         className="w-40 h-16 bg-gray-50 rounded-2xl text-center text-3xl font-bold text-gray-900 border-2 border-transparent focus:border-[#EC1B84] focus:bg-white outline-none transition-all pl-8 pr-4 shadow-sm"
@@ -101,13 +102,13 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                   value={[amount]} 
                   onValueChange={(vals) => setAmount(vals[0])} 
                   max={tierLimit} 
-                  min={50} 
+                  min={MIN_LOAN_AMOUNT} 
                   step={5} 
                   className="[&_[role=slider]]:bg-[#EC1B84] [&_[role=slider]]:border-[#EC1B84] [&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:shadow-lg [&_[role=slider]]:shadow-pink-200"
                 />
                 
                 <div className="flex justify-between text-xs font-bold text-gray-400 mt-3 px-1">
-                  <span>Min: GHS50</span>
+                  <span>Min: GHS{MIN_LOAN_AMOUNT}</span>
                   <span>Max: GHS{tierLimit}</span>
                 </div>
               </div>
