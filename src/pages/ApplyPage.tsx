@@ -1294,8 +1294,8 @@ export default function ApplyPage() {
              onRepay={(amount) => {
                 // Refresh Dashboard data after success
                 if (userData?.msisdn) {
-                    // Force refresh by calling API again effectively (handled by dashboard polling or explicit refresh)
-                    // For now, close overlay
+                    // Force refresh by reloading the page so dashboard APIs run again
+                    window.location.reload();
                 }
                 setIsRepaymentOpen(false);
              }}
