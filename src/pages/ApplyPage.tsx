@@ -101,10 +101,10 @@ interface OnboardingData {
 const buildAmountOptions = (tier?: TierConfig) => {
   if (!tier) return [];
   if (tier.amounts?.length) return tier.amounts;
-  if (!tier.min || !tier.max) return [];
+  if (!tier.minAmount || !tier.maxAmount) return [];
   const step = 50;
-  const count = Math.floor((tier.max - tier.min) / step) + 1;
-  return Array.from({ length: count }, (_, i) => tier.min + i * step);
+  const count = Math.floor((tier.maxAmount - tier.minAmount) / step) + 1;
+  return Array.from({ length: count }, (_, i) => tier.minAmount + i * step);
 };
 
 const buildTenureOptions = (tier?: TierConfig) => {
@@ -117,7 +117,7 @@ const buildTenureOptions = (tier?: TierConfig) => {
 
 
 
-type View = "auth" | "otp" | "onboarding" | "loan-dashboard" | "success";
+type View = "landing" | "auth" | "otp" | "onboarding" | "loan-dashboard" | "success";
 
 const STEPS = [
   { number: 1, label: "Personal Info" },
@@ -184,27 +184,33 @@ function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick, hasNot
 
 /* ─── Estimated Term Sheet ─── */
 function EstimatedTermSheet({ amount, tenure }: { amount: number; tenure: number }) {
-  const interest = Math.round(amount * 0.08);
-  const fee = Math.round(amount * 0.02);
-  const total = amount + interest + fee;
+  const interest = Math.round(amount * 0.005 * tenure);
+  const fee = 30; // Flat Fee
+  const disbursement = amount - fee;
+  const total = amount + interest;
   const dueDate = new Date(Date.now() + tenure * 86400000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm animate-in fade-in duration-300">
       <span className="text-gray-500">Principal</span>
       <span className="text-right font-medium text-gray-900">GHS {amount}</span>
-      <span className="text-gray-500">Interest (8%)</span>
+      <span className="text-gray-500">Interest (0.5%/day)</span>
       <span className="text-right font-medium text-gray-900">GHS {interest}</span>
-      <span className="text-gray-500">Service fee (2%)</span>
+      <span className="text-gray-500">Processing Fee</span>
       <span className="text-right font-medium text-gray-900">GHS {fee}</span>
       
-      <div className="col-span-2 my-2 border-t border-dashed border-gray-200" />
+      <div className="col-span-2 my-1 border-t border-dashed border-gray-200" />
       
-      <span className="text-gray-600 font-medium pt-1">Total repayment</span>
-      <span className="text-right font-bold text-xl text-[#EC1B84] pt-1">GHS {total}</span>
+      <span className="text-gray-500 font-medium">Disbursement</span>
+      <span className="text-right font-bold text-[#EC1B84]">GHS {disbursement}</span>
       
-      <span className="text-gray-500 text-xs mt-1">Due date</span>
-      <span className="text-right font-medium text-gray-900 text-xs mt-1">{dueDate}</span>
+      <div className="col-span-2 my-1 border-t border-gray-100" />
+      
+      <span className="text-gray-600 font-bold">Total Repayment</span>
+      <span className="text-right font-extrabold text-gray-900 text-lg">GHS {total}</span>
+      
+      <span className="text-gray-400 text-xs">Due Date</span>
+      <span className="text-right font-medium text-gray-600 text-xs">{dueDate}</span>
     </div>
   );
 }
@@ -248,7 +254,7 @@ function normalizeMsisdn(msisdn: string | undefined): string {
 export default function ApplyPage() {
   const { setApplicant, applicant } = useApplicant();
 
-  const [view, setView] = useState<View>("auth");
+  const [view, setView] = useState<View>("landing");
   const [direction, setDirection] = useState(0);
   const [msisdnInput, setMsisdnInput] = useState("");
   const [nodeCode, setNodeCode] = useState("");
@@ -270,7 +276,15 @@ export default function ApplyPage() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
-  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>({});
+  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>(() => {
+    const saved = globalThis.localStorage.getItem("agenda_onboarding_data");
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  useEffect(() => {
+    globalThis.localStorage.setItem("agenda_onboarding_data", JSON.stringify(onboardingData));
+  }, [onboardingData]);
+
   const [loanApplicationData, setLoanApplicationData] = useState<{ amount: number; tenure: number; purpose: string } | null>(null);
 
   const [loanAmount, setLoanAmount] = useState(100);
@@ -305,9 +319,9 @@ export default function ApplyPage() {
 
   const currentTier = Number(userData?.currentTier ?? 1);
   const activeTier = TIER_LIMITS[currentTier];
-  const tierMin = activeTier?.min ?? 0;
-  const tierMax = activeTier?.max ?? 0;
-  const tierMaxTenure = activeTier?.maxTenure ?? 0;
+  const tierMin = activeTier?.minAmount ?? 50;
+  const tierMax = activeTier?.maxAmount ?? 300;
+  const tierMaxTenure = activeTier?.maxTenure ?? 14;
   const amountOptions = useMemo(() => {
     const options = buildAmountOptions(activeTier);
     return options.length ? options : [loanAmount];
@@ -337,6 +351,28 @@ export default function ApplyPage() {
          
       setApplicant(userWithSummary);
       setUserData(userWithSummary);
+
+      // HYDRATE ONBOARDING DATA to prevent validation errors on resume
+      // Priority: Backend Data > Existing Local State > Default/Undefined
+      setOnboardingData((prev) => {
+          const backendUser = data.user;
+          const newData = {
+            ...prev,
+            firstName: backendUser.firstName || prev.firstName,
+            surname: backendUser.surname || backendUser.lastName || prev.surname,
+            dob: backendUser.dob ? new Date(backendUser.dob).toISOString().split('T')[0] : (prev.dob || ""),
+            gender: backendUser.gender || prev.gender,
+            region: backendUser.region || prev.region,
+            address: backendUser.address || prev.address,
+            accommodationType: backendUser.accommodationType || prev.accommodationType,
+            yearsAtAddress: backendUser.yearsAtAddress || prev.yearsAtAddress,
+            educationLevel: backendUser.educationLevel || prev.educationLevel,
+            employmentStatus: backendUser.employmentStatus || prev.employmentStatus,
+            monthlyIncome: backendUser.monthlyIncome || prev.monthlyIncome,
+            ghanaCardNumber: backendUser.ghanaCardNumber || prev.ghanaCardNumber,
+          };
+          return newData;
+      });
     }
 
     // Handle Active Loan Summary (if available) - Keeping this for state hydration
@@ -353,6 +389,7 @@ export default function ApplyPage() {
     switch (nextStep) {
       case 'DASHBOARD':
         setView('loan-dashboard');
+        setOnboardingStep(0); // 🚀 Ensure onboarding is "turned off"
         break;
       case 'ONBOARDING_KYC':
         setView('onboarding');
@@ -614,6 +651,7 @@ export default function ApplyPage() {
     if (err) { setErrorMessage(err); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
     
     setErrorMessage(null); setOnboardingDirection(1); setOnboardingStep((p) => p + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
     
     // If moving TO step 3 from step 2, ensure we start at 'intro'
     if (onboardingStep === 2) {
@@ -747,6 +785,62 @@ export default function ApplyPage() {
   // ═══════════════════════════════════════
   // AUTH & OTP VIEWS
   // ═══════════════════════════════════════
+  // ═══════════════════════════════════════
+  // LANDING VIEW (Splash)
+  // ═══════════════════════════════════════
+  if (view === "landing") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white p-6 text-center relative overflow-hidden">
+        { /* Background Effects */ }
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-pink-100/40 blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-blue-100/40 blur-[100px] pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col items-center max-w-md w-full">
+           <motion.div 
+             initial={{ scale: 0.8, opacity: 0 }}
+             animate={{ scale: 1, opacity: 1 }}
+             transition={{ duration: 0.8, ease: "easeOut" }}
+             className="mb-10"
+           >
+             <div className="relative group">
+                <div className="absolute -inset-4 bg-white/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                <img src={agendaLogo} alt="Agenda Money" className="h-auto w-44 object-contain rounded-2xl shadow-xl hover:scale-105 transition-transform duration-300" />
+             </div>
+           </motion.div>
+
+           <motion.div
+             initial={{ y: 20, opacity: 0 }}
+             animate={{ y: 0, opacity: 1 }}
+             transition={{ delay: 0.3, duration: 0.8 }}
+             className="space-y-6 mb-16"
+           >
+              <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 leading-tight">
+                Get a loan in <br/>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-rose-500">minutes</span>
+              </h1>
+              <p className="text-lg text-gray-500 font-medium max-w-[85%] mx-auto leading-relaxed">
+                Simple terms. No hidden fees. <br/> Secure verification.
+              </p>
+           </motion.div>
+
+           <motion.div
+             initial={{ y: 20, opacity: 0 }}
+             animate={{ y: 0, opacity: 1 }}
+             transition={{ delay: 0.6, duration: 0.5 }}
+             className="w-full"
+           >
+             <Button 
+               onClick={() => setView("auth")}
+               className="w-full h-14 rounded-full bg-slate-900 text-white text-lg font-bold shadow-xl shadow-slate-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+             >
+               Get Started
+             </Button>
+           </motion.div>
+        </div>
+      </div>
+    );
+  }
+
   // ═══════════════════════════════════════
   // AUTH & OTP VIEWS (FlyonUI Design)
   // ═══════════════════════════════════════
@@ -1105,6 +1199,7 @@ export default function ApplyPage() {
                onContinue={(data) => {
                  setLoanApplicationData(data);
                  setActiveTab("summary");
+                 window.scrollTo({ top: 0, behavior: "smooth" });
                }}
              />
            )}
