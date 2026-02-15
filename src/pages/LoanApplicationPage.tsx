@@ -69,16 +69,16 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">GHS</span>
                      <input
                         type="number"
-                        value={amount}
+                        value={amount === 0 ? "" : amount}
                         onChange={(e) => {
                            const raw = e.target.value;
-                           // If input is cleared, reset to minimum allowed amount
                            if (raw === "") {
-                             setAmount(MIN_LOAN_AMOUNT);
+                             setAmount(0);
                              return;
                            }
                            const val = Number(raw);
-                           if (!Number.isNaN(val) && val >= MIN_LOAN_AMOUNT && val <= tierLimit) {
+                           // Allow typing any number up to limit, clamp on blur
+                           if (!Number.isNaN(val) && val <= tierLimit) {
                              setAmount(val);
                            }
                         }}
@@ -99,7 +99,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
               {/* Slider */}
               <div className="pt-2 pb-6">
                 <Slider 
-                  value={[amount]} 
+                  value={[Math.max(MIN_LOAN_AMOUNT, amount)]} 
                   onValueChange={(vals) => setAmount(vals[0])} 
                   max={tierLimit} 
                   min={MIN_LOAN_AMOUNT} 
@@ -199,7 +199,10 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
              </div>
              
              <Button 
-               onClick={() => onContinue({ amount, tenure, purpose, ...(nodeCode && { nodeCode }) })}
+               onClick={() => {
+                 const finalAmount = Math.max(MIN_LOAN_AMOUNT, amount);
+                 onContinue({ amount: finalAmount, tenure, purpose, ...(nodeCode && { nodeCode }) });
+               }}
                disabled={!amount || !tenure || !purpose}
                className="w-full h-14 rounded-full bg-[#EC1B84] hover:bg-[#D41472] text-white font-bold text-lg uppercase tracking-widest shadow-lg shadow-pink-200 disabled:opacity-50 disabled:shadow-none transition-all"
              >

@@ -32,11 +32,17 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
   const [error, setError] = useState<string | null>(null);
 
   // Calculations
-  const { interest, fee, totalRepayment, dueDate } = useMemo(() => {
+  const { interest, fee, totalRepayment, disbursementAmount, dueDate } = useMemo(() => {
     const dailyRate = 0.005; // 0.5%
     const interest = loanData.amount * dailyRate * loanData.tenure;
-    const fee = 30.00; // Fixed Application Fee
-    const totalRepayment = loanData.amount + interest + fee;
+    const fee = 30.00; // Flat Fee
+    
+    // New Logic:
+    // Disbursement = Principal - Fee
+    // Repayment = Principal + Interest
+    
+    const disbursementAmount = loanData.amount - fee;
+    const totalRepayment = loanData.amount + interest;
     
     const dueDateObj = new Date();
     dueDateObj.setDate(dueDateObj.getDate() + loanData.tenure);
@@ -45,10 +51,11 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
     return { 
       interest: interest.toFixed(2), 
       fee: fee.toFixed(2), 
+      disbursementAmount: disbursementAmount.toFixed(2),
       totalRepayment: totalRepayment.toFixed(2),
       dueDate 
     };
-  }, [loanData]);
+  }, [loanData.amount, loanData.tenure]);
 
   const handleSubmit = async () => {
     if (!agreed) return;
@@ -150,27 +157,32 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                <div className="border-t border-dashed border-gray-200 mt-2"></div>
              </div>
 
-             {/* Loan Details */}
-             <div className="space-y-4">
-               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Loan Details</h3>
-               <div className="space-y-3">
-                 <div className="flex justify-between items-center text-sm">
-                   <span className="text-gray-400">Loan amount</span>
-                   <span className="font-bold text-gray-900">GHS{loanData.amount.toFixed(2)}</span>
-                 </div>
-                 <div className="flex justify-between items-center text-sm">
-                   <span className="text-gray-400">Interest</span>
-                   <span className="font-bold text-gray-900">GHS{interest}</span>
-                 </div>
-                 <div className="flex justify-between items-center text-sm">
-                   <span className="text-gray-400">Fees</span>
-                   <span className="font-bold text-gray-900">GHS{fee}</span>
-                 </div>
-                 
-                 <div className="flex justify-between items-center text-sm py-3 bg-gray-50 -mx-2 px-2 rounded-lg mt-2">
-                   <span className="text-gray-600 font-bold">Total repayment</span>
-                   <span className="font-extrabold text-gray-900 text-lg">GHS{totalRepayment}</span>
-                 </div>
+              {/* Loan Details */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Loan Details</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-400">Loan amount</span>
+                    <span className="font-bold text-gray-900">GHS{loanData.amount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-400">Interest</span>
+                    <span className="font-bold text-gray-900">GHS{interest}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-400">Fees</span>
+                    <span className="font-bold text-gray-900">GHS{fee}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center text-sm py-2 border-t border-dashed border-gray-200 mt-2">
+                    <span className="text-gray-600 font-medium">Disbursement Amount</span>
+                    <span className="font-bold text-[#EC1B84]">GHS{disbursementAmount}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm py-3 bg-gray-50 -mx-2 px-2 rounded-lg mt-2">
+                    <span className="text-gray-600 font-bold">Total repayment</span>
+                    <span className="font-extrabold text-gray-900 text-lg">GHS{totalRepayment}</span>
+                  </div>
                  
                   <div className="flex justify-between items-center text-sm pt-2">
                     <span className="text-gray-400">Due Date</span>
