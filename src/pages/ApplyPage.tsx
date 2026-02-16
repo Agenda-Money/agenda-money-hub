@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
 import { cn } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
@@ -706,9 +708,29 @@ export default function ApplyPage() {
       const p = await r.json();
       if (!r.ok) throw new Error(p?.message || "Submission failed.");
       
-      setSuccessNodeCode(p.nodeCode || "AM-NEW");
-      setUserData(p.user);
-      setApplicant(p.user);
+      const code = p.nodeCode || "AM-NEW";
+      setSuccessNodeCode(code);
+      
+      const updatedUser = { 
+        ...p.user, 
+        nodeCode: code,
+        // Force these to ensure Dashboard shows "Pending" + "Phone" instantly
+        loanStatus: p.user?.loanStatus || "PENDING", 
+        summary: { 
+            ...(p.user?.summary || {}), 
+            isPending: true 
+        },
+        msisdn: p.user?.msisdn || normalizedMsisdn,
+        userId: p.user?.userId || normalizedMsisdn,
+        
+        // Ensure Name is present for "Welcome back [Name]"
+        firstName: p.user?.firstName || onboardingData.firstName,
+        lastName: p.user?.lastName || p.user?.surname || onboardingData.surname,
+        fullName: p.user?.fullName || `${onboardingData.firstName} ${onboardingData.surname}`
+      };
+
+      setUserData(updatedUser);
+      setApplicant(updatedUser);
       
       // Go to Success Screen
       setView("success");
@@ -932,10 +954,30 @@ export default function ApplyPage() {
                           type="tel"
                           value={msisdnInput}
                           onChange={(e) => {
-                            const val = e.target.value.replace(/\D/g, ""); // Remove non-digits
-                            if (val.length <= 9) { // 🎯 Strict 9-digit limit
+                            const val = e.target.value; // Allow all chars while typing
+                            if (val.length <= 20) { // Reasonable limit for raw input
                               setMsisdnInput(val);
                             }
+                          }}
+                          onBlur={() => {
+                            // 🎯 Auto-format on leave
+                            let val = msisdnInput.replace(/\D/g, "");
+                            
+                            // Handle 233 prefix first (e.g. 233541562819 -> 541562819)
+                            if (val.startsWith("233") && val.length > 9) {
+                                val = val.slice(3);
+                            }
+                            // Handle 0 prefix (e.g. 0541562819 -> 541562819)
+                            else if (val.startsWith("0") && val.length > 9) {
+                                val = val.slice(1);
+                            }
+                            
+                            // If user pasted something huge, truncate to 9 if it looks valid
+                            if (val.length > 9) {
+                                val = val.slice(0, 9);
+                            }
+                            
+                            setMsisdnInput(val);
                           }}
                           placeholder="50 XXX XXXX"
                           className="flex-1 bg-transparent border-0 h-full text-xl font-mono font-medium tracking-wider text-gray-800 focus:ring-0 focus:outline-none placeholder:text-gray-400 ml-2"
@@ -1517,77 +1559,36 @@ export default function ApplyPage() {
 
                    <div className="space-y-1.5">
                      <Label className="text-sm font-medium text-gray-500">Date of Birth</Label>
-                     <div className="relative flex gap-2">
-                        <Input
-                          type="text"
-                          placeholder="DD / MM / YYYY"
-                          maxLength={14}
-                          value={dobInput}
-                          onChange={(e) => {
-                             let val = e.target.value.replace(/\D/g, "");
-                             if (val.length > 8) val = val.slice(0, 8);
-                             
-                             let formatted = val;
-                             if (val.length >= 5) {
-                                formatted = val.slice(0, 2) + " / " + val.slice(2, 4) + " / " + val.slice(4);
-                             } else if (val.length >= 3) {
-                                formatted = val.slice(0, 2) + " / " + val.slice(2);
-                             }
-                             setDobInput(formatted);
-
-                             if (val.length === 8) {
-                                const d = parseInt(val.slice(0,2));
-                                const m = parseInt(val.slice(2,4));
-                                const y = parseInt(val.slice(4,8));
-                                
-                                // Proper JS Date validation handles leap years etc.
-                                const dateObj = new Date(y, m - 1, d);
-                                const isValidDate = dateObj.getFullYear() === y && dateObj.getMonth() === m - 1 && dateObj.getDate() === d;
-                                const isFuture = dateObj > new Date();
-                                const isTooOld = y < 1900;
-
-                                if (isValidDate && !isFuture && !isTooOld) {
-                                   const iso = `${y}-${m.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-                                   handleOnboardingChange("dob", iso);
-                                   setDobError(null);
+                     <div className="relative w-full">
+                        <DatePicker
+                            selected={onboardingData.dob ? new Date(onboardingData.dob) : null}
+                            onChange={(date) => {
+                                if (date) {
+                                    const iso = format(date, "yyyy-MM-dd");
+                                    handleOnboardingChange("dob", iso);
+                                    setDobInput(format(date, "dd / MM / yyyy"));
+                                    setDobError(null);
                                 } else {
-                                   handleOnboardingChange("dob", "");
-                                   if (!isValidDate) setDobError("Invalid date (e.g. 31st Feb)");
-                                   else if (isFuture) setDobError("Date cannot be in the future");
-                                   else if (isTooOld) setDobError("Year must be 1900 or later");
+                                    handleOnboardingChange("dob", "");
+                                    setDobInput("");
                                 }
-                             } else {
-                                if (onboardingData.dob) handleOnboardingChange("dob", "");
-                                setDobError(null);
-                             }
-                          }}
-                          className={cn(
-                            "h-12 w-full rounded-lg border-gray-300 bg-transparent px-3 py-2 text-sm font-medium shadow-sm transition-all focus:border-gray-900 focus:ring-0 placeholder:text-gray-300 font-mono",
-                            dobError && "border-red-500 focus:border-red-500"
-                          )}
+                            }}
+                            dateFormat="dd / MM / yyyy"
+                            placeholderText="DD / MM / YYYY"
+                            showYearDropdown
+                            showMonthDropdown
+                            scrollableYearDropdown
+                            yearDropdownItemNumber={100}
+                            maxDate={new Date()}
+                            className={cn(
+                                "h-12 w-full rounded-lg border-gray-300 bg-transparent px-3 py-2 text-sm font-medium shadow-sm transition-all focus:border-gray-900 focus:ring-0 placeholder:text-gray-300 font-mono w-full block",
+                                dobError && "border-red-500 focus:border-red-500"
+                            )}
+                            wrapperClassName="w-full"
                         />
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className="h-12 w-12 px-0 shrink-0 border-gray-300 text-gray-500">
-                               <CalendarIcon className="h-4 w-4" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="end">
-                            <Calendar
-                              mode="single"
-                              selected={onboardingData.dob ? new Date(onboardingData.dob) : undefined}
-                              onSelect={(date) => {
-                                 if (date) {
-                                     const iso = format(date, "yyyy-MM-dd");
-                                     handleOnboardingChange("dob", iso);
-                                     setDobInput(format(date, "dd / MM / yyyy"));
-                                 }
-                              }}
-                              disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
+                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                            <CalendarIcon className="h-4 w-4" />
+                         </div>
                      </div>
                      {dobError ? (
                         <p className="text-[10px] text-red-500 font-medium animate-in slide-in-from-left-1">{dobError}</p>
