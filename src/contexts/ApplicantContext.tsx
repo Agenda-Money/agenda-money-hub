@@ -20,7 +20,7 @@ const STORAGE_KEY = "applicant_user";
 export const ApplicantProvider = ({ children }: { children: React.ReactNode }) => {
   const [applicant, setApplicant] = useState<ApplicantUser | null>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = sessionStorage.getItem(STORAGE_KEY);
       return saved ? (JSON.parse(saved) as ApplicantUser) : null;
     } catch {
       return null;
@@ -30,9 +30,9 @@ export const ApplicantProvider = ({ children }: { children: React.ReactNode }) =
   const storeApplicant = useCallback((user: ApplicantUser | null) => {
     setApplicant(user);
     if (user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
     } else {
-      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
     }
   }, []);
 

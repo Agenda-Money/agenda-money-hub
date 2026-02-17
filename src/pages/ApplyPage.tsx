@@ -42,7 +42,11 @@ import {
   ChevronRight,
   CreditCard,
   Users,
-  Copy
+  Copy,
+  Banknote,
+  ShieldCheck,
+  Smartphone,
+  Share2
 } from "lucide-react";
 
 const baseApiUrl = import.meta.env.VITE_API_URL || "";
@@ -60,7 +64,7 @@ const GHANA_REGIONS = [
 const GENDERS = ["Male", "Female"];
 const ACCOMMODATION_TYPES = ["Owned", "Rented", "Living with family", "Other"];
 const EDUCATION_LEVELS = ["None", "Primary", "Secondary", "Tertiary"];
-const EMPLOYMENT_OPTIONS = ["Employed", "Self-Employed", "Unemployed", "Student"];
+const EMPLOYMENT_OPTIONS = ["Self Employed", "Full-time Employee", "Part-time Employee"];
 const INCOME_BRACKETS = ["Below GHS 1000", "GHS 1000-2000", "GHS 2000-5000", "Above GHS 5000"];
 const TERMS_LIST = [
   "Interest rate: 0.5% per day",
@@ -277,10 +281,29 @@ export default function ApplyPage() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
 
-  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>(() => {
+  const DEFAULT_ONBOARDING_DATA: OnboardingData = {
+    firstName: "",
+    surname: "",
+    dob: "",
+    gender: "",
+    region: "",
+    address: "",
+    accommodationType: "",
+    yearsAtAddress: "",
+    educationLevel: "",
+    employmentStatus: "",
+    monthlyIncome: "",
+    ghanaCardNumber: "",
+    ghanaCardFrontUrl: "",
+    ghanaCardBackUrl: "",
+    selfieUrl: ""
+  };
+
+  const [onboardingData, setOnboardingData] = useState<OnboardingData>(() => {
     const saved = globalThis.localStorage.getItem("agenda_onboarding_data");
-    return saved ? JSON.parse(saved) : {};
+    return saved ? { ...DEFAULT_ONBOARDING_DATA, ...JSON.parse(saved) } : DEFAULT_ONBOARDING_DATA;
   });
 
   useEffect(() => {
@@ -313,9 +336,12 @@ export default function ApplyPage() {
   const [notifications] = useState(MOCK_NOTIFICATIONS);
   const [recentActivity] = useState(MOCK_ACTIVITY);
 
-  const frontCardRef = useRef<HTMLInputElement>(null);
-  const backCardRef = useRef<HTMLInputElement>(null);
-  const selfieRef = useRef<HTMLInputElement>(null);
+
+  const frontCardRef = useRef<HTMLInputElement>(null); // Camera
+  const frontCardFileRef = useRef<HTMLInputElement>(null); // File
+  const backCardRef = useRef<HTMLInputElement>(null); // Camera 
+  const backCardFileRef = useRef<HTMLInputElement>(null); // File
+  const selfieRef = useRef<HTMLInputElement>(null); // Camera Only
   const fallbackUserIdRef = useRef<string>(Date.now().toString());
   const autoSubmitRef = useRef(false);
 
@@ -386,7 +412,7 @@ export default function ApplyPage() {
 
     // 🎯 THE SOURCE OF TRUTH: backend-provided nextStep
     const nextStep = data.nextStep; 
-    console.log("Navigation Decision:", nextStep);
+
 
     switch (nextStep) {
       case 'DASHBOARD':
@@ -743,36 +769,60 @@ export default function ApplyPage() {
   // ─── Upload Box ───
   function renderUploadBox(
     label: string, fieldUrl: string, isUploading: boolean,
-    inputRef: React.RefObject<HTMLInputElement>, capture: "user" | "environment",
-    onFileChange: (file: File) => void
+    cameraRef: React.RefObject<HTMLInputElement>, 
+    capture: "user" | "environment",
+    onFileChange: (file: File) => void,
+    fileRef?: React.RefObject<HTMLInputElement> // Optional: If present, enables Upload button
   ) {
     return (
       <div
-        onClick={() => inputRef.current?.click()}
+        onClick={() => {
+            // Default action: If "fileRef" exists (IDs), prioritize Upload? Or Camera?
+            // Let's default to Camera for consistency if they click the box, 
+            // OR do nothing and force button click. Let's do nothing to avoid confusion.
+             if (fileRef) return; 
+             cameraRef.current?.click();
+        }}
         className={cn(
-          "border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all",
-          fieldUrl ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/50"
+          "border-2 border-dashed rounded-xl p-4 text-center transition-all",
+          fieldUrl ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/50",
+          !fieldUrl && !fileRef && "cursor-pointer" // Only cursor-pointer if simple flow
         )}
       >
-        <input ref={inputRef} type="file" accept="image/*" capture={capture}
+        {/* Camera Input */}
+        <input ref={cameraRef} type="file" accept="image/*" capture={capture}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileChange(f); }} className="hidden" />
+          
+        {/* File Input (Optional) */}
+        {fileRef && (
+            <input ref={fileRef} type="file" accept="image/*"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileChange(f); }} className="hidden" />
+        )}
+
         {isUploading ? (
           <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
         ) : fieldUrl ? (
           <div className="flex items-center gap-2 justify-center">
             <CheckCircle2 className="h-5 w-5 text-primary" />
             <span className="text-sm font-medium">{label} uploaded</span>
+             <Button variant="ghost" size="sm" className="ml-2 text-xs text-red-500 h-6 px-2" onClick={(e) => { 
+                 e.stopPropagation(); 
+                 // Allow retake -> Trigger Camera
+                 cameraRef.current?.click(); 
+             }}>Retake</Button>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <p className="text-sm font-medium text-muted-foreground">{label}</p>
             <div className="flex gap-2 justify-center">
-              <Button type="button" size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}>
-                <Camera className="h-3.5 w-3.5 mr-1" /> Capture
+              <Button type="button" size="sm" variant="outline" className="gap-2" onClick={(e) => { e.stopPropagation(); cameraRef.current?.click(); }}>
+                <Camera className="h-4 w-4" /> Capture
               </Button>
-              <Button type="button" size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}>
-                <Upload className="h-3.5 w-3.5 mr-1" /> Upload
-              </Button>
+              {fileRef && (
+                  <Button type="button" size="sm" variant="outline" className="gap-2" onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>
+                    <Upload className="h-4 w-4" /> Upload
+                  </Button>
+              )}
             </div>
           </div>
         )}
@@ -836,13 +886,31 @@ export default function ApplyPage() {
              transition={{ delay: 0.3, duration: 0.8 }}
              className="space-y-6 mb-16"
            >
-              <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 leading-tight">
+              <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 leading-tight">
                 Get a loan in <br/>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-rose-500">minutes</span>
               </h1>
-              <p className="text-lg text-gray-500 font-medium max-w-[85%] mx-auto leading-relaxed">
-                Simple terms. No hidden fees. <br/> Secure verification.
-              </p>
+              
+              <div className="flex flex-col gap-3 max-w-[85%] mx-auto mt-2">
+                 <div className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-100/50 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                       <Banknote className="w-4 h-4" />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-700">Simple terms. No hidden fees.</span>
+                 </div>
+                  <div className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-100/50 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                       <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-700">Secure verification.</span>
+                 </div>
+                 <div className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-100/50 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-600">
+                       <Smartphone className="w-4 h-4" />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-700">100% Digital Process</span>
+                 </div>
+              </div>
            </motion.div>
 
            <motion.div
@@ -879,18 +947,18 @@ export default function ApplyPage() {
           <div className="absolute pointer-events-none opacity-30 md:opacity-60 scale-125">
             <svg width="612" height="697" viewBox="0 0 612 697" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
-                d="M97.4387 622.042C96.3793 621.236 95.3369 620.415 94.3115 619.58L93.9959 619.968C91.9211 618.28 89.9159 616.536 87.9805 614.74L88.3206 614.374C86.3673 612.562 84.4856 610.697 82.6761 608.783L82.3128 609.127C80.4764 607.185 78.7139 605.193 77.026 603.154L77.4111 602.836C75.7156 600.788 74.0956 598.694 72.5516 596.557L72.1463 596.85C70.5835 594.687 69.0983 592.481 67.6913 590.235L68.1149 589.97C66.7047 587.719 65.3733 585.429 64.1214 583.104L63.6812 583.341C62.4181 580.995 61.2356 578.613 60.1343 576.2L60.5891 575.992C59.4876 573.579 58.4677 571.134 57.5299 568.663L57.0624 568.84C56.1179 566.351 55.2564 563.834 54.4784 561.295L54.9565 561.149C54.1802 558.615 53.4874 556.058 52.8788 553.483L52.3922 553.598C51.7803 551.01 51.2531 548.403 50.8112 545.782L51.3042 545.698C50.864 543.087 50.5087 540.462 50.2391 537.828L49.7417 537.879C49.4712 535.235 49.2865 532.581 49.1884 529.923L49.688 529.904C49.5905 527.26 49.5788 524.612 49.6538 521.963L49.154 521.949C49.2291 519.294 49.3908 516.639 49.6397 513.988L50.1375 514.035C50.3847 511.403 50.7182 508.775 51.1386 506.156L50.6449 506.076C51.0653 503.457 51.5723 500.847 52.1664 498.25L52.6538 498.361C53.2426 495.787 53.9175 493.225 54.6788 490.681L54.1998 490.537C54.9594 487.999 55.8049 485.477 56.7366 482.977L57.2052 483.151C58.1257 480.681 59.1309 478.232 60.2213 475.807L59.7653 475.602C60.8508 473.188 62.0203 470.799 63.2746 468.439L63.7161 468.674C64.9519 466.348 66.2703 464.05 67.6717 461.784L67.2465 461.521C68.635 459.276 70.1047 457.062 71.6561 454.883L72.0634 455.173C72.8302 454.096 73.6169 453.027 74.4238 451.968L76.8308 448.808L76.4331 448.505L81.2471 442.184L81.6449 442.487L86.4589 436.166L86.0611 435.863L90.8752 429.542L91.273 429.845L96.087 423.524L95.6892 423.221L100.503 416.9L100.901 417.203L105.715 410.882L105.317 410.58L110.131 404.259L110.529 404.562L115.343 398.241L114.945 397.938L119.759 391.617L120.157 391.92L124.971 385.599L124.574 385.296L129.388 378.975L129.785 379.278L134.599 372.957L134.202 372.654L139.016 366.334L139.413 366.637L144.227 360.316L143.83 360.013L148.644 353.692L149.042 353.995L153.856 347.674L153.458 347.371L158.272 341.05L158.67 341.353L163.484 335.032L163.086 334.729L167.9 328.409L168.298 328.711L173.112 322.391L172.714 322.088L177.528 315.767L177.926 316.07L182.74 309.749L182.342 309.446L187.156 303.125L187.554 303.428L192.368 297.107L191.97 296.804L196.784 290.483L197.182 290.786L201.996 284.465L201.598 284.163L206.412 277.842L206.81 278.145L211.624 271.824L211.226 271.521L216.04 265.2L216.438 265.503L221.252 259.182L220.854 258.879L225.669 252.558L226.066 252.861L230.88 246.54L230.483 246.237L235.297 239.917L235.694 240.22L240.508 233.899L240.111 233.596L244.925 227.275L245.322 227.578L250.136 221.257L249.739 220.954L254.553 214.633L254.951 214.936L259.765 208.615L259.367 208.312L264.181 201.992L264.579 202.294L269.393 195.974L268.995 195.671L273.809 189.35L274.207 189.653L279.021 183.332L278.623 183.029L283.437 176.708L283.835 177.011L288.649 170.69L288.251 170.387L293.065 164.067L293.463 164.369L298.277 158.049L297.879 157.746L302.693 151.425L303.091 151.728L307.905 145.407L307.507 145.104L312.321 138.783L312.719 139.086L317.533 132.765L317.135 132.462L321.949 126.141L322.347 126.444L327.161 120.124L326.763 119.821L331.577 113.5L331.975 113.803L336.789 107.482L336.391 107.179L341.205 100.858L341.603 101.161L344.01 98.0005C344.817 96.9411 345.638 95.8986 346.473 94.8733L346.085 94.5577C347.773 92.4829 349.517 90.4776 351.312 88.5423L351.679 88.8823C353.491 86.929 355.356 85.0474 357.269 83.2379L356.926 82.8746C358.868 81.0382 360.86 79.2757 362.898 77.5878L363.217 77.9729C365.265 76.2773 367.359 74.6573 369.496 73.1134L369.203 72.7081C371.366 71.1452 373.572 69.66 375.817 68.253L376.083 68.6767C378.333 67.2665 380.624 65.9351 382.949 64.6832L382.712 64.243C385.058 62.9799 387.44 61.7974 389.853 60.696L390.061 61.1509C392.474 60.0494 394.919 59.0295 397.39 58.0917L397.213 57.6242C399.702 56.6797 402.219 55.8182 404.758 55.0402L404.904 55.5183C407.438 54.742 409.995 54.0493 412.569 53.4406L412.454 52.954C415.043 52.3421 417.65 51.8149 420.271 51.373L420.354 51.866C422.966 51.4258 425.591 51.0705 428.225 50.8009L428.174 50.3035C430.818 50.033 433.472 49.8483 436.13 49.7502L436.149 50.2498C438.792 50.1523 441.441 50.1406 444.09 50.2156L444.104 49.7158C446.759 49.7909 449.414 49.9526 452.065 50.2015L452.018 50.6993C454.65 50.9465 457.278 51.28 459.897 51.7004L459.976 51.2068C462.595 51.6272 465.206 52.1341 467.803 52.7282L467.692 53.2156C470.266 53.8045 472.828 54.4793 475.372 55.2407L475.516 54.7617C478.054 55.5213 480.576 56.3667 483.076 57.2985L482.902 57.767C485.372 58.6875 487.821 59.6927 490.246 60.7831L490.451 60.3271C492.864 61.4126 495.253 62.5822 497.614 63.8364L497.379 64.2779C499.705 65.5138 502.003 66.8321 504.269 68.2336L504.532 67.8083C506.777 69.1968 508.991 70.6665 511.17 72.218L510.88 72.6253C511.957 73.392 513.025 74.1788 514.085 74.9856C515.144 75.7925 516.187 76.6134 517.212 77.4478L517.528 77.06C519.602 78.7485 521.608 80.4923 523.543 82.2877L523.203 82.6542C525.156 84.4663 527.038 86.331 528.847 88.2446L529.211 87.9011C531.047 89.8432 532.81 91.8354 534.498 93.8737L534.112 94.1926C535.808 96.2401 537.428 98.3342 538.972 100.471L539.377 100.178C540.94 102.341 542.425 104.547 543.832 106.793L543.409 107.058C544.819 109.309 546.15 111.599 547.402 113.924L547.842 113.687C549.105 116.033 550.288 118.415 551.389 120.828L550.934 121.036C552.036 123.449 553.056 125.894 553.994 128.366L554.461 128.188C555.406 130.677 556.267 133.194 557.045 135.733L556.567 135.88C557.343 138.413 558.036 140.97 558.645 143.545L559.131 143.43C559.743 146.018 560.27 148.626 560.712 151.247L560.219 151.33C560.66 153.941 561.015 156.566 561.284 159.2L561.782 159.149C562.052 161.794 562.237 164.447 562.335 167.105L561.836 167.124C561.933 169.768 561.945 172.416 561.87 175.065L562.37 175.08C562.294 177.734 562.133 180.389 561.884 183.04L561.386 182.993C561.139 185.625 560.805 188.253 560.385 190.872L560.879 190.952C560.458 193.571 559.951 196.181 559.357 198.778L558.87 198.667C558.281 201.241 557.606 203.803 556.845 206.347L557.324 206.491C556.564 209.029 555.719 211.551 554.787 214.052L554.318 213.877C553.398 216.347 552.393 218.797 551.302 221.221L551.758 221.426C550.673 223.84 549.503 226.229 548.249 228.589L547.807 228.354C546.572 230.68 545.253 232.978 543.852 235.244L544.277 235.507C542.889 237.752 541.419 239.966 539.867 242.145L539.46 241.855C538.693 242.932 537.907 244.001 537.1 245.06L534.693 248.221L535.09 248.523L530.276 254.844L529.879 254.541L525.065 260.862L525.462 261.165L520.648 267.486L520.251 267.183L515.437 273.504L515.834 273.807L511.02 280.128L510.622 279.825L505.808 286.146L506.206 286.449L501.392 292.769L500.994 292.466L496.18 298.787L496.578 299.09L491.764 305.411L491.366 305.108L486.552 311.429L486.95 311.732L482.136 318.053L481.738 317.75L476.924 324.071L477.322 324.374L472.508 330.695L472.11 330.392L467.296 336.712L467.694 337.015L462.88 343.336L462.482 343.033L457.668 349.354L458.066 349.657L453.252 355.978L452.854 355.675L448.04 361.996L448.438 362.299L443.624 368.62L443.226 368.317L438.412 374.638L438.81 374.94L433.996 381.261L433.598 380.958L428.784 387.279L429.181 387.582L424.367 393.903L423.97 393.6L419.156 399.921L419.553 400.224L414.739 406.545L414.342 406.242L409.527 412.563L409.925 412.866L405.111 419.186L404.713 418.883L399.899 425.204L400.297 425.507L395.483 431.828L395.085 431.525L390.271 437.846L390.669 438.149L385.855 444.47L385.457 444.167L380.643 450.488L381.041 450.791L376.227 457.112L375.829 456.809L371.015 463.129L371.413 463.432L366.599 469.753L366.201 469.45L361.387 475.771L361.785 476.074L356.971 482.395L356.573 482.092L351.759 488.413L352.157 488.716L347.343 495.037L346.945 494.734L342.131 501.054L342.529 501.357L337.715 507.678L337.317 507.375L332.503 513.696L332.901 513.999L328.087 520.32L327.689 520.017L322.875 526.338L323.273 526.641L318.458 532.962L318.061 532.659L313.247 538.98L313.644 539.282L308.83 545.603L308.433 545.3L303.619 551.621L304.016 551.924L299.202 558.245L298.805 557.942L293.99 564.263L294.388 564.566L289.574 570.887L289.176 570.584L284.362 576.905L284.76 577.207L279.946 583.528L279.548 583.225L274.734 589.546L275.132 589.849L270.318 596.17L269.92 595.867L267.513 599.028C266.706 600.087 265.885 601.129 265.051 602.155L265.439 602.47C263.75 604.545 262.007 606.551 260.211 608.486L259.845 608.146C258.033 610.099 256.168 611.981 254.254 613.79L254.598 614.154C252.656 615.99 250.663 617.752 248.625 619.44L248.306 619.055C246.259 620.751 244.165 622.371 242.028 623.915L242.321 624.32C240.158 625.883 237.952 627.368 235.706 628.775L235.441 628.351C233.19 629.762 230.9 631.093 228.575 632.345L228.812 632.785C226.465 634.048 224.084 635.231 221.671 636.332L221.463 635.877C219.05 636.979 216.605 637.999 214.133 638.936L214.311 639.404C211.821 640.348 209.305 641.21 206.766 641.988L206.619 641.51C204.085 642.286 201.529 642.979 198.954 643.587L199.069 644.074C196.48 644.686 193.873 645.213 191.252 645.655L191.169 645.162C188.558 645.602 185.933 645.958 183.299 646.227L183.349 646.725C180.705 646.995 178.052 647.18 175.393 647.278L175.375 646.778C172.731 646.876 170.082 646.887 167.433 646.813L167.419 647.312C164.765 647.237 162.11 647.075 159.459 646.827L159.506 646.329C156.874 646.082 154.246 645.748 151.626 645.328L151.547 645.821C148.928 645.401 146.318 644.894 143.72 644.3L143.832 643.812C141.257 643.224 138.696 642.549 136.151 641.787L136.008 642.266C133.469 641.507 130.948 640.661 128.447 639.73L128.622 639.261C126.152 638.341 123.702 637.335 121.278 636.245L121.073 636.701C118.659 635.616 116.27 634.446 113.91 633.192L114.144 632.75C111.819 631.514 109.521 630.196 107.255 628.795L106.992 629.22C104.747 627.831 102.533 626.362 100.354 624.81L100.644 624.403C99.5665 623.636 98.4981 622.849 97.4387 622.042Z"
+                d="M97.4387 622.042C96.3793 621.236 95.3369 620.415 94.3115 619.58L93.9959 619.968C91.9211 618.28 89.9159 616.536 87.9805 614.74L88.3206 614.374C86.3673 612.562 84.4856 610.697 82.6761 608.783L82.3128 609.127C80.4764 607.185 78.7139 605.193 77.026 603.154L77.4111 602.836C75.7156 600.788 74.0956 598.694 72.5516 596.557L72.1463 596.85C70.5835 594.687 69.0983 592.481 67.6913 590.235L68.1149 589.97C66.7047 587.719 65.3733 585.429 64.1214 583.104L63.6812 583.341C62.4181 580.995 61.2356 578.613 60.1343 576.2L60.5891 575.992C59.4876 573.579 58.4677 571.134 57.5299 568.663L57.0624 568.84C56.1179 566.351 55.2564 563.834 54.4784 561.295L54.9565 561.149C54.1802 558.615 53.4874 556.058 52.8788 553.483L52.3922 553.598C51.7803 551.01 51.2531 548.403 50.8112 545.782L51.3042 545.698C50.864 543.087 50.5087 540.462 50.2391 537.828L49.7417 537.879C49.4712 535.235 49.2865 532.581 49.1884 529.923L49.688 529.904C49.5905 527.26 49.5788 524.612 49.6538 521.963L49.154 521.949C49.2291 519.294 49.3908 516.639 49.6397 513.988L50.1375 514.035C50.3847 511.403 50.7182 508.775 51.1386 506.156L50.6449 506.076C51.0653 503.457 51.5723 500.847 52.1664 498.25L52.6538 498.361C53.2426 495.787 53.9175 493.225 54.6788 490.681L54.1998 490.537C54.9594 487.999 55.8049 485.477 56.7366 482.977L57.2052 483.151C58.1257 480.681 59.1309 478.232 60.2213 475.807L59.7653 475.602C60.8508 473.188 62.0203 470.799 63.2746 468.439L63.7161 468.674C64.9519 466.348 66.2703 464.05 67.6717 461.784L67.2465 461.521C68.635 459.276 70.1047 457.062 71.6561 454.883L72.0634 455.173C72.8302 454.096 73.6169 453.027 74.4238 451.968L76.8308 448.808L76.4331 448.505L81.2471 442.184L81.6449 442.487L86.4589 436.166L86.0611 435.863L90.8752 429.542L91.273 429.845L96.087 423.524L95.6892 423.221L100.503 416.9L100.901 417.203L105.715 410.882L105.317 410.580L110.131 404.259L110.529 404.562L115.343 398.241L114.945 397.938L119.759 391.617L120.157 391.92L124.971 385.599L124.574 385.296L129.388 378.975L129.785 379.278L134.599 372.957L134.202 372.654L139.016 366.334L139.413 366.637L144.227 360.316L143.830 360.013L148.644 353.692L149.042 353.995L153.856 347.674L153.458 347.371L158.272 341.05L158.670 341.353L163.484 335.032L163.086 334.729L167.900 328.409L168.298 328.711L173.112 322.391L172.714 322.088L177.528 315.767L177.926 316.07L182.740 309.749L182.342 309.446L187.156 303.125L187.554 303.428L192.368 297.107L191.970 296.804L196.784 290.483L197.182 290.786L201.996 284.465L201.598 284.163L206.412 277.842L206.810 278.145L211.624 271.824L211.226 271.521L216.040 265.2L216.438 265.503L221.252 259.182L220.854 258.879L225.669 252.558L226.066 252.861L230.880 246.54L230.483 246.237L235.297 239.917L235.694 240.22L240.508 233.899L240.111 233.596L244.925 227.275L245.322 227.578L250.136 221.257L249.739 220.954L254.553 214.633L254.951 214.936L259.765 208.615L259.367 208.312L264.181 201.992L264.579 202.294L269.393 195.974L268.995 195.671L273.809 189.35L274.207 189.653L279.021 183.332L278.623 183.029L283.437 176.708L283.835 177.011L288.649 170.69L288.251 170.387L293.065 164.067L293.463 164.369L298.277 158.049L297.879 157.746L302.693 151.425L303.091 151.728L307.905 145.407L307.507 145.104L312.321 138.783L312.719 139.086L317.533 132.765L317.135 132.462L321.949 126.141L322.347 126.444L327.161 120.124L326.763 119.821L331.577 113.5L331.975 113.803L336.789 107.482L336.391 107.179L341.205 100.858L341.603 101.161L344.010 98.0005C344.817 96.9411 345.638 95.8986 346.473 94.8733L346.085 94.5577C347.773 92.4829 349.517 90.4776 351.312 88.5423L351.679 88.8823C353.491 86.929 355.356 85.0474 357.269 83.2379L356.926 82.8746C358.868 81.0382 360.860 79.2757 362.898 77.5878L363.217 77.9729C365.265 76.2773 367.359 74.6573 369.496 73.1134L369.203 72.7081C371.366 71.1452 373.572 69.660 375.817 68.253L376.083 68.6767C378.333 67.2665 380.624 65.9351 382.949 64.6832L382.712 64.243C385.058 62.9799 387.440 61.7974 389.853 60.696L390.061 61.1509C392.474 60.0494 394.919 59.0295 397.390 58.0917L397.213 57.6242C399.702 56.6797 402.219 55.8182 404.758 55.0402L404.904 55.5183C407.438 54.742 409.995 54.0493 412.569 53.4406L412.454 52.954C415.043 52.3421 417.650 51.8149 420.271 51.373L420.354 51.866C422.966 51.4258 425.591 51.0705 428.225 50.8009L428.174 50.3035C430.818 50.033 433.472 49.8483 436.130 49.7502L436.149 50.2498C438.792 50.1523 441.441 50.1406 444.090 50.2156L444.104 49.7158C446.759 49.7909 449.414 49.9526 452.065 50.2015L452.018 50.6993C454.650 50.9465 457.278 51.280 459.897 51.7004L459.976 51.2068C462.595 51.6272 465.206 52.1341 467.803 52.7282L467.692 53.2156C470.266 53.8045 472.828 54.4793 475.372 55.2407L475.516 54.7617C478.054 55.5213 480.576 56.3667 483.076 57.2985L482.902 57.767C485.372 58.6875 487.821 59.6927 490.246 60.7831L490.451 60.3271C492.864 61.4126 495.253 62.5822 497.614 63.8364L497.379 64.2779C499.705 65.5138 502.003 66.8321 504.269 68.2336L504.532 67.8083C506.777 69.1968 508.991 70.6665 511.170 72.218L510.880 72.6253C511.957 73.392 513.025 74.1788 514.085 74.9856C515.144 75.7925 516.187 76.6134 517.212 77.4478L517.528 77.06C519.602 78.7485 521.608 80.4923 523.543 82.2877L523.203 82.6542C525.156 84.4663 527.038 86.3310 528.847 88.2446L529.211 87.9011C531.047 89.8432 532.810 91.8354 534.498 93.8737L534.112 94.1926C535.808 96.2401 537.428 98.3342 538.972 100.471L539.377 100.178C540.940 102.341 542.425 104.547 543.832 106.793L543.409 107.058C544.819 109.309 546.150 111.599 547.402 113.924L547.842 113.687C549.105 116.033 550.288 118.415 551.389 120.828L550.934 121.036C552.036 123.449 553.056 125.894 553.994 128.366L554.461 128.188C555.406 130.677 556.267 133.194 557.045 135.733L556.567 135.88C557.343 138.413 558.036 140.970 558.645 143.545L559.131 143.43C559.743 146.018 560.270 148.626 560.712 151.247L560.219 151.33C560.660 153.941 561.015 156.566 561.284 159.2L561.782 159.149C562.052 161.794 562.237 164.447 562.335 167.105L561.836 167.124C561.933 169.768 561.945 172.416 561.870 175.065L562.370 175.08C562.294 177.734 562.133 180.389 561.884 183.04L561.386 182.993C561.139 185.625 560.805 188.253 560.385 190.872L560.879 190.952C560.458 193.571 559.951 196.181 559.357 198.778L558.870 198.667C558.281 201.241 557.606 203.803 556.845 206.347L557.324 206.491C556.564 209.029 555.719 211.551 554.787 214.052L554.318 213.877C553.398 216.347 552.393 218.797 551.302 221.221L551.758 221.426C550.673 223.840 549.503 226.229 548.249 228.589L547.807 228.354C546.572 230.680 545.253 232.978 543.852 235.244L544.277 235.507C542.889 237.752 541.419 239.966 539.867 242.145L539.460 241.855C538.693 242.932 537.907 244.001 537.100 245.06L534.693 248.221L535.090 248.523L530.276 254.844L529.879 254.541L525.065 260.862L525.462 261.165L520.648 267.486L520.251 267.183L515.437 273.504L515.834 273.807L511.020 280.128L510.622 279.825L505.808 286.146L506.206 286.449L501.392 292.769L500.994 292.466L496.180 298.787L496.578 299.09L491.764 305.411L491.366 305.108L486.552 311.429L486.950 311.732L482.136 318.053L481.738 317.75L476.924 324.071L477.322 324.374L472.508 330.695L472.110 330.392L467.296 336.712L467.694 337.015L462.880 343.336L462.482 343.033L457.668 349.354L458.066 349.657L453.252 355.978L452.854 355.675L448.040 361.996L448.438 362.299L443.624 368.62L443.226 368.317L438.412 374.638L438.810 374.94L433.996 381.261L433.598 380.958L428.784 387.279L429.181 387.582L424.367 393.903L423.970 393.6L419.156 399.921L419.553 400.224L414.739 406.545L414.342 406.242L409.527 412.563L409.925 412.866L405.111 419.186L404.713 418.883L399.899 425.204L400.297 425.507L395.483 431.828L395.085 431.525L390.271 437.846L390.669 438.149L385.855 444.47L385.457 444.167L380.643 450.488L381.041 450.791L376.227 457.112L375.829 456.809L371.015 463.129L371.413 463.432L366.599 469.753L366.201 469.45L361.387 475.771L361.785 476.074L356.971 482.395L356.573 482.092L351.759 488.413L352.157 488.716L347.343 495.037L346.945 494.734L342.131 501.054L342.529 501.357L337.715 507.678L337.317 507.375L332.503 513.696L332.901 513.999L328.087 520.32L327.689 520.017L322.875 526.338L323.273 526.641L318.458 532.962L318.061 532.659L313.247 538.98L313.644 539.282L308.830 545.603L308.433 545.3L303.619 551.621L304.016 551.924L299.202 558.245L298.805 557.942L293.990 564.263L294.388 564.566L289.574 570.887L289.176 570.584L284.362 576.905L284.760 577.207L279.946 583.528L279.548 583.225L274.734 589.546L275.132 589.849L270.318 596.17L269.920 595.867L267.513 599.028C266.706 600.087 265.885 601.129 265.051 602.155L265.439 602.47C263.750 604.545 262.007 606.551 260.211 608.486L259.845 608.146C258.033 610.099 256.168 611.981 254.254 613.79L254.598 614.154C252.656 615.990 250.663 617.752 248.625 619.44L248.306 619.055C246.259 620.751 244.165 622.371 242.028 623.915L242.321 624.32C240.158 625.883 237.952 627.368 235.706 628.775L235.441 628.351C233.190 629.762 230.900 631.093 228.575 632.345L228.812 632.785C226.465 634.048 224.084 635.231 221.671 636.332L221.463 635.877C219.050 636.979 216.605 637.999 214.133 638.936L214.311 639.404C211.821 640.348 209.305 641.210 206.766 641.988L206.619 641.51C204.085 642.286 201.529 642.979 198.954 643.587L199.069 644.074C196.480 644.686 193.873 645.213 191.252 645.655L191.169 645.162C188.558 645.602 185.933 645.958 183.299 646.227L183.349 646.725C180.705 646.995 178.052 647.180 175.393 647.278L175.375 646.778C172.731 646.876 170.082 646.887 167.433 646.813L167.419 647.312C164.765 647.237 162.110 647.075 159.459 646.827L159.506 646.329C156.874 646.082 154.246 645.748 151.626 645.328L151.547 645.821C148.928 645.401 146.318 644.894 143.720 644.3L143.832 643.812C141.257 643.224 138.696 642.549 136.151 641.787L136.008 642.266C133.469 641.507 130.948 640.661 128.447 639.73L128.622 639.261C126.152 638.341 123.702 637.335 121.278 636.245L121.073 636.701C118.659 635.616 116.270 634.446 113.910 633.192L114.144 632.75C111.819 631.514 109.521 630.196 107.255 628.795L106.992 629.22C104.747 627.831 102.533 626.362 100.354 624.81L100.644 624.403C99.5665 623.636 98.4981 622.849 97.4387 622.042Z"
                 stroke="hsl(var(--primary))"
                 strokeOpacity="0.3"
                 strokeDasharray="8 8"
               />
               <path
-                d="M360.405 111.996C393.955 67.9448 456.863 59.4318 500.914 92.9818V92.9818C544.965 126.532 553.478 189.44 519.928 233.491L250.545 587.191C216.995 631.243 154.087 639.756 110.036 606.206V606.206C65.9845 572.656 57.4716 509.747 91.0216 465.696L360.405 111.996Z"
+                d="M360.405 111.996C393.955 67.9448 456.863 59.4318 500.914 92.9818V92.9818C544.965 126.532 553.478 189.440 519.928 233.491L250.545 587.191C216.995 631.243 154.087 639.756 110.036 606.206V606.206C65.9845 572.656 57.4716 509.747 91.0216 465.696L360.405 111.996Z"
                 fill="url(#paint0_linear_13715_136336)"
                 fillOpacity="0.08"
               />
               <path
-                d="M519.53 233.188L250.147 586.888C216.765 630.72 154.17 639.19 110.339 605.808C66.5071 572.425 58.0367 509.831 91.4194 465.999L360.802 112.299C394.185 68.4674 456.78 59.9969 500.611 93.3796C544.443 126.762 552.913 189.357 519.53 233.188Z"
+                d="M519.530 233.188L250.147 586.888C216.765 630.720 154.170 639.190 110.339 605.808C66.5071 572.425 58.0367 509.831 91.4194 465.999L360.802 112.299C394.185 68.4674 456.780 59.9969 500.611 93.3796C544.443 126.762 552.913 189.357 519.530 233.188Z"
                 stroke="hsl(var(--primary))"
                 strokeOpacity="0.2"
               />
@@ -1075,14 +1143,14 @@ export default function ApplyPage() {
                  </div>
               </div>
 
-              {/* Step 2 */}
+              {/* Step 2: Node Consent (New) */}
               <div className="flex gap-4 items-start">
-                 <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                 <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10">
+                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                  </div>
                  <div>
-                    <p className="text-sm font-bold text-gray-900">Identity Verification</p>
-                    <p className="text-xs text-blue-600 font-medium">In Progress...</p>
+                    <p className="text-sm font-bold text-gray-900">Checking Node Consent</p>
+                    <p className="text-xs text-amber-600 font-medium">Waiting for approval...</p>
                  </div>
               </div>
 
@@ -1211,6 +1279,7 @@ export default function ApplyPage() {
                    if (action === "repay") setIsRepaymentOpen(true);
                    if (action === "share") setIsShareOpen(true);
                    if (action === "history") setActiveTab("loans");
+                   if (action === "status") setIsStatusOpen(true);
                 }}
                 notifications={notifications}
                 recentActivity={recentActivity}
@@ -1218,15 +1287,18 @@ export default function ApplyPage() {
              />
           )}
 
-           {/* MY LOANS TAB */}
-           {activeTab === "loans" && (
-             <LoansTab 
-               onBack={() => setActiveTab("home")} 
-               onRepay={() => setIsRepaymentOpen(true)}
-               loan={activeLoanDetails || (applicant as any)?.activeLoan}
-               isPending={(applicant as any)?.summary?.isPending || activeLoanDetails?.status === 'PENDING'}
-             />
-           )}
+             {/* MY LOANS TAB */}
+             {activeTab === "loans" && (
+               <LoansTab 
+                 onBack={() => setActiveTab("home")} 
+                 onRepay={() => setIsRepaymentOpen(true)}
+                 loan={activeLoanDetails || (applicant as any)?.activeLoan}
+                 isPending={(applicant as any)?.summary?.isPending || activeLoanDetails?.status === 'PENDING'}
+                 onAction={(action) => {
+                    if (action === "status") setIsStatusOpen(true);
+                 }}
+               />
+             )}
 
            {/* PROFILE TAB */}
            {activeTab === "profile" && (
@@ -1315,8 +1387,29 @@ export default function ApplyPage() {
                   <p className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{applicant?.nodeCode || "---"}</p>
                 </div>
 
-                <Button onClick={() => { navigator.clipboard.writeText(applicant?.nodeCode || ""); setIsShareOpen(false); }} className="w-full h-14 rounded-full bg-primary text-primary-foreground text-lg font-bold shadow-lg">
-                  Copy Code
+                <Button onClick={() => { 
+                   const code = applicant?.nodeCode || "";
+                   const text = `Hey! Use my referral code ${code} to get a fast loan. Apply here: https://apply.agendamoney.com`;
+                   
+                   if (navigator.share) {
+                      navigator.share({
+                        title: 'Agenda Money',
+                        text: text,
+                        url: 'https://apply.agendamoney.com'
+                      }).catch(console.error);
+                   } else {
+                      // Fallback to Clipboard
+                      navigator.clipboard.writeText(code); 
+                      // Optional: Open WhatsApp
+                      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                   }
+                   setIsShareOpen(false); 
+                }} className="w-full h-14 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-lg font-bold shadow-lg flex items-center justify-center gap-2">
+                  <Share2 className="w-5 h-5" /> Share Code
+                </Button>
+                
+                <Button variant="ghost" onClick={() => { navigator.clipboard.writeText(applicant?.nodeCode || ""); setIsShareOpen(false); }} className="w-full mt-3 text-gray-500">
+                   Copy into Clipboard
                 </Button>
               </motion.div>
             </>
@@ -1370,6 +1463,68 @@ export default function ApplyPage() {
                       {/* Footer / Visual Element - Removed per request */}
                   </motion.div>
               </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Status Check Drawer */}
+        <AnimatePresence>
+          {isStatusOpen && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsStatusOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" />
+              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-6 z-[70] pb-10">
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+                
+                <div className="text-center mb-8">
+                   <h3 className="text-2xl font-bold text-gray-900">Application Status</h3>
+                   <p className="text-sm text-gray-500 mt-1">Track the progress of your loan</p>
+                </div>
+
+                <div className="space-y-6 relative max-w-[90%] mx-auto">
+                   {/* Connecting Line */}
+                   <div className="absolute top-3 left-[15px] bottom-3 w-0.5 bg-gray-100 -z-10" />
+
+                   {/* Step 1: Node (First) */}
+                   <div className="flex gap-4 items-start">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10 animate-pulse">
+                         <div className="w-3 h-3 bg-amber-500 rounded-full" />
+                      </div>
+                      <div className="pt-1">
+                         <h4 className="text-sm font-bold text-gray-900">Node Endorsement</h4>
+                         <p className="text-xs text-amber-600 font-medium">Waiting for Node approval...</p>
+                      </div>
+                   </div>
+
+                   {/* Step 2: KYC (Second) */}
+                   <div className="flex gap-4 items-start">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10">
+                         <div className="w-3 h-3 bg-gray-300 rounded-full" />
+                      </div>
+                      <div className="pt-1">
+                         <h4 className="text-sm font-bold text-gray-900">Identity Verification</h4>
+                         <p className="text-xs text-gray-500 font-medium">Pending Review</p>
+                      </div>
+                   </div>
+
+                   {/* Step 3: Loan (Third) */}
+                   <div className="flex gap-4 items-start">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10">
+                         <div className="w-3 h-3 bg-gray-300 rounded-full" />
+                      </div>
+                      <div className="pt-1">
+                         <h4 className="text-sm font-bold text-gray-400">Final Loan Approval</h4>
+                         <p className="text-xs text-gray-400">Pending</p>
+                      </div>
+                   </div>
+                </div>
+
+                <Button 
+                   onClick={() => setIsStatusOpen(false)} 
+                   className="w-full h-14 rounded-full bg-gray-900 text-white font-bold mt-10 hover:bg-gray-800"
+                >
+                   Close
+                </Button>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
 
@@ -1590,10 +1745,8 @@ export default function ApplyPage() {
                             <CalendarIcon className="h-4 w-4" />
                          </div>
                      </div>
-                     {dobError ? (
+                     {dobError && (
                         <p className="text-[10px] text-red-500 font-medium animate-in slide-in-from-left-1">{dobError}</p>
-                     ) : (
-                        <p className="text-[10px] text-gray-400 font-medium">As shown on ID Card</p>
                      )}
                    </div>
 
@@ -1614,21 +1767,22 @@ export default function ApplyPage() {
                      </div>
                    </div>
 
-                   <div className="space-y-1.5">
-                     <Label className="text-sm font-medium text-gray-500">Address</Label>
-                     <Input 
-                        value={onboardingData.address} 
-                        onChange={(e) => handleOnboardingChange("address", e.target.value)}
-                        className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900 placeholder:text-gray-300" 
-                     />
-                   </div>
+                     <div className="space-y-1.5">
+                       <Label className="text-sm font-medium text-gray-500">Address</Label>
+                       <Input 
+                          value={onboardingData.address} 
+                          onChange={(e) => handleOnboardingChange("address", e.target.value)}
+                          placeholder="House No., Street Name, Area"
+                          className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900 placeholder:text-gray-300" 
+                       />
+                     </div>
                    
                    <Button 
                       onClick={handleOnboardingNext}
-                      disabled={!onboardingData.firstName || !onboardingData.surname || !onboardingData.dob || !onboardingData.gender || !onboardingData.region || !onboardingData.address}
+                      disabled={!onboardingData.firstName || !onboardingData.surname || !onboardingData.dob || !onboardingData.gender || !onboardingData.region || !onboardingData.address || (onboardingData.address?.trim().split(/\s+/).length < 3)}
                       className={cn(
                         "w-full h-12 rounded-full font-bold mt-4 transition-all",
-                        (onboardingData.firstName && onboardingData.surname && onboardingData.dob && onboardingData.gender && onboardingData.region && onboardingData.address)
+                        (onboardingData.firstName && onboardingData.surname && onboardingData.dob && onboardingData.gender && onboardingData.region && onboardingData.address && (onboardingData.address?.trim().split(/\s+/).length >= 3))
                           ? "bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200"
                           : "bg-gray-200 text-gray-400 cursor-not-allowed"
                       )}
@@ -1925,7 +2079,7 @@ export default function ApplyPage() {
                                         <CreditCard className="w-5 h-5" />
                                      </div>
                                      <div className="text-left">
-                                        <h3 className="text-sm font-bold text-gray-900">Picture of ID</h3>
+                                        <h3 className="text-sm font-bold text-gray-900">Picture of ID Card</h3>
                                         <p className="text-xs text-gray-500 font-medium">Please provide a clear photo of the <span className="text-gray-700 font-bold">Front</span> and <span className="text-gray-700 font-bold">Back</span> of your ID card.</p>
                                      </div>
                                   </div>
@@ -1942,8 +2096,8 @@ export default function ApplyPage() {
                                   >
                                      <div className="p-4 space-y-3 pt-0 border-t border-gray-100">
                                         <div className="mt-4" /> {/* Spacer */}
-                                        {renderUploadBox("Front Side", onboardingData.ghanaCardFrontUrl, !!uploadProgress.ghanaCardFrontUrl, frontCardRef, "environment", (f) => handleUpload(f, "ghanaCardFrontUrl"))}
-                                        {renderUploadBox("Back Side", onboardingData.ghanaCardBackUrl, !!uploadProgress.ghanaCardBackUrl, backCardRef, "environment", (f) => handleUpload(f, "ghanaCardBackUrl"))}
+                                        {renderUploadBox("Front Side", onboardingData.ghanaCardFrontUrl, !!uploadProgress.ghanaCardFrontUrl, frontCardRef, "environment", (f) => handleUpload(f, "ghanaCardFrontUrl"), frontCardFileRef)}
+                                        {renderUploadBox("Back Side", onboardingData.ghanaCardBackUrl, !!uploadProgress.ghanaCardBackUrl, backCardRef, "environment", (f) => handleUpload(f, "ghanaCardBackUrl"), backCardFileRef)}
                                      </div>
                                   </motion.div>
                                )}

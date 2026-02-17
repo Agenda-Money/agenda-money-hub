@@ -112,14 +112,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
                             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Current Limit</span>
                             <span className="text-xl font-bold text-gray-900">GHS {amount || 300}</span>
                         </div>
-                        {!isMaxTier && nextTierLimit && (
-                            <div className="flex flex-col items-end">
-                                <span className="text-xs font-semibold text-[#EC1B84] uppercase tracking-wider flex items-center gap-1">
-                                    Next Limit <Lock className="w-3 h-3" />
-                                </span>
-                                <span className="text-xl font-bold text-gray-400">GHS {nextTierLimit}</span>
-                            </div>
-                        )}
+{/* Next Tier Limit Removed */},
                         {isMaxTier && (
                             <div className="flex flex-col items-end">
                                 <span className="text-xs font-semibold text-green-600 uppercase tracking-wider flex items-center gap-1">
