@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const checkAuth = async () => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) {
       setLoading(false);
       return;
@@ -48,11 +48,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (response.data.success) {
         setUser(response.data.data);
       } else {
-        localStorage.removeItem("token");
+        sessionStorage.removeItem("token");
       }
     } catch (error) {
       console.error("Auth check failed", error);
-      localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
     } finally {
       setLoading(false);
     }
@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (response.data.success) {
         const { token, admin } = response.data;
-        localStorage.setItem("token", token);
+        sessionStorage.setItem("token", token);
         setUser(admin);
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
         toast.success("Welcome back!", {
@@ -150,7 +150,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const logout = () => {
-    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     setUser(null);
     delete api.defaults.headers.common["Authorization"];
     globalThis.location.href = "/login";
