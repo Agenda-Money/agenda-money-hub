@@ -33,27 +33,34 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
 
   // Calculations
   const { interest, fee, totalRepayment, disbursementAmount, dueDate } = useMemo(() => {
+    const principal = Number(loanData.amount);
+    const tenure = Number(loanData.tenure);
     const dailyRate = 0.005; // 0.5%
-    const interest = loanData.amount * dailyRate * loanData.tenure;
-    const fee = 30.00; // Flat Fee
     
-    // New Logic:
+    const interestAmount = principal * dailyRate * tenure;
+    const feeAmount = 30.00; // Flat Fee
+    
+    // Explicit Logic:
     // Disbursement = Principal - Fee
-    // Repayment = Principal + Interest
+    // Repayment = Principal + Interest (Fee is pre-deducted)
     
-    const disbursementAmount = loanData.amount - fee;
-    const totalRepayment = loanData.amount + interest;
+    const disbursementVal = principal - feeAmount;
+    
+    // Explicit Logic (Reverted):
+    // Disbursement = Principal - Fee
+    // Repayment = Principal + Interest (Fee is pre-deducted)
+    const totalRepayVal = principal + interestAmount;
     
     const dueDateObj = new Date();
-    dueDateObj.setDate(dueDateObj.getDate() + loanData.tenure);
-    const dueDate = dueDateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    dueDateObj.setDate(dueDateObj.getDate() + tenure);
+    const dueDateStr = dueDateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
     return { 
-      interest: interest.toFixed(2), 
-      fee: fee.toFixed(2), 
-      disbursementAmount: disbursementAmount.toFixed(2),
-      totalRepayment: totalRepayment.toFixed(2),
-      dueDate 
+      interest: interestAmount.toFixed(2), 
+      fee: feeAmount.toFixed(2), 
+      disbursementAmount: disbursementVal.toFixed(2),
+      totalRepayment: totalRepayVal.toFixed(2),
+      dueDate: dueDateStr 
     };
   }, [loanData.amount, loanData.tenure]);
 

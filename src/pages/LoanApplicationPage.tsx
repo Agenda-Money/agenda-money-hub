@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowLeft, Briefcase, Stethoscope, GraduationCap, Home, MoreHorizontal, Info, Pencil } from "lucide-react";
+import { ArrowLeft, Briefcase, Stethoscope, GraduationCap, Home, MoreHorizontal, Info, Pencil, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ const PURPOSES = [
   { id: "Medical", label: "Medical", icon: Stethoscope },
   { id: "Education", label: "Education", icon: GraduationCap },
   { id: "Home", label: "Home", icon: Home },
+  { id: "Travel", label: "Travel", icon: Plane },
   { id: "Other", label: "Other", icon: MoreHorizontal },
 ];
 
@@ -176,13 +177,13 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
         {/* Node Code Section (Optional) */}
         {showNodeCode && (
            <div className="space-y-4">
-              <h2 className="text-md font-bold text-gray-900">Referred by someone?</h2>
-              <div className="relative">
-                 <input
-                    type="text"
-                    value={nodeCode}
-                    onChange={(e) => setNodeCode(e.target.value.toUpperCase())}
-                    placeholder="Enter Node Code (Optional)"
+                     <h2 className="text-md font-bold text-gray-900">Referral / Node Code</h2>
+                     <div className="relative">
+                        <input
+                           type="text"
+                           value={nodeCode}
+                           onChange={(e) => setNodeCode(e.target.value.toUpperCase())}
+                           placeholder="Enter Node Code"
                     className="w-full h-14 rounded-2xl border border-gray-200 px-4 font-mono text-center text-lg uppercase tracking-widest focus:border-[#EC1B84] focus:ring-1 focus:ring-[#EC1B84] outline-none transition-all placeholder:normal-case placeholder:font-sans placeholder:text-gray-400 placeholder:text-sm placeholder:tracking-normal"
                     maxLength={10}
                  />
@@ -203,7 +204,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                  const finalAmount = Math.max(MIN_LOAN_AMOUNT, amount);
                  onContinue({ amount: finalAmount, tenure, purpose, ...(nodeCode && { nodeCode }) });
                }}
-               disabled={!amount || !tenure || !purpose}
+               disabled={!amount || !tenure || !purpose || (showNodeCode && nodeCode.length < 4)}
                className="w-full h-14 rounded-full bg-[#EC1B84] hover:bg-[#D41472] text-white font-bold text-lg uppercase tracking-widest shadow-lg shadow-pink-200 disabled:opacity-50 disabled:shadow-none transition-all"
              >
                 Continue

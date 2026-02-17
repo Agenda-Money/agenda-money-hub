@@ -8,9 +8,10 @@ interface LoansTabProps {
   onRepay?: () => void;
   loan?: any; // We'll type this properly if possible, but 'any' is safe for now given the context
   isPending?: boolean;
+  onAction?: (action: string) => void;
 }
 
-export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, isPending }) => {
+export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, isPending, onAction }) => {
   // Use passed loan data or fall back to a safe empty state (or the previous mock if needed for demo, but user wants real data)
   // The 'loan' prop likely comes from 'applicant' in ApplyPage.
 
@@ -30,7 +31,7 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, isPen
   if (isPending) {
      return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 pb-32 pt-0 mx-auto max-w-md px-4 mt-6">
-            <LoanStatusCard status="review" className="shadow-sm" />
+            <LoanStatusCard status="review" onAction={onAction} className="shadow-sm" />
         </div>
      )
   }
