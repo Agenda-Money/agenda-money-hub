@@ -302,12 +302,12 @@ export default function ApplyPage() {
   };
 
   const [onboardingData, setOnboardingData] = useState<OnboardingData>(() => {
-    const saved = globalThis.localStorage.getItem("agenda_onboarding_data");
+    const saved = globalThis.sessionStorage.getItem("agenda_onboarding_data");
     return saved ? { ...DEFAULT_ONBOARDING_DATA, ...JSON.parse(saved) } : DEFAULT_ONBOARDING_DATA;
   });
 
   useEffect(() => {
-    globalThis.localStorage.setItem("agenda_onboarding_data", JSON.stringify(onboardingData));
+    globalThis.sessionStorage.setItem("agenda_onboarding_data", JSON.stringify(onboardingData));
   }, [onboardingData]);
 
   const [loanApplicationData, setLoanApplicationData] = useState<{ amount: number; tenure: number; purpose: string } | null>(null);
@@ -444,7 +444,7 @@ export default function ApplyPage() {
   // ─── Effects ───
   useEffect(() => {
     const checkAuth = async () => {
-       const storedToken = globalThis.localStorage.getItem("agenda_token");
+       const storedToken = globalThis.sessionStorage.getItem("agenda_token");
        if (!storedToken) {
           setIsCheckingAuth(false);
           return;
@@ -460,13 +460,13 @@ export default function ApplyPage() {
             handleAuthResponse(p);
          } else {
            console.error("Session check failed: API Error", r.status, p);
-           globalThis.localStorage.removeItem("agenda_token"); setAuthToken(null);
+           globalThis.sessionStorage.removeItem("agenda_token"); setAuthToken(null);
          }
        } catch (e) { 
          console.error("Session check failed: Network/Code Error", e); 
          // Optional: Don't remove token immediately on network error? 
          // For now, keep existing behavior but log it.
-         globalThis.localStorage.removeItem("agenda_token"); setAuthToken(null);
+         globalThis.sessionStorage.removeItem("agenda_token"); setAuthToken(null);
        } finally {
          setTimeout(() => setIsCheckingAuth(false), 500);
        }
@@ -487,7 +487,7 @@ export default function ApplyPage() {
   useEffect(() => {
     const fetchActiveLoan = async () => {
       // Auth-First: No longer need msisdn in URL
-      const token = authToken || localStorage.getItem("agenda_token");
+      const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
       if (!token) return;
 
       try {
@@ -585,7 +585,7 @@ export default function ApplyPage() {
       if (!r.ok) throw new Error(p?.message || "OTP verification failed.");
       
       if (p?.token) { 
-        globalThis.localStorage.setItem("agenda_token", p.token); 
+        globalThis.sessionStorage.setItem("agenda_token", p.token); 
         setAuthToken(p.token); 
         
         // Fetch full profile to ensure we have nodeCode and latest details
@@ -701,9 +701,25 @@ export default function ApplyPage() {
     if (err) { setErrorMessage(err); return; }
     setIsSubmittingOnboarding(true);
     try {
-      let ghanaCardFrontUrl = onboardingData.ghanaCardFrontUrl;
-      let ghanaCardBackUrl = onboardingData.ghanaCardBackUrl;
-      let selfieUrl = onboardingData.selfieUrl;
+      let finalFrontUrl = onboardingData.ghanaCardFrontUrl;
+      let finalBackUrl = onboardingData.ghanaCardBackUrl;
+      let finalSelfieUrl = onboardingData.selfieUrl;
+
+      // 🚨 DEAD BLOB DETECTION: If we have a blob: URL but no file in memory (refresh happened), we MUST re-upload.
+      // We cannot submit a blob: URL to the backend.
+      const hasDeadBlob = (url?: string, file?: File) => url?.startsWith("blob:") && !file;
+
+      if (hasDeadBlob(finalFrontUrl, uploadedFiles.ghanaCardFrontUrl) || 
+          hasDeadBlob(finalBackUrl, uploadedFiles.ghanaCardBackUrl) || 
+          hasDeadBlob(finalSelfieUrl, uploadedFiles.selfieUrl)) {
+          
+          setErrorMessage("Session expired. Please re-upload your ID cards to continue.");
+          setOnboardingStep(3); // Go to Identity Step
+          setIdentityStep('upload'); // Go to Upload screen
+          setIsSubmittingOnboarding(false);
+          return;
+      }
+
       const userId = normalizedMsisdn || fallbackUserIdRef.current;
       const uploadFile = async (file: File, label: string, errorMsg: string) => {
         const ext = getFileExtension(file);
@@ -711,9 +727,17 @@ export default function ApplyPage() {
         if (!result.success || !result.url) throw new Error(result.error || errorMsg);
         return result.url;
       };
-      if (uploadedFiles.ghanaCardFrontUrl) ghanaCardFrontUrl = await uploadFile(uploadedFiles.ghanaCardFrontUrl, "ghana-card-front", "Upload failed.");
-      if (uploadedFiles.ghanaCardBackUrl) ghanaCardBackUrl = await uploadFile(uploadedFiles.ghanaCardBackUrl, "ghana-card-back", "Upload failed.");
-      if (uploadedFiles.selfieUrl) selfieUrl = await uploadFile(uploadedFiles.selfieUrl, "selfie", "Upload failed.");
+
+      // 🎯 CRITICAL: Overwrite blobs with real Supabase links if new files exist
+      if (uploadedFiles.ghanaCardFrontUrl) {
+          finalFrontUrl = await uploadFile(uploadedFiles.ghanaCardFrontUrl, "ghana-card-front", "Front ID upload failed.");
+      }
+      if (uploadedFiles.ghanaCardBackUrl) {
+          finalBackUrl = await uploadFile(uploadedFiles.ghanaCardBackUrl, "ghana-card-back", "Back ID upload failed.");
+      }
+      if (uploadedFiles.selfieUrl) {
+          finalSelfieUrl = await uploadFile(uploadedFiles.selfieUrl, "selfie", "Selfie upload failed.");
+      }
 
       const r = await fetch(`${baseApiUrl}/api/users/onboard`, {
         method: "POST",
@@ -726,13 +750,25 @@ export default function ApplyPage() {
           accommodationType: onboardingData.accommodationType, yearsAtAddress: onboardingData.yearsAtAddress,
           educationLevel: onboardingData.educationLevel, employmentStatus: onboardingData.employmentStatus,
           monthlyIncome: onboardingData.monthlyIncome, ghanaCardNumber: onboardingData.ghanaCardNumber,
-          ghanaCardFrontUrl, ghanaCardBackUrl, selfieUrl,
+          ghanaCardFrontUrl: finalFrontUrl, 
+          ghanaCardBackUrl: finalBackUrl, 
+          selfieUrl: finalSelfieUrl,
           loanAmount: Number(loanAmount), loanTenure: Number(loanTenure), loanPurpose: loanPurpose,
           nodeCode: nodeCode.trim(), // Include referral code
         }),
       });
       const p = await r.json();
-      if (!r.ok) throw new Error(p?.message || "Submission failed.");
+      
+      if (!r.ok) {
+          // 🎯 Catch the "Invalid Node" error
+          if (r.status === 400 && (p.message?.toLowerCase().includes("node") || p.message?.toLowerCase().includes("code"))) {
+              setErrorMessage(p.message || "Invalid Node Code. Please check and try again.");
+              setOnboardingStep(4); // 🚀 Redirect back to Node Code input!
+              setIsSubmittingOnboarding(false);
+              return;
+          }
+          throw new Error(p?.message || "Submission failed.");
+      }
       
       const code = p.nodeCode || "AM-NEW";
       setSuccessNodeCode(code);
@@ -1613,6 +1649,8 @@ export default function ApplyPage() {
               if (data.nodeCode) setNodeCode(data.nodeCode);
               setOnboardingStep(5);
             }}
+            errorMessage={errorMessage}
+            onErrorDismiss={() => setErrorMessage(null)}
         />
       );
   }

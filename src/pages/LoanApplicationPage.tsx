@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowLeft, Briefcase, Stethoscope, GraduationCap, Home, MoreHorizontal, Info, Pencil, Plane } from "lucide-react";
+import { ArrowLeft, Briefcase, Stethoscope, GraduationCap, Home, MoreHorizontal, Info, Pencil, Plane, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,20 @@ interface LoanApplicationPageProps {
   initialAmount?: number;
   initialTenure?: number;
   initialPurpose?: string;
+  errorMessage?: string | null;
+  onErrorDismiss?: () => void;
 }
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertCircle } from "lucide-react";
 
 const PURPOSES = [
   { id: "Business", label: "Business", icon: Briefcase },
@@ -35,7 +48,9 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
   initialNodeCode, 
   initialAmount, 
   initialTenure, 
-  initialPurpose 
+  initialPurpose,
+  errorMessage,
+  onErrorDismiss
 }) => {
   const [amount, setAmount] = useState<number>(initialAmount || Math.max(MIN_LOAN_AMOUNT, Math.min(140, tierLimit)));
   const [tenure, setTenure] = useState<number>(initialTenure || 10);
@@ -44,6 +59,29 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
 
   return (
     <div className="h-screen bg-white flex flex-col relative overflow-hidden">
+      
+      {/* Error Modal */}
+      <AlertDialog open={!!errorMessage} onOpenChange={(open) => !open && onErrorDismiss?.()}>
+        <AlertDialogContent className="rounded-2xl max-w-[85vw] mx-auto">
+          <AlertDialogHeader>
+            <div className="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-2">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+            </div>
+            <AlertDialogTitle className="text-center text-lg font-bold text-gray-900">One Small Problem</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-gray-500">
+              {errorMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction 
+              onClick={() => onErrorDismiss?.()}
+              className="w-full rounded-full bg-gray-900 hover:bg-gray-800 text-white font-bold"
+            >
+              Okay, I'll Fix It
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       {/* Header */}
       <div className="px-6 pt-6 pb-2 flex items-center justify-between shrink-0">
@@ -177,16 +215,34 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
         {/* Node Code Section (Optional) */}
         {showNodeCode && (
            <div className="space-y-4">
-                     <h2 className="text-md font-bold text-gray-900">Referral / Node Code</h2>
+                     <div className="flex items-center gap-2">
+                         <h2 className="text-md font-bold text-gray-900">Referral / Node Code</h2>
+                         {nodeCode.length >= 4 && (
+                             <div className="flex items-center gap-1 text-green-600 animate-in zoom-in duration-300">
+                                 <CheckSquare className="w-4 h-4" />
+                                 <span className="text-xs font-bold">Verified</span>
+                             </div>
+                         )}
+                     </div>
                      <div className="relative">
                         <input
                            type="text"
                            value={nodeCode}
                            onChange={(e) => setNodeCode(e.target.value.toUpperCase())}
                            placeholder="Enter Node Code"
-                    className="w-full h-14 rounded-2xl border border-gray-200 px-4 font-mono text-center text-lg uppercase tracking-widest focus:border-[#EC1B84] focus:ring-1 focus:ring-[#EC1B84] outline-none transition-all placeholder:normal-case placeholder:font-sans placeholder:text-gray-400 placeholder:text-sm placeholder:tracking-normal"
-                    maxLength={10}
-                 />
+                           className={cn(
+                               "w-full h-14 rounded-2xl border px-4 font-mono text-center text-lg uppercase tracking-widest outline-none transition-all placeholder:normal-case placeholder:font-sans placeholder:text-gray-400 placeholder:text-sm placeholder:tracking-normal",
+                               nodeCode.length >= 4 
+                                   ? "border-green-500 bg-green-50/10 focus:ring-1 focus:ring-green-500" 
+                                   : "border-gray-200 focus:border-[#EC1B84] focus:ring-1 focus:ring-[#EC1B84]"
+                           )}
+                           maxLength={10}
+                        />
+                        {nodeCode.length > 0 && nodeCode.length < 4 && (
+                            <p className="text-xs text-red-500 mt-1.5 font-medium text-center">
+                               Code must be at least 4 characters
+                            </p>
+                        )}
               </div>
            </div>
         )}
