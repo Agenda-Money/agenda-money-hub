@@ -134,7 +134,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData
       {/* 4. Logout Button */}
       <button 
         onClick={() => {
-            globalThis.localStorage.removeItem("agenda_token");
+            globalThis.sessionStorage.removeItem("agenda_token");
             window.location.reload();
         }}
         className="w-full bg-white rounded-[24px] p-5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] border border-gray-100 flex items-center gap-3 hover:bg-gray-50 transition-colors"
