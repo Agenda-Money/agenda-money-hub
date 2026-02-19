@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,90 +7,60 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, Lock, CircleAlert, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 const ResetPasswordPage = () => {
-  const [searchParams] = useSearchParams();
-  const location = useLocation();
-  const [token, setToken] = useState<string | null>(null);
-  
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   
-  const { resetPassword } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionValid, setSessionValid] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
+    // Check for errors in the URL hash (e.g., generic Supabase auth errors)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const errorDescription = hashParams.get("error_description");
+    const errorParam = hashParams.get("error");
+    
+    if (errorDescription || errorParam) {
+      setError(errorDescription?.replace(/\+/g, " ") || errorParam || "Invalid or expired link");
+      return; 
+    }
 
+    // Check if we have an active session (which happens after clicking the email link)
+    let subscription: { unsubscribe: () => void } | null = null;
+    
     const checkSession = async () => {
-      // 1. Check direct URL params (Query Strings)
-      const queryToken = searchParams.get("token");
-      if (queryToken) {
-        if (isMounted) {
-          setToken(queryToken);
-          setError(null);
-        }
-        return;
-      }
-
-      // 2. Check URL Hash (Supabase Magic Links/Recovery often use this)
-      const hash = location.hash;
-      if (hash) {
-        const hashString = hash.startsWith('#') ? hash.substring(1) : hash;
-        const params = new URLSearchParams(hashString);
-        
-        const accessToken = params.get("access_token");
-        const errorDesc = params.get("error_description");
-        const errCode = params.get("error");
-
-        if (accessToken) {
-          if (isMounted) {
-            setToken(accessToken);
-            setError(null);
-          }
-          return;
-        } else if (errorDesc) {
-          if (isMounted) {
-            try {
-              setError(decodeURIComponent(errorDesc.replace(/\+/g, " ")));
-            } catch {
-              setError(errorDesc);
-            }
-          }
-          return;
-        } else if (errCode) {
-          if (isMounted) setError(`Error: ${errCode}`);
-          return;
-        }
-      }
-
-      // 3. Check for active Supabase session (e.g. if auto-login happened)
-      const { data } = await supabase.auth.getSession();
-      if (!isMounted) return;
-
-      if (data.session) {
-        // User is authenticated via the link
-        setToken(data.session.access_token);
-        setError(null);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        setSessionValid(true);
       } else {
-        // No token found from any source
-        setError("Invalid or missing reset token. Session expired.");
+        // If no session, wait for the auth state change which might happen nicely
+        // when the hash is processed
+        const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+            setSessionValid(true);
+          }
+        });
+        
+        subscription = authSubscription;
       }
     };
-
-    checkSession();
-
+    
+    void checkSession();
+    
+    // Cleanup subscription on unmount
     return () => {
-      isMounted = false;
+      subscription?.unsubscribe();
     };
-  }, [searchParams, location]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) return;
     
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -106,17 +75,29 @@ const ResetPasswordPage = () => {
     setLoading(true);
     setError(null);
     
-    const result = await resetPassword(token, password);
-    if (result.success) {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success("Password updated successfully", {
+        description: "You can now login with your new password."
+      });
+      
       // Small delay to allow user to read the success toast
       setTimeout(() => {
         navigate("/login");
       }, 2000);
-    } else {
-      setError(result.message || "Failed to reset password");
+      
+    } catch (err: any) {
+      setError(err.message || "Failed to reset password");
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -139,6 +120,16 @@ const ResetPasswordPage = () => {
               <CardDescription>Enter your new password below</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {!sessionValid && !error && (
+                <Alert>
+                  <CircleAlert className="h-4 w-4" />
+                  <AlertTitle>Verifying Session</AlertTitle>
+                  <AlertDescription>
+                    Please wait while we verify your password reset link...
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               {error && (
                 <Alert variant="destructive">
                   <CircleAlert className="h-4 w-4" />
@@ -157,7 +148,6 @@ const ResetPasswordPage = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    disabled={!token}
                   />
                   <Button
                     type="button"
@@ -165,7 +155,6 @@ const ResetPasswordPage = () => {
                     size="icon"
                     className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
-                    disabled={!token}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -185,12 +174,11 @@ const ResetPasswordPage = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  disabled={!token}
                 />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={loading || !token}>
+              <Button type="submit" className="w-full" disabled={loading || !sessionValid}>
                 {loading ? "Resetting password..." : "Reset Password"}
               </Button>
               <Link to="/login" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
