@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
 import api from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 
@@ -122,8 +123,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const resetPassword = async (token: string, password: string): Promise<{ success: boolean; message?: string }> => {
+    let useToken = token;
+    
+    // Fallback: If no token provided (or empty/whitespace), try to get from active session
+    if (!useToken || useToken.trim() === '') {
+        const { data } = await supabase.auth.getSession();
+        if (data.session?.access_token) {
+            useToken = data.session.access_token;
+        }
+    }
+
+    if (!useToken) {
+        return { success: false, message: "No session token found. Session expired or invalid link." };
+    }
+
     try {
-      const response = await api.post("/api/admin/auth/reset-password", { token, password });
+      const response = await api.patch("/api/admin/auth/reset-password", 
+        { password },
+        { headers: { Authorization: `Bearer ${useToken}` } }
+      );
       if (response.data.success) {
         toast.success("Password reset successful", { description: "You can now login with your new password." });
         return { success: true };
