@@ -15,8 +15,11 @@ api.interceptors.request.use(
     const adminToken = sessionStorage.getItem('token');
     const applicantToken = sessionStorage.getItem('agenda_token');
     const token = adminToken || applicantToken;
-    if (token && !config.headers.Authorization) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const hasAuthHeader = Object.keys(config.headers || {}).some(
+      (key) => key.toLowerCase() === 'authorization'
+    );
+    if (token && !hasAuthHeader) {
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
