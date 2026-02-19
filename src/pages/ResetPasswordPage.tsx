@@ -31,7 +31,7 @@ const ResetPasswordPage = () => {
     }
 
     // Check if we have an active session (which happens after clicking the email link)
-    let subscription: any = null;
+    let subscription: { unsubscribe: () => void } | null = null;
     
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -51,13 +51,11 @@ const ResetPasswordPage = () => {
       }
     };
     
-    checkSession();
+    void checkSession();
     
     // Cleanup subscription on unmount
     return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
+      subscription?.unsubscribe();
     };
   }, []);
 
