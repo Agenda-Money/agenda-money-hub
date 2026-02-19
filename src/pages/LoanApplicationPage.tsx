@@ -62,22 +62,26 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
       
       {/* Error Modal */}
       <AlertDialog open={!!errorMessage} onOpenChange={(open) => !open && onErrorDismiss?.()}>
-        <AlertDialogContent className="rounded-2xl max-w-[85vw] mx-auto">
-          <AlertDialogHeader>
-            <div className="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-2">
+        <AlertDialogContent className="rounded-2xl max-w-sm mx-auto p-6">
+          <AlertDialogHeader className="space-y-3">
+            <div className="mx-auto w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
               <AlertCircle className="w-6 h-6 text-red-600" />
             </div>
-            <AlertDialogTitle className="text-center text-lg font-bold text-gray-900">One Small Problem</AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-gray-500">
-              {errorMessage}
-            </AlertDialogDescription>
+            <div className="space-y-1">
+              <AlertDialogTitle className="text-center text-lg font-semibold text-gray-900">
+                Action Required
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-center text-sm text-gray-500 max-w-[260px] mx-auto">
+                {errorMessage}
+              </AlertDialogDescription>
+            </div>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="mt-6">
             <AlertDialogAction 
               onClick={() => onErrorDismiss?.()}
-              className="w-full rounded-full bg-gray-900 hover:bg-gray-800 text-white font-bold"
+              className="w-full h-11 rounded-full bg-gray-900 hover:bg-gray-800 text-white font-medium text-sm transition-all"
             >
-              Okay, I'll Fix It
+              Dismiss
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
