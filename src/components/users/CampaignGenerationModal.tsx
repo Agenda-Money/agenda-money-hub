@@ -55,7 +55,12 @@ export const CampaignGenerationModal: React.FC<CampaignGenerationModalProps> = (
     // Immediate check against ref
     if (submittingRef.current || loading) return;
 
-    if (!firstName || !lastName || !msisdn) {
+    // Trim and validate against trimmed values to prevent whitespace-only inputs
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    const trimmedMsisdn = msisdn.trim();
+
+    if (!trimmedFirstName || !trimmedLastName || !trimmedMsisdn) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -66,9 +71,9 @@ export const CampaignGenerationModal: React.FC<CampaignGenerationModalProps> = (
 
     try {
       const response = await api.post("/api/admin/nodes/generate-campaign", {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        msisdn: msisdn.trim(),
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        msisdn: trimmedMsisdn,
       });
 
       if (response.data.success || response.status === 201) {
