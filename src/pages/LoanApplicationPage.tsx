@@ -61,7 +61,6 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
     <div className="h-screen bg-white flex flex-col relative overflow-hidden">
       
       {/* Error Modal */}
-      {/* Error Modal */}
       <AlertDialog open={!!errorMessage} onOpenChange={(open) => !open && onErrorDismiss?.()}>
         <AlertDialogContent className="rounded-2xl max-w-sm mx-auto p-6">
           <AlertDialogHeader className="space-y-3">

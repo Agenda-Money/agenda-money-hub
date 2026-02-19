@@ -31,6 +31,8 @@ const ResetPasswordPage = () => {
     }
 
     // Check if we have an active session (which happens after clicking the email link)
+    let subscription: { unsubscribe: () => void } | null = null;
+    
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -39,17 +41,22 @@ const ResetPasswordPage = () => {
       } else {
         // If no session, wait for the auth state change which might happen nicely
         // when the hash is processed
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange((event, session) => {
           if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
             setSessionValid(true);
           }
         });
         
-        return () => subscription.unsubscribe();
+        subscription = authSubscription;
       }
     };
     
-    checkSession();
+    void checkSession();
+    
+    // Cleanup subscription on unmount
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,6 +120,16 @@ const ResetPasswordPage = () => {
               <CardDescription>Enter your new password below</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {!sessionValid && !error && (
+                <Alert>
+                  <CircleAlert className="h-4 w-4" />
+                  <AlertTitle>Verifying Session</AlertTitle>
+                  <AlertDescription>
+                    Please wait while we verify your password reset link...
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               {error && (
                 <Alert variant="destructive">
                   <CircleAlert className="h-4 w-4" />
@@ -161,7 +178,7 @@ const ResetPasswordPage = () => {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={loading || !sessionValid}>
                 {loading ? "Resetting password..." : "Reset Password"}
               </Button>
               <Link to="/login" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
