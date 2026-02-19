@@ -125,8 +125,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const resetPassword = async (token: string, password: string): Promise<{ success: boolean; message?: string }> => {
     let useToken = token;
     
-    // Fallback: If no token provided (or empty), try to get from active session
-    if (!useToken) {
+    // Fallback: If no token provided (or empty/whitespace), try to get from active session
+    if (!useToken || useToken.trim() === '') {
         const { data } = await supabase.auth.getSession();
         if (data.session?.access_token) {
             useToken = data.session.access_token;
