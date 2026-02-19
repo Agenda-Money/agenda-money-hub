@@ -113,11 +113,23 @@ export default function AgentPortfolio() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading } = useQuery<OnboardedUser[]>({
     queryKey: ["agent-portfolio", user?.email],
     queryFn: async () => {
       const res = await api.get("/api/agents/portfolio");
-      return res.data?.data || [];
+      const raw: Record<string, unknown>[] = res.data?.data || [];
+      return raw.map((u) => ({
+        id: String(u._id ?? u.id ?? ""),
+        fullName: u.fullName as string,
+        ghanaCardNumber: u.ghanaCardNumber as string,
+        phoneNumber: u.phoneNumber as string,
+        region: u.region as string,
+        kycStatus: u.kycStatus as string,
+        loanStatus: u.loanStatus as string,
+        loanAmount: u.loanAmount as number | undefined,
+        onboardedDate: u.onboardedDate as string,
+        lastPayment: u.lastPayment as string | undefined,
+      }));
     },
     enabled: !!user,
   });
