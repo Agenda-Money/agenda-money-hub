@@ -17,7 +17,7 @@ interface AgentDashboardData {
     totalSignups: number;
     signupsThisMonth: number;
     activeLoans: number;
-    totalCommission: number;
+    totalCommission: number | string;
     portfolioHealth: number;
   };
   recentSignups: {
@@ -102,7 +102,10 @@ export default function AgentDashboard() {
     },
     {
       title: "Total Commission",
-      value: `₵${stats.totalCommission}`,
+      value:
+        typeof stats.totalCommission === "number"
+          ? `₵${stats.totalCommission.toLocaleString()}`
+          : String(stats.totalCommission ?? ""),
       icon: DollarSign,
       trend: "+15%",
       trendUp: true,
@@ -235,7 +238,7 @@ export default function AgentDashboard() {
                     </div>
                     <Badge className={cn(
                       "shrink-0",
-                      signup.kycStatus === "VERIFIED" 
+                      signup.kycStatus?.toLowerCase() === "verified" 
                         ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400" 
                         : "bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-400"
                     )}>
