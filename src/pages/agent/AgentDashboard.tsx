@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, CreditCard, DollarSign, TrendingUp, UserPlus, ArrowUpRight, Activity } from "lucide-react";
+import { Users, CreditCard, DollarSign, TrendingUp, UserPlus, ArrowUpRight, Activity, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
@@ -9,6 +9,28 @@ import { cn } from "@/lib/utils";
 import { useSocket } from "@/hooks/useSocket";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+
+interface AgentDashboardData {
+  agentName: string;
+  agentCode: string;
+  stats: {
+    totalSignups: number;
+    signupsThisMonth: number;
+    activeLoans: number;
+    totalCommission: number | string;
+    portfolioHealth: number;
+  };
+  recentSignups: {
+    _id: string;
+    msisdn: string;
+    fullName: string;
+    kycStatus: string;
+    createdAt: string;
+    ghanaCardFrontUrl?: string;
+    ghanaCardBackUrl?: string;
+    selfieUrl?: string;
+  }[];
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -28,7 +50,7 @@ export default function AgentDashboard() {
   const navigate = useNavigate();
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
 
-  const { data: dashboardStats, refetch: refetchDashboard } = useQuery({
+  const { data: dashboardData, refetch: refetchDashboard } = useQuery<AgentDashboardData>({
     queryKey: ["agent-dashboard-stats", user?.email],
     queryFn: async () => {
       const res = await api.get("/api/agents/dashboard-stats");
@@ -43,28 +65,28 @@ export default function AgentDashboard() {
     }
   });
 
-  const stats = dashboardStats?.stats ?? {
+  const stats = dashboardData?.stats ?? {
     totalSignups: 0,
     signupsThisMonth: 0,
     activeLoans: 0,
-    totalCommission: "₵0",
-    portfolioHealth: "100%",
+    totalCommission: 0,
+    portfolioHealth: 100,
   };
   
-  const recentSignups = dashboardStats?.recentSignups ?? [];
+  const recentSignups = dashboardData?.recentSignups ?? [];
 
   const statCards = [
     {
       title: "Total Signups",
-      value: stats.totalSignups?.toString() ?? "0",
+      value: stats.totalSignups.toString(),
       icon: Users,
       trend: "+12%",
       trendUp: true,
       gradient: "from-blue-500 to-blue-600",
     },
     {
-      title: "This Month",
-      value: stats.signupsThisMonth?.toString() ?? "0",
+      title: "Signups This Month",
+      value: stats.signupsThisMonth.toString(),
       icon: UserPlus,
       trend: "+8%",
       trendUp: true,
@@ -72,15 +94,18 @@ export default function AgentDashboard() {
     },
     {
       title: "Active Loans",
-      value: stats.activeLoans?.toString() ?? "0",
+      value: stats.activeLoans.toString(),
       icon: CreditCard,
       trend: "+5%",
       trendUp: true,
       gradient: "from-amber-500 to-orange-500",
     },
     {
-      title: "Commission",
-      value: stats.totalCommission ?? "₵0",
+      title: "Total Commission",
+      value:
+        typeof stats.totalCommission === "number"
+          ? `₵${stats.totalCommission.toLocaleString()}`
+          : String(stats.totalCommission ?? ""),
       icon: DollarSign,
       trend: "+15%",
       trendUp: true,
@@ -99,14 +124,14 @@ export default function AgentDashboard() {
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            Welcome back, {dashboardStats?.agentName?.split(' ')[0] || user?.fullName?.split(' ')[0] || "Agent"}! 👋
+            Welcome back, {dashboardData?.agentName?.split(' ')[0] || user?.fullName?.split(' ')[0] || "Agent"}! 👋
           </h1>
-          <p className="text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
+          <div className="text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
             <span>Agent Code:</span>
             <Badge variant="secondary" className="font-mono">
-              {dashboardStats?.agentCode || user?.agentCode || "N/A"}
+              {dashboardData?.agentCode || user?.agentCode || "N/A"}
             </Badge>
-          </p>
+          </div>
         </div>
         <Button 
           onClick={() => navigate("/agent/onboard")}
@@ -135,8 +160,13 @@ export default function AgentDashboard() {
                   )}>
                     <stat.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-full">
-                    <TrendingUp className="h-3 w-3" />
+                  <div className={cn(
+                    "flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full",
+                    stat.trendUp 
+                      ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10" 
+                      : "text-red-600 bg-red-50 dark:bg-red-500/10"
+                  )}>
+                    <TrendingUp className={cn("h-3 w-3", !stat.trendUp && "rotate-180")} />
                     {stat.trend}
                   </div>
                 </div>
@@ -159,13 +189,13 @@ export default function AgentDashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">Portfolio Health</h3>
-                  <p className="text-sm text-muted-foreground">Your customers are performing well</p>
+                  <p className="text-sm text-muted-foreground">Repayment performance of your customers</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <p className="text-3xl font-bold text-primary">{stats.portfolioHealth ?? "100%"}</p>
-                  <p className="text-xs text-muted-foreground">Repayment rate</p>
+                  <p className="text-3xl font-bold text-primary">{stats.portfolioHealth}%</p>
+                  <p className="text-xs text-muted-foreground">Repayment Rate</p>
                 </div>
               </div>
             </div>
@@ -174,7 +204,7 @@ export default function AgentDashboard() {
       </motion.div>
 
       {/* Recent Activity Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {/* Recent Signups */}
         <motion.div variants={itemVariants}>
           <Card className="h-full">
@@ -189,7 +219,7 @@ export default function AgentDashboard() {
             </CardHeader>
             <CardContent className="space-y-3">
               {recentSignups.length > 0 ? (
-                recentSignups.slice(0, 4).map((signup: any, index: number) => (
+                recentSignups.slice(0, 5).map((signup, index: number) => (
                   <motion.div 
                     key={signup._id}
                     initial={{ opacity: 0, x: -20 }}
@@ -208,9 +238,9 @@ export default function AgentDashboard() {
                     </div>
                     <Badge className={cn(
                       "shrink-0",
-                      signup.kycStatus === "VERIFIED" 
+                      signup.kycStatus?.toLowerCase() === "verified" 
                         ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400" 
-                        : "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400"
+                        : "bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-400"
                     )}>
                       {signup.kycStatus}
                     </Badge>
@@ -223,54 +253,6 @@ export default function AgentDashboard() {
                   <Button variant="link" size="sm" onClick={() => navigate("/agent/onboard")}>
                     Start onboarding
                   </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Loan Health Monitor */}
-        <motion.div variants={itemVariants}>
-          <Card className="h-full">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Loan Health</CardTitle>
-                <Badge variant="outline" className="font-normal">Live</Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {dashboardStats?.loanHealthMonitor?.length > 0 ? (
-                dashboardStats.loanHealthMonitor.slice(0, 4).map((loan: any, index: number) => (
-                  <motion.div 
-                    key={loan.msisdn}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex items-center justify-between p-3 bg-muted/50 rounded-xl hover:bg-muted transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm text-foreground truncate">{loan.name}</p>
-                      <p className="text-xs text-muted-foreground">{loan.msisdn}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-semibold text-sm text-foreground">₵{loan.amount}</p>
-                      <Badge 
-                        className={cn(
-                          "text-xs",
-                          loan.status?.toLowerCase() === "active" 
-                            ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" 
-                            : "bg-red-500/10 text-red-700 border-red-500/30"
-                        )}
-                      >
-                        {loan.status}
-                      </Badge>
-                    </div>
-                  </motion.div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <CreditCard className="h-10 w-10 text-muted-foreground/50 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No active loans in your portfolio</p>
                 </div>
               )}
             </CardContent>

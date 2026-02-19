@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, User, Phone, MapPin, DollarSign, AlertCircle, CheckCircle2, Clock, Filter, ArrowUpDown } from "lucide-react";
+import { Search, User, Phone, MapPin, DollarSign, AlertCircle, CheckCircle2, Clock, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -22,11 +23,20 @@ interface OnboardedUser {
   ghanaCardNumber: string;
   phoneNumber: string;
   region: string;
-  kycStatus: "verified" | "pending" | "rejected" | "mismatch";
-  loanStatus: "active" | "repaid" | "overdue" | "none";
+  kycStatus: string; // The API returns lowercase string, could be "verified", "pending", etc.
+  loanStatus: string; // The API returns "none" or other statuses
   loanAmount?: number;
   onboardedDate: string;
   lastPayment?: string;
+}
+
+interface PortfolioResponse {
+  users: OnboardedUser[];
+  pagination: {
+    total: number;
+    page: number;
+    pages: number;
+  };
 }
 
 const containerVariants = {
@@ -111,72 +121,64 @@ export default function AgentPortfolio() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [page, setPage] = useState(1);
 
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ["agent-portfolio", user?.agentCode],
+  const { data, isLoading, isError, error } = useQuery<PortfolioResponse>({
+    queryKey: ["agent-portfolio", user?.email, page],
     queryFn: async () => {
-      const mockUsers: OnboardedUser[] = [
-        {
-          id: "1",
-          fullName: "Kwame Mensah",
-          ghanaCardNumber: "GHA-123456789-1",
-          phoneNumber: "0244123456",
-          region: "Greater Accra",
-          kycStatus: "verified",
-          loanStatus: "active",
-          loanAmount: 800,
-          onboardedDate: "2024-01-15",
-          lastPayment: "2024-01-20"
-        },
-        {
-          id: "2",
-          fullName: "Abena Osei",
-          ghanaCardNumber: "GHA-987654321-2",
-          phoneNumber: "0201234567",
-          region: "Ashanti",
-          kycStatus: "pending",
-          loanStatus: "none",
-          onboardedDate: "2024-01-18"
-        },
-        {
-          id: "3",
-          fullName: "Kofi Asante",
-          ghanaCardNumber: "GHA-456789123-3",
-          phoneNumber: "0244789456",
-          region: "Eastern",
-          kycStatus: "verified",
-          loanStatus: "repaid",
-          loanAmount: 500,
-          onboardedDate: "2024-01-10",
-          lastPayment: "2024-01-25"
-        },
-        {
-          id: "4",
-          fullName: "Ama Darko",
-          ghanaCardNumber: "GHA-789123456-4",
-          phoneNumber: "0208765432",
-          region: "Central",
-          kycStatus: "verified",
-          loanStatus: "overdue",
-          loanAmount: 1200,
-          onboardedDate: "2024-01-05",
-          lastPayment: "2024-01-12"
-        },
-        {
-          id: "5",
-          fullName: "Yaw Boateng",
-          ghanaCardNumber: "GHA-321654987-5",
-          phoneNumber: "0244567890",
-          region: "Western",
-          kycStatus: "mismatch",
-          loanStatus: "none",
-          onboardedDate: "2024-01-20"
+      try {
+        const res = await api.get("/api/agents/portfolio", {
+          params: { page, limit: 10 }
+        });
+        
+        console.log(`Portfolio Response (Page ${page}):`, res.data);
+
+        let rawDirectory: Record<string, unknown>[] = [];
+        let pagination = { total: 0, page: 1, pages: 1 };
+
+        // Robust parsing:
+        // Case 1: Standard response { success: true, data: { directory: [], pagination: {} } }
+        if (res.data?.data?.directory) {
+          rawDirectory = res.data.data.directory;
+          pagination = res.data.data.pagination || pagination;
         }
-      ];
-      return mockUsers;
+        // Case 2: Direct response { directory: [], pagination: {} }
+        else if (res.data?.directory) {
+          rawDirectory = res.data.directory;
+          pagination = res.data.pagination || pagination;
+        }
+        // Case 3: Old/Array response { data: [] } or just []
+        else if (Array.isArray(res.data?.data)) {
+          rawDirectory = res.data.data;
+          pagination = { total: rawDirectory.length, page: 1, pages: 1 };
+        }
+        
+        const mappedUsers = rawDirectory.map((u) => ({
+          id: String(u._id ?? u.id ?? ""),
+          fullName: u.fullName as string,
+          ghanaCardNumber: u.ghanaCardNumber as string,
+          phoneNumber: u.phoneNumber as string,
+          region: u.region as string,
+          kycStatus: (u.kycStatus as string)?.toLowerCase() || "pending",
+          loanStatus: (u.loanStatus as string)?.toLowerCase() || "none",
+          loanAmount: u.loanAmount as number | undefined,
+          onboardedDate: u.onboardedDate as string,
+          lastPayment: u.lastPayment as string | undefined,
+        }));
+
+        return { users: mappedUsers, pagination };
+      } catch (err: any) {
+        console.error("Portfolio API Error Full Object:", err);
+        console.error("Portfolio API Error Response Data:", err.response?.data);
+        console.error("Portfolio API Error Status:", err.response?.status);
+        throw err;
+      }
     },
-    enabled: !!user?.agentCode,
+    enabled: !!user,
   });
+
+  const { users = [], pagination = { total: 0, page: 1, pages: 1 } } = data || {};
+  console.log("Current Pagination State:", pagination);
 
   const filteredUsers = users.filter(u => {
     const matchesSearch = 
@@ -271,7 +273,12 @@ export default function AgentPortfolio() {
             </div>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {isError ? (
+              <div className="p-8 text-center text-red-500 bg-red-50 rounded-xl border border-red-100">
+                <p className="font-semibold">Failed to load portfolio</p>
+                <p className="text-sm mt-1 text-red-400">{(error as Error)?.message || "Something went wrong"}</p>
+              </div>
+            ) : isLoading ? (
               <div className="space-y-3">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />
@@ -370,6 +377,7 @@ export default function AgentPortfolio() {
                 ))}
               </motion.div>
             )}
+
           </CardContent>
         </Card>
       </motion.div>
