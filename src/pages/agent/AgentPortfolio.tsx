@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, User, Phone, MapPin, DollarSign, AlertCircle, CheckCircle2, Clock, Filter, ArrowUpDown } from "lucide-react";
+import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -22,8 +23,8 @@ interface OnboardedUser {
   ghanaCardNumber: string;
   phoneNumber: string;
   region: string;
-  kycStatus: "verified" | "pending" | "rejected" | "mismatch";
-  loanStatus: "active" | "repaid" | "overdue" | "none";
+  kycStatus: string; // The API returns lowercase string, could be "verified", "pending", etc.
+  loanStatus: string; // The API returns "none" or other statuses
   loanAmount?: number;
   onboardedDate: string;
   lastPayment?: string;
@@ -113,69 +114,12 @@ export default function AgentPortfolio() {
   const [filterStatus, setFilterStatus] = useState("all");
 
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ["agent-portfolio", user?.agentCode],
+    queryKey: ["agent-portfolio", user?.email],
     queryFn: async () => {
-      const mockUsers: OnboardedUser[] = [
-        {
-          id: "1",
-          fullName: "Kwame Mensah",
-          ghanaCardNumber: "GHA-123456789-1",
-          phoneNumber: "0244123456",
-          region: "Greater Accra",
-          kycStatus: "verified",
-          loanStatus: "active",
-          loanAmount: 800,
-          onboardedDate: "2024-01-15",
-          lastPayment: "2024-01-20"
-        },
-        {
-          id: "2",
-          fullName: "Abena Osei",
-          ghanaCardNumber: "GHA-987654321-2",
-          phoneNumber: "0201234567",
-          region: "Ashanti",
-          kycStatus: "pending",
-          loanStatus: "none",
-          onboardedDate: "2024-01-18"
-        },
-        {
-          id: "3",
-          fullName: "Kofi Asante",
-          ghanaCardNumber: "GHA-456789123-3",
-          phoneNumber: "0244789456",
-          region: "Eastern",
-          kycStatus: "verified",
-          loanStatus: "repaid",
-          loanAmount: 500,
-          onboardedDate: "2024-01-10",
-          lastPayment: "2024-01-25"
-        },
-        {
-          id: "4",
-          fullName: "Ama Darko",
-          ghanaCardNumber: "GHA-789123456-4",
-          phoneNumber: "0208765432",
-          region: "Central",
-          kycStatus: "verified",
-          loanStatus: "overdue",
-          loanAmount: 1200,
-          onboardedDate: "2024-01-05",
-          lastPayment: "2024-01-12"
-        },
-        {
-          id: "5",
-          fullName: "Yaw Boateng",
-          ghanaCardNumber: "GHA-321654987-5",
-          phoneNumber: "0244567890",
-          region: "Western",
-          kycStatus: "mismatch",
-          loanStatus: "none",
-          onboardedDate: "2024-01-20"
-        }
-      ];
-      return mockUsers;
+      const res = await api.get("/api/agents/portfolio");
+      return res.data?.data || [];
     },
-    enabled: !!user?.agentCode,
+    enabled: !!user,
   });
 
   const filteredUsers = users.filter(u => {
