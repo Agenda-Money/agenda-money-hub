@@ -11,8 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Download, Eye, Ban, CheckCircle } from "lucide-react";
+import { Search, Download, Eye, Ban, CheckCircle, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CampaignGenerationModal } from "@/components/users/CampaignGenerationModal";
 
 interface User {
   id: string;
@@ -42,6 +43,7 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const { data: responseData } = useQuery({
@@ -107,10 +109,19 @@ export default function UsersPage() {
               Manage your platform users and their accounts
             </p>
           </div>
-          <Button className="bg-primary hover:bg-primary/90">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => setIsCampaignModalOpen(true)}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Marketing Campaign
+            </Button>
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -403,6 +414,11 @@ export default function UsersPage() {
           </div>
         </div>
       </div>
+      
+      <CampaignGenerationModal 
+        open={isCampaignModalOpen} 
+        onOpenChange={setIsCampaignModalOpen} 
+      />
     </DashboardLayout>
   );
 }
