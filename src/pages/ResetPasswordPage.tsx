@@ -24,12 +24,16 @@ const ResetPasswordPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkSession = async () => {
       // 1. Check direct URL params (Query Strings)
       const queryToken = searchParams.get("token");
       if (queryToken) {
-        setToken(queryToken);
-        setError(null);
+        if (isMounted) {
+          setToken(queryToken);
+          setError(null);
+        }
         return;
       }
 
@@ -44,35 +48,45 @@ const ResetPasswordPage = () => {
         const errCode = params.get("error");
 
         if (accessToken) {
-          setToken(accessToken);
-          setError(null);
+          if (isMounted) {
+            setToken(accessToken);
+            setError(null);
+          }
           return;
         } else if (errorDesc) {
-          setError(errorDesc.replace(/\+/g, " ")); // Manual decode if needed
+          if (isMounted) {
+            try {
+              setError(decodeURIComponent(errorDesc.replace(/\+/g, " ")));
+            } catch {
+              setError(errorDesc);
+            }
+          }
           return;
         } else if (errCode) {
-          setError(`Error: ${errCode}`);
+          if (isMounted) setError(`Error: ${errCode}`);
           return;
         }
       }
 
       // 3. Check for active Supabase session (e.g. if auto-login happened)
       const { data } = await supabase.auth.getSession();
+      if (!isMounted) return;
+
       if (data.session) {
         // User is authenticated via the link
         setToken(data.session.access_token);
         setError(null);
       } else {
-        // Only set error if we haven't found a token by other means
-        // and we aren't already showing a specific error from the hash
-        setToken(prev => {
-            if (!prev) setError("Invalid or missing reset token. Session expired.");
-            return prev;
-        });
+        // No token found from any source
+        setError("Invalid or missing reset token. Session expired.");
       }
     };
 
     checkSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, [searchParams, location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
