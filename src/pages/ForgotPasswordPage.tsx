@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
-  const { forgotPassword } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -21,14 +20,21 @@ const ForgotPasswordPage = () => {
     setError(null);
     setSuccess(false);
     
-    const result = await forgotPassword(email);
-    if (result.success) {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "/reset-password",
+      });
+
+      if (error) {
+        throw error;
+      }
+      
       setSuccess(true);
-    } else {
-      setError(result.message || "Failed to send reset link");
+    } catch (err: any) {
+      setError(err.message || "Failed to send reset link");
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -62,7 +68,8 @@ const ForgotPasswordPage = () => {
                 <Alert className="border-green-500 text-green-600 bg-green-50">
                   <AlertTitle>Success</AlertTitle>
                   <AlertDescription>
-                    If an account exists for {email}, we have sent a password reset link.
+                    If an account exists for {email}, we have sent a password reset link to it. 
+                    Please check your spam folder if you don't see it.
                   </AlertDescription>
                 </Alert>
               )}
@@ -75,6 +82,7 @@ const ForgotPasswordPage = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={loading || success}
                 />
               </div>
             </CardContent>
