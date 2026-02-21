@@ -94,7 +94,7 @@ const getLoanStatusBadge = (status: string, amount?: number) => {
         <div className="text-right">
           <p className="font-bold text-foreground">₵{amount || 0}</p>
           <Badge className={cn(baseClasses, "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400")}>
-            Repaid
+            Closed
           </Badge>
         </div>
       );

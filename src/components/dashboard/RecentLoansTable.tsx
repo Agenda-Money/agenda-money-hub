@@ -32,7 +32,7 @@ const statusConfig = {
   repaid: {
     badge: "bg-green-500/10 text-green-700 border-green-500/30",
     row: "bg-green-500/5 hover:bg-green-500/10",
-    label: "Repaid",
+    label: "Closed",
   },
   overdue: {
     badge: "bg-red-500/10 text-red-700 border-red-500/30",

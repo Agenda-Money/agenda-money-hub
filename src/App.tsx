@@ -15,6 +15,7 @@ import LoansPage from "./pages/LoansPage";
 import RepaymentsPage from "./pages/RepaymentsPage";
 import SettingsPage from "./pages/SettingsPage";
 import AgentsPage from "./pages/AgentsPage";
+import AgentDetailsPage from "./pages/AgentDetailsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import LoginPage from "./pages/LoginPage";
 import UserDetailsPage from "./pages/UserDetailsPage";
@@ -23,6 +24,7 @@ import CheckEmailPage from "./pages/CheckEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ApplyPage from "./pages/ApplyPage";
+import AgentApplyPage from "./pages/AgentApplyPage";
 import NotFound from "./pages/NotFound";
 import AgentLayout from "./components/layout/AgentLayout";
 import AgentDashboard from "./pages/agent/AgentDashboard";
@@ -77,6 +79,7 @@ const App = () => {
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/signup" element={<SignupPage />} />
                       <Route path="/apply" element={<ApplyPage />} />
+                      <Route path="/agent-apply" element={<AgentApplyPage />} />
                       <Route path="/check-email" element={<CheckEmailPage />} />
                       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                       <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -103,6 +106,7 @@ const App = () => {
                       <Route path="/analytics" element={<RequireAuth><AdminRoute><AnalyticsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/settings" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents" element={<RequireAuth><AdminRoute><AgentsPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/agents/:id" element={<RequireAuth><AdminRoute><AgentDetailsPage /></AdminRoute></RequireAuth>} />
 
                       <Route path="*" element={<NotFound />} />
                     </>

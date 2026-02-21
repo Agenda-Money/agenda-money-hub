@@ -28,7 +28,7 @@ const statusConfig = {
   PENDING: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
   DISBURSING: { label: "Disbursing", icon: Loader2, color: "bg-info/10 text-info border-info/20" },
   ACTIVE: { label: "Active", icon: CheckCircle, color: "bg-info/10 text-info border-info/20" },
-  REPAID: { label: "Repaid", icon: Check, color: "bg-success/10 text-success border-success/20" },
+  REPAID: { label: "Closed", icon: Check, color: "bg-success/10 text-success border-success/20" },
   OVERDUE: { label: "Overdue", icon: AlertTriangle, color: "bg-destructive/10 text-destructive border-destructive/20" },
   DEFAULTED: { label: "Defaulted", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
   REJECTED: { label: "Rejected", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
