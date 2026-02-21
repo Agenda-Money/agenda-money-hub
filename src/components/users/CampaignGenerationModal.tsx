@@ -121,7 +121,7 @@ export const CampaignGenerationModal: React.FC<CampaignGenerationModalProps> = (
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="w-[95vw] max-w-[425px] rounded-xl sm:w-full">
         <DialogHeader>
           <DialogTitle>Generate Marketing Campaign</DialogTitle>
           <DialogDescription>
