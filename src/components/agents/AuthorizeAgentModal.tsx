@@ -32,6 +32,7 @@ export const AuthorizeAgentModal: React.FC<AuthorizeAgentModalProps> = ({
   const resetForm = () => {
     setEmail("");
     setIsSuccess(false);
+    submittingRef.current = false;
   };
 
   const handleOpenChange = (newOpen: boolean) => {

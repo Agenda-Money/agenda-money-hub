@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, UserPlus, FileText, AlertCircle, CheckCircle2, Clock, MapPin, Phone, Mail, X, User, Camera, IdCard, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, UserPlus, FileText, AlertCircle, CheckCircle2, Clock, MapPin, Phone, Mail, User, Camera, IdCard, XCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -83,7 +83,7 @@ export default function AgentsPage() {
     const socket = io(baseApiUrl || window.location.origin, {
       path: "/socket.io/",
       reconnectionAttempts: 5,
-      auth: { token: localStorage.getItem("token") },
+      auth: { token: sessionStorage.getItem("token") },
     });
 
     socket.on("NEW_AGENT_APPLICATION", () => {
@@ -94,7 +94,7 @@ export default function AgentsPage() {
     return () => {
       socket.disconnect();
     };
-  }, [queryClient]);
+  }, [queryClient, baseApiUrl]);
 
   // All Agents Query
   const { data: responseData } = useQuery({
