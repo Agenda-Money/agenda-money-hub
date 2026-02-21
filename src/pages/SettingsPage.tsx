@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Moon, Sun, Monitor, UserPlus } from "lucide-react";
+import { AuthorizeAgentModal } from "@/components/agents/AuthorizeAgentModal";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +52,7 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
+  const [isAuthorizeModalOpen, setIsAuthorizeModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -158,6 +160,21 @@ export default function SettingsPage() {
                 </form>
               </CardContent>
             </Card>
+
+            <Card className="mt-6 border-primary/20 bg-primary/5">
+              <CardHeader>
+                <CardTitle>Admin Privileges</CardTitle>
+                <CardDescription>
+                  Authorize a new admin or higher-level agent to access this platform.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => setIsAuthorizeModalOpen(true)}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Authorize Admin
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="general" className="mt-4">
@@ -255,6 +272,11 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <AuthorizeAgentModal 
+        open={isAuthorizeModalOpen} 
+        onOpenChange={setIsAuthorizeModalOpen}
+      />
     </DashboardLayout>
   );
 }

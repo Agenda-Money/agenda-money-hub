@@ -250,7 +250,7 @@ const AnalyticsPage = () => {
                         />
                         <Legend />
                         <Line type="monotone" dataKey="disbursed" name="Disbursed" stroke="#e91e63" strokeWidth={2} dot={false} />
-                        <Line type="monotone" dataKey="repaid" name="Repaid" stroke="#00e676" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="repaid" name="Closed" stroke="#00e676" strokeWidth={2} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   )}
