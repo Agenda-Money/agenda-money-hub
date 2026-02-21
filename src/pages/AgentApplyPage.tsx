@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Building2, 
   Banknote, 
-  ShieldCheck, 
   Smartphone, 
   ArrowLeft, 
   ArrowRight,
@@ -17,7 +16,6 @@ import {
   CreditCard,
   MapPin,
   Mail,
-  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,7 +57,7 @@ const REGIONS = [
 
 const OTP_LENGTH = 6;
 const OTP_SLOTS = Array.from({ length: OTP_LENGTH }, (_, i) => i);
-const baseApiUrl = import.meta.env.VITE_API_URL || "https://api.agendamoney.com";
+const baseApiUrl = import.meta.env.VITE_API_URL || "";
 
 export default function AgentApplyPage() {
   const [view, setView] = useState<View>("landing");
@@ -237,12 +235,12 @@ export default function AgentApplyPage() {
           formData.surname.trim() &&
           formData.email.trim() &&
           formData.email.includes("@") &&
-          formData.address.trim().split(/\s+/).length >= 3 &&
+          formData.address.trim() &&
           formData.region
         );
       case 2:
         return !!(
-          formData.ghanaCardNumber.length === 15 &&
+          (formData.ghanaCardNumber.length === 13 || formData.ghanaCardNumber.length === 15) &&
           formData.ghanaCardFrontUrl &&
           formData.ghanaCardBackUrl &&
           formData.selfieUrl
@@ -792,7 +790,7 @@ export default function AgentApplyPage() {
                       )}
                     >
                       <input
-                        ref={frontInputRef} type="file" accept="image/*" capture="user"
+                        ref={frontInputRef} type="file" accept="image/*" capture="environment"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, "front"); }} className="hidden"
                       />
                       <input
