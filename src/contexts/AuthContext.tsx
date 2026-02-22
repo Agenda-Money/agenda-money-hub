@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from "
 import api from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { getSubdomain } from "@/lib/domain";
 
 
 interface AdminUser {
@@ -29,6 +30,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Define a helper to securely and consistently extract the role prioritizing user_metadata
+const extractRole = (userData: any) => {
+  return userData?.user_metadata?.role || userData?.role;
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,8 +52,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       const response = await api.get("/api/admin/auth/me");
-      if (response.data.success) {
-        setUser(response.data.data);
+      
+      // Checking for HTTP 200 or 201 as the source of truth
+      if (response.status === 200 || response.status === 201) {
+        // Flexibly parse the user data payload
+        const adminData = response.data.data || response.data.admin || response.data.user || response.data;
+        const sub = getSubdomain();
+        const actualRole = extractRole(adminData);
+        
+        // Silent clear if token role doesn't match subdomain.
+        if (sub === "admin" && actualRole !== "admin") {
+          sessionStorage.removeItem("token");
+          setUser(null);
+        } else if (sub === "agent" && actualRole !== "agent") {
+          sessionStorage.removeItem("token");
+          setUser(null);
+        } else if (
+          sub === "apply" &&
+          (actualRole === "admin" || actualRole === "agent")
+        ) {
+          sessionStorage.removeItem("token");
+          setUser(null);
+        } else {
+          // Normalize: ensure user.role always reflects the extracted role
+          setUser({ ...adminData, role: actualRole });
+        }
       } else {
         sessionStorage.removeItem("token");
       }
@@ -81,30 +110,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string; user?: AdminUser }> => {
     try {
-      const response = await api.post("/api/admin/auth/login", { email, password });
-      
-      if (response.data.success) {
-        const { token, admin } = response.data;
-        sessionStorage.setItem("token", token);
-        setUser(admin);
-        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        toast.success("Welcome back!", {
-          description: "You have successfully logged in.",
-        });
-        return { success: true, user: admin };
+      const sub = getSubdomain();
+
+      // The apply subdomain uses OTP-based authentication, not password login.
+      if (sub === "apply") {
+        return { success: false, message: "Invalid credentials. Please try again." };
       }
-      
-      const msg = response.data.message || "Invalid credentials";
-      // Removed toast to handle UI in component
-      return { success: false, message: msg };
+
+      const response = await api.post("/api/admin/auth/login", { email, password });
+
+      if (response.status !== 200 && response.status !== 201) {
+        const msg = response.data.message || "Invalid credentials";
+        return { success: false, message: msg };
+      }
+
+      // Some endpoints return the user as `admin`, others might return `user` or `data`
+      const admin = response.data.admin || response.data.user || response.data.data;
+      const token = response.data.token || response.data.accessToken;
+
+      if (!admin || !token) {
+        return { success: false, message: "An error occurred during login. Please try again." };
+      }
+
+      const actualRole = extractRole(admin);
+
+      if (sub === "admin" && actualRole !== "admin") {
+        return { success: false, message: "Invalid credentials. Please try again." };
+      }
+      if (sub === "agent" && actualRole !== "agent") {
+        return { success: false, message: "Invalid credentials. Please try again." };
+      }
+
+      sessionStorage.setItem("token", token);
+      // Normalize: ensure user.role always reflects the extracted role
+      const normalizedAdmin = { ...admin, role: actualRole };
+      setUser(normalizedAdmin);
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      toast.success("Welcome back!", {
+        description: "You have successfully logged in.",
+      });
+      return { success: true, user: normalizedAdmin };
     } catch (error: any) {
-      
       const errorMessage = 
         error.response?.data?.message || 
         error.response?.data?.error || 
         "Invalid credentials. Please try again.";
         
-      // Removed toast to handle UI in component
       return { success: false, message: errorMessage };
     }
   };
