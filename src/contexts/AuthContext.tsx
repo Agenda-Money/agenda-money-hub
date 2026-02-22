@@ -52,8 +52,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       const response = await api.get("/api/admin/auth/me");
-      if (response.data.success) {
-        const adminData = response.data.data;
+      
+      // Checking for HTTP 200 or 201 as the source of truth
+      if (response.status === 200 || response.status === 201) {
+        // Flexibly parse the user data payload
+        const adminData = response.data.data || response.data.admin || response.data.user || response.data;
         const sub = getSubdomain();
         const actualRole = extractRole(adminData);
         
@@ -116,7 +119,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const response = await api.post("/api/admin/auth/login", { email, password });
 
-      if (!response.data.success) {
+      if (response.status !== 200 && response.status !== 201) {
         const msg = response.data.message || "Invalid credentials";
         return { success: false, message: msg };
       }
