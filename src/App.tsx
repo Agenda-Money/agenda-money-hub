@@ -33,6 +33,8 @@ import AgentPortfolio from "./pages/agent/AgentPortfolio";
 import AgentProfile from "./pages/agent/AgentProfile";
 import PendingKycPage from "./pages/PendingKycPage";
 
+import { getSubdomain } from "@/lib/domain";
+
 const queryClient = new QueryClient();
 
 // AdminRoute wrapper to guard admin-only pages
@@ -47,15 +49,16 @@ function AdminRoute({ children }: { readonly children: React.ReactNode }) {
 // and redirect unauthenticated visitors to /login.
 function RoleHome() {
   const { user, loading } = useAuth();
+  const sub = getSubdomain();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
-  if (user?.role === "admin") return <Index />;
-  if (user?.role === "agent") return <Navigate to="/agent" replace />;
+  
+  if (sub === "admin" && user?.role === "admin") return <Index />;
+  if (sub === "agent" && user?.role === "agent") return <Navigate to="/agent" replace />;
   return <Navigate to="/login" replace />;
 }
 
 const App = () => {
-  const hostname = globalThis.location?.hostname ?? "";
-  const isApplySubdomain = hostname.startsWith("apply.");
+  const subdomain = getSubdomain();
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -67,18 +70,19 @@ const App = () => {
               <Sonner />
               <BrowserRouter>
                 <Routes>
-                  {isApplySubdomain ? (
+                  {subdomain === "apply" && (
                     <>
-                          <Route path="/" element={<ApplyPage />} />
-                          <Route path="*" element={<ApplyPage />} />
+                      <Route path="/" element={<ApplyPage />} />
+                      <Route path="*" element={<ApplyPage />} />
                     </>
-                  ) : (
+                  )}
+
+                  {subdomain === "agent" && (
                     <>
-                      {/* Public Routes */}
+                      {/* Public Agent Routes */}
                       <Route path="/" element={<RoleHome />} />
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/signup" element={<SignupPage />} />
-                      <Route path="/apply" element={<ApplyPage />} />
                       <Route path="/agent-apply" element={<AgentApplyPage />} />
                       <Route path="/check-email" element={<CheckEmailPage />} />
                       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -91,6 +95,21 @@ const App = () => {
                         <Route path="portfolio" element={<AgentPortfolio />} />
                         <Route path="profile" element={<AgentProfile />} />
                       </Route>
+                      
+                      {/* Redirect anything else attempting to resolve to admin */}
+                      <Route path="*" element={<NotFound />} />
+                    </>
+                  )}
+
+                  {subdomain === "admin" && (
+                    <>
+                      {/* Public Admin Routes */}
+                      <Route path="/" element={<RoleHome />} />
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/signup" element={<SignupPage />} />
+                      <Route path="/check-email" element={<CheckEmailPage />} />
+                      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                       {/* Protected Admin Routes */}
                       <Route path="/admin" element={<RequireAuth><AdminRoute><Index /></AdminRoute></RequireAuth>} />
