@@ -343,8 +343,12 @@ export default function ApplyPage() {
   } | null>(null);
   
   // Live Data Fallbacks
-  const notifications = (applicant as any)?.notifications || [];
-  const recentActivity = (applicant as any)?.recentActivity || [];
+  const notifications =
+    (applicant as any)?.notifications ||
+    (import.meta.env.DEV ? MOCK_NOTIFICATIONS : []);
+  const recentActivity =
+    (applicant as any)?.recentActivity ||
+    (import.meta.env.DEV ? MOCK_ACTIVITY : []);
 
 
   const frontCardRef = useRef<HTMLInputElement>(null); // Camera
@@ -545,7 +549,9 @@ export default function ApplyPage() {
         });
         if (res.ok) {
           const json = await res.json();
-          console.log("Live Network API Response:", json); // For debugging to prove it's the real payload
+          if (import.meta.env.DEV) {
+            console.log("Live Network API Response:", json); // For debugging to prove it's the real payload
+          }
           if (json.success && json.data) {
             setNetworkData(json.data);
           } else {

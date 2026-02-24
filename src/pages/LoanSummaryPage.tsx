@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { ArrowLeft, ChevronRight, CheckSquare, Square, Send, Loader2, AlertCircle, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -65,10 +66,12 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
   }, [loanData.amount, loanData.tenure]);
 
   const formattedPhone = useMemo(() => {
-     if (!applicant?.msisdn) return "N/A";
-     // Strip any combination of +233, 233, or 0 from the start, then prepend +233 cleanly
-     const clean = applicant.msisdn.toString().replace(/^(?:\+233|233|0)/, '');
-     return `+233${clean}`;
+    if (!applicant?.msisdn) return "N/A";
+    const parsed = parsePhoneNumberFromString(applicant.msisdn.toString(), "GH");
+    if (parsed?.isValid()) return parsed.formatInternational();
+    // Fallback: strip leading +233/233/0 and prepend +233
+    const clean = applicant.msisdn.toString().replace(/^(?:\+233|233|0)/, "");
+    return `+233${clean}`;
   }, [applicant?.msisdn]);
 
   const handleSubmit = async () => {
