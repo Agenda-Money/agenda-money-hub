@@ -44,13 +44,6 @@ export function AgentHeader({ onMenuClick }: AgentHeaderProps) {
 
       {/* Right Side */}
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* Quick Stats Badge - Hidden on very small screens */}
-        <div className="hidden sm:flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full">
-          <span className="text-xs text-muted-foreground">Code:</span>
-          <Badge variant="secondary" className="font-mono text-xs">
-            {user?.agentCode || "---"}
-          </Badge>
-        </div>
 
         {/* Notifications */}
         <motion.div whileTap={{ scale: 0.95 }}>

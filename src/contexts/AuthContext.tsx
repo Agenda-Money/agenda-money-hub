@@ -219,7 +219,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const logout = () => {
-    sessionStorage.removeItem("token");
+    sessionStorage.clear();
+    localStorage.clear();
     setUser(null);
     delete api.defaults.headers.common["Authorization"];
     globalThis.location.href = "/login";

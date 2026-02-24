@@ -64,6 +64,13 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
     };
   }, [loanData.amount, loanData.tenure]);
 
+  const formattedPhone = useMemo(() => {
+     if (!applicant?.msisdn) return "N/A";
+     // Strip any combination of +233, 233, or 0 from the start, then prepend +233 cleanly
+     const clean = applicant.msisdn.toString().replace(/^(?:\+233|233|0)/, '');
+     return `+233${clean}`;
+  }, [applicant?.msisdn]);
+
   const handleSubmit = async () => {
     if (!agreed) return;
     setIsSubmitting(true);
@@ -158,7 +165,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                  </div>
                  <div className="flex justify-between items-center text-sm">
                    <span className="text-gray-400">Phone number</span>
-                   <span className="font-bold text-gray-900">+{applicant?.msisdn}</span>
+                   <span className="font-bold text-gray-900">{formattedPhone}</span>
                  </div>
                </div>
                <div className="border-t border-dashed border-gray-200 mt-2"></div>
@@ -218,7 +225,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                     </div>
                     <div>
                       <p className="text-sm font-bold text-gray-900 uppercase">{applicant?.firstName} {applicant?.lastName}</p>
-                      <p className="text-xs text-gray-500">+{applicant?.msisdn}</p>
+                      <p className="text-xs text-gray-500">{formattedPhone}</p>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
