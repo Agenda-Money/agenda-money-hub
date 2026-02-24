@@ -120,10 +120,6 @@ export default function AgentOnboarding() {
 
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
 
-  const handleGetLocation = () => {
-    toast.error("GPS location feature has been removed. Please enter address manually.");
-  };
-
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -324,7 +320,7 @@ export default function AgentOnboarding() {
         return (
           formData.fullName.trim() &&
           formData.surname.trim() &&
-          Boolean(parsePhoneNumberFromString(formData.msisdn, "GH")) &&
+          Boolean(parsePhoneNumberFromString(formData.msisdn, "GH")?.isValid()) &&
           formData.dob &&
           formData.gender
         );
@@ -675,10 +671,10 @@ export default function AgentOnboarding() {
                       maxLength={10}
                       className={cn(
                         "h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono",
-                        formData.msisdn.length >= 9 && !parsePhoneNumberFromString(formData.msisdn, "GH") && "border-2 border-destructive"
+                        formData.msisdn.length >= 9 && !parsePhoneNumberFromString(formData.msisdn, "GH")?.isValid() && "border-2 border-destructive"
                       )}
                     />
-                    {formData.msisdn && !parsePhoneNumberFromString(formData.msisdn, "GH") && (
+                    {formData.msisdn && !parsePhoneNumberFromString(formData.msisdn, "GH")?.isValid() && (
                       <p className="text-xs text-destructive flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
                         Must be a valid Ghanaian number
