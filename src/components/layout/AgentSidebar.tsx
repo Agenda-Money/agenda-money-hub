@@ -73,7 +73,6 @@ export function AgentSidebar({ isOpen, onToggle }: AgentSidebarProps) {
             </motion.div>
             <div className="min-w-0">
               <h1 className="font-bold text-base text-foreground truncate">Agent Portal</h1>
-              <p className="text-xs text-muted-foreground font-mono truncate">{user?.agentCode || "Loading..."}</p>
             </div>
           </div>
           <Button

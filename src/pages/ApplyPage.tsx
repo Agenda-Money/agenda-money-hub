@@ -121,7 +121,11 @@ const buildTenureOptions = (tier?: TierConfig) => {
   return Array.from(new Set(base)).sort((a, b) => a - b);
 };
 
-
+interface NetworkData {
+  totalShared: number;
+  activeReferrals: number;
+  performance: "Good" | "Medium" | "Bad";
+}
 
 type View = "landing" | "auth" | "otp" | "onboarding" | "loan-dashboard" | "success";
 
@@ -134,7 +138,7 @@ const STEPS = [
 ];
 
 /* ─── Shared Header ─── */
-function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick, hasNotifications }: { user?: any; subtitle?: string; onAvatarClick?: () => void; onNotificationClick?: () => void, hasNotifications?: boolean }) {
+function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick, hasNotifications, onLogoClick }: { user?: any; subtitle?: string; onAvatarClick?: () => void; onNotificationClick?: () => void, hasNotifications?: boolean, onLogoClick?: () => void }) {
   const firstName = user?.firstName || user?.fullName?.split(" ")[0] || "User";
   const initials = firstName[0]?.toUpperCase() || "U";
 
@@ -176,7 +180,9 @@ function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick, hasNot
         ) : (
           /* Simple Header for Onboarding */
           <>
-             <img src={agendaLogo} alt="Agenda Money" className="h-8 rounded-xl" />
+             <button onClick={onLogoClick} type="button" className={cn("transition-transform", onLogoClick && "cursor-pointer active:scale-95 hover:opacity-90")}>
+               <img src={agendaLogo} alt="Agenda Money" className="h-8 rounded-xl" />
+             </button>
              {subtitle && (
                <span className="text-xs font-medium text-muted-foreground">{subtitle}</span>
              )}
@@ -279,6 +285,10 @@ export default function ApplyPage() {
   const [activeTab, setActiveTab] = useState("home"); // home, loans, profile
   const [isRepaymentOpen, setIsRepaymentOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [networkData, setNetworkData] = useState<NetworkData | null>(null);
+  const [isFetchingNetwork, setIsFetchingNetwork] = useState(false);
+  const [networkFetchError, setNetworkFetchError] = useState<string | null>(null);
+
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
@@ -332,9 +342,13 @@ export default function ApplyPage() {
     disbursementAmount: number; repaymentAmount: number; repaymentDate: string; msisdn: string;
   } | null>(null);
   
-  // Mock Data States
-  const [notifications] = useState(MOCK_NOTIFICATIONS);
-  const [recentActivity] = useState(MOCK_ACTIVITY);
+  // Live Data Fallbacks
+  const notifications =
+    (applicant as any)?.notifications ||
+    (import.meta.env.DEV ? MOCK_NOTIFICATIONS : []);
+  const recentActivity =
+    (applicant as any)?.recentActivity ||
+    (import.meta.env.DEV ? MOCK_ACTIVITY : []);
 
 
   const frontCardRef = useRef<HTMLInputElement>(null); // Camera
@@ -514,6 +528,49 @@ export default function ApplyPage() {
         fetchActiveLoan();
     }
   }, [view, baseApiUrl, authToken]);
+
+  // ─── Network Data Fetching ───
+  useEffect(() => {
+    const fetchNetwork = async () => {
+      if (!isShareOpen) return;
+      const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
+      if (!token) return;
+
+      setIsFetchingNetwork(true);
+      setNetworkData(null); // Clear any old data from previous logins
+      setNetworkFetchError(null);
+      try {
+        const res = await fetch(`${baseApiUrl}/api/users/network?t=${Date.now()}`, { // Cache buster
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          cache: "no-store" // Disable aggressive browser caching
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (import.meta.env.DEV) {
+            console.log("Live Network API Response:", json); // For debugging to prove it's the real payload
+          }
+          if (json.success && json.data) {
+            setNetworkData(json.data);
+          } else {
+            setNetworkFetchError("Failed to load network stats.");
+          }
+        } else {
+          // If endpoint doesn't exist yet, we can mock it here temporarily or just show an error
+          setNetworkFetchError("Network stats unavailable.");
+        }
+      } catch (err) {
+        console.error("Failed to fetch network data", err);
+        setNetworkFetchError("Could not connect to network service.");
+      } finally {
+        setIsFetchingNetwork(false);
+      }
+    };
+
+    fetchNetwork();
+  }, [isShareOpen, baseApiUrl, authToken]);
 
   useEffect(() => {
     return () => {
@@ -1423,6 +1480,61 @@ export default function ApplyPage() {
                   <p className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{applicant?.nodeCode || "---"}</p>
                 </div>
 
+                {/* My Network Section */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider">My Network</h4>
+                  {isFetchingNetwork ? (
+                    <div className="space-y-3">
+                      <div className="flex gap-3">
+                        <div className="flex-1 h-20 bg-gray-100 rounded-xl animate-pulse" />
+                        <div className="flex-1 h-20 bg-gray-100 rounded-xl animate-pulse" />
+                      </div>
+                      <div className="h-16 bg-gray-100 rounded-xl animate-pulse w-full" />
+                    </div>
+                  ) : networkFetchError ? (
+                    <div className="bg-red-50 p-4 rounded-xl text-center border border-red-100">
+                       <p className="text-sm text-red-600 font-medium">{networkFetchError}</p>
+                    </div>
+                  ) : networkData ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Shared With */}
+                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                          <p className="text-xs text-blue-600 font-bold uppercase tracking-wide mb-1">Shared With</p>
+                          <div className="flex items-baseline gap-1 text-blue-900">
+                            <span className="text-2xl font-black">{networkData.totalShared || 0}</span>
+                            <span className="text-sm font-medium opacity-60">/ 3</span>
+                          </div>
+                        </div>
+                        {/* Active */}
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                          <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide mb-1">Active</p>
+                          <span className="text-2xl font-black text-emerald-900">{networkData.activeReferrals}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Performance */}
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-600 uppercase tracking-wider">Network Performance</span>
+                        <div className={cn(
+                          "px-3 py-1 rounded-full text-xs font-bold border",
+                          networkData.performance === "Good" && "bg-emerald-100 text-emerald-700 border-emerald-200",
+                          networkData.performance === "Medium" && "bg-yellow-100 text-yellow-700 border-yellow-200",
+                          networkData.performance === "Bad" && "bg-red-100 text-red-700 border-red-200",
+                          // Fallback just in case
+                          !["Good", "Medium", "Bad"].includes(networkData.performance) && "bg-gray-100 text-gray-700 border-gray-200"
+                        )}>
+                          {networkData.performance}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 p-4 rounded-xl text-center border border-gray-100">
+                       <p className="text-sm text-gray-500 font-medium">No network data yet.</p>
+                    </div>
+                  )}
+                </div>
+
                 <Button onClick={() => { 
                    const code = applicant?.nodeCode || "";
                    const text = `Hey! Use my referral code ${code} to get a fast loan. Apply here: https://apply.agendamoney.com`;
@@ -1683,7 +1795,7 @@ export default function ApplyPage() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <PageHeader subtitle={`Step ${onboardingStep} of 5`} />
+      <PageHeader subtitle={`Step ${onboardingStep} of 5`} onLogoClick={handleBack} />
 
       <main className="max-w-md mx-auto px-4 py-5 space-y-5">
         {/* Circle Step Indicator */}
