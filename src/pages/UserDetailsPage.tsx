@@ -47,7 +47,9 @@ export default function UserDetailsPage() {
     queryKey: ["user", id],
     queryFn: async () => {
       const res = await api.get(`/api/admin/users/profile/${id}`);
-      console.log("USER API RESPONSE FOR KYC:", JSON.stringify(res.data, null, 2));
+      if (import.meta.env.DEV) {
+        console.log("USER API RESPONSE FOR KYC:", JSON.stringify(res.data, null, 2));
+      }
       return res.data;
     },
     enabled: !!id,
@@ -205,7 +207,7 @@ export default function UserDetailsPage() {
       amount: Number(activeLoanData.principal || activeLoanData.amount || 0),
       balance: Number(activeLoanData.balance || activeLoanData.remainingBalance || 0),
       dueDate: activeLoanData.dueDate 
-        ? new Date(activeLoanData.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        ? parseDateRobust(activeLoanData.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
         : "N/A",
       status: computedStatus,
       reference: activeLoanData.loanDetails?.loanReference || activeLoanData.loanReference || "N/A"

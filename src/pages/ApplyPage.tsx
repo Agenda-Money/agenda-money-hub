@@ -388,7 +388,9 @@ export default function ApplyPage() {
          ? { ...backendUser, summary: data.summary }
          : backendUser;
          
-      console.log("[ApplyPage] handleAuthResponse - userWithSummary:", userWithSummary);
+      if (import.meta.env.DEV) {
+        console.log("[ApplyPage] handleAuthResponse - userWithSummary:", userWithSummary);
+      }
       setApplicant(userWithSummary);
       setUserData(userWithSummary);
 

@@ -339,12 +339,12 @@ export default function UsersPage() {
                     variant="outline"
                     className={cn(
                       "font-medium",
-                      user.hasActiveLoan && user.activeLoan
+                      user.activeLoan
                         ? "bg-info/10 text-info border-info/20"
                         : "bg-muted text-muted-foreground border-muted"
                     )}
                   >
-                    {(user.hasActiveLoan && user.activeLoan) ? "Yes" : "No"}
+                    {user.activeLoan ? "Yes" : "No"}
                   </Badge>
                 </div>
               </div>
