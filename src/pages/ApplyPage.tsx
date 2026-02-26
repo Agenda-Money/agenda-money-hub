@@ -15,6 +15,9 @@ import "react-datepicker/dist/react-datepicker.css";
 import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
 import { cn } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSocket } from "@/contexts/SocketContext";
+import api from "@/lib/api";
 import { uploadToSupabase } from "@/lib/supabase";
 import { TIER_LIMITS, type TierConfig } from "@/lib/constants";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
@@ -23,6 +26,7 @@ import { LoansTab } from "@/pages/LoansTab";
 import { ProfileTab } from "./ProfileTab";
 import { LoanSummaryPage } from "./LoanSummaryPage";
 import { RepaymentPage } from "./RepaymentPage";
+import { UserEndorsementsTab } from "./UserEndorsementsTab";
 import {
   Bell,
   Home,
@@ -46,7 +50,8 @@ import {
   Banknote,
   ShieldCheck,
   Smartphone,
-  Share2
+  Share2,
+  HelpCircle
 } from "lucide-react";
 
 const baseApiUrl = import.meta.env.VITE_API_URL || "";
@@ -63,8 +68,8 @@ const GHANA_REGIONS = [
 
 const GENDERS = ["Male", "Female"];
 const ACCOMMODATION_TYPES = ["Owned", "Rented", "Living with family", "Other"];
-const EDUCATION_LEVELS = ["None", "Primary", "Secondary", "Tertiary"];
-const EMPLOYMENT_OPTIONS = ["Self Employed", "Full-time Employee", "Part-time Employee"];
+const EDUCATION_LEVELS = ["Basic", "Secondary", "Tertiary", "Advanced"];
+const EMPLOYMENT_OPTIONS = ["Self Employed", "Full-time Employee", "Part-time Employee", "Contract"];
 const INCOME_BRACKETS = ["Below GHS 1000", "GHS 1000-2000", "GHS 2000-5000", "Above GHS 5000"];
 const TERMS_LIST = [
   "Interest rate: 0.5% per day",
@@ -75,16 +80,6 @@ const TERMS_LIST = [
   "Penal interest: 2% per day on overdue amount"
 ];
 
-const MOCK_NOTIFICATIONS = [
-  { id: 1, title: "Repayment Reminder", message: "Your loan repayment of GHS 150 is due in 3 days. Pay early to boost your credit score!", time: "1 day ago", type: "reminder" },
-  { id: 2, title: "Loan Approved", message: "Your loan application for GHS 300 has been approved and moved to disbursement queue.", time: "2 days ago", type: "success" }
-];
-
-const MOCK_ACTIVITY = [
-  { id: 1, title: "Loan Disbursed", date: "Today, 10:23 AM", amount: 140, type: "loan" },
-  { id: 2, title: "Repayment Received", date: "Yesterday, 4:15 PM", amount: -50, type: "payment" },
-  { id: 3, title: "Loan Disbursed", date: "01 Feb 2026, 09:00 AM", amount: 300, type: "loan" }
-];
 
 interface OnboardingData {
   firstName: string;
@@ -291,6 +286,8 @@ export default function ApplyPage() {
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
 
   const DEFAULT_ONBOARDING_DATA: OnboardingData = {
@@ -342,13 +339,10 @@ export default function ApplyPage() {
     disbursementAmount: number; repaymentAmount: number; repaymentDate: string; msisdn: string;
   } | null>(null);
   
-  // Live Data Fallbacks
-  const notifications =
-    (applicant as any)?.notifications ||
-    (import.meta.env.DEV ? MOCK_NOTIFICATIONS : []);
-  const recentActivity =
-    (applicant as any)?.recentActivity ||
-    (import.meta.env.DEV ? MOCK_ACTIVITY : []);
+  // Real-time notifications from Socket Context
+  const { notifications: socketNotifications } = useSocket();
+  const notifications = socketNotifications.length > 0 ? socketNotifications : ((applicant as any)?.notifications || []);
+  const recentActivity = (applicant as any)?.recentActivity || userData?.recentActivity || [];
 
 
   const frontCardRef = useRef<HTMLInputElement>(null); // Camera
@@ -385,19 +379,24 @@ export default function ApplyPage() {
 
   // ─── Backend-Driven Navigation Helper ───
   const handleAuthResponse = useCallback((data: any) => {
-    if (data.user) {
+    // 🎯 Use data.user if wrapped, else assume 'data' IS the user profile
+    const backendUser = data.user || data;
+
+    if (backendUser && backendUser.msisdn) {
       // Merge summary into user object if present, so UserDashboard can read applicant.summary
       const userWithSummary = data.summary 
-         ? { ...data.user, summary: data.summary }
-         : data.user;
+         ? { ...backendUser, summary: data.summary }
+         : backendUser;
          
+      if (import.meta.env.DEV) {
+        console.log("[ApplyPage] handleAuthResponse - userWithSummary:", userWithSummary);
+      }
       setApplicant(userWithSummary);
       setUserData(userWithSummary);
 
       // HYDRATE ONBOARDING DATA to prevent validation errors on resume
       // Priority: Backend Data > Existing Local State > Default/Undefined
       setOnboardingData((prev) => {
-          const backendUser = data.user;
           const newData = {
             ...prev,
             firstName: backendUser.firstName || prev.firstName,
@@ -445,7 +444,7 @@ export default function ApplyPage() {
         // Safety fallback: If backend doesn't provide a valid nextStep
         console.warn("Unknown or missing nextStep; choosing fallback view", nextStep);
         // If we have user data, we assume the user is authenticated and prefer dashboard
-        if (data.user) {
+        if (backendUser && backendUser.msisdn) {
           setView('loan-dashboard');
         } else {
           // No user data means we cannot treat this as an authenticated session
@@ -469,7 +468,7 @@ export default function ApplyPage() {
          const r = await fetch(`${baseApiUrl}/api/auth/me`, { headers: { Accept: "application/json", Authorization: `Bearer ${storedToken}` } });
          const p = await r.json();
          
-         if (r.ok && p?.user) {
+         if (r.ok && (p?.user || p?.msisdn)) {
             // Use centralized handler for session recovery
             handleAuthResponse(p);
          } else {
@@ -657,7 +656,7 @@ export default function ApplyPage() {
                     ...p, // Base verify response (has nextStep)
                     ...profileData, // Overwrites with full profile data where appropriate
                     nextStep: p.nextStep, // Explicitly preserve nextStep from verify response
-                    user: profileData.user || p.user // Explicitly prefer profile user
+                    user: profileData.user || profileData || p.user // Explicitly prefer profile user
                 });
             } else {
                  console.warn("Profile fetch failed, using verify response");
@@ -785,16 +784,29 @@ export default function ApplyPage() {
         return result.url;
       };
 
-      // 🎯 CRITICAL: Overwrite blobs with real Supabase links if new files exist
+      // 🎯 CRITICAL: Overwrite blobs with real Supabase links if new files exist (DO IT IN PARALLEL FOR SPEED)
+      const uploadPromises = [];
+
       if (uploadedFiles.ghanaCardFrontUrl) {
-          finalFrontUrl = await uploadFile(uploadedFiles.ghanaCardFrontUrl, "ghana-card-front", "Front ID upload failed.");
+          uploadPromises.push(
+              uploadFile(uploadedFiles.ghanaCardFrontUrl, "ghana-card-front", "Front ID upload failed.")
+                  .then(url => { finalFrontUrl = url; })
+          );
       }
       if (uploadedFiles.ghanaCardBackUrl) {
-          finalBackUrl = await uploadFile(uploadedFiles.ghanaCardBackUrl, "ghana-card-back", "Back ID upload failed.");
+          uploadPromises.push(
+              uploadFile(uploadedFiles.ghanaCardBackUrl, "ghana-card-back", "Back ID upload failed.")
+                  .then(url => { finalBackUrl = url; })
+          );
       }
       if (uploadedFiles.selfieUrl) {
-          finalSelfieUrl = await uploadFile(uploadedFiles.selfieUrl, "selfie", "Selfie upload failed.");
+          uploadPromises.push(
+              uploadFile(uploadedFiles.selfieUrl, "selfie", "Selfie upload failed.")
+                  .then(url => { finalSelfieUrl = url; })
+          );
       }
+
+      await Promise.all(uploadPromises);
 
       const r = await fetch(`${baseApiUrl}/api/users/onboard`, {
         method: "POST",
@@ -856,7 +868,7 @@ export default function ApplyPage() {
     } catch (e: any) { setErrorMessage(e?.message || "Onboarding failed."); } finally { setIsSubmittingOnboarding(false); }
   };
 
-  const canSubmitEntry = Boolean(msisdnInput.length === 9 && normalizedMsisdn);
+  const canSubmitEntry = Boolean(msisdnInput.length >= 9 && normalizedMsisdn);
   const canVerify = otp.length === OTP_LENGTH;
 
   // ─── Upload Box ───
@@ -984,24 +996,24 @@ export default function ApplyPage() {
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-rose-500">minutes</span>
               </h1>
               
-              <div className="flex flex-col gap-3 max-w-[85%] mx-auto mt-2">
-                 <div className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-100/50 shadow-sm">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+              <div className="flex flex-col gap-3 w-fit mx-auto mt-2">
+                 <div className="flex items-center gap-3 bg-gray-50 p-2.5 pr-6 rounded-xl border border-gray-100/50 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
                        <Banknote className="w-4 h-4" />
                     </div>
-                    <span className="text-sm font-semibold text-gray-700">Simple terms. No hidden fees.</span>
+                    <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">No Hidden Fees</span>
                  </div>
-                  <div className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-100/50 shadow-sm">
-                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                  <div className="flex items-center gap-3 bg-gray-50 p-2.5 pr-6 rounded-xl border border-gray-100/50 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 shrink-0">
                        <ShieldCheck className="w-4 h-4" />
                     </div>
-                    <span className="text-sm font-semibold text-gray-700">Secure verification.</span>
+                    <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">Simpler terms</span>
                  </div>
-                 <div className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-100/50 shadow-sm">
-                    <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-600">
+                 <div className="flex items-center gap-3 bg-gray-50 p-2.5 pr-6 rounded-xl border border-gray-100/50 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 shrink-0">
                        <Smartphone className="w-4 h-4" />
                     </div>
-                    <span className="text-sm font-semibold text-gray-700">100% Digital Process</span>
+                    <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">100% digital</span>
                  </div>
               </div>
            </motion.div>
@@ -1260,28 +1272,7 @@ export default function ApplyPage() {
            </div>
         </div>
 
-        {/* Node Code Card */}
-        <div className="w-full max-w-sm bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl p-5 mb-8 border border-pink-100">
-            <div className="flex justify-between items-start mb-2">
-               <div className="text-left">
-                  <p className="text-xs text-pink-600 font-bold uppercase tracking-wider mb-1">Your Node Code</p>
-                  <div className="flex items-center gap-2">
-                     <span className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{successNodeCode || "---"}</span>
-                  </div>
-               </div>
-               <Button 
-                 variant="ghost" 
-                 size="sm" 
-                 onClick={() => { navigator.clipboard.writeText(successNodeCode || ""); }}
-                 className="h-10 w-10 rounded-full bg-white/80 hover:bg-white text-pink-600 shadow-sm p-0"
-               >
-                  <Copy className="w-4 h-4" />
-               </Button>
-            </div>
-            <p className="text-left text-xs text-gray-600 leading-relaxed max-w-[90%]">
-               Share this code with friends. You earn commissions when they borrow!
-            </p>
-        </div>
+
 
         <Button 
           onClick={() => {
@@ -1314,7 +1305,7 @@ export default function ApplyPage() {
     // Determine Logic State
     // Default to 'eligible' if no loan status
     const loanStatus = (applicant as any)?.loanStatus || "ELIGIBLE"; // PENDING, ACTIVE, OVERDUE, ELIGIBLE
-    const isUnderReview = loanStatus === "PENDING_VERIFICATION" || loanStatus === "PENDING";
+    const isUnderReview = loanStatus === "PENDING_VERIFICATION" || loanStatus === "PENDING" || loanStatus === "AWAITING_ENDORSEMENT";
     const isActive = loanStatus === "ACTIVE";
     const isOverdue = loanStatus === "OVERDUE";
     // For manual testing/dev, you can force a state here:
@@ -1386,7 +1377,7 @@ export default function ApplyPage() {
                  onBack={() => setActiveTab("home")} 
                  onRepay={() => setIsRepaymentOpen(true)}
                  loan={activeLoanDetails || (applicant as any)?.activeLoan}
-                 isPending={(applicant as any)?.summary?.isPending || activeLoanDetails?.status === 'PENDING'}
+                 isPending={(applicant as any)?.summary?.isPending || activeLoanDetails?.status === 'PENDING' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT'}
                  onAction={(action) => {
                     if (action === "status") setIsStatusOpen(true);
                  }}
@@ -1395,7 +1386,26 @@ export default function ApplyPage() {
 
            {/* PROFILE TAB */}
            {activeTab === "profile" && (
-             <ProfileTab onboardingData={onboardingData} userData={userData} onShowTerms={() => setIsTermsOpen(true)} />
+             <ProfileTab 
+               onboardingData={onboardingData} 
+               userData={userData || applicant} 
+               isGraduatedNode={
+                 applicant?.isGraduatedNode === true || 
+                 applicant?.isGraduatedNode === "true" || 
+                 userData?.isGraduatedNode === true || 
+                 userData?.isGraduatedNode === "true" ||
+                 (applicant as any)?.user?.isGraduatedNode === true
+               }
+               onEndorsements={() => setActiveTab("endorsements" as any)}
+               onShowTerms={() => setIsTermsOpen(true)} 
+               onShowPrivacy={() => setIsPrivacyOpen(true)}
+               onHelp={() => setIsHelpOpen(true)}
+             />
+           )}
+
+           {/* ENDORSEMENTS TAB */}
+           {activeTab === "endorsements" && (
+             <UserEndorsementsTab onBack={() => setActiveTab("profile" as any)} />
            )}
 
            {/* LOAN APPLICATION PAGE */}
@@ -1451,7 +1461,7 @@ export default function ApplyPage() {
                  <User className={cn("h-6 w-6 transition-transform", activeTab === "profile" && "scale-110")} />
                  {errorMessage && <div className="absolute top-1 right-3 h-2 w-2 rounded-full bg-red-500 border border-white" />}
                </div>
-               <span className={cn("text-[10px] font-medium transition-colors", activeTab === "profile" ? "text-primary" : "text-gray-400")}>Settings</span>
+               <span className={cn("text-[10px] font-medium transition-colors", activeTab === "profile" ? "text-primary" : "text-gray-400")}>Profile</span>
             </button>
             
           </div>
@@ -1472,12 +1482,12 @@ export default function ApplyPage() {
                     <User className="h-10 w-10 text-primary" />
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900">Share & Earn</h3>
-                  <p className="text-muted-foreground">Invite friends and unlock higher tiers faster.</p>
+                  <p className="text-muted-foreground">Invite friends and get commissions.</p>
                 </div>
                 
                 <div className="bg-gray-50 rounded-2xl p-6 mb-6 text-center border border-gray-100">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Your Referral Code</p>
-                  <p className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{applicant?.nodeCode || "---"}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Your Node Code</p>
+                  <p className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{(applicant as any)?.personalNodeCode || applicant?.nodeCode || "---"}</p>
                 </div>
 
                 {/* My Network Section */}
@@ -1536,7 +1546,7 @@ export default function ApplyPage() {
                 </div>
 
                 <Button onClick={() => { 
-                   const code = applicant?.nodeCode || "";
+                   const code = (applicant as any)?.personalNodeCode || applicant?.nodeCode || "";
                    const text = `Hey! Use my referral code ${code} to get a fast loan. Apply here: https://apply.agendamoney.com`;
                    
                    if (navigator.share) {
@@ -1556,7 +1566,7 @@ export default function ApplyPage() {
                   <Share2 className="w-5 h-5" /> Share Code
                 </Button>
                 
-                <Button variant="ghost" onClick={() => { navigator.clipboard.writeText(applicant?.nodeCode || ""); setIsShareOpen(false); }} className="w-full mt-3 text-gray-500">
+                <Button variant="ghost" onClick={() => { navigator.clipboard.writeText((applicant as any)?.personalNodeCode || applicant?.nodeCode || ""); setIsShareOpen(false); }} className="w-full mt-3 text-gray-500">
                    Copy into Clipboard
                 </Button>
               </motion.div>
@@ -1666,10 +1676,126 @@ export default function ApplyPage() {
                 </div>
 
                 <Button 
-                   onClick={() => setIsStatusOpen(false)} 
+                    onClick={() => setIsStatusOpen(false)} 
                    className="w-full h-14 rounded-full bg-gray-900 text-white font-bold mt-10 hover:bg-gray-800"
                 >
                    Close
+                </Button>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Privacy Policy Overlay */}
+        <AnimatePresence>
+          {isPrivacyOpen && (
+              <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 sm:p-0"
+                  onClick={() => setIsPrivacyOpen(false)}
+              >
+                  <motion.div 
+                      initial={{ y: "100%" }}
+                      animate={{ y: 0 }}
+                      exit={{ y: "100%" }}
+                      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                      className="bg-white w-full max-w-md rounded-[32px] p-6 pb-8 space-y-6 relative overflow-hidden flex flex-col max-h-[85vh]"
+                      onClick={(e) => e.stopPropagation()}
+                  >
+                      {/* Header */}
+                      <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-100 pb-4">
+                          <div>
+                            <h3 className="text-xl font-bold text-gray-900">Privacy Policy</h3>
+                            <p className="text-xs text-gray-500 mt-1">How we protect your data</p>
+                          </div>
+                          <button 
+                              onClick={() => setIsPrivacyOpen(false)}
+                              className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                          >
+                              <X className="w-5 h-5 text-gray-500" />
+                          </button>
+                      </div>
+
+                      {/* Content */}
+                      <div className="space-y-6 overflow-y-auto pr-2 pb-4">
+                          <div>
+                             <h4 className="text-sm font-bold text-gray-900 mb-2">1. Data Collection</h4>
+                             <p className="text-sm text-gray-600 leading-relaxed">
+                                We collect your personal information (name, address, ID) during the onboarding process strictly for identity verification and loan assessment purposes.
+                             </p>
+                          </div>
+                          
+                          <div>
+                             <h4 className="text-sm font-bold text-gray-900 mb-2">2. Data Security</h4>
+                             <p className="text-sm text-gray-600 leading-relaxed">
+                                Your data is encrypted in transit and at rest. We do not share your personal information with third parties for marketing purposes.
+                             </p>
+                          </div>
+
+                          <div>
+                             <h4 className="text-sm font-bold text-gray-900 mb-2">3. Data Retention</h4>
+                             <p className="text-sm text-gray-600 leading-relaxed">
+                                We retain your data as required by financial regulations. You can request account deletion at any time by contacting support.
+                             </p>
+                          </div>
+                      </div>
+                  </motion.div>
+              </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Help / Support Drawer */}
+        <AnimatePresence>
+          {isHelpOpen && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsHelpOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" />
+              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-6 z-[70] pb-10">
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+                
+                <div className="text-center mb-8">
+                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <HelpCircle className="w-8 h-8 text-blue-600" />
+                   </div>
+                   <h3 className="text-2xl font-bold text-gray-900">Need Help?</h3>
+                   <p className="text-sm text-gray-500 mt-1">Our support team is always here for you.</p>
+                </div>
+
+                <div className="space-y-3">
+                   <a 
+                     href={`sms:${import.meta.env.VITE_ADMIN_PHONE || '+233541562819'}`} 
+                     className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors w-full text-left"
+                   >
+                     <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                        <Smartphone className="w-5 h-5 text-green-600" />
+                     </div>
+                     <div>
+                        <h4 className="text-sm font-bold text-gray-900">Send an SMS</h4>
+                        <p className="text-xs text-gray-500">Get quick replies via text</p>
+                     </div>
+                   </a>
+
+                   <a 
+                     href="mailto:Agendamoney4all@gmail.com" 
+                     className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors w-full text-left"
+                   >
+                     <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                        <span className="font-bold text-blue-600 text-lg">@</span>
+                     </div>
+                     <div>
+                        <h4 className="text-sm font-bold text-gray-900">Email Support</h4>
+                        <p className="text-xs text-gray-500">Agendamoney4all@gmail.com</p>
+                     </div>
+                   </a>
+                </div>
+
+                <Button 
+                   onClick={() => setIsHelpOpen(false)} 
+                   variant="ghost"
+                   className="w-full text-gray-500 mt-6"
+                >
+                   Cancel
                 </Button>
               </motion.div>
             </>
@@ -1950,7 +2076,7 @@ export default function ApplyPage() {
                 {/* Section 1: Living Situation */}
                 <div className="space-y-5">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                        <div className="h-8 w-8 rounded-full bg-pink-50 flex items-center justify-center text-pink-600">
                             <Home className="h-4 w-4" />
                         </div>
                         <h3 className="text-lg font-bold text-gray-900">Accommodation</h3>
@@ -1975,11 +2101,11 @@ export default function ApplyPage() {
                                     className={cn(
                                         "flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border-2 transition-all duration-200",
                                         onboardingData.accommodationType === opt.val
-                                            ? "border-blue-500 bg-blue-50/50 text-blue-700 shadow-sm scale-[1.02]"
-                                            : "border-gray-100 bg-white text-gray-500 hover:border-blue-200 hover:bg-blue-50/10"
+                                            ? "border-[#EC1B84] bg-[#EC1B84]/10 text-[#EC1B84] shadow-sm scale-[1.02]"
+                                            : "border-gray-100 bg-white text-gray-500 hover:border-pink-200 hover:bg-pink-50/10"
                                     )}
                                 >
-                                    <opt.icon className={cn("h-5 w-5", onboardingData.accommodationType === opt.val ? "text-blue-500" : "text-gray-400")} />
+                                    <opt.icon className={cn("h-5 w-5", onboardingData.accommodationType === opt.val ? "text-[#EC1B84]" : "text-gray-400")} />
                                     <span className="text-xs font-bold">{opt.label}</span>
                                 </button>
                             ))}
@@ -2000,7 +2126,7 @@ export default function ApplyPage() {
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-10 w-10 rounded-full hover:bg-white hover:shadow-sm text-gray-500"
+                                        className="h-10 w-10 shrink-0 rounded-full hover:bg-white hover:shadow-sm text-gray-500"
                                         aria-label="Decrease years at address"
                                         onClick={() => {
                                             const current = parseInt(onboardingData.yearsAtAddress || "0");
@@ -2010,18 +2136,31 @@ export default function ApplyPage() {
                                         <Minus className="h-4 w-4" />
                                     </Button>
                                     
-                                    <span className="text-xl font-bold text-gray-900 w-16 text-center">
-                                        {onboardingData.yearsAtAddress || "0"} <span className="text-xs text-gray-400 font-medium">yrs</span>
-                                    </span>
+                                    <div className="flex items-center flex-1 justify-center max-w-[100px]">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="10"
+                                            className="w-12 h-10 bg-transparent text-xl font-bold text-gray-900 text-center focus:outline-none border-b-2 border-transparent focus:border-pink-500 transition-colors"
+                                            value={onboardingData.yearsAtAddress || "0"}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value);
+                                                if (isNaN(val)) handleOnboardingChange("yearsAtAddress", "0");
+                                                else if (val >= 0 && val <= 10) handleOnboardingChange("yearsAtAddress", String(val));
+                                                else if (val > 10) handleOnboardingChange("yearsAtAddress", "10");
+                                            }}
+                                        />
+                                        <span className="text-xs text-gray-400 font-medium ml-1">yrs</span>
+                                    </div>
 
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-10 w-10 rounded-full hover:bg-white hover:shadow-sm text-gray-900 bg-white shadow-sm"
+                                        className="h-10 w-10 shrink-0 rounded-full hover:bg-white hover:shadow-sm text-gray-900 bg-white shadow-sm"
                                         aria-label="Increase years at address"
                                         onClick={() => {
                                             const current = parseInt(onboardingData.yearsAtAddress || "0");
-                                            if (current < 50) handleOnboardingChange("yearsAtAddress", String(current + 1));
+                                            if (current < 10) handleOnboardingChange("yearsAtAddress", String(current + 1));
                                         }}
                                     >
                                         <Plus className="h-4 w-4" />
@@ -2215,7 +2354,7 @@ export default function ApplyPage() {
                                  onChange={(e) => handleGhanaCardChange(e.target.value)}
                                  placeholder="GHA-XXXXXXXXX-X" maxLength={16}
                                  className="h-12 rounded-lg border-gray-300 focus:border-gray-900 font-medium placeholder:text-gray-300" />
-                               <p className="text-xs text-muted-foreground ml-1">Include "GHA" and the dashes</p>
+                               <p className="text-xs text-muted-foreground ml-1">Format is automatically applied</p>
                             </div>
 
                             {/* Picture of ID Card */}

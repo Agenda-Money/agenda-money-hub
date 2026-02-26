@@ -83,7 +83,7 @@ export default function AgentsPage() {
     const socket = io(baseApiUrl || window.location.origin, {
       path: "/socket.io/",
       reconnectionAttempts: 5,
-      auth: { token: sessionStorage.getItem("token") },
+      auth: { token: localStorage.getItem("token") || sessionStorage.getItem("token") },
     });
 
     socket.on("NEW_AGENT_APPLICATION", () => {

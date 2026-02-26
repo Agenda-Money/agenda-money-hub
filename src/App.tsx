@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApplicantProvider } from "@/contexts/ApplicantContext";
+import { SocketProvider } from "@/contexts/SocketContext";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import RequireAgent from "@/components/auth/RequireAgent";
 import Index from "./pages/Index";
@@ -31,6 +32,8 @@ import AgentDashboard from "./pages/agent/AgentDashboard";
 import AgentOnboarding from "./pages/agent/AgentOnboarding";
 import AgentPortfolio from "./pages/agent/AgentPortfolio";
 import AgentProfile from "./pages/agent/AgentProfile";
+import AgentCommissionsPage from "./pages/agent/AgentCommissionsPage";
+import AgentEndorsementsPage from "./pages/agent/AgentEndorsementsPage";
 import PendingKycPage from "./pages/PendingKycPage";
 
 import { getSubdomain } from "@/lib/domain";
@@ -64,8 +67,9 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ApplicantProvider>
-          <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-            <TooltipProvider>
+          <SocketProvider>
+            <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+              <TooltipProvider>
               <Toaster />
               <Sonner />
               <BrowserRouter>
@@ -93,6 +97,8 @@ const App = () => {
                         <Route index element={<AgentDashboard />} />
                         <Route path="onboard" element={<AgentOnboarding />} />
                         <Route path="portfolio" element={<AgentPortfolio />} />
+                        <Route path="endorsements" element={<AgentEndorsementsPage />} />
+                        <Route path="commissions" element={<AgentCommissionsPage />} />
                         <Route path="profile" element={<AgentProfile />} />
                       </Route>
                       
@@ -130,13 +136,14 @@ const App = () => {
                       <Route path="*" element={<NotFound />} />
                     </>
                   )}
-                </Routes>
-              </BrowserRouter>
-            </TooltipProvider>
-          </ThemeProvider>
-        </ApplicantProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+                    </Routes>
+                  </BrowserRouter>
+                </TooltipProvider>
+              </ThemeProvider>
+            </SocketProvider>
+          </ApplicantProvider>
+        </AuthProvider>
+      </QueryClientProvider>
   );
 };
 

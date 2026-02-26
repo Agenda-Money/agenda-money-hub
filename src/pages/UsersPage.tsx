@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Download, Eye, Ban, CheckCircle, UserPlus } from "lucide-react";
+import { Search, Download, Eye, Ban, CheckCircle, UserPlus, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CampaignGenerationModal } from "@/components/users/CampaignGenerationModal";
 
@@ -71,8 +71,8 @@ export default function UsersPage() {
     phone: u.msisdn,
     name: u.fullName,
     tier: `L${u.currentTier ?? 1}`, // Default to L1 if missing
-    totalBorrowed: u.totalLoansRepaid ?? 0, // Using this for now; verify if the API exposes a totalBorrowed field
-    activeLoan: false, // API doesn't seem to return this in the list view user object yet
+    totalBorrowed: u.totalLoansRepaid ?? 0, 
+    activeLoan: Boolean(u.hasActiveLoan || u.activeLoan), 
     status: u.isBlocked ? "blocked" : "active",
     joinedAt: u.createdAt,
   }));
@@ -237,26 +237,10 @@ export default function UsersPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <Link to={`/users/${user.id}`}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Eye className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted">
+                            <ChevronRight className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            "h-8 w-8",
-                            user.status === "active"
-                              ? "text-destructive hover:text-destructive/80"
-                              : "text-success hover:text-success/80"
-                          )}
-                        >
-                          {user.status === "active" ? (
-                            <Ban className="h-4 w-4" />
-                          ) : (
-                            <CheckCircle className="h-4 w-4" />
-                          )}
-                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -343,7 +327,7 @@ export default function UsersPage() {
                 <div className="flex flex-col gap-1">
                   <span className="text-muted-foreground">Borrowed</span>
                   <span className="font-medium text-foreground">
-                    ₵{user.totalBorrowed.toLocaleString()}
+                    {user.totalBorrowed.toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -363,33 +347,28 @@ export default function UsersPage() {
                     {user.activeLoan ? "Yes" : "No"}
                   </Badge>
                 </div>
-                <div className="flex gap-2">
-                  <Link to={`/users/${user.id}`}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "h-8 w-8",
-                      user.status === "active"
-                        ? "text-destructive hover:text-destructive/80"
-                        : "text-success hover:text-success/80"
-                    )}
-                  >
-                    {user.status === "active" ? (
-                      <Ban className="h-4 w-4" />
-                    ) : (
-                      <CheckCircle className="h-4 w-4" />
-                    )}
+              </div>
+              
+              <div className="pt-3 border-t border-border flex justify-between items-center">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "font-medium capitalize",
+                    user.status === "active"
+                      ? "bg-success/10 text-success border-success/20"
+                      : "bg-destructive/10 text-destructive border-destructive/20"
+                  )}
+                >
+                  {user.status}
+                </Badge>
+                <Link to={`/users/${user.id}`}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted">
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
-                </div>
+                </Link>
               </div>
             </div>
           ))}
-          
           {/* Mobile Pagination */}
           <div className="flex items-center justify-between pt-2">
             <Button 

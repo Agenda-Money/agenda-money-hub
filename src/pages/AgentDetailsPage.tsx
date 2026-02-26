@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, User, MapPin, Briefcase, Calendar, Phone, Mail, Hash, UserPlus, Clock, FileText, AlertCircle, CheckCircle2, Search } from "lucide-react";
+import { ChevronLeft, User, MapPin, Briefcase, Calendar, Phone, Mail, Hash, UserPlus, Clock, FileText, AlertCircle, CheckCircle2, Search, Banknote, TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -186,9 +186,10 @@ export default function AgentDetailsPage() {
         </motion.div>
 
         <Tabs defaultValue="overview" className="space-y-4 w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:w-max lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-3 lg:w-max lg:inline-grid">
             <TabsTrigger className="min-w-[120px]" value="overview">Overview</TabsTrigger>
             <TabsTrigger className="min-w-[120px]" value="profile">Profile & KYC</TabsTrigger>
+            <TabsTrigger className="min-w-[120px]" value="commissions">Commissions</TabsTrigger>
           </TabsList>
           
           <TabsContent value="overview" className="space-y-6 m-0">
@@ -368,6 +369,69 @@ export default function AgentDetailsPage() {
                      </div>
                   </div>
                </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="commissions" className="space-y-6 m-0">
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card className="bg-pink-50/50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-900 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-pink-700 dark:text-pink-400 flex items-center gap-2">
+                    <Banknote className="w-4 h-4" />
+                    Estimated Next Payout
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-pink-900 dark:text-pink-100">GHS {(agent.signUpsThisMonth * 5).toFixed(2)}</div>
+                  <p className="text-xs text-pink-600 dark:text-pink-400 mt-1 font-medium">Based on signups this month</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2 bg-muted/40 rounded-t-xl">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4" />
+                    Total Earned (All Time)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="text-3xl font-bold text-foreground">GHS {(agent.signUpsAllTime * 5).toFixed(2)}</div>
+                  <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                    <ArrowUpRight className="w-3 h-3" /> Historical tracking
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2 bg-red-50/50 dark:bg-red-950/20 rounded-t-xl">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    Pending Deductions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="text-3xl font-bold text-foreground">GHS {(agent.loansOverdue * 10).toFixed(2)}</div>
+                  <p className="text-xs text-destructive font-medium mt-1 flex items-center gap-1">
+                    <ArrowDownRight className="w-3 h-3" /> From defaults (-10 GHS each)
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Commission History</CardTitle>
+                <CardDescription>Recent earnings and deductions for {agent.name}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-xl bg-muted/20">
+                  <Banknote className="h-10 w-10 text-muted-foreground mb-3 opacity-40" />
+                  <p className="text-sm font-medium text-foreground">Awaiting Detailed Ledger</p>
+                  <p className="text-xs text-muted-foreground max-w-[250px] mt-1">
+                    Specific commission line items will appear here once the new endpoint is connected.
+                  </p>
+                </div>
+              </CardContent>
             </Card>
           </TabsContent>
         </Tabs>

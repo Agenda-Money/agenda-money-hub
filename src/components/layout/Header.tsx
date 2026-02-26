@@ -15,13 +15,17 @@ interface HeaderProps {
 }
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useSocket } from "@/contexts/SocketContext";
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth();
+  const { notifications } = useSocket();
   
   const initials = user?.fullName 
     ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() 
     : "AD";
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <header className="h-20 bg-card border-b border-border flex items-center justify-between px-6">
@@ -51,7 +55,11 @@ export function Header({ onMenuClick }: HeaderProps) {
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full" />
+          {unreadCount > 0 && (
+             <span className="absolute top-1 right-1 flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-card">
+               {unreadCount > 9 ? '9+' : unreadCount}
+             </span>
+          )}
         </Button>
 
         {/* User Dropdown */}
