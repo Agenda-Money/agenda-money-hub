@@ -175,7 +175,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                    className={cn(
                      "flex-1 py-3 px-1 rounded-full text-sm font-medium border transition-all duration-200",
                      isActive
-                       ? "bg-slate-100 border-slate-300 text-slate-800 font-bold shadow-sm ring-1 ring-slate-200" 
+                       ? "bg-pink-50 border-[#EC1B84] text-[#EC1B84] font-bold shadow-sm ring-1 ring-[#EC1B84]/30" 
                        : "bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50"
                    )}
                  >
@@ -202,12 +202,12 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                     className={cn(
                       "flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border transition-all duration-200",
                       isActive
-                        ? "border-gray-800 border-2 bg-white text-gray-900 shadow-md transform scale-[1.02]" 
+                        ? "border-[#EC1B84] border-2 bg-pink-50 text-[#EC1B84] shadow-md transform scale-[1.02]" 
                         : "border-gray-100 bg-white text-gray-400 hover:border-gray-200 hover:bg-gray-50/50"
                     )}
                   >
-                     <p.icon className={cn("w-5 h-5", isActive ? "text-gray-900" : "text-gray-400")} strokeWidth={isActive ? 2.5 : 2} />
-                     <span className={cn("text-xs font-bold uppercase tracking-wide", isActive ? "text-gray-900" : "text-gray-400")}>
+                     <p.icon className={cn("w-5 h-5", isActive ? "text-[#EC1B84]" : "text-gray-400")} strokeWidth={isActive ? 2.5 : 2} />
+                     <span className={cn("text-xs font-bold uppercase tracking-wide", isActive ? "text-[#EC1B84]" : "text-gray-400")}>
                        {p.label}
                      </span>
                   </button>
@@ -219,35 +219,43 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
         {/* Node Code Section (Optional) */}
         {showNodeCode && (
            <div className="space-y-4">
-                     <div className="flex items-center gap-2">
-                         <h2 className="text-md font-bold text-gray-900">Referral / Node Code</h2>
-                         {nodeCode.length >= 4 && (
-                             <div className="flex items-center gap-1 text-green-600 animate-in zoom-in duration-300">
-                                 <CheckSquare className="w-4 h-4" />
-                                 <span className="text-xs font-bold">Verified</span>
-                             </div>
+               <div>
+                   <h2 className="text-md font-bold text-gray-900">Node Code</h2>
+                   <p className="text-sm text-gray-500">Enter a node code. We will confirm with the node owner.</p>
+               </div>
+               
+               <div className="relative flex items-center gap-3">
+                  <div className="relative flex-1">
+                      <input
+                         type="text"
+                         value={nodeCode}
+                         onChange={(e) => setNodeCode(e.target.value.toUpperCase())}
+                         placeholder="Enter Node Code"
+                         className={cn(
+                             "w-full h-14 rounded-2xl border px-4 font-mono text-center text-lg uppercase tracking-widest outline-none transition-all placeholder:normal-case placeholder:font-sans placeholder:text-gray-400 placeholder:text-sm placeholder:tracking-normal",
+                             nodeCode.length >= 4 
+                                 ? "border-[#EC1B84] bg-[#EC1B84]/10 focus:ring-1 focus:ring-[#EC1B84] text-[#EC1B84] font-bold" 
+                                 : "border-gray-200 focus:border-[#EC1B84] focus:ring-1 focus:ring-[#EC1B84] text-gray-900"
                          )}
-                     </div>
-                     <div className="relative">
-                        <input
-                           type="text"
-                           value={nodeCode}
-                           onChange={(e) => setNodeCode(e.target.value.toUpperCase())}
-                           placeholder="Enter Node Code"
-                           className={cn(
-                               "w-full h-14 rounded-2xl border px-4 font-mono text-center text-lg uppercase tracking-widest outline-none transition-all placeholder:normal-case placeholder:font-sans placeholder:text-gray-400 placeholder:text-sm placeholder:tracking-normal",
-                               nodeCode.length >= 4 
-                                   ? "border-green-500 bg-green-50/10 focus:ring-1 focus:ring-green-500" 
-                                   : "border-gray-200 focus:border-[#EC1B84] focus:ring-1 focus:ring-[#EC1B84]"
-                           )}
-                           maxLength={10}
-                        />
-                        {nodeCode.length > 0 && nodeCode.length < 4 && (
-                            <p className="text-xs text-red-500 mt-1.5 font-medium text-center">
-                               Code must be at least 4 characters
-                            </p>
-                        )}
-              </div>
+                         maxLength={10}
+                      />
+                  </div>
+                  
+                  {/* Verified Indicator on the side */}
+                  <div className={cn(
+                      "flex items-center justify-center shrink-0 w-14 h-14 rounded-2xl transition-all duration-300",
+                      nodeCode.length >= 4 
+                          ? "bg-[#EC1B84]/10 text-[#EC1B84] border border-[#EC1B84]/20 opacity-100 scale-100" 
+                          : "bg-gray-50 text-gray-300 border border-transparent opacity-50 scale-95"
+                  )}>
+                      <CheckSquare className={cn("w-6 h-6 transition-all", nodeCode.length >= 4 && "animate-in zoom-in")} />
+                  </div>
+               </div>
+               {nodeCode.length > 0 && nodeCode.length < 4 && (
+                   <p className="text-xs text-red-500 font-medium text-center">
+                      Code must be at least 4 characters
+                   </p>
+               )}
            </div>
         )}
 

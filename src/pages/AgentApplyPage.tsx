@@ -500,7 +500,7 @@ export default function AgentApplyPage() {
   // AUTH & OTP VIEWS
   // ═══════════════════════════════════════
   if (view === "auth" || view === "otp") {
-    const canSubmitEntry = Boolean(msisdnInput.length === 9 && normalizeMsisdn(msisdnInput));
+    const canSubmitEntry = Boolean(msisdnInput.length >= 9 && normalizeMsisdn(msisdnInput));
     const canVerify = otp.length === OTP_LENGTH;
 
     return (

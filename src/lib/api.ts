@@ -13,7 +13,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Check for both admin token and applicant token
-    const adminToken = sessionStorage.getItem('token');
+    const adminToken = localStorage.getItem('token') || sessionStorage.getItem('token');
     const applicantToken = sessionStorage.getItem('agenda_token');
     const token = adminToken || applicantToken;
     const hasAuthHeader = Object.keys(config.headers || {}).some(
@@ -41,6 +41,8 @@ api.interceptors.response.use(
     // Don't redirect on login failure (which is also a 401)
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes("/auth/login")) {
       // Remove both tokens to support both authentication flows
+      localStorage.removeItem('token');
+      localStorage.removeItem('token_expiry');
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('agenda_token');
       window.location.href = "/login";

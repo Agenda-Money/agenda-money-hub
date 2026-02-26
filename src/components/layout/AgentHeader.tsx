@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSocket } from "@/contexts/SocketContext";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 
@@ -12,10 +13,13 @@ interface AgentHeaderProps {
 
 export function AgentHeader({ onMenuClick }: AgentHeaderProps) {
   const { user } = useAuth();
+  const { notifications } = useSocket();
   
   const initials = user?.fullName 
     ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() 
     : "AG";
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <header className="h-16 sm:h-20 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30">
@@ -49,7 +53,11 @@ export function AgentHeader({ onMenuClick }: AgentHeaderProps) {
         <motion.div whileTap={{ scale: 0.95 }}>
           <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-xl hover:bg-muted">
             <Bell className="h-5 w-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full animate-pulse" />
+            {unreadCount > 0 && (
+               <span className="absolute top-1 right-1 flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-card">
+                 {unreadCount > 9 ? '9+' : unreadCount}
+               </span>
+            )}
           </Button>
         </motion.div>
 
