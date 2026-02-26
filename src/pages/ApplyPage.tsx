@@ -27,6 +27,7 @@ import { ProfileTab } from "./ProfileTab";
 import { LoanSummaryPage } from "./LoanSummaryPage";
 import { RepaymentPage } from "./RepaymentPage";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
+import { ApplicationStatusCard } from "@/components/dashboard/ApplicationStatusCard";
 import {
   Bell,
   Home,
@@ -1230,46 +1231,9 @@ export default function ApplyPage() {
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h2>
         <p className="text-muted-foreground text-sm mb-8">We've received your loan request.</p>
 
-        {/* What Happens Next Timeline */}
-        <div className="w-full max-w-sm bg-gray-50 rounded-2xl p-5 mb-8 text-left border border-gray-100">
-           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 pl-1">What Happens Next</h3>
-           <div className="space-y-6 relative">
-              {/* Vertical Line */}
-              <div className="absolute top-2 left-[11px] bottom-2 w-0.5 bg-gray-200 -z-10" />
-
-              {/* Step 1 */}
-              <div className="flex gap-4 items-start">
-                 <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0 border-2 border-white shadow-sm">
-                    <Check className="w-3 h-3 text-white" />
-                 </div>
-                 <div>
-                    <p className="text-sm font-bold text-gray-900">Application Received</p>
-                    <p className="text-xs text-green-600 font-medium">Completed</p>
-                 </div>
-              </div>
-
-              {/* Step 2: Node Consent (New) */}
-              <div className="flex gap-4 items-start">
-                 <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10">
-                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                 </div>
-                 <div>
-                    <p className="text-sm font-bold text-gray-900">Checking Node Consent</p>
-                    <p className="text-xs text-amber-600 font-medium">Waiting for approval...</p>
-                 </div>
-              </div>
-
-               {/* Step 3 */}
-              <div className="flex gap-4 items-start">
-                 <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center shrink-0 border-2 border-white z-10">
-                    <div className="w-2 h-2 rounded-full bg-gray-400" />
-                 </div>
-                 <div>
-                    <p className="text-sm font-medium text-gray-500">Loan Disbursement</p>
-                    <p className="text-xs text-gray-400">Pending Approval</p>
-                 </div>
-              </div>
-           </div>
+        {/* What Happens Next Timeline using Real-Time status card */}
+        <div className="w-full max-w-sm text-left mb-8">
+            <ApplicationStatusCard loanId="" userMsisdn={applicant?.msisdn} initialStatus={applicant?.loanStatus || "AWAITING_ENDORSEMENT"} />
         </div>
 
 
@@ -1637,42 +1601,14 @@ export default function ApplyPage() {
                    <p className="text-sm text-gray-500 mt-1">Track the progress of your loan</p>
                 </div>
 
-                <div className="space-y-6 relative max-w-[90%] mx-auto">
-                   {/* Connecting Line */}
-                   <div className="absolute top-3 left-[15px] bottom-3 w-0.5 bg-gray-100 -z-10" />
-
-                   {/* Step 1: Node (First) */}
-                   <div className="flex gap-4 items-start">
-                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10 animate-pulse">
-                         <div className="w-3 h-3 bg-amber-500 rounded-full" />
-                      </div>
-                      <div className="pt-1">
-                         <h4 className="text-sm font-bold text-gray-900">Node Endorsement</h4>
-                         <p className="text-xs text-amber-600 font-medium">Waiting for Node approval...</p>
-                      </div>
-                   </div>
-
-                   {/* Step 2: KYC (Second) */}
-                   <div className="flex gap-4 items-start">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10">
-                         <div className="w-3 h-3 bg-gray-300 rounded-full" />
-                      </div>
-                      <div className="pt-1">
-                         <h4 className="text-sm font-bold text-gray-900">Identity Verification</h4>
-                         <p className="text-xs text-gray-500 font-medium">Pending Review</p>
-                      </div>
-                   </div>
-
-                   {/* Step 3: Loan (Third) */}
-                   <div className="flex gap-4 items-start">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10">
-                         <div className="w-3 h-3 bg-gray-300 rounded-full" />
-                      </div>
-                      <div className="pt-1">
-                         <h4 className="text-sm font-bold text-gray-400">Final Loan Approval</h4>
-                         <p className="text-xs text-gray-400">Pending</p>
-                      </div>
-                   </div>
+                <div className="w-full max-w-[90%] mx-auto">
+                   <ApplicationStatusCard 
+                      hideTitle 
+                      className="shadow-none border-0 p-0 bg-transparent" 
+                      loanId="" 
+                      userMsisdn={applicant?.msisdn || (userData as any)?.msisdn} 
+                      initialStatus={applicant?.loanStatus || (userData as any)?.loanStatus || "AWAITING_ENDORSEMENT"} 
+                   />
                 </div>
 
                 <Button 
