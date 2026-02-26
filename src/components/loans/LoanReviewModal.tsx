@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Loader2, RefreshCcw, User, X } from "lucide-react";
+import { Check, Loader2, RefreshCcw, User, X, Clock } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -19,6 +19,7 @@ type LoanReviewUser = {
   _id?: string;
   kycStatus?: string;
   selfieUrl?: string;
+  currentTier?: string | number;
 };
 
 type LoanReviewData = {
@@ -46,6 +47,10 @@ type LoanReviewData = {
   repaymentRate?: number;
   kycStatus?: string;
   selfieUrl?: string;
+  guaranteedBy?: string;
+  guaranteedByName?: string;
+  guaranteedByMsisdn?: string;
+  guaranteedAt?: string;
 };
 
 interface LoanReviewModalProps {
@@ -85,11 +90,13 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   const userDetails = userResponse?.data?.user || userResponse?.data || userResponse || {};
   // Prioritize fetched personalNodeCode -> fetched nodeCode -> loan prop nodeCode -> N/A
   const displayNodeCode = userDetails.personalNodeCode || userDetails.nodeCode || loan?.nodeCode || "N/A";
-  const kycStatus = (loan?.kycStatus || loanUser?.kycStatus || "Unknown") as string;
-  const selfieUrl = loan?.selfieUrl || loanUser?.selfieUrl || userDetails?.selfieUrl || "";
+  const displayTier = loan?.tier || loanUser?.currentTier || userDetails?.currentTier || 1;
+  const kycStatus = (loan?.kycStatus || loanUser?.kycStatus || userDetails?.kycStatus || userDetails?.onboardingData?.kycStatus || "Unknown") as string;
+  const selfieUrl = loan?.selfieUrl || loanUser?.selfieUrl || userDetails?.selfieUrl || userDetails?.kyc?.selfieUrl || userDetails?.kycData?.selfieUrl || userDetails?.onboardingData?.selfieUrl || "";
   const status = (loan?.status || "PENDING").toString().toUpperCase();
   const isPending = status === "PENDING";
   const isDisbursing = status === "DISBURSING";
+  const isAwaitingEndorsement = status === "AWAITING_ENDORSEMENT";
 
   const kycBadgeClass = (() => {
     const normalized = kycStatus.toLowerCase();
@@ -221,8 +228,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                 <p className="text-lg font-semibold text-foreground">{loanUser?.fullName || userNameString || "Unknown User"}</p>
                 <p className="text-sm text-muted-foreground">{loan.userMsisdn || loan.phone}</p>
               </div>
-              <Badge variant="outline" className={tierColors[`L${loan.tier}`] || tierColors.L1}>
-                Tier {loan.tier}
+              <Badge variant="outline" className={tierColors[`L${displayTier}`] || tierColors.L1}>
+                Tier {displayTier}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
@@ -257,6 +264,38 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                 </div>
               </div>
             </div>
+
+            {loan.guaranteedBy && (
+              <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4">
+                <p className="text-sm font-semibold text-purple-600 dark:text-purple-400">Node Endorsement</p>
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Guarantor</p>
+                    <p className="font-medium text-foreground">{loan.guaranteedByName || "Unknown"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Node Code</p>
+                    <p className="font-medium">{loan.guaranteedBy}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Contact</p>
+                    <p className="font-medium">{loan.guaranteedByMsisdn || "N/A"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Endorsed On</p>
+                    <p className="font-medium">
+                      {loan.guaranteedAt
+                        ? new Date(loan.guaranteedAt).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric"
+                          })
+                        : "N/A"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="rounded-xl border border-border bg-muted/40 p-4">
               <p className="text-sm font-semibold text-muted-foreground">Loan Terms</p>
@@ -300,10 +339,15 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
             </div>
           </div>
 
-          {(isPending || isDisbursing) && (
+          {(isPending || isDisbursing || isAwaitingEndorsement) && (
             <div className="sticky bottom-0 border-t border-border bg-background/95 p-6 backdrop-blur">
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                {isDisbursing ? (
+                {isAwaitingEndorsement ? (
+                   <div className="flex w-full items-center justify-center p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-600 text-sm font-medium">
+                     <Clock className="w-4 h-4 mr-2" />
+                     Waiting for Node Endorsement before Admin Review
+                   </div>
+                ) : isDisbursing ? (
                   <Button
                     className="w-full bg-[#3b82f6] hover:bg-[#2563eb] transition-colors animate-pulse"
                     onClick={handleSync}

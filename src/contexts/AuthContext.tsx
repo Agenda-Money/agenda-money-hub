@@ -44,7 +44,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const checkAuth = async () => {
-    const token = sessionStorage.getItem("token");
+    let token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    const expiry = localStorage.getItem("token_expiry");
+
+    // Check custom UI timeout constraints (12h admin / 24h agent)
+    if (expiry && Date.now() > parseInt(expiry, 10)) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("token_expiry");
+      sessionStorage.removeItem("token");
+      token = null;
+    }
+
     if (!token) {
       setLoading(false);
       return;
@@ -62,15 +72,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Silent clear if token role doesn't match subdomain.
         if (sub === "admin" && actualRole !== "admin") {
+          localStorage.removeItem("token");
+          localStorage.removeItem("token_expiry");
           sessionStorage.removeItem("token");
           setUser(null);
         } else if (sub === "agent" && actualRole !== "agent") {
+          localStorage.removeItem("token");
+          localStorage.removeItem("token_expiry");
           sessionStorage.removeItem("token");
           setUser(null);
         } else if (
           sub === "apply" &&
           (actualRole === "admin" || actualRole === "agent")
         ) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("token_expiry");
           sessionStorage.removeItem("token");
           setUser(null);
         } else {
@@ -78,10 +94,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser({ ...adminData, role: actualRole });
         }
       } else {
+        localStorage.removeItem("token");
+        localStorage.removeItem("token_expiry");
         sessionStorage.removeItem("token");
       }
     } catch (error) {
       console.error("Auth check failed", error);
+      localStorage.removeItem("token");
+      localStorage.removeItem("token_expiry");
       sessionStorage.removeItem("token");
     } finally {
       setLoading(false);
@@ -141,7 +161,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { success: false, message: "Invalid credentials. Please try again." };
       }
 
-      sessionStorage.setItem("token", token);
+      const expiresInHours = actualRole === "agent" ? 24 : 12;
+      const expiryTimestamp = Date.now() + expiresInHours * 60 * 60 * 1000;
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("token_expiry", expiryTimestamp.toString());
+      sessionStorage.removeItem("token"); // Cleanup old state
       // Normalize: ensure user.role always reflects the extracted role
       const normalizedAdmin = { ...admin, role: actualRole };
       setUser(normalizedAdmin);
@@ -219,11 +244,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const logout = () => {
-    sessionStorage.clear();
-    localStorage.clear();
+    localStorage.removeItem("token");
+    localStorage.removeItem("token_expiry");
+    sessionStorage.removeItem("token");
     setUser(null);
     delete api.defaults.headers.common["Authorization"];
-    globalThis.location.href = "/login";
+    toast.success("Logged out successfully");
   };
 
   const contextValue = useMemo(

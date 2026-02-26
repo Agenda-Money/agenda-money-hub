@@ -24,10 +24,10 @@ export default function PendingKycPage() {
   const queryClient = useQueryClient();
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
 
-  const { data: pendingUsers, refetch } = useQuery({
+  const { data: pendingUsers, refetch, isLoading: isPendingUsersLoading } = useQuery({
     queryKey: ["pending-kyc-users"],
     queryFn: async () => {
-      const res = await api.get("/api/admin/users/pending");
+      const res = await api.get("/api/admin/users/pending?limit=1000");
       const users = res.data?.data || res.data || [];
       return Array.isArray(users) ? users : [];
     },
@@ -99,7 +99,13 @@ export default function PendingKycPage() {
         </Card>
 
         {/* Pending Users List */}
-        {filteredUsers.length === 0 ? (
+        {isPendingUsersLoading ? (
+          <div className="space-y-4 animate-pulse">
+             <div className="h-32 bg-muted rounded-xl" />
+             <div className="h-32 bg-muted rounded-xl" />
+             <div className="h-32 bg-muted rounded-xl" />
+          </div>
+        ) : filteredUsers.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />

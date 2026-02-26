@@ -16,6 +16,27 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
+// Robust date parser for mixed backend date formats (e.g. DD/MM/YYYY)
+function parseDateRobust(dateStr: string | undefined | null): Date {
+  if (!dateStr) return new Date("Invalid");
+  
+  // Test if it's already an ISO or valid standard date
+  const standardDate = new Date(dateStr);
+  if (!isNaN(standardDate.getTime())) return standardDate;
+
+  // Try parsing DD/MM/YYYY or DD-MM-YYYY
+  const regex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
+  const match = dateStr.match(regex);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1; // 0-indexed
+    const year = parseInt(match[3], 10);
+    return new Date(year, month, day);
+  }
+  
+  return new Date("Invalid");
+}
+
 export default function UserDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -26,6 +47,7 @@ export default function UserDetailsPage() {
     queryKey: ["user", id],
     queryFn: async () => {
       const res = await api.get(`/api/admin/users/profile/${id}`);
+      console.log("USER API RESPONSE FOR KYC:", JSON.stringify(res.data, null, 2));
       return res.data;
     },
     enabled: !!id,
@@ -43,6 +65,17 @@ export default function UserDetailsPage() {
       const res = await api.get("/api/admin/repayments", { 
         params: { msisdn: userPhone, limit: 20 } 
       });
+      return res.data;
+    },
+    enabled: !!userPhone,
+  });
+
+  // Fetch User from List API (often contains the full unabridged MongoDB document)
+  const { data: userListResponse, isLoading: isListUserLoading } = useQuery({
+    queryKey: ["user-list-fallback", userPhone],
+    queryFn: async () => {
+      if (!userPhone) return {};
+      const res = await api.get(`/api/admin/users`, { params: { search: userPhone } });
       return res.data;
     },
     enabled: !!userPhone,
@@ -81,6 +114,11 @@ export default function UserDetailsPage() {
   const rawLoanHistory = loanHistoryResponse?.data || loanHistoryResponse?.loans || [];
   const activeLoanData = activeLoanResponse?.data || activeLoanResponse;
 
+  const listData = userListResponse?.data || userListResponse?.users || userListResponse || [];
+  const listUser = Array.isArray(listData) 
+    ? listData.find((u: any) => u.msisdn === userPhone || u._id === id) || listData[0] || {} 
+    : listData || {};
+
   // Map API data to UI structure
   const user = {
     id: userData._id || userData.id || id,
@@ -88,26 +126,39 @@ export default function UserDetailsPage() {
     email: userData.email || "N/A",
     phone: userData.msisdn || userData.phone || "N/A",
     tier: `L${userData.currentTier || 1}`,
-    nodeCode: userData.personalNodeCode || userData.nodeCode || "N/A",
-    status: userData.isBlocked ? "blocked" : "active",
-    joinedAt: userData.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "N/A",
-    address: userData.address || "N/A",
-    location: userData.location || "Ghana",
-    gender: userData.gender || "N/A",
-    age: userData.age || 0,
-    accommodation: userData.accommodation || "N/A",
-    employment: userData.employment || "N/A",
-    walletBalance: Number(userData.temporaryWallet || 0),
-    totalLoansTaken: Number(userData.totalLoansRepaid || 0),
+    nodeCode: userData.personalNodeCode || userData.nodeCode || listUser.personalNodeCode || listUser.nodeCode || "N/A",
+    status: userData.isBlocked || listUser.isBlocked ? "blocked" : "active",
+    joinedAt: (userData.createdAt || listUser.createdAt || userData.joinedAt || userData.dateJoined || userData.onboardingData?.createdAt || userDataRaw.createdAt) 
+      ? new Date(userData.createdAt || listUser.createdAt || userData.joinedAt || userData.dateJoined || userData.onboardingData?.createdAt || userDataRaw.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) 
+      : "N/A",
+    address: userData.address || listUser.address || userData.onboardingData?.address || "N/A",
+    location: userData.region || listUser.region || userData.location || userData.onboardingData?.region || "Ghana",
+    gender: userData.gender || listUser.gender || userData.onboardingData?.gender || "N/A",
+    dob: (() => {
+      const rawDob = userData.dob || listUser.dob || userData.onboardingData?.dob || userData.age || listUser.age;
+      // If it's a number, treat it as age
+      if (typeof rawDob === 'number' || (!isNaN(Number(rawDob)) && rawDob)) {
+         return `${rawDob} years old`;
+      }
+      // If it's a date string, format it
+      if (rawDob && new Date(rawDob).toString() !== 'Invalid Date') {
+         return new Date(rawDob).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+      return "N/A";
+    })(),
+    accommodation: userData.accommodationType || userData.accommodation || listUser.accommodationType || userData.onboardingData?.accommodationType || "N/A",
+    employment: userData.employmentStatus || userData.employment || listUser.employmentStatus || userData.onboardingData?.employmentStatus || "N/A",
+    walletBalance: Number(userData.temporaryWallet || listUser.temporaryWallet || 0),
+    totalLoansTaken: Number(userData.totalLoansRepaid || listUser.totalLoansRepaid || 0),
     // KYC fields
-    selfieUrl: userData.selfieUrl,
-    ghanaCardFrontUrl: userData.ghanaCardFrontUrl,
-    ghanaCardBackUrl: userData.ghanaCardBackUrl,
-    momoName: userData.momoName,
-    ghanaCardName: userData.ghanaCardName || userData.fullName,
-    ghanaCardNumber: userData.ghanaCardNumber,
-    nodeConsentStatus: userData.nodeConsentStatus || "awaiting",
-    kycStatus: userData.kycStatus || "pending",
+    selfieUrl: userData.selfieUrl || listUser.selfieUrl || userData.kyc?.selfieUrl || listUser.kyc?.selfieUrl || userData.kycData?.selfieUrl || userData.onboardingData?.selfieUrl,
+    ghanaCardFrontUrl: userData.ghanaCardFrontUrl || listUser.ghanaCardFrontUrl || userData.kyc?.ghanaCardFrontUrl || listUser.kyc?.ghanaCardFrontUrl || userData.onboardingData?.ghanaCardFrontUrl,
+    ghanaCardBackUrl: userData.ghanaCardBackUrl || listUser.ghanaCardBackUrl || userData.kyc?.ghanaCardBackUrl || listUser.kyc?.ghanaCardBackUrl || userData.onboardingData?.ghanaCardBackUrl,
+    momoName: userData.momoName || listUser.momoName || userData.kyc?.momoName || userData.onboardingData?.momoName,
+    ghanaCardName: userData.ghanaCardName || listUser.ghanaCardName || userData.kyc?.ghanaCardName || userData.onboardingData?.ghanaCardName || userData.fullName || listUser.fullName,
+    ghanaCardNumber: userData.ghanaCardNumber || listUser.ghanaCardNumber || userData.kyc?.ghanaCardNumber || userData.onboardingData?.ghanaCardNumber,
+    nodeConsentStatus: userData.nodeConsentStatus || listUser.nodeConsentStatus || userData.onboardingData?.nodeConsentStatus || "awaiting",
+    kycStatus: userData.kycStatus || listUser.kycStatus || userData.onboardingData?.kycStatus || "pending",
     // Financial metrics
     creditScore: userData.creditScore || Math.floor(Math.random() * 40) + 60, // Mock if not available
     totalBorrowed: Number(userData.totalBorrowed || userData.totalLoansTaken || 0),
@@ -133,21 +184,44 @@ export default function UserDetailsPage() {
     }))
   };
 
-  const currentLoan = activeLoanData ? {
-    amount: Number(activeLoanData.principal || activeLoanData.amount || 0),
-    balance: Number(activeLoanData.balance || activeLoanData.remainingBalance || 0),
-    dueDate: activeLoanData.dueDate 
-      ? new Date(activeLoanData.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-      : "N/A",
-    status: activeLoanData.status || "active",
-    reference: activeLoanData.loanDetails?.loanReference || activeLoanData.loanReference || "N/A"
-  } : null;
+  const currentLoan = activeLoanData ? (() => {
+    let computedStatus = (activeLoanData.status || "active").toLowerCase();
+    
+    // Dynamically check dates since backend cron may not have run
+    if (computedStatus === "active" && activeLoanData.dueDate) {
+      const due = parseDateRobust(activeLoanData.dueDate);
+      due.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (due.getTime() < today.getTime()) {
+        computedStatus = "overdue";
+      } else if (due.getTime() === today.getTime()) {
+        computedStatus = "due today";
+      }
+    }
 
-  const isLoading = isUserLoading || isWalletLoading || isLoansLoading;
+    return {
+      amount: Number(activeLoanData.principal || activeLoanData.amount || 0),
+      balance: Number(activeLoanData.balance || activeLoanData.remainingBalance || 0),
+      dueDate: activeLoanData.dueDate 
+        ? new Date(activeLoanData.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        : "N/A",
+      status: computedStatus,
+      reference: activeLoanData.loanDetails?.loanReference || activeLoanData.loanReference || "N/A"
+    };
+  })() : null;
+
+  // Render immediately when ANY user data is ready instead of waiting for all sub-queries
+  const isLoading = isUserLoading || isListUserLoading;
 
   // 🎯 Custom Logic for User Archetypes
-  const isFirstTimeUser = (user.totalBorrowed || 0) === 0 && user.kycStatus !== "verified";
-  const hasOverdueLoan = !!currentLoan && ((currentLoan.status || "").toString().toLowerCase() === "overdue" || (currentLoan.status || "").toString().toUpperCase() === "OVERDUE");
+  const kycNorm = (user.kycStatus || "").toString().toLowerCase();
+  const normalizedKycStatus = kycNorm === "unverified" ? "pending" : kycNorm || "pending";
+  
+  const isFirstTimeUser = (user.totalBorrowed || 0) === 0 && normalizedKycStatus !== "verified";
+  const hasOverdueLoan = !!currentLoan && ((currentLoan.status || "").toString().toLowerCase() === "overdue");
+  const isDueToday = !!currentLoan && ((currentLoan.status || "").toString().toLowerCase() === "due today");
 
   // Tier color mapping (local copy similar to UsersPage)
   const tierColors: Record<string, string> = {
@@ -256,7 +330,7 @@ export default function UserDetailsPage() {
           </div>
 
           {/* KYC Priority Banner */}
-          {user.kycStatus === "pending" && (
+          {normalizedKycStatus === "pending" && (
             <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} className="bg-warning/10 border border-warning/20 p-4 rounded-xl flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Badge variant="outline" className="bg-warning text-warning-foreground animate-pulse">Action Required</Badge>
@@ -314,7 +388,7 @@ export default function UserDetailsPage() {
             momoName: user.momoName,
             ghanaCardName: user.ghanaCardName,
             nodeConsentStatus: user.nodeConsentStatus as "awaiting" | "accepted" | "declined",
-            kycStatus: user.kycStatus as "pending" | "verified" | "rejected",
+            kycStatus: normalizedKycStatus as "pending" | "verified" | "rejected",
             ghanaCardNumber: user.ghanaCardNumber
           }}
         />
@@ -333,7 +407,11 @@ export default function UserDetailsPage() {
                     <p className="text-2xl font-bold text-foreground">₵{currentLoan.balance.toLocaleString()}</p>
                     <p className="text-xs text-muted-foreground">Due on {currentLoan.dueDate}</p>
                   </div>
-                  <Badge className={hasOverdueLoan ? "bg-destructive" : "bg-primary"}>
+                  <Badge className={
+                    hasOverdueLoan ? "bg-destructive" : 
+                    isDueToday ? "bg-warning text-warning-foreground" : 
+                    "bg-primary"
+                  }>
                     {currentLoan.status.toString().toUpperCase()}
                   </Badge>
                 </div>
@@ -346,14 +424,16 @@ export default function UserDetailsPage() {
             </CardContent>
           </Card>
 
-          <FinancialHealthSection
-            creditScore={user.creditScore}
-            walletBalance={user.walletBalance}
-            totalBorrowed={user.totalBorrowed}
-            totalInterestPaid={user.totalInterestPaid}
-            onTimeRepaymentPercent={user.onTimeRepaymentPercent}
-            currentLoan={currentLoan}
-          />
+          <div className="lg:col-span-2">
+            <FinancialHealthSection
+              creditScore={user.creditScore}
+              walletBalance={user.walletBalance}
+              totalBorrowed={user.totalBorrowed}
+              totalInterestPaid={user.totalInterestPaid}
+              onTimeRepaymentPercent={user.onTimeRepaymentPercent}
+              currentLoan={currentLoan}
+            />
+          </div>
         </div>
 
         {/* Tabs for History */}
@@ -439,9 +519,9 @@ export default function UserDetailsPage() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase">Age</span>
+                      <span className="text-xs font-medium uppercase">Date of Birth</span>
                     </div>
-                    <p className="font-medium">{user.age} years</p>
+                    <p className="font-medium">{user.dob}</p>
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-muted-foreground">

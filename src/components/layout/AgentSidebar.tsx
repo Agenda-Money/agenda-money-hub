@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, UserPlus, Users, User, LogOut, X, ChevronRight, Sparkles, Menu } from "lucide-react";
+import { Home, UserPlus, Users, User, LogOut, X, ChevronRight, Sparkles, Menu, Banknote, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,8 @@ const navItems = [
   { to: "/agent", icon: Home, label: "Dashboard", description: "Overview & stats" },
   { to: "/agent/onboard", icon: UserPlus, label: "New Onboarding", description: "Register customer" },
   { to: "/agent/portfolio", icon: Users, label: "My Portfolio", description: "Track customers" },
+  { to: "/agent/endorsements", icon: Clock, label: "Endorsements", description: "Approve loans" },
+  { to: "/agent/commissions", icon: Banknote, label: "Commissions", description: "Earnings & deductions" },
   { to: "/agent/profile", icon: User, label: "Account", description: "Settings & profile" },
 ];
 

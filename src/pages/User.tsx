@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { LoanStatusCard, LoanStatus } from "@/components/dashboard/LoanStatusCard";
 import { Wallet, CheckCircle2 } from "lucide-react";
 import { TIERS, getTierByLevel } from "@/lib/constants";
+import { format } from "date-fns";
 
 interface UserDashboardProps {
   applicant: any;
@@ -22,10 +23,17 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
   
   // New Backend Logic: Check flags from applicant summary or activeLoanDetails
   const summary = applicant?.summary || {};
-  const isPending = summary.isPending || activeLoanDetails?.status === 'PENDING';
+  const isPending = summary.isPending || activeLoanDetails?.status === 'PENDING' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT';
   const isOverdue = summary.isOverdue || activeLoanDetails?.isOverdue;
   const isActive = hasActiveLoan && !isPending && !isOverdue;
   const isEligible = !isActive && !isPending && !isOverdue;
+  
+  const isGraduatedNode = 
+    applicant?.isGraduatedNode === true || 
+    applicant?.isGraduatedNode === "true" ||
+    (applicant as any)?.user?.isGraduatedNode === true;
+
+  console.log("[UserDashboard] rendering - applicant:", applicant, "isGraduatedNode:", isGraduatedNode);
 
   // Determine Main Feed Card Status
   let feedStatus: LoanStatus = "eligible";
@@ -108,15 +116,17 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
       </motion.div>
 
       {/* 3. PERMANENT: NODE CODE */}
-      <motion.div variants={item}>
-         <LoanStatusCard
-            status="node"
-            nodeCode={applicant?.nodeCode}
-            points={applicant?.tempWalletBalance || 0} // Using temp wallet as points/rewards placeholder
-            onAction={() => onAction("share")}
-            className="shadow-sm min-h-[130px]" 
-         />
-      </motion.div>
+      {isGraduatedNode && (
+         <motion.div variants={item}>
+            <LoanStatusCard
+               status="node"
+               nodeCode={(applicant as any)?.personalNodeCode || (applicant as any)?.user?.personalNodeCode || applicant?.nodeCode}
+               points={applicant?.tempWalletBalance || 0} // Using temp wallet as points/rewards placeholder
+               onAction={() => onAction("share")}
+               className="shadow-sm min-h-[130px]" 
+            />
+         </motion.div>
+      )}
 
       {/* 4. RECENT ACTIVITY (New) */}
       <motion.div variants={item} className="space-y-3 pt-2">
@@ -146,22 +156,29 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
                      No recent activity
                  </div>
              ) : (
-                 recentActivity.map((activity, index) => (
-                    <div key={activity.id || index} className={cn("p-4 flex items-center justify-between", index !== recentActivity.length - 1 && "border-b border-gray-50")}>
-                        <div className="flex items-center gap-3">
-                           <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", activity.type === 'payment' ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-500")}>
-                              {activity.type === 'payment' ? <CheckCircle2 className="w-5 h-5" /> : <Wallet className="w-5 h-5" />}
-                           </div>
-                           <div>
-                              <p className="text-sm font-bold text-gray-900">{activity.title}</p>
-                              <p className="text-xs text-gray-500">{activity.date}</p>
-                           </div>
+                 recentActivity.map((activity, index) => {
+                    const isPayment = activity.type?.toLowerCase() === 'payment';
+                    const displayDate = activity.date 
+                        ? format(new Date(activity.date), "dd MMM yyyy, h:mm a")
+                        : "Unknown Date";
+                        
+                    return (
+                        <div key={activity.id || index} className={cn("p-4 flex items-center justify-between", index !== recentActivity.length - 1 && "border-b border-gray-50")}>
+                            <div className="flex items-center gap-3">
+                               <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", isPayment ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-500")}>
+                                  {isPayment ? <CheckCircle2 className="w-5 h-5" /> : <Wallet className="w-5 h-5" />}
+                               </div>
+                               <div>
+                                  <p className="text-sm font-bold text-gray-900">{activity.title}</p>
+                                  <p className="text-xs text-gray-500">{displayDate}</p>
+                               </div>
+                            </div>
+                            <span className={cn("text-sm font-bold", isPayment ? "text-green-600" : "text-gray-900")}>
+                                {isPayment ? '-' : '+'}GHS {Math.abs(activity.amount).toFixed(2)}
+                            </span>
                         </div>
-                        <span className={cn("text-sm font-bold", activity.amount > 0 ? "text-gray-900" : "text-green-600")}>
-                            {activity.amount > 0 ? '+' : ''}GHS {Math.abs(activity.amount).toFixed(2)}
-                        </span>
-                    </div>
-                 ))
+                    );
+                 })
              )}
          </div>
       </motion.div>
