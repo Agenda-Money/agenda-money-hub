@@ -145,14 +145,14 @@ export default function AgentEndorsementsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Clock className="w-6 h-6 text-purple-600" />
+            <Clock className="w-6 h-6 text-amber-500" />
             Pending Endorsements
           </h1>
           <p className="text-muted-foreground mt-1">
             Review and endorse first-time loans for users in your network.
           </p>
         </div>
-        <Badge variant="secondary" className="px-3 py-1.5 text-sm font-medium bg-purple-500/10 text-purple-600 border-purple-500/20">
+        <Badge variant="secondary" className="px-3 py-1.5 text-sm font-medium bg-amber-500/10 text-amber-600 border-amber-500/20">
           {endorsements.length} Pending requests
         </Badge>
       </div>
@@ -217,7 +217,7 @@ export default function AgentEndorsementsPage() {
                         size="sm"
                         onClick={() => handleApprove(req.loanId)}
                         disabled={processingId === req.loanId}
-                        className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm shadow-purple-200"
+                        className="bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-200"
                         title="Approve"
                       >
                         {processingId === req.loanId && !rejectId ? (
