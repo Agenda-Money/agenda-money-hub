@@ -54,7 +54,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData
   const phone = userData?.mobileNumber || userData?.msisdn || onboardingData?.mobileNumber || "+233 -- --- ----";
   const personalNodeCode = userData?.personalNodeCode || (userData as any)?.user?.personalNodeCode || userData?.nodeCode;
 
-  console.log("[ProfileTab] rendering - isGraduatedNode:", isGraduatedNode, "personalNodeCode:", personalNodeCode, "userData:", userData);
+  if (import.meta.env.DEV) {
+    console.log("[ProfileTab] rendering - isGraduatedNode:", isGraduatedNode, "personalNodeCode:", personalNodeCode, "userData:", userData);
+  }
 
   const handleShare = async () => {
     if (!personalNodeCode) return;
