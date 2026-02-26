@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "./AuthContext";
 import { useApplicant } from "./ApplicantContext";
@@ -15,6 +15,7 @@ const SocketContext = createContext<SocketContextType>({ socket: null, notificat
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const lastNotificationIdRef = useRef<string | number | null>(null);
   const { user } = useAuth();
   const { applicant } = useApplicant();
 
@@ -52,18 +53,18 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Listen for real-time notifications
     newSocket.on("notifications", (items: any[]) => {
-        console.log("Received real-time notifications:", items);
-        
-        // Extract new ones to show a toast, or just replace the list.
-        // Assuming the backend sends the full updated list.
         setNotifications(items);
         
-        // Optionally show toast for the newest item if desired (checking against previous length/ids is better)
+        // Only toast for truly new notifications by comparing the latest item's id
         if (items && items.length > 0) {
            const latest = items[0];
-           toast.info(`New Notification: ${latest.title || 'Update'}`, {
-              description: latest.message || 'Check your dashboard for details.',
-           });
+           const latestId = latest._id || latest.id;
+           if (latestId && latestId !== lastNotificationIdRef.current) {
+             lastNotificationIdRef.current = latestId;
+             toast.info(`New Notification: ${latest.title || 'Update'}`, {
+                description: latest.message || 'Check your dashboard for details.',
+             });
+           }
         }
     });
 
