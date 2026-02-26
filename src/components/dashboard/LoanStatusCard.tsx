@@ -14,11 +14,14 @@ interface LoanStatusCardProps {
   balance?: string | number;
   nodeCode?: string;
   points?: number;
+  titleOverride?: string;
+  subtextOverride?: string;
   totalLoansRepaid?: number;
   targetLoans?: number;
   activeTier?: { tier: number }; // Pass plain object or similar
   nextTierLimit?: number;
   isMaxTier?: boolean;
+  cardColor?: 'green' | 'red' | 'yellow' | 'blue' | 'gray';
   onAction?: (action: string) => void;
   className?: string;
 }
@@ -38,7 +41,10 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
   className,
   activeTier,
   nextTierLimit = 600,
-  isMaxTier = false
+  isMaxTier = false,
+  cardColor,
+  titleOverride,
+  subtextOverride
 }) => {
     
   // Configuration for each state
@@ -57,15 +63,23 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       btnClass: "bg-[#EC1B84] text-white hover:bg-[#D41472] rounded-full px-8 py-3 text-sm font-bold shadow-lg shadow-pink-200 transform transition hover:scale-105",
     },
     review: {
-      title: "Application under review",
-      subtext: "Check back in a few minutes",
+      title: titleOverride || "Application under review",
+      subtext: subtextOverride || "Check back in a few minutes",
       icon: Send,
       mainText: null,
       bottomText: null,
       buttonLabel: "Check Status",
       buttonAction: "status",
-      bgClass: "bg-gray-50",
-      btnClass: "bg-gray-200 text-gray-600 hover:bg-gray-300 rounded-lg px-4 py-2 text-xs font-medium",
+      bgClass: cardColor === 'green' ? "bg-emerald-50 border-emerald-100" :
+               cardColor === 'red' ? "bg-red-50 border-red-100" :
+               cardColor === 'yellow' ? "bg-amber-50 border-amber-100" :
+               cardColor === 'blue' ? "bg-blue-50 border-blue-100" :
+               "bg-gray-50 border-gray-100",
+      btnClass: cardColor === 'green' ? "bg-emerald-200 text-emerald-800 hover:bg-emerald-300 rounded-lg px-4 py-2 text-xs font-bold" :
+                cardColor === 'red' ? "bg-red-200 text-red-800 hover:bg-red-300 rounded-lg px-4 py-2 text-xs font-bold" :
+                cardColor === 'yellow' ? "bg-amber-200 text-amber-800 hover:bg-amber-300 rounded-lg px-4 py-2 text-xs font-bold" :
+                cardColor === 'blue' ? "bg-blue-200 text-blue-800 hover:bg-blue-300 rounded-lg px-4 py-2 text-xs font-bold" :
+                "bg-gray-200 text-gray-600 hover:bg-gray-300 rounded-lg px-4 py-2 text-xs font-bold",
     },
     active: {
       title: "Your Active Loan",
