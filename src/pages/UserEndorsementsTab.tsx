@@ -173,7 +173,7 @@ export const UserEndorsementsTab: React.FC<UserEndorsementsTabProps> = ({ onBack
                       <p className="font-bold text-gray-900 text-lg">{req.applicantName || "Unknown"}</p>
                       <p className="text-sm text-gray-500">{req.applicantPhone || "N/A"}</p>
                    </div>
-                   <Badge variant="secondary" className="bg-purple-50 text-purple-700 border-purple-100">
+                   <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-100">
                       Pending
                    </Badge>
                 </div>
@@ -207,7 +207,7 @@ export const UserEndorsementsTab: React.FC<UserEndorsementsTabProps> = ({ onBack
                   <Button 
                     onClick={() => handleApprove(req.loanId)}
                     disabled={processingId === req.loanId}
-                    className="flex-1 h-12 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-md shadow-purple-200"
+                    className="flex-1 h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold shadow-md shadow-green-200"
                   >
                     {processingId === req.loanId && !rejectId ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
