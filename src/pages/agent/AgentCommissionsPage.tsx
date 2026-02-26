@@ -43,6 +43,12 @@ export default function AgentCommissionsPage() {
         <p className="text-muted-foreground mt-1">Track your earnings, payouts, and performance.</p>
       </div>
 
+      {/* Placeholder notice */}
+      <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <Info className="w-4 h-4 shrink-0" />
+        <span>This page is currently showing <strong>sample data</strong>. Live commission data is coming soon.</span>
+      </div>
+
       {/* Top Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         {/* Estimated Payout */}

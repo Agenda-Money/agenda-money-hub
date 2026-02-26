@@ -33,7 +33,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
     applicant?.isGraduatedNode === "true" ||
     (applicant as any)?.user?.isGraduatedNode === true;
 
-  console.log("[UserDashboard] rendering - applicant:", applicant, "isGraduatedNode:", isGraduatedNode);
+  if (import.meta.env.DEV) {
+    console.log("[UserDashboard] rendering - applicant:", applicant, "isGraduatedNode:", isGraduatedNode);
+  }
 
   // Determine Main Feed Card Status
   let feedStatus: LoanStatus = "eligible";
