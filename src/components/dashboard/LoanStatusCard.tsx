@@ -133,10 +133,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
                         />
                     </div>
 
-                    <div className="flex justify-between items-center mt-2 text-xs font-medium">
-                        <span className="text-gray-600">
-                            {totalLoansRepaid} / {targetLoans} Repayments
-                        </span>
+                    <div className="flex justify-end items-center mt-2 text-xs font-medium">
                         {!isMaxTier && (
                             <span className="text-[#EC1B84]">
                                 {remaining <= 0 
@@ -162,7 +159,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
         subtext: "Share to earn rewards",
         mainText: nodeCode || "---",
         mainTextClass: "text-3xl font-mono font-bold tracking-wider text-primary",
-        bottomText: `${points || 0} Points Earned`,
+        bottomText: null,
         buttonLabel: "Share Code",
         buttonAction: "share",
         bgClass: "bg-gray-50 border border-gray-100",

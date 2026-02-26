@@ -9,7 +9,9 @@ import {
   ShieldCheck,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
+  Share2,
+  Copy
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,9 +20,13 @@ interface ProfileTabProps {
   onboardingData: any;
   userData: any;
   onShowTerms: () => void;
+  onShowPrivacy: () => void;
+  onHelp: () => void;
+  isGraduatedNode?: boolean;
+  onEndorsements?: () => void;
 }
 
-export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData, onShowTerms }) => {
+export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData, onShowTerms, onShowPrivacy, onHelp, isGraduatedNode, onEndorsements }) => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   
   // Handle potential field mismatches (Agent onboarding uses fullName, Self uses firstName)
@@ -46,11 +52,36 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData
   const fullName = `${firstName} ${surname}`.trim().toUpperCase();
   const initials = `${firstName?.[0] || ""}${surname?.[0] || ""}`.toUpperCase();
   const phone = userData?.mobileNumber || userData?.msisdn || onboardingData?.mobileNumber || "+233 -- --- ----";
+  const personalNodeCode = userData?.personalNodeCode || (userData as any)?.user?.personalNodeCode || userData?.nodeCode;
+
+  if (import.meta.env.DEV) {
+    console.log("[ProfileTab] rendering - isGraduatedNode:", isGraduatedNode, "personalNodeCode:", personalNodeCode, "userData:", userData);
+  }
+
+  const handleShare = async () => {
+    if (!personalNodeCode) return;
+    const text = `Hey! Use my referral code ${personalNodeCode} to get a fast loan. Apply here: https://apply.agendamoney.com`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Agenda Money',
+          text: text,
+          url: 'https://apply.agendamoney.com'
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      navigator.clipboard.writeText(personalNodeCode);
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    }
+  };
 
   const menuItems = [
+    ...(isGraduatedNode ? [{ icon: Clock, label: "Pending Endorsements", action: onEndorsements }] : []),
     { icon: FileText, label: "Terms & Conditions", action: onShowTerms },
-    { icon: Lock, label: "Privacy Policy", action: () => {} },
-    { icon: HelpCircle, label: "Help", action: () => {} },
+    { icon: Lock, label: "Privacy Policy", action: onShowPrivacy },
+    { icon: HelpCircle, label: "Help", action: onHelp },
   ];
 
   return (
@@ -100,6 +131,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData
           );
         })()}
       </div>
+
+      {/* 1.5 Node Code Section (Removed per user request) */}
 
       {/* 2. Notification Toggle */}
       <div className="bg-white rounded-[24px] p-5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] border border-gray-100 flex items-center justify-between">

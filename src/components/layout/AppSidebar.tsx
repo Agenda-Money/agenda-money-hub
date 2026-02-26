@@ -125,7 +125,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
   const { data: pendingData, refetch: refetchPending } = useQuery({
     queryKey: ["pending-users-count"],
     queryFn: async () => {
-      const res = await api.get("/api/admin/users/pending");
+      const res = await api.get("/api/admin/users/pending?limit=1000");
       const users = res.data?.data || res.data || [];
       return Array.isArray(users) ? users : [];
     },

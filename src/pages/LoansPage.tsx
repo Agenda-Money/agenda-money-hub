@@ -6,7 +6,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, Clock, CheckCircle, AlertTriangle, Check, XCircle, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Eye, Clock, CheckCircle, AlertTriangle, Check, XCircle, Loader2, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Loan {
@@ -18,8 +19,15 @@ interface Loan {
   amount: number;
   tenure: string;
   dueDate: string;
-  status: "PENDING" | "DISBURSING" | "ACTIVE" | "REPAID" | "OVERDUE" | "DEFAULTED" | "REJECTED";
+  status: "PENDING" | "DISBURSING" | "ACTIVE" | "REPAID" | "OVERDUE" | "DEFAULTED" | "REJECTED" | "DUE TODAY" | "AWAITING_ENDORSEMENT";
   nodeCode: string;
+  kycStatus?: string;
+  selfieUrl?: string;
+  tier?: string | number;
+  guaranteedBy?: string;
+  guaranteedByName?: string;
+  guaranteedByMsisdn?: string;
+  guaranteedAt?: string;
 }
 
 
@@ -29,9 +37,11 @@ const statusConfig = {
   DISBURSING: { label: "Disbursing", icon: Loader2, color: "bg-info/10 text-info border-info/20" },
   ACTIVE: { label: "Active", icon: CheckCircle, color: "bg-info/10 text-info border-info/20" },
   REPAID: { label: "Closed", icon: Check, color: "bg-success/10 text-success border-success/20" },
-  OVERDUE: { label: "Overdue", icon: AlertTriangle, color: "bg-destructive/10 text-destructive border-destructive/20" },
+  OVERDUE: { label: "Overdue", icon: AlertTriangle, color: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20" },
   DEFAULTED: { label: "Defaulted", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
-  REJECTED: { label: "Rejected", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
+  REJECTED: { label: "Rejected", icon: XCircle, color: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20" },
+  "AWAITING_ENDORSEMENT": { label: "Awaiting Node", icon: Clock, color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" },
+  "DUE TODAY": { label: "Due Today", icon: AlertTriangle, color: "bg-warning/10 text-warning border-warning/20" },
 };
 
 import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
@@ -63,7 +73,8 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
             </thead>
             <tbody>
               {loans.map((loan, index) => {
-                const config = statusConfig[loan.status];
+                const normalizedStatus = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
+                const config = statusConfig[normalizedStatus];
                 if (!config) {
                   console.warn(`Unexpected loan status: ${loan.status}`);
                 }
@@ -110,7 +121,8 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
       {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
         {loans.map((loan, index) => {
-          const config = statusConfig[loan.status];
+          const normalizedStatus = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
+          const config = statusConfig[normalizedStatus];
           const displayConfig = config ?? statusConfig.PENDING;
           const StatusIcon = displayConfig.icon;
           return (
@@ -192,11 +204,33 @@ const StatusCard = ({ title, count, type }: { title: string, count: number | str
   );
 };
 
+// Robust date parser for mixed backend date formats (e.g. DD/MM/YYYY)
+function parseDateRobust(dateStr: string | undefined | null): Date {
+  if (!dateStr) return new Date("Invalid");
+  
+  // Test if it's already an ISO or valid standard date
+  const standardDate = new Date(dateStr);
+  if (!isNaN(standardDate.getTime())) return standardDate;
+
+  // Try parsing DD/MM/YYYY or DD-MM-YYYY
+  const regex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
+  const match = dateStr.match(regex);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1; // 0-indexed
+    const year = parseInt(match[3], 10);
+    return new Date(year, month, day);
+  }
+  
+  return new Date("Invalid");
+}
+
 export default function LoansPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Determine default tab from URL path
   const getTabFromPath = () => {
@@ -210,14 +244,17 @@ export default function LoansPage() {
 
   const currentTab = getTabFromPath();
 
-  // Reset page when tab changes
+  // Reset page and filter when tab changes
   useEffect(() => {
     setPage(1);
+    if (currentTab !== "all") {
+       setStatusFilter("all");
+    }
   }, [currentTab]);
 
   // Main loans query
   const { data: loansData, isLoading } = useQuery({
-    queryKey: ["loans", page, currentTab],
+    queryKey: ["loans", page, currentTab, statusFilter],
     queryFn: async () => {
       // Special handling for merged "Closed" tab
       if (currentTab === "closed") {
@@ -250,7 +287,11 @@ export default function LoansPage() {
 
       // Standard behavior for other tabs
       const params: any = { page, limit: 10 };
-      if (currentTab !== "all") {
+      
+      // Detailed status filter applied only on the "All Loans" tab
+      if (currentTab === "all" && statusFilter !== "all") {
+        params.status = statusFilter;
+      } else if (currentTab !== "all") {
         params.status = currentTab;
       }
       
@@ -288,6 +329,36 @@ export default function LoansPage() {
       ? (l.tenure ?? "N/A")
       : `${l.tenureDays} days`;
 
+    let computedStatus = l.status?.toUpperCase() ?? "PENDING";
+    
+    if (import.meta.env.DEV) {
+      console.log(`[Loan Debug ${l.loanReference || l.id}] Raw Status: ${l.status} -> Computed: ${computedStatus}, dueDate: ${l.dueDate}, repaymentDate: ${l.repaymentDate}`);
+    }
+
+    // Dynamically check dates since backend cron may not have run
+    if (computedStatus === "ACTIVE" && (l.dueDate || l.repaymentDate)) {
+      const dateString = l.dueDate || l.repaymentDate;
+      const due = parseDateRobust(dateString);
+      due.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (import.meta.env.DEV) {
+        console.log(`[Date Check Loan ${l.loanReference}] Due: ${dateString} -> Parsed: ${due.getTime()}, Today: ${today.getTime()}, isNaN: ${isNaN(due.getTime())}`);
+      }
+
+      if (!isNaN(due.getTime())) {
+        if (due.getTime() < today.getTime()) {
+          computedStatus = "OVERDUE";
+        } else if (due.getTime() === today.getTime()) {
+          computedStatus = "DUE TODAY";
+        }
+      }
+      if (import.meta.env.DEV) {
+        console.log(`[Date Check Loan ${l.loanReference || l.id}] Parsed: ${due.getTime()}, Today: ${today.getTime()} -> Final Status: ${computedStatus}`);
+      }
+    }
+
     return {
     id: l.id ?? l._id ?? l.loanReference, // Prioritize DB ID for API calls, only falling back when null/undefined
     reference: l.loanReference ?? "N/A",
@@ -297,9 +368,16 @@ export default function LoansPage() {
     amount: l.principal ?? l.amount ?? 0,
     tenure: tenureValue,
     dueDate: l.dueDate ?? l.repaymentDate ?? new Date().toISOString(),
-    status: l.status?.toLowerCase() ?? "pending",
+    status: computedStatus as Loan["status"],
     // Add Node Code mapping (Personal > Referrer > N/A)
-    nodeCode: l.user?.personalNodeCode || l.user?.nodeCode || "N/A"
+    nodeCode: l.user?.personalNodeCode || l.user?.nodeCode || "N/A",
+    kycStatus: l.user?.kycStatus || l.user?.kyc?.kycStatus || l.user?.onboardingData?.kycStatus || "Unknown",
+    selfieUrl: l.user?.selfieUrl || l.user?.kyc?.selfieUrl || l.user?.kycData?.selfieUrl || l.user?.onboardingData?.selfieUrl || "",
+    tier: l.user?.currentTier || l.user?.tier || 1,
+    guaranteedBy: l.guaranteedBy,
+    guaranteedByName: l.guaranteedByName,
+    guaranteedByMsisdn: l.guaranteedByMsisdn,
+    guaranteedAt: l.guaranteedAt
     };
   });
 
@@ -320,16 +398,44 @@ export default function LoansPage() {
           <StatusCard title="Overdue" count={overdueCount} type="overdue" />
         </div>
 
-        {/* Tabs */}
-        <Tabs value={currentTab} onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)} className="space-y-4">
-          <TabsList className="bg-muted p-1">
-            <TabsTrigger value="all" className="data-[state=active]:bg-card">All Loans</TabsTrigger>
-            <TabsTrigger value="pending" className="data-[state=active]:bg-card">Pending</TabsTrigger>
-            <TabsTrigger value="active" className="data-[state=active]:bg-card">Active</TabsTrigger>
-            <TabsTrigger value="closed" className="data-[state=active]:bg-card">Closed</TabsTrigger>
-            <TabsTrigger value="overdue" className="data-[state=active]:bg-card">Overdue</TabsTrigger>
-          </TabsList>
+        {/* Controls Row (Tabs + Filter) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <Tabs value={currentTab} onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)} className="w-full sm:w-auto">
+            <TabsList className="bg-muted p-1 overflow-x-auto flex flex-nowrap shrink-0 snap-x">
+              <TabsTrigger value="all" className="data-[state=active]:bg-card whitespace-nowrap snap-start shrink-0">All Loans</TabsTrigger>
+              <TabsTrigger value="pending" className="data-[state=active]:bg-card whitespace-nowrap snap-start shrink-0">Pending</TabsTrigger>
+              <TabsTrigger value="active" className="data-[state=active]:bg-card whitespace-nowrap snap-start shrink-0">Active</TabsTrigger>
+              <TabsTrigger value="closed" className="data-[state=active]:bg-card whitespace-nowrap snap-start shrink-0">Closed</TabsTrigger>
+              <TabsTrigger value="overdue" className="data-[state=active]:bg-card whitespace-nowrap snap-start shrink-0">Overdue</TabsTrigger>
+            </TabsList>
+            <div className="mt-4 hidden sm:block"> {/* Hidden div to structure tabs better */} </div> 
+          </Tabs>
 
+          {/* Detailed Status Filter (Only visible on All Loans tab) */}
+          {currentTab === "all" && (
+            <div className="flex items-center gap-2 w-full sm:w-[220px]">
+              <Filter className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full rounded-xl bg-card border-border">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-border">
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="AWAITING_ENDORSEMENT">Awaiting Node</SelectItem>
+                  <SelectItem value="DISBURSING">Disbursing</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="OVERDUE">Overdue</SelectItem>
+                  <SelectItem value="DEFAULTED">Defaulted</SelectItem>
+                  <SelectItem value="REPAID">Repaid</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        <Tabs value={currentTab} className="space-y-4">
           <TabsContent value={currentTab} className="mt-0">
             <div className="space-y-4">
               <LoansTable 

@@ -30,8 +30,8 @@ const GHANA_REGIONS = [
 ];
 
 const ACCOMMODATION_TYPES = ["Own House", "Rented", "Family House", "Company Quarters"];
-const EDUCATION_LEVELS = ["No Formal Education", "Primary", "JHS", "SHS", "Tertiary", "Postgraduate"];
-const EMPLOYMENT_STATUS = ["Employed", "Self-Employed"];
+const EDUCATION_LEVELS = ["Basic", "Secondary", "Tertiary", "Advanced"];
+const EMPLOYMENT_STATUS = ["Employed", "Self-Employed", "Contract"];
 const INCOME_BRACKETS = ["Below GHS 500", "GHS 500-1000", "GHS 1000-2000", "GHS 2000-5000", "Above GHS 5000"];
 
 const YEARS_AT_ADDRESS = [
@@ -484,13 +484,6 @@ export default function AgentOnboarding() {
                )}
             </div>
 
-            <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-6 rounded-2xl border border-primary/20">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Customer Node Code</p>
-              <p className="text-3xl font-mono font-bold text-primary mt-2 tracking-wider">
-                {onboardedNodeCode}
-              </p>
-            </div>
-
             <div className="space-y-3 pt-2">
               <Button
                 onClick={() => {
@@ -761,16 +754,20 @@ export default function AgentOnboarding() {
                     </div>
                     <div className="space-y-2">
                       <Label>Years at Address *</Label>
-                      <Select value={formData.yearsAtAddress} onValueChange={(val) => updateField("yearsAtAddress", val)}>
-                        <SelectTrigger className="h-12 bg-muted/50 border-0">
-                          <SelectValue placeholder="Select years" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {YEARS_AT_ADDRESS.map((y) => (
-                            <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="10"
+                        value={formData.yearsAtAddress}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (isNaN(val)) updateField("yearsAtAddress", "");
+                          else if (val >= 0 && val <= 10) updateField("yearsAtAddress", String(val));
+                          else if (val > 10) updateField("yearsAtAddress", "10");
+                        }}
+                        placeholder="0-10 years"
+                        className="h-12 bg-muted/50 border-0 focus-visible:ring-primary"
+                      />
                     </div>
                   </div>
 
@@ -837,7 +834,7 @@ export default function AgentOnboarding() {
                       maxLength={16}
                       className="h-12 font-mono bg-muted/50 border-0 focus-visible:ring-primary"
                     />
-                    <p className="text-xs text-muted-foreground">Format: GHA-XXXXXXXXX-X</p>
+                    <p className="text-xs text-muted-foreground">Format is automatically applied</p>
                   </div>
 
                   <div className="grid gap-3">

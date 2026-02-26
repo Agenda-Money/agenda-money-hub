@@ -30,6 +30,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
   const [agreed, setAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [loanStatus, setLoanStatus] = useState<string>("PENDING");
   const [error, setError] = useState<string | null>(null);
 
   // Calculations
@@ -94,14 +95,19 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                 tenureDays: loanData.tenure,
                 purpose: loanData.purpose
             };
-            const applicantAuthToken = localStorage.getItem("agenda_token");
-            await api.post(
+            const applicantAuthToken = sessionStorage.getItem("agenda_token");
+            const res = await api.post(
               '/api/loans/request',
               payload,
               applicantAuthToken
                 ? { headers: { Authorization: `Bearer ${applicantAuthToken}` } }
                 : undefined
             );
+            
+            // Check status from response (either under data.loan or data.data)
+            const createdLoan = res.data?.data || res.data?.loan || {};
+            setLoanStatus(createdLoan.status || "PENDING");
+            
             setIsSuccess(true);
         }
     } catch (error: any) {
@@ -117,14 +123,22 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
 
   // SUCCESS SCREEN
   if (isSuccess) {
+      const isEndorsement = loanStatus === "AWAITING_ENDORSEMENT";
+      
       return (
         <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-6 shadow-sm border border-gray-100">
                 <Send className="w-8 h-8 text-gray-400 rotate-[-45deg] translate-x-1 translate-y-1" fill="currentColor" />
             </div>
             
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Application under review</h2>
-            <p className="text-gray-500 mb-10 text-sm">Check back in a few minutes for a decision</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+               {isEndorsement ? "Sent for Endorsement" : "Application under review"}
+            </h2>
+            <p className="text-gray-500 mb-10 text-sm max-w-[280px] mx-auto">
+               {isEndorsement 
+                 ? "We've sent your request to your referring Node Owner to endorse before Admin review." 
+                 : "Check back in a few minutes for a decision from our Admins."}
+            </p>
             
             <Button 
                 onClick={onHome}
