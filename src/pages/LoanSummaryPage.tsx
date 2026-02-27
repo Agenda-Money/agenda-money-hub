@@ -178,7 +178,9 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                <div className="space-y-2">
                  <div className="flex justify-between items-center text-sm">
                    <span className="text-gray-400">Full name</span>
-                   <span className="font-bold text-gray-900 uppercase">{applicant?.firstName} {applicant?.lastName}</span>
+                   <span className="font-bold text-gray-900 uppercase">
+                      {applicant?.fullName || applicant?.user?.fullName || `${applicant?.firstName || applicant?.user?.firstName || ""} ${applicant?.lastName || applicant?.surname || applicant?.user?.lastName || applicant?.user?.surname || ""}`.trim() || "Applicant"}
+                   </span>
                  </div>
                  <div className="flex justify-between items-center text-sm">
                    <span className="text-gray-400">Phone number</span>
@@ -241,7 +243,9 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                         <span className="leading-tight text-center">MTN<br/>MoMo</span>
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-900 uppercase">{applicant?.firstName} {applicant?.lastName}</p>
+                      <p className="text-sm font-bold text-gray-900 uppercase">
+                         {applicant?.fullName || applicant?.user?.fullName || `${applicant?.firstName || applicant?.user?.firstName || ""} ${applicant?.lastName || applicant?.surname || applicant?.user?.lastName || applicant?.user?.surname || ""}`.trim() || "Applicant"}
+                      </p>
                       <p className="text-xs text-gray-500">{formattedPhone}</p>
                     </div>
                   </div>
