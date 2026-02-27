@@ -61,9 +61,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
            const latestId = latest._id || latest.id;
            if (latestId && latestId !== lastNotificationIdRef.current) {
              lastNotificationIdRef.current = latestId;
-             toast.info(`New Notification: ${latest.title || 'Update'}`, {
-                description: latest.message || 'Check your dashboard for details.',
-             });
+             // Disabled per user request (stopping KYC notification spam on login)
+             // toast.info(`New Notification: ${latest.title || 'Update'}`, {
+             //    description: latest.message || 'Check your dashboard for details.',
+             // });
            }
         }
     });

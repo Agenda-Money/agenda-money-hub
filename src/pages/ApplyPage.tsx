@@ -1932,9 +1932,9 @@ export default function ApplyPage() {
              dueDate={activeLoanDetails?.dueDate || "Unknown"}
              msisdn={userData?.msisdn ? String(userData.msisdn) : applicant?.msisdn ? String(applicant.msisdn) : ""}
              userName={
-                userData?.firstName ? `${userData.firstName} ${userData.lastName || ""}` 
-                : onboardingData?.firstName ? `${onboardingData.firstName} ${onboardingData.surname || ""}` 
-                : "User"
+                applicant?.fullName || applicant?.user?.fullName || `${applicant?.firstName || applicant?.user?.firstName || ""} ${applicant?.lastName || applicant?.surname || applicant?.user?.lastName || applicant?.user?.surname || ""}`.trim() ||
+                userData?.fullName || userData?.user?.fullName || `${userData?.firstName || userData?.user?.firstName || ""} ${userData?.lastName || userData?.surname || userData?.user?.lastName || userData?.user?.surname || ""}`.trim() ||
+                "Account Holder"
              }
              onBack={() => setIsRepaymentOpen(false)}
              onRepay={(amount) => {

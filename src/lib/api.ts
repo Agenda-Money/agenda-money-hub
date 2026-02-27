@@ -29,6 +29,8 @@ api.interceptors.request.use(
   }
 );
 
+import { toast } from 'sonner';
+
 // Response interceptor for API calls
 api.interceptors.response.use(
   (response) => {
@@ -40,12 +42,29 @@ api.interceptors.response.use(
     // Handle 401 Unauthorized
     // Don't redirect on login failure (which is also a 401)
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes("/auth/login")) {
+      
+      const errorMessage = error.response?.data?.message?.toLowerCase() || '';
+      
+      // Show specific messages based on backend response
+      if (errorMessage.includes('admin session expired')) {
+        toast.error('Session Expired', { description: 'Your Admin session has expired. Please log in again.' });
+      } else if (errorMessage.includes('agent session expired')) {
+        toast.error('Session Expired', { description: 'Your Agent session has expired. Please log in again.' });
+      } else {
+        toast.error('Session Expired', { description: 'Your session has expired. Please log in again.' });
+      }
+
       // Remove both tokens to support both authentication flows
       localStorage.removeItem('token');
       localStorage.removeItem('token_expiry');
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('agenda_token');
-      window.location.href = "/login";
+      
+      // Delay redirect slightly so the user can read the toast, although the full reload might clear it.
+      // Alternatively, we could just rely on the router to redirect, but since we are clearing storage here:
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1500);
     }
     return Promise.reject(error);
   }
