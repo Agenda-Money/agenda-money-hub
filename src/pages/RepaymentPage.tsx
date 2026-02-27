@@ -90,7 +90,16 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
         const response = await initiateRepayment(amountToPay, msisdn);
         
         if (response?.authorizationUrl) {
+            const currentUrl = window.location.href;
             window.location.href = response.authorizationUrl;
+
+            // Fallback: if navigation does not occur, reset loading state and show an error
+            setTimeout(() => {
+              if (window.location.href === currentUrl) {
+                setIsButtonLoading(false);
+                setErrorMessage("Redirect to payment page failed. Please try again.");
+              }
+            }, 10000);
             return;
         }
         
