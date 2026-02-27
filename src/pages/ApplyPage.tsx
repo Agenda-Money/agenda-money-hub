@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket } from "@/contexts/SocketContext";
-import api from "@/lib/api";
+import api, { getUserLoansHistory, getUserRepaymentsHistory } from "@/lib/api";
 import { uploadToSupabase } from "@/lib/supabase";
 import { TIER_LIMITS, type TierConfig } from "@/lib/constants";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
@@ -260,6 +260,7 @@ function normalizeMsisdn(msisdn: string | undefined): string {
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export default function ApplyPage() {
   const { setApplicant, applicant } = useApplicant();
+  const { socket } = useSocket();
 
   const [view, setView] = useState<View>("landing");
   const [direction, setDirection] = useState(0);
@@ -283,6 +284,9 @@ export default function ApplyPage() {
   const [networkData, setNetworkData] = useState<NetworkData | null>(null);
   const [isFetchingNetwork, setIsFetchingNetwork] = useState(false);
   const [networkFetchError, setNetworkFetchError] = useState<string | null>(null);
+
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [isFetchingActivity, setIsFetchingActivity] = useState(false);
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
@@ -342,8 +346,6 @@ export default function ApplyPage() {
   // Real-time notifications from Socket Context
   const { notifications: socketNotifications } = useSocket();
   const notifications = socketNotifications.length > 0 ? socketNotifications : ((applicant as any)?.notifications || []);
-  const recentActivity = (applicant as any)?.recentActivity || userData?.recentActivity || [];
-
 
   const frontCardRef = useRef<HTMLInputElement>(null); // Camera
   const frontCardFileRef = useRef<HTMLInputElement>(null); // File
@@ -454,6 +456,36 @@ export default function ApplyPage() {
     }
   }, [setApplicant, setUserData, setView, setOnboardingStep]);
 
+  // Handle Paystack repayment WebSocket events
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleRepaymentProcessed = async () => {
+        try {
+            const token = globalThis.sessionStorage.getItem("agenda_token");
+            if (!token) return;
+            const r = await fetch(`${baseApiUrl}/api/auth/me`, { 
+                headers: { 
+                   Accept: "application/json", 
+                   Authorization: `Bearer ${token}` 
+                } 
+            });
+            const p = await r.json();
+            if (r.ok && (p?.user || p?.msisdn)) {
+               handleAuthResponse(p);
+            }
+        } catch (e) {
+            console.error("Failed to refresh user on repayment processed", e);
+        }
+    };
+
+    socket.on('repayment_processed', handleRepaymentProcessed);
+    
+    return () => {
+       socket.off('repayment_processed', handleRepaymentProcessed);
+    };
+  }, [socket, handleAuthResponse]);
+
   // ─── Effects ───
   useEffect(() => {
     const checkAuth = async () => {
@@ -527,6 +559,55 @@ export default function ApplyPage() {
         fetchActiveLoan();
     }
   }, [view, baseApiUrl, authToken]);
+
+  // ─── Recent Activity Fetching ───
+  useEffect(() => {
+    const fetchRecentActivity = async () => {
+      const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
+      if (!token) return;
+
+      setIsFetchingActivity(true);
+      try {
+        const [loansRes, repaymentsRes] = await Promise.all([
+           getUserLoansHistory().catch(() => ({ data: [] })),
+           getUserRepaymentsHistory().catch(() => ({ data: [] }))
+        ]);
+        
+        const loans = Array.isArray(loansRes?.data) ? loansRes.data : [];
+        const repayments = Array.isArray(repaymentsRes?.data) ? repaymentsRes.data : [];
+
+        // Normalize and combine
+        const combined = [
+           ...loans.map((l: any) => ({
+              id: `loan-${l.loanId || l._id}`,
+              type: 'loan',
+              title: 'Loan Disbursed',
+              amount: l.disbursementAmount || l.principal || 0,
+              date: l.disbursedAt || l.createdAt,
+           })),
+           ...repayments.map((r: any) => ({
+              id: `rep-${r.repaymentId || r._id}`,
+              type: 'payment',
+              title: 'Loan Repayment',
+              amount: r.amount || 0,
+              date: r.paidAt || r.createdAt,
+           }))
+        ];
+
+        // Sort completely descending by closest date
+        combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setRecentActivity(combined);
+      } catch (err) {
+         console.error("Failed to load recent activity:", err);
+      } finally {
+         setIsFetchingActivity(false);
+      }
+    };
+
+    if (view === "loan-dashboard") {
+       fetchRecentActivity();
+    }
+  }, [view, authToken]);
 
   // ─── Network Data Fetching ───
   useEffect(() => {
@@ -1367,6 +1448,7 @@ export default function ApplyPage() {
                 }}
                 notifications={notifications}
                 recentActivity={recentActivity}
+                isLoading={isFetchingActivity}
                 activeLoanDetails={activeLoanDetails}
              />
           )}
@@ -1377,6 +1459,7 @@ export default function ApplyPage() {
                  onBack={() => setActiveTab("home")} 
                  onRepay={() => setIsRepaymentOpen(true)}
                  loan={activeLoanDetails || (applicant as any)?.activeLoan}
+                 repaymentHistory={recentActivity.filter((a: any) => a.type === 'payment')}
                  isPending={(applicant as any)?.summary?.isPending || activeLoanDetails?.status === 'PENDING' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT'}
                  onAction={(action) => {
                     if (action === "status") setIsStatusOpen(true);
@@ -1511,15 +1594,15 @@ export default function ApplyPage() {
                         {/* Shared With */}
                         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col items-center justify-center text-center">
                           <p className="text-xs text-blue-600 font-bold uppercase tracking-wide mb-1">Shared With</p>
-                          <div className="flex items-baseline gap-1 text-blue-900">
-                            <span className="text-2xl font-black">{networkData.totalShared || 0}</span>
-                            <span className="text-sm font-medium opacity-60">/ 3</span>
-                          </div>
+                          <span className="text-2xl font-black text-blue-900">{networkData.totalShared || 0}</span>
                         </div>
                         {/* Active */}
                         <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex flex-col items-center justify-center text-center">
                           <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide mb-1">Active</p>
-                          <span className="text-2xl font-black text-emerald-900">{networkData.activeReferrals}</span>
+                          <div className="flex items-baseline gap-1 text-emerald-900">
+                             <span className="text-2xl font-black">{networkData.activeReferrals}</span>
+                             <span className="text-sm font-medium opacity-60">/ 3</span>
+                          </div>
                         </div>
                       </div>
                       
@@ -1847,8 +1930,12 @@ export default function ApplyPage() {
            <RepaymentPage 
              amountDue={activeLoanDetails?.outstandingBalance || 0} 
              dueDate={activeLoanDetails?.dueDate || "Unknown"}
-             msisdn={userData?.msisdn ? String(userData.msisdn) : ""}
-             userName={userData ? `${userData.firstName} ${userData.lastName}` : "User"}
+             msisdn={userData?.msisdn ? String(userData.msisdn) : applicant?.msisdn ? String(applicant.msisdn) : ""}
+             userName={
+                userData?.firstName ? `${userData.firstName} ${userData.lastName || ""}` 
+                : onboardingData?.firstName ? `${onboardingData.firstName} ${onboardingData.surname || ""}` 
+                : "User"
+             }
              onBack={() => setIsRepaymentOpen(false)}
              onRepay={(amount) => {
                 // Refresh Dashboard data after success
