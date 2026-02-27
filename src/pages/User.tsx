@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { LoanStatusCard, LoanStatus } from "@/components/dashboard/LoanStatusCard";
@@ -18,6 +19,19 @@ interface UserDashboardProps {
 }
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLimit = 300, onAction, notifications = [], recentActivity = [], isLoading = false, activeLoanDetails, loanStatus }) => {
+
+  const [showAllActivity, setShowAllActivity] = useState(false);
+
+  useEffect(() => {
+    if (showAllActivity) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showAllActivity]);
 
   const hasActiveLoan = !!activeLoanDetails;
   
@@ -134,7 +148,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
       <motion.div variants={item} className="space-y-3 pt-2">
          <div className="flex items-center justify-between px-1">
             <h3 className="text-sm font-bold text-gray-900">Recent Activity</h3>
-            <button className="text-xs font-medium text-blue-600 hover:text-blue-700">View All</button>
+            {recentActivity.length > 5 && (
+               <button 
+                  onClick={() => setShowAllActivity(true)} 
+                  className="text-xs font-medium text-[#EC1B84] hover:text-[#EC1B84]/80 transition-colors"
+               >
+                  View All
+               </button>
+            )}
          </div>
          
          <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm overflow-hidden min-h-[100px]">
@@ -158,24 +179,24 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
                      No recent activity
                  </div>
              ) : (
-                 recentActivity.map((activity, index) => {
+                 recentActivity.slice(0, 5).map((activity, index) => {
                     const isPayment = activity.type?.toLowerCase() === 'payment';
                     const displayDate = activity.date 
                         ? format(new Date(activity.date), "dd MMM yyyy, h:mm a")
                         : "Unknown Date";
                         
                     return (
-                        <div key={activity.id || index} className={cn("p-4 flex items-center justify-between", index !== recentActivity.length - 1 && "border-b border-gray-50")}>
+                        <div key={activity.id || index} className={cn("p-4 flex items-center justify-between", index !== recentActivity.slice(0, 5).length - 1 && "border-b border-gray-50")}>
                             <div className="flex items-center gap-3">
-                               <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", isPayment ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-500")}>
-                                  {isPayment ? <CheckCircle2 className="w-5 h-5" /> : <Wallet className="w-5 h-5" />}
+                               <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", isPayment ? "bg-[#EC1B84]/10 text-[#EC1B84]" : "bg-green-50 text-green-600")}>
+                                  {isPayment ? <Wallet className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
                                </div>
                                <div>
                                   <p className="text-sm font-bold text-gray-900">{activity.title}</p>
                                   <p className="text-xs text-gray-500">{displayDate}</p>
                                </div>
                             </div>
-                            <span className={cn("text-sm font-bold", isPayment ? "text-green-600" : "text-gray-900")}>
+                            <span className={cn("text-sm font-bold", isPayment ? "text-[#EC1B84]" : "text-green-600")}>
                                 {isPayment ? '-' : '+'}GHS {Math.abs(activity.amount).toFixed(2)}
                             </span>
                         </div>
@@ -184,6 +205,53 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
              )}
          </div>
       </motion.div>
+
+      {/* MODAL FOR ALL ACTIVITY */}
+      {showAllActivity && createPortal(
+         <div className="fixed inset-0 z-[100] flex flex-col bg-gray-50/95 backdrop-blur-sm sm:items-center sm:justify-center animate-in fade-in duration-200">
+            <div className="w-full h-full sm:h-auto sm:max-h-[85vh] sm:max-w-md bg-white sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+               
+               {/* Modal Header */}
+               <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-white sticky top-0 z-10">
+                  <h3 className="text-lg font-bold text-gray-900">All Recent Activity</h3>
+                  <button 
+                     onClick={() => setShowAllActivity(false)}
+                     className="p-2 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
+                  >
+                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </button>
+               </div>
+
+               {/* Modal Content */}
+               <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-24 sm:pb-4">
+                  {recentActivity.map((activity, index) => {
+                     const isPayment = activity.type?.toLowerCase() === 'payment';
+                     const displayDate = activity.date 
+                        ? format(new Date(activity.date), "dd MMM yyyy, h:mm a")
+                        : "Unknown Date";
+                        
+                     return (
+                        <div key={activity.id || index} className="p-4 flex items-center justify-between bg-white rounded-2xl border border-gray-50 shadow-sm">
+                              <div className="flex items-center gap-3">
+                                 <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", isPayment ? "bg-[#EC1B84]/10 text-[#EC1B84]" : "bg-green-50 text-green-600")}>
+                                    {isPayment ? <Wallet className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+                                 </div>
+                                 <div>
+                                    <p className="text-sm font-bold text-gray-900">{activity.title}</p>
+                                    <p className="text-xs text-gray-500">{displayDate}</p>
+                                 </div>
+                              </div>
+                              <span className={cn("text-sm font-bold", isPayment ? "text-[#EC1B84]" : "text-green-600")}>
+                                 {isPayment ? '-' : '+'}GHS {Math.abs(activity.amount).toFixed(2)}
+                              </span>
+                        </div>
+                     );
+                  })}
+               </div>
+            </div>
+         </div>,
+         document.body
+      )}
 
     </motion.div>
   );

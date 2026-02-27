@@ -61,4 +61,14 @@ export const getMe = async () => {
     return response.data;
 };
 
+export const getUserLoansHistory = async () => {
+    const response = await api.get('/api/loans/history');
+    return response.data;
+};
+
+export const getUserRepaymentsHistory = async () => {
+    const response = await api.get('/api/repayments/history');
+    return response.data;
+};
+
 export default api;

@@ -1,0 +1,49 @@
+diff --git a/src/pages/ApplyPage.tsx b/src/pages/ApplyPage.tsx
+index f5a4c34..e50dac8 100644
+--- a/src/pages/ApplyPage.tsx
++++ b/src/pages/ApplyPage.tsx
+@@ -260,6 +260,7 @@ function normalizeMsisdn(msisdn: string | undefined): string {
+ // eslint-disable-next-line sonarjs/cognitive-complexity
+ export default function ApplyPage() {
+   const { setApplicant, applicant } = useApplicant();
++  const { socket } = useSocket();
+ 
+   const [view, setView] = useState<View>("landing");
+   const [direction, setDirection] = useState(0);
+@@ -454,6 +455,36 @@ export default function ApplyPage() {
+     }
+   }, [setApplicant, setUserData, setView, setOnboardingStep]);
+ 
++  // Handle Paystack repayment WebSocket events
++  useEffect(() => {
++    if (!socket) return;
++    
++    const handleRepaymentProcessed = async () => {
++        try {
++            const token = globalThis.sessionStorage.getItem("agenda_token");
++            if (!token) return;
++            const r = await fetch(`${baseApiUrl}/api/auth/me`, { 
++                headers: { 
++                   Accept: "application/json", 
++                   Authorization: `Bearer ${token}` 
++                } 
++            });
++            const p = await r.json();
++            if (r.ok && (p?.user || p?.msisdn)) {
++               handleAuthResponse(p);
++            }
++        } catch (e) {
++            console.error("Failed to refresh user on repayment processed", e);
++        }
++    };
++
++    socket.on('repayment_processed', handleRepaymentProcessed);
++    
++    return () => {
++       socket.off('repayment_processed', handleRepaymentProcessed);
++    };
++  }, [socket, handleAuthResponse]);
++
+   // ─── Effects ───
+   useEffect(() => {
+     const checkAuth = async () => {

@@ -87,10 +87,12 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
     // Smooth transition: Ensure button spinner shows for at least 800ms
     try {
         // 1. Initiate API Call with minimum delay
-        await Promise.all([
-            initiateRepayment(amountToPay, msisdn),
-            new Promise(resolve => setTimeout(resolve, 800))
-        ]);
+        const response = await initiateRepayment(amountToPay, msisdn);
+        
+        if (response?.authorizationUrl) {
+            window.location.href = response.authorizationUrl;
+            return;
+        }
         
         // 2. Transition to Processing Screen
         setViewState("processing");

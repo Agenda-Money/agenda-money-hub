@@ -151,12 +151,11 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
 
   const navItems: NavItemProps[] = [
     { to: "/", icon: Home, label: "Dashboard" },
-    // Admin-only items
+    // Admin-only items (top)
     ...(user?.role === "admin"
       ? [
           { to: "/kyc-approvals", icon: CheckCircle, label: "KYC Approvals", badge: pendingCount },
           { to: "/agents", icon: UserCheck, label: "Agents" },
-          { to: "/analytics", icon: BarChart3, label: "Analytics" },
         ]
       : []),
     // Accessible to both admin and agents
@@ -173,6 +172,12 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
       ],
     },
     { to: "/repayments", icon: Banknote, label: "Repayments" },
+    // Admin-only items (bottom)
+    ...(user?.role === "admin"
+      ? [
+          { to: "/analytics", icon: BarChart3, label: "Analytics" },
+        ]
+      : []),
     { to: "/settings", icon: Settings, label: "Settings" },
   ];
 
