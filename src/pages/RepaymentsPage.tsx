@@ -45,8 +45,6 @@ export default function RepaymentsPage() {
     queryKey: ["recent-repayments"],
     queryFn: async () => {
       const res = await api.get("/api/admin/repayments/recent?hours=24");
-      console.log("Admin Dashboard Repayments RAW:", res.data);
-      console.log("Admin Dashboard Repayments MAPPED:", res.data?.data);
       return res.data?.data || [];
     },
   });
@@ -328,10 +326,12 @@ export default function RepaymentsPage() {
                             </td>
 
                             {/* Status */}
-                            <td className="py-4 pr-2 flex justify-end h-full items-center">
-                               <Badge variant="outline" className={rep.isFullPayment ? "bg-success/10 text-success border-success/20" : "bg-warning/10 text-warning border-warning/20"}>
+                            <td className="py-4 pr-2">
+                              <div className="flex justify-end h-full items-center">
+                                <Badge variant="outline" className={rep.isFullPayment ? "bg-success/10 text-success border-success/20" : "bg-warning/10 text-warning border-warning/20"}>
                                   {rep.isFullPayment ? "Fully Paid" : "Partial"}
-                               </Badge>
+                                </Badge>
+                              </div>
                             </td>
                          </tr>
                       ))}
