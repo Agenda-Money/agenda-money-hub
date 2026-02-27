@@ -7,13 +7,18 @@ interface LoansTabProps {
   onBack?: () => void;
   onRepay?: () => void;
   loan?: any; // We'll type this properly if possible, but 'any' is safe for now given the context
+  repaymentHistory?: any[]; // New history array explicitly passed from parents
   isPending?: boolean;
   onAction?: (action: string) => void;
 }
 
-export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, isPending, onAction }) => {
+export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, repaymentHistory, isPending, onAction }) => {
   // Use passed loan data or fall back to a safe empty state (or the previous mock if needed for demo, but user wants real data)
   // The 'loan' prop likely comes from 'applicant' in ApplyPage.
+
+  const historyItems = (repaymentHistory && repaymentHistory.length > 0) 
+    ? repaymentHistory 
+    : (loan?.history || []);
 
   // Map the new deep detailed loan object
   const activeLoan = loan ? {
@@ -23,7 +28,7 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, isPen
     outstandingBalance: loan.outstandingBalance || 0, // Used for main bold currency
     dueDate: loan.dueDate ? new Date(loan.dueDate).toDateString() : "N/A",
     disbursementDate: loan.disbursementDate ? new Date(loan.disbursementDate).toDateString() : "N/A",
-    history: loan.history || [], // New history array
+    history: historyItems, // Use the new API feed if available
     progressPercent: loan.repaymentProgress?.percentage || 0, // New progress field
     daysRemaining: loan.daysRemaining || 0 // Map daysRemaining
   } : null;
@@ -105,7 +110,7 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, isPen
                  </div>
                  
                  <div className="flex justify-between items-center text-sm font-bold text-gray-900">
-                    <span>GHS {activeLoan.paidAmount}/GHS {activeLoan.totalDue}</span>
+                    <span>GHS {Number(activeLoan.totalDue - (activeLoan.outstandingBalance || 0)).toFixed(2)}/GHS {Number(activeLoan.totalDue).toFixed(2)}</span>
                     <span>{Math.round(activeLoan.progressPercent)}%</span>
                  </div>
               </div>
@@ -146,12 +151,12 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, isPen
 
             {/* Rows */}
             <div className="divide-y divide-gray-50">
-               {!activeLoan || activeLoan.history.length === 0 ? (
+               {historyItems.length === 0 ? (
                    <div className="p-6 text-center text-xs text-gray-400">No repayments yet</div>
                ) : (
-                   activeLoan.history.map((item: any, i: number) => (
+                   historyItems.map((item: any, i: number) => (
                       <div key={i} className="flex justify-between px-6 py-4 items-center">
-                         <span className="w-1/3 font-bold text-gray-900">GHS {item.amount}</span>
+                         <span className="w-1/3 font-bold text-gray-900">GHS {Number(item.amount || 0).toFixed(2)}</span>
                          <span className="w-1/3 text-center text-sm text-gray-500 font-medium">{new Date(item.paymentDate || item.date).toLocaleDateString("en-GB", { day: '2-digit', month: 'short' })}</span>
                          <div className="w-1/3 flex justify-end">
                             <div className="w-4 h-4 rounded-full bg-[#82D616]" title="Success" /> {/* Success Green dot */}
