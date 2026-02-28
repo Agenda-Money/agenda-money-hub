@@ -50,11 +50,21 @@ export default function AgentDashboard() {
   const navigate = useNavigate();
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
 
-  const { data: dashboardData, refetch: refetchDashboard } = useQuery<AgentDashboardData>({
+  const { data: dashboardData, refetch: refetchDashboard } = useQuery({
     queryKey: ["agent-dashboard-stats", user?.email],
     queryFn: async () => {
-      const res = await api.get("/api/agents/dashboard-stats");
-      return res.data?.data;
+      // The endpoint is updated from dashboard-stats to my-stats
+      const res = await api.get("/api/agents/my-stats");
+      return res.data?.data || res.data; // Depending on API response wrapper
+    },
+    enabled: !!user?.email,
+  });
+
+  const { data: summaryData } = useQuery({
+    queryKey: ["agent-commission-summary"],
+    queryFn: async () => {
+      const res = await api.get("/api/agents/commissions/summary");
+      return res.data?.summary;
     },
     enabled: !!user?.email,
   });
@@ -65,12 +75,21 @@ export default function AgentDashboard() {
     }
   });
 
-  const stats = dashboardData?.stats ?? {
-    totalSignups: 0,
-    signupsThisMonth: 0,
-    activeLoans: 0,
-    totalCommission: 0,
-    portfolioHealth: 100,
+  const metrics = dashboardData?.metrics || { signUpsAllTime: 0, signUpsThisMonth: 0 };
+  const portfolio = dashboardData?.portfolio || { loansActive: 0, loansClosed: 0, loansOverdue: 0 };
+  
+  // Calculate Repayment Rate (Portfolio Health)
+  const totalRelevantLoans = portfolio.loansActive + portfolio.loansClosed;
+  const healthPercentage = totalRelevantLoans > 0 
+    ? Math.max(0, Math.round((1 - (portfolio.loansOverdue / totalRelevantLoans)) * 100))
+    : 100;
+
+  const stats = {
+    totalSignups: metrics.signUpsAllTime,
+    signupsThisMonth: metrics.signUpsThisMonth,
+    activeLoans: portfolio.loansActive,
+    totalCommission: summaryData?.netEarnings ?? 0,
+    portfolioHealth: healthPercentage,
   };
   
   const recentSignups = dashboardData?.recentSignups ?? [];
@@ -103,9 +122,9 @@ export default function AgentDashboard() {
     {
       title: "Total Commission",
       value:
-        typeof stats.totalCommission === "number"
-          ? `₵${stats.totalCommission.toLocaleString()}`
-          : String(stats.totalCommission ?? ""),
+        typeof (summaryData?.netEarnings ?? stats.totalCommission) === "number"
+          ? `₵${(summaryData?.netEarnings ?? stats.totalCommission).toLocaleString()}`
+          : String(summaryData?.netEarnings ?? stats.totalCommission ?? ""),
       icon: DollarSign,
       trend: "+15%",
       trendUp: true,

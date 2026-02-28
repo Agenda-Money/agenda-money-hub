@@ -748,7 +748,13 @@ export default function ApplyPage() {
             handleAuthResponse(p);
         }
       }
-    } catch (e: any) { setErrorMessage(e?.message || "OTP verification failed."); } finally { setIsVerifying(false); }
+    } catch (e: any) { 
+      let msg = e?.message || "OTP verification failed.";
+      if (msg.toLowerCase().includes("exist") || msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("wrong")) {
+        msg = "The OTP is invalid or has expired. Please try again.";
+      }
+      setErrorMessage(msg); 
+    } finally { setIsVerifying(false); }
   }, [normalizedMsisdn, otp, setApplicant, isVerifying, handleAuthResponse]);
 
 
@@ -1301,80 +1307,103 @@ export default function ApplyPage() {
   // ═══════════════════════════════════════
   if (view === "success") {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in duration-500">
-        
-        {/* Success Icon */}
-        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-green-100/50">
-          <CheckCircle2 className="h-12 w-12 text-green-600" />
+      <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+        {/* Background Accents */}
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-pink-200/40 rounded-full blur-[100px]" />
+           <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-rose-100/40 rounded-full blur-[100px]" />
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h2>
-        <p className="text-muted-foreground text-sm mb-8">We've received your loan request.</p>
-
-        {/* What Happens Next Timeline */}
-        <div className="w-full max-w-sm bg-gray-50 rounded-2xl p-5 mb-8 text-left border border-gray-100">
-           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 pl-1">What Happens Next</h3>
-           <div className="space-y-6 relative">
-              {/* Vertical Line */}
-              <div className="absolute top-2 left-[11px] bottom-2 w-0.5 bg-gray-200 -z-10" />
-
-              {/* Step 1 */}
-              <div className="flex gap-4 items-start">
-                 <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0 border-2 border-white shadow-sm">
-                    <Check className="w-3 h-3 text-white" />
-                 </div>
-                 <div>
-                    <p className="text-sm font-bold text-gray-900">Application Received</p>
-                    <p className="text-xs text-green-600 font-medium">Completed</p>
-                 </div>
-              </div>
-
-              {/* Step 2: Node Consent (New) */}
-              <div className="flex gap-4 items-start">
-                 <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10">
-                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                 </div>
-                 <div>
-                    <p className="text-sm font-bold text-gray-900">Checking Node Consent</p>
-                    <p className="text-xs text-amber-600 font-medium">Waiting for approval...</p>
-                 </div>
-              </div>
-
-               {/* Step 3 */}
-              <div className="flex gap-4 items-start">
-                 <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center shrink-0 border-2 border-white z-10">
-                    <div className="w-2 h-2 rounded-full bg-gray-400" />
-                 </div>
-                 <div>
-                    <p className="text-sm font-medium text-gray-500">Loan Disbursement</p>
-                    <p className="text-xs text-gray-400">Pending Approval</p>
-                 </div>
-              </div>
-           </div>
-        </div>
-
-
-
-        <Button 
-          onClick={() => {
-             // Update context with nodeCode and user identifiers
-             if (applicant) {
-                setApplicant({ 
-                   ...applicant, 
-                   nodeCode: successNodeCode || applicant.nodeCode,
-                   // Ensure MSISDN/ID is preserved or set from input if missing
-                   msisdn: applicant.msisdn || msisdnInput || (userData as any)?.msisdn,
-                   userId: applicant.userId || (userData as any)?.userId 
-                });
-             }
-             setIsSubmittingOnboarding(false); // Ensure onboarding mode is off
-             setOnboardingStep(0); 
-             setView("loan-dashboard");
-          }} 
-          className="w-full max-w-sm h-14 rounded-full bg-primary text-primary-foreground text-lg uppercase font-bold tracking-widest shadow-lg hover:shadow-primary/25 transition-all"
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="relative z-10 flex flex-col items-center max-w-md w-full bg-white p-8 rounded-[2rem] shadow-xl shadow-pink-900/5 border border-pink-50"
         >
-          View Loan Status
-        </Button>
+          {/* Animated Success Icon */}
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
+            className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6 shadow-inner"
+          >
+            <CheckCircle2 className="h-10 w-10 text-green-500" />
+          </motion.div>
+
+          <h2 className="text-2xl font-black text-gray-900 mb-3 tracking-tight">Application Received</h2>
+          <p className="text-gray-500 text-sm mb-8 leading-relaxed px-4">
+            Your loan request has been successfully submitted. We are currently processing your application.
+          </p>
+
+          {/* Timeline UI */}
+          <div className="w-full bg-gray-50/50 rounded-2xl p-5 mb-8 text-left border border-gray-100/80">
+             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-5 pl-2">Progress Tracker</h3>
+             <div className="space-y-6 relative pl-2">
+                {/* Vertical Line */}
+                <div className="absolute top-3 left-[19px] bottom-3 w-0.5 bg-gray-200/60 -z-10" />
+
+                {/* Step 1 */}
+                <motion.div 
+                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
+                  className="flex gap-4 items-start"
+                >
+                   <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0 border-[3px] border-white shadow-sm">
+                      <Check className="w-3 h-3 text-white" />
+                   </div>
+                   <div className="pt-0.5">
+                      <p className="text-sm font-bold text-gray-900">Application Submitted</p>
+                      <p className="text-[11px] text-green-600 font-semibold mt-0.5 uppercase tracking-wider">Completed</p>
+                   </div>
+                </motion.div>
+
+                {/* Step 2 */}
+                <motion.div 
+                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}
+                  className="flex gap-4 items-start"
+                >
+                   <div className="w-6 h-6 rounded-full bg-amber-50 flex items-center justify-center shrink-0 border-[3px] border-white shadow-sm z-10">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                   </div>
+                   <div className="pt-0.5">
+                      <p className="text-sm font-bold text-gray-900">Node Endorsement</p>
+                      <p className="text-[11px] text-amber-600 font-semibold mt-0.5 uppercase tracking-wider">Waiting for approval...</p>
+                   </div>
+                </motion.div>
+
+                 {/* Step 3 */}
+                <motion.div 
+                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }}
+                  className="flex gap-4 items-start"
+                >
+                   <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0 border-[3px] border-white z-10">
+                      <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                   </div>
+                   <div className="pt-0.5">
+                      <p className="text-sm font-medium text-gray-400">Final Disbursement</p>
+                   </div>
+                </motion.div>
+             </div>
+          </div>
+
+          <Button 
+            onClick={() => {
+               if (applicant) {
+                  setApplicant({ 
+                     ...applicant, 
+                     nodeCode: successNodeCode || applicant.nodeCode,
+                     msisdn: applicant.msisdn || msisdnInput || (userData as any)?.msisdn,
+                     userId: applicant.userId || (userData as any)?.userId 
+                  });
+               }
+               setIsSubmittingOnboarding(false);
+               setOnboardingStep(0); 
+               setView("loan-dashboard");
+            }} 
+            className="w-full h-14 rounded-2xl bg-[#EC1B84] text-white hover:bg-[#D01773] text-[15px] font-bold shadow-lg shadow-[#EC1B84]/25 transition-all outline-none border-none ring-0 focus-visible:ring-0"
+          >
+            Go to Dashboard
+          </Button>
+        </motion.div>
       </div>
     );
   }

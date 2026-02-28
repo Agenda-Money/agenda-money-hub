@@ -177,6 +177,15 @@ export default function AgentPortfolio() {
     enabled: !!user,
   });
 
+  const { data: myStatsData } = useQuery({
+    queryKey: ["agent-my-stats", user?.email],
+    queryFn: async () => {
+      const res = await api.get("/api/agents/my-stats");
+      return res.data?.data || res.data;
+    },
+    enabled: !!user?.email,
+  });
+
   const { users = [], pagination = { total: 0, page: 1, pages: 1 } } = data || {};
   console.log("Current Pagination State:", pagination);
 
@@ -191,11 +200,19 @@ export default function AgentPortfolio() {
     return matchesSearch && matchesFilter;
   });
 
+  const globalMetrics = myStatsData?.metrics || { signUpsAllTime: 0, signUpsThisMonth: 0 };
+  const globalPortfolio = myStatsData?.portfolio || { loansActive: 0, loansClosed: 0, loansOverdue: 0 };
+
+  // Calculate KYC Verified roughly or rely on local array if global isn't provided. 
+  // Given only general signup counts, we can fall back to the total signups.
+  // Assuming 'verified' might not be in my-stats explicitly based on the user prompt.
+  // We'll map "KYC Verified" to a locally filtered number or just leave it as is representing the local page.
+  // Actually, to make "Total Customers", "Active Loans", "Overdue" globally accurate:
   const stats = {
-    total: users.length,
-    verified: users.filter(u => u.kycStatus === "verified").length,
-    activeLoans: users.filter(u => u.loanStatus === "active").length,
-    overdue: users.filter(u => u.loanStatus === "overdue").length,
+    total: globalMetrics.signUpsAllTime,
+    verified: users.filter(u => u.kycStatus === "verified").length, // still local page bound unless backend provides global KYC count
+    activeLoans: globalPortfolio.loansActive,
+    overdue: globalPortfolio.loansOverdue,
   };
 
   const statCards = [
@@ -376,6 +393,36 @@ export default function AgentPortfolio() {
                   </motion.div>
                 ))}
               </motion.div>
+            )}
+
+            {/* Pagination Controls */}
+            {pagination.pages > 1 && (
+              <div className="flex items-center justify-between pt-6 border-t mt-6">
+                <div className="text-sm text-muted-foreground">
+                  Page <span className="font-medium text-foreground">{pagination.page}</span> of{" "}
+                  <span className="font-medium text-foreground">{pagination.pages}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={pagination.page <= 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+                    disabled={pagination.page >= pagination.pages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
             )}
 
           </CardContent>

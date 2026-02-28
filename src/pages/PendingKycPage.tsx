@@ -249,10 +249,10 @@ export default function PendingKycPage() {
                 <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="space-y-2 min-w-0">
-                      <h3 className="font-semibold text-lg break-words">{selectedUser.fullName} {selectedUser.surname}</h3>
+                      <h3 className="font-semibold text-lg break-words">{selectedUser.fullName}</h3>
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground flex-wrap">
                         <span className="break-all">Phone: {selectedUser.msisdn}</span>
-                        <span className="break-all">ID: {selectedUser.ghanaCardNumber}</span>
+                        <span className="break-all">Joined: {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: 'numeric' }) : "N/A"}</span>
                       </div>
                     </div>
                     <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/30 w-fit">
@@ -264,7 +264,7 @@ export default function PendingKycPage() {
                     <div className="min-w-0">
                       <p className="text-xs text-muted-foreground truncate">DOB</p>
                       <p className="font-medium break-words">
-                        {selectedUser.dob ? new Date(selectedUser.dob).toLocaleDateString() : "N/A"}
+                        {selectedUser.dob ? new Date(selectedUser.dob).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: 'numeric' }) : "N/A"}
                       </p>
                     </div>
                     <div className="min-w-0">
