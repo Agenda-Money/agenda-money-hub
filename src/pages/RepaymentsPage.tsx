@@ -40,13 +40,12 @@ export default function RepaymentsPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [resultData, setResultData] = useState<any>(null);
+  const [period, setPeriod] = useState("24h");
 
   const { data: recentRepayments, isLoading: isLoadingRecent } = useQuery({
-    queryKey: ["recent-repayments"],
+    queryKey: ["recent-repayments", period],
     queryFn: async () => {
-      const res = await api.get("/api/admin/repayments/recent?hours=24");
-      console.log("Admin Dashboard Repayments RAW:", res.data);
-      console.log("Admin Dashboard Repayments MAPPED:", res.data?.data);
+      const res = await api.get(`/api/admin/repayments/recent?period=${period}`);
       return res.data?.data || [];
     },
   });
@@ -275,8 +274,18 @@ export default function RepaymentsPage() {
 
       <TabsContent value="history">
          <Card>
-           <CardHeader>
-             <CardTitle>Recent Repayments (24h)</CardTitle>
+           <CardHeader className="flex flex-row items-center justify-between">
+             <CardTitle>Recent Repayments</CardTitle>
+             <Select value={period} onValueChange={setPeriod}>
+               <SelectTrigger className="w-[180px]">
+                 <SelectValue placeholder="Select period" />
+               </SelectTrigger>
+               <SelectContent>
+                 <SelectItem value="24h">Last 24 Hours</SelectItem>
+                 <SelectItem value="weekly">Last 7 Days</SelectItem>
+                 <SelectItem value="monthly">Last 30 Days</SelectItem>
+               </SelectContent>
+             </Select>
            </CardHeader>
            <CardContent>
              {isLoadingRecent ? (
