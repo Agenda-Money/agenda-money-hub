@@ -1335,7 +1335,13 @@ export default function ApplyPage() {
 
           {/* What Happens Next Timeline using Real-Time status card */}
           <div className="w-full text-left mb-8">
-              <ApplicationStatusCard loanId="" userMsisdn={applicant?.msisdn as string} initialStatus={(applicant?.loanStatus as string) || "AWAITING_ENDORSEMENT"} />
+              {applicant?.msisdn && (
+                <ApplicationStatusCard
+                  loanId=""
+                  userMsisdn={String(applicant?.msisdn)}
+                  initialStatus={(applicant?.loanStatus as string) || "AWAITING_ENDORSEMENT"}
+                />
+              )}
           </div>
 
 
