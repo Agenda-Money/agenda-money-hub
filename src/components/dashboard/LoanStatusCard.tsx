@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Send, Share2, Crown, Lock } from "lucide-react";
 
-export type LoanStatus = "eligible" | "active" | "overdue" | "review" | "progress" | "node";
+export type LoanStatus = "eligible" | "active" | "overdue" | "review" | "progress" | "node" | "awaiting_endorsement";
 
 interface LoanStatusCardProps {
   status: LoanStatus;
@@ -58,7 +58,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
     },
     review: {
       title: "Application under review",
-      subtext: "Check back in a few minutes",
+      subtext: "Awaiting admin approval",
       icon: Send,
       mainText: null,
       bottomText: null,
@@ -67,11 +67,22 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       bgClass: "bg-gray-50",
       btnClass: "bg-gray-200 text-gray-600 hover:bg-gray-300 rounded-lg px-4 py-2 text-xs font-medium",
     },
+    awaiting_endorsement: {
+      title: "Pending Endorsement",
+      subtext: "Waiting for Node approval",
+      icon: Send,
+      mainText: null,
+      bottomText: null,
+      buttonLabel: "Check Status",
+      buttonAction: "status",
+      bgClass: "bg-rose-50 border border-rose-100",
+      btnClass: "bg-rose-100 text-[#EC1B84] font-bold hover:bg-rose-200 rounded-lg px-4 py-2 text-xs",
+    },
     active: {
       title: "Your Active Loan",
       subtext: "Outstanding Balance",
       mainText: `GHS ${amount.toFixed(2)}`,
-      mainTextClass: "text-4xl font-bold tracking-tight text-gray-900",
+      mainTextClass: "text-3xl font-bold tracking-tight text-gray-900",
       bottomText: `Due: ${dueDate || "Unknown"}`,
       buttonLabel: "Repay",
       buttonAction: "repay",
@@ -82,7 +93,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       title: "Payment Overdue",
       subtext: "Your loan repayment is past due",
       mainText: `GHS ${amount.toFixed(2)}`,
-      mainTextClass: "text-4xl font-bold tracking-tight text-red-600",
+      mainTextClass: "text-3xl font-bold tracking-tight text-red-600",
       bottomText: overdueDays ? `Overdue by ${overdueDays} days` : "Payment is late",
       bottomTextClass: "text-red-600 font-medium",
       buttonLabel: "Repay Now",
@@ -201,8 +212,8 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
                 {current.subtext}
             </p>
          </div>
-         {Icon && <div className={cn("p-2 rounded-full", status === 'review' ? "bg-gray-200/50" : "bg-primary/10")}>
-            <Icon className={cn("h-5 w-5", status ==='review' ? "text-gray-600" : "text-primary")} />
+         {Icon && <div className={cn("p-2 rounded-full", status === 'review' ? "bg-gray-200/50" : status === 'awaiting_endorsement' ? "bg-rose-100" : "bg-primary/10")}>
+            <Icon className={cn("h-5 w-5", status ==='review' ? "text-gray-600" : status === 'awaiting_endorsement' ? "text-[#EC1B84]" : "text-primary")} />
          </div>}
       </div>
 
@@ -212,9 +223,9 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
             typeof current.customRender === 'function' ? current.customRender() : current.customRender
         ) : (
             <>
-                <div>
-                   {current.mainText && <h4 className={cn("leading-none", current.mainTextClass)}>{current.mainText}</h4>}
-                   {current.bottomText && <p className={cn("text-xs font-semibold mt-1", current.bottomTextClass || "text-gray-500")}>
+                <div className="flex-1 min-w-0 pr-3">
+                   {current.mainText && <h4 className={cn("leading-none truncate", current.mainTextClass)}>{current.mainText}</h4>}
+                   {current.bottomText && <p className={cn("text-xs font-semibold mt-1 truncate", current.bottomTextClass || "text-gray-500")}>
                        {current.bottomText}
                    </p>}
                 </div>

@@ -456,7 +456,7 @@ export default function ApplyPage() {
     }
   }, [setApplicant, setUserData, setView, setOnboardingStep]);
 
-  // Handle Paystack repayment WebSocket events
+  // Handle Paystack repayment & Endorsement WebSocket events
   useEffect(() => {
     if (!socket) return;
     
@@ -479,10 +479,39 @@ export default function ApplyPage() {
         }
     };
 
+    const handleLoanEndorsed = async (data: any) => {
+        try {
+            console.log('🎉 Loan endorsed:', data);
+            
+            // Show notification
+            toast.success(data.message || "Your loan has been endorsed!", {
+              icon: '✅',
+            });
+            
+            // Refetch user to update applicant state and loans
+            const token = globalThis.sessionStorage.getItem("agenda_token");
+            if (!token) return;
+            const r = await fetch(`${baseApiUrl}/api/auth/me`, { 
+                headers: { 
+                   Accept: "application/json", 
+                   Authorization: `Bearer ${token}` 
+                } 
+            });
+            const p = await r.json();
+            if (r.ok && (p?.user || p?.msisdn)) {
+               handleAuthResponse(p);
+            }
+        } catch (e) {
+            console.error("Failed to refresh user on loan endorsed", e);
+        }
+    };
+
     socket.on('repayment_processed', handleRepaymentProcessed);
+    socket.on('loan_endorsed', handleLoanEndorsed);
     
     return () => {
        socket.off('repayment_processed', handleRepaymentProcessed);
+       socket.off('loan_endorsed', handleLoanEndorsed);
     };
   }, [socket, handleAuthResponse]);
 
@@ -578,13 +607,19 @@ export default function ApplyPage() {
 
         // Normalize and combine
         const combined = [
-           ...loans.map((l: any) => ({
-              id: `loan-${l.loanId || l._id}`,
-              type: 'loan',
-              title: 'Loan Disbursed',
-              amount: l.disbursementAmount || l.principal || 0,
-              date: l.disbursedAt || l.createdAt,
-           })),
+           ...loans.map((l: any) => {
+              const status = (l.status || "").toUpperCase();
+              const isDisbursed = ['ACTIVE', 'COMPLETED', 'OVERDUE', 'DISBURSED'].includes(status);
+              
+              return {
+                 id: `loan-${l.loanId || l._id}`,
+                 type: 'loan',
+                 title: isDisbursed ? 'Loan Disbursed' : 'Loan Application',
+                 amount: l.disbursementAmount || l.principal || l.amount || 0,
+                 date: l.disbursedAt || l.createdAt,
+                 status: status
+              };
+           }),
            ...repayments.map((r: any) => ({
               id: `rep-${r.repaymentId || r._id}`,
               type: 'payment',
@@ -1329,27 +1364,49 @@ export default function ApplyPage() {
                  </div>
               </div>
 
-              {/* Step 2: Node Consent (New) */}
-              <div className="flex gap-4 items-start">
-                 <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10">
-                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                 </div>
-                 <div>
-                    <p className="text-sm font-bold text-gray-900">Checking Node Consent</p>
-                    <p className="text-xs text-amber-600 font-medium">Waiting for approval...</p>
-                 </div>
-              </div>
+              {(() => {
+                 const kycState = (userData?.kycStatus || onboardingData?.kycStatus || "UNVERIFIED").toUpperCase();
+                 // Immediately after submission, loanStatus might not be instantly available, but if it is:
+                 const loanState = ((applicant as any)?.loanStatus || "AWAITING_ENDORSEMENT").toUpperCase();
 
-               {/* Step 3 */}
-              <div className="flex gap-4 items-start">
-                 <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center shrink-0 border-2 border-white z-10">
-                    <div className="w-2 h-2 rounded-full bg-gray-400" />
-                 </div>
-                 <div>
-                    <p className="text-sm font-medium text-gray-500">Loan Disbursement</p>
-                    <p className="text-xs text-gray-400">Pending Approval</p>
-                 </div>
-              </div>
+                 const isNodeDone = ['PENDING', 'APPROVED', 'ACTIVE', 'DISBURSING', 'OVERDUE'].includes(loanState);
+                 const isNodeWaiting = loanState === 'AWAITING_ENDORSEMENT';
+
+                 return (
+                     <>
+                        {/* Step 2: Node Consent */}
+                        <div className="flex gap-4 items-start">
+                           <div className={cn(
+                               "w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10",
+                               isNodeDone ? "bg-green-500" : isNodeWaiting ? "bg-amber-100 animate-pulse" : "bg-gray-200"
+                           )}>
+                               {isNodeDone ? (
+                                    <Check className="w-3 h-3 text-white" />
+                               ) : (
+                                    <div className={cn("w-2 h-2 rounded-full", isNodeWaiting ? "bg-amber-500" : "bg-gray-400")} />
+                               )}
+                           </div>
+                           <div>
+                              <p className="text-sm font-bold text-gray-900">Checking Node Consent</p>
+                              <p className={cn("text-xs font-medium", isNodeDone ? "text-green-600" : isNodeWaiting ? "text-amber-600" : "text-gray-400")}>
+                                  {isNodeDone ? "Endorsed" : "Waiting for approval..."}
+                              </p>
+                           </div>
+                        </div>
+
+                        {/* Step 3: Loan Disbursement */}
+                        <div className="flex gap-4 items-start">
+                           <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center shrink-0 border-2 border-white z-10">
+                              <div className="w-2 h-2 rounded-full bg-gray-400" />
+                           </div>
+                           <div>
+                              <p className="text-sm font-medium text-gray-500">Loan Disbursement</p>
+                              <p className="text-xs text-gray-400">Pending Approval</p>
+                           </div>
+                        </div>
+                     </>
+                 );
+              })()}
            </div>
         </div>
 
@@ -1436,8 +1493,8 @@ export default function ApplyPage() {
           {/* HOME TAB (ACTION FEED) */}
           {activeTab === "home" && (
              <UserDashboard 
-                applicant={applicant} 
-                loanStatus={(applicant as any)?.loanStatus || "ELIGIBLE"}
+                applicant={userData || applicant} 
+                loanStatus={(userData as any)?.loanStatus || (applicant as any)?.loanStatus || activeLoanDetails?.status}
                 tierLimit={tierMax}
                 onAction={(action) => {
                    if (action === "apply") setActiveTab("application");
@@ -1724,38 +1781,94 @@ export default function ApplyPage() {
                    {/* Connecting Line */}
                    <div className="absolute top-3 left-[15px] bottom-3 w-0.5 bg-gray-100 -z-10" />
 
-                   {/* Step 1: Node (First) */}
-                   <div className="flex gap-4 items-start">
-                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10 animate-pulse">
-                         <div className="w-3 h-3 bg-amber-500 rounded-full" />
-                      </div>
-                      <div className="pt-1">
-                         <h4 className="text-sm font-bold text-gray-900">Node Endorsement</h4>
-                         <p className="text-xs text-amber-600 font-medium">Waiting for Node approval...</p>
-                      </div>
-                   </div>
+                   {(() => {
+                       const kycState = (userData?.kycStatus || onboardingData?.kycStatus || "UNVERIFIED").toUpperCase();
+                       const loanState = ((applicant as any)?.loanStatus || "ELIGIBLE").toUpperCase();
 
-                   {/* Step 2: KYC (Second) */}
-                   <div className="flex gap-4 items-start">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10">
-                         <div className="w-3 h-3 bg-gray-300 rounded-full" />
-                      </div>
-                      <div className="pt-1">
-                         <h4 className="text-sm font-bold text-gray-900">Identity Verification</h4>
-                         <p className="text-xs text-gray-500 font-medium">Pending Review</p>
-                      </div>
-                   </div>
+                       const isNodeDone = ['PENDING', 'APPROVED', 'ACTIVE', 'DISBURSING', 'OVERDUE'].includes(loanState);
+                       const isNodeWaiting = loanState === 'AWAITING_ENDORSEMENT';
 
-                   {/* Step 3: Loan (Third) */}
-                   <div className="flex gap-4 items-start">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10">
-                         <div className="w-3 h-3 bg-gray-300 rounded-full" />
-                      </div>
-                      <div className="pt-1">
-                         <h4 className="text-sm font-bold text-gray-400">Final Loan Approval</h4>
-                         <p className="text-xs text-gray-400">Pending</p>
-                      </div>
-                   </div>
+                       const isKycDone = ['VERIFIED', 'APPROVED'].includes(kycState);
+                       const isKycFailed = ['REJECTED', 'FAILED'].includes(kycState);
+                       
+                       const isLoanDone = ['ACTIVE', 'DISBURSING', 'OVERDUE'].includes(loanState);
+                       const isLoanRejected = loanState === 'REJECTED';
+                       const isLoanWaiting = loanState === 'PENDING';
+
+                       return (
+                           <>
+                               {/* Step 1: Node (First) */}
+                               <div className="flex gap-4 items-start">
+                                   <div className={cn(
+                                       "w-8 h-8 rounded-full flex items-center justify-center shrink-0 ring-4 ring-white z-10",
+                                       isNodeDone ? "bg-green-100" : isNodeWaiting ? "bg-amber-100 animate-pulse" : "bg-gray-100"
+                                   )}>
+                                       {isNodeDone ? (
+                                           <Check className="w-4 h-4 text-green-600" />
+                                       ) : (
+                                           <div className={cn("w-3 h-3 rounded-full", isNodeWaiting ? "bg-amber-500" : "bg-gray-300")} />
+                                       )}
+                                   </div>
+                                   <div className="pt-1">
+                                       <h4 className="text-sm font-bold text-gray-900">Node Endorsement</h4>
+                                       <p className={cn("text-xs font-medium", isNodeDone ? "text-green-600" : isNodeWaiting ? "text-amber-600" : "text-gray-500")}>
+                                           {isNodeDone ? "Endorsed" : "Waiting for Node approval..."}
+                                       </p>
+                                   </div>
+                               </div>
+
+                               {/* Step 2: KYC (Second) */}
+                               <div className="flex gap-4 items-start">
+                                   <div className={cn(
+                                       "w-8 h-8 rounded-full flex items-center justify-center shrink-0 ring-4 ring-white z-10",
+                                       isKycDone ? "bg-green-100" : isKycFailed ? "bg-red-100" : (!isNodeWaiting && !isNodeDone) ? "bg-gray-100" : "bg-amber-100 animate-pulse"
+                                   )}>
+                                       {isKycDone ? (
+                                           <Check className="w-4 h-4 text-green-600" />
+                                       ) : isKycFailed ? (
+                                           <XCircle className="w-4 h-4 text-red-600" />
+                                       ) : (
+                                           <div className={cn("w-3 h-3 rounded-full", (!isNodeWaiting && !isNodeDone) ? "bg-gray-300" : "bg-amber-500")} />
+                                       )}
+                                   </div>
+                                   <div className="pt-1">
+                                       <h4 className="text-sm font-bold text-gray-900">Identity Verification</h4>
+                                       <p className={cn(
+                                            "text-xs font-medium", 
+                                            isKycDone ? "text-green-600" : isKycFailed ? "text-red-600" : (!isNodeWaiting && !isNodeDone) ? "text-gray-500" : "text-amber-600"
+                                       )}>
+                                           {isKycDone ? "Verified" : isKycFailed ? "Rejected - Please contact support" : "Pending Review"}
+                                       </p>
+                                   </div>
+                               </div>
+
+                               {/* Step 3: Loan (Third) */}
+                               <div className="flex gap-4 items-start">
+                                   <div className={cn(
+                                       "w-8 h-8 rounded-full flex items-center justify-center shrink-0 ring-4 ring-white z-10",
+                                       isLoanDone ? "bg-green-100" : isLoanRejected ? "bg-red-100" : isLoanWaiting ? "bg-amber-100 animate-pulse" : "bg-gray-100"
+                                   )}>
+                                       {isLoanDone ? (
+                                           <Check className="w-4 h-4 text-green-600" />
+                                       ) : isLoanRejected ? (
+                                           <XCircle className="w-4 h-4 text-red-600" />
+                                       ) : (
+                                           <div className={cn("w-3 h-3 rounded-full", isLoanWaiting ? "bg-amber-500" : "bg-gray-300")} />
+                                       )}
+                                   </div>
+                                   <div className="pt-1">
+                                       <h4 className={cn("text-sm font-bold", isLoanWaiting || isLoanDone || isLoanRejected ? "text-gray-900" : "text-gray-400")}>Final Loan Approval</h4>
+                                       <p className={cn(
+                                            "text-xs font-medium", 
+                                            isLoanDone ? "text-green-600" : isLoanRejected ? "text-red-600" : isLoanWaiting ? "text-amber-600" : "text-gray-400"
+                                       )}>
+                                           {isLoanDone ? "Approved & Disbursed" : isLoanRejected ? "Declined" : isLoanWaiting ? "Awaiting Admin Approval" : "Pending prior steps"}
+                                       </p>
+                                   </div>
+                               </div>
+                           </>
+                       );
+                   })()}
                 </div>
 
                 <Button 
