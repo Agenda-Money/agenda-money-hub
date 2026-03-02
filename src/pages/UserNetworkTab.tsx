@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowLeft, Share2, Copy, Users, UserCheck, ShieldCheck, CheckCircle2, ChevronRight, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
