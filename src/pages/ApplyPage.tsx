@@ -1338,7 +1338,7 @@ export default function ApplyPage() {
               {applicant?.msisdn && (
                 <ApplicationStatusCard
                   loanId=""
-                  userMsisdn={String(applicant?.msisdn)}
+                  userMsisdn={applicant.msisdn}
                   initialStatus={(applicant?.loanStatus as string) || "AWAITING_ENDORSEMENT"}
                 />
               )}
