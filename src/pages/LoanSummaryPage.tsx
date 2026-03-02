@@ -90,7 +90,6 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
               console.log("Submitting loan request to /api/loans/request...");
             }
             const payload = {
-                msisdn: applicant?.msisdn,
                 amount: loanData.amount,
                 tenureDays: loanData.tenure,
                 purpose: loanData.purpose
