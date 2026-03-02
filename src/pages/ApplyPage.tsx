@@ -1312,7 +1312,6 @@ export default function ApplyPage() {
            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-rose-100/40 rounded-full blur-[100px]" />
         </div>
 
-<<<<<<< feat/paystack-integration
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -1334,64 +1333,12 @@ export default function ApplyPage() {
             Your loan request has been successfully submitted. We are currently processing your application.
           </p>
 
-          {/* Timeline UI */}
-          <div className="w-full bg-gray-50/50 rounded-2xl p-5 mb-8 text-left border border-gray-100/80">
-             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-5 pl-2">Progress Tracker</h3>
-             <div className="space-y-6 relative pl-2">
-                {/* Vertical Line */}
-                <div className="absolute top-3 left-[19px] bottom-3 w-0.5 bg-gray-200/60 -z-10" />
-
-                {/* Step 1 */}
-                <motion.div 
-                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
-                  className="flex gap-4 items-start"
-                >
-                   <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0 border-[3px] border-white shadow-sm">
-                      <Check className="w-3 h-3 text-white" />
-                   </div>
-                   <div className="pt-0.5">
-                      <p className="text-sm font-bold text-gray-900">Application Submitted</p>
-                      <p className="text-[11px] text-green-600 font-semibold mt-0.5 uppercase tracking-wider">Completed</p>
-                   </div>
-                </motion.div>
-=======
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h2>
-        <p className="text-muted-foreground text-sm mb-8">We've received your loan request.</p>
-
-        {/* What Happens Next Timeline using Real-Time status card */}
-        <div className="w-full max-w-sm text-left mb-8">
-            <ApplicationStatusCard loanId="" userMsisdn={applicant?.msisdn} initialStatus={applicant?.loanStatus || "AWAITING_ENDORSEMENT"} />
-        </div>
->>>>>>> main
-
-                {/* Step 2 */}
-                <motion.div 
-                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}
-                  className="flex gap-4 items-start"
-                >
-                   <div className="w-6 h-6 rounded-full bg-amber-50 flex items-center justify-center shrink-0 border-[3px] border-white shadow-sm z-10">
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                   </div>
-                   <div className="pt-0.5">
-                      <p className="text-sm font-bold text-gray-900">Node Endorsement</p>
-                      <p className="text-[11px] text-amber-600 font-semibold mt-0.5 uppercase tracking-wider">Waiting for approval...</p>
-                   </div>
-                </motion.div>
-
-                 {/* Step 3 */}
-                <motion.div 
-                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }}
-                  className="flex gap-4 items-start"
-                >
-                   <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0 border-[3px] border-white z-10">
-                      <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                   </div>
-                   <div className="pt-0.5">
-                      <p className="text-sm font-medium text-gray-400">Final Disbursement</p>
-                   </div>
-                </motion.div>
-             </div>
+          {/* What Happens Next Timeline using Real-Time status card */}
+          <div className="w-full text-left mb-8">
+              <ApplicationStatusCard loanId="" userMsisdn={applicant?.msisdn} initialStatus={applicant?.loanStatus || "AWAITING_ENDORSEMENT"} />
           </div>
+
+
 
           <Button 
             onClick={() => {
