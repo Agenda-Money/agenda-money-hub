@@ -25,7 +25,9 @@ import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
 import { ProfileTab } from "./ProfileTab";
 import { LoanSummaryPage } from "./LoanSummaryPage";
-import { RepaymentPage } from "./RepaymentPage";
+import { ApplySuccessView } from "./ApplySuccessView";
+import { UserRewardsTab } from "./UserRewardsTab";
+import { UserNetworkTab } from "./UserNetworkTab";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
 import { ApplicationStatusCard } from "@/components/dashboard/ApplicationStatusCard";
 import {
@@ -1464,9 +1466,28 @@ export default function ApplyPage() {
                  (applicant as any)?.user?.isGraduatedNode === true
                }
                onEndorsements={() => setActiveTab("endorsements" as any)}
+               onRewards={() => setActiveTab("rewards")}
+               onNetwork={() => setActiveTab("network")}
                onShowTerms={() => setIsTermsOpen(true)} 
                onShowPrivacy={() => setIsPrivacyOpen(true)}
                onHelp={() => setIsHelpOpen(true)}
+             />
+           )}
+
+           {/* REWARDS TAB */}
+           {activeTab === "rewards" && (
+             <UserRewardsTab 
+               onBack={() => setActiveTab("profile")} 
+               userMsisdn={normalizeMsisdn(msisdnInput || userData?.msisdn || applicant?.msisdn)}
+             />
+           )}
+
+           {/* NETWORK TAB */}
+           {activeTab === "network" && (
+             <UserNetworkTab 
+               onBack={() => setActiveTab("profile")} 
+               userMsisdn={normalizeMsisdn(msisdnInput || userData?.msisdn || applicant?.msisdn)}
+               personalNodeCode={(applicant as any)?.personalNodeCode || (applicant as any)?.user?.personalNodeCode || applicant?.nodeCode || userData?.personalNodeCode}
              />
            )}
 
@@ -1505,7 +1526,7 @@ export default function ApplyPage() {
 
 
         {/* Fixed Bottom Navigation */}
-        {activeTab !== "application" && activeTab !== "summary" && !isTermsOpen && (
+        {activeTab !== "application" && activeTab !== "summary" && activeTab !== "rewards" && activeTab !== "network" && !isTermsOpen && (
         <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe-bottom z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
            <div className="max-w-md mx-auto flex items-center justify-around h-20 px-2">
             
