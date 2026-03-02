@@ -19,6 +19,34 @@ export interface DashboardStats {
   lossDefaults: string;
 }
 
+/**
+ * Resolves a display name from an applicant or user object, preferring fullName
+ * and falling back to concatenated firstName/lastName/surname fields.
+ */
+export function getApplicantName(
+  entity: {
+    fullName?: string;
+    firstName?: string;
+    lastName?: string;
+    surname?: string;
+    user?: {
+      fullName?: string;
+      firstName?: string;
+      lastName?: string;
+      surname?: string;
+    };
+  } | null | undefined,
+  fallback = "Applicant"
+): string {
+  if (!entity) return fallback;
+  if (entity.fullName) return entity.fullName;
+  if (entity.user?.fullName) return entity.user.fullName;
+  const first = entity.firstName || entity.user?.firstName || "";
+  const last = entity.lastName || entity.surname || entity.user?.lastName || entity.user?.surname || "";
+  const combined = `${first} ${last}`.trim();
+  return combined || fallback;
+}
+
 export function normalizeStatsResponse(responseData: unknown): DashboardStats | undefined {
   if (!responseData || typeof responseData !== "object") {
     return undefined;

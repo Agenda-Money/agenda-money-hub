@@ -13,7 +13,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
-import { cn } from "@/lib/utils";
+import { cn, getApplicantName } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket } from "@/contexts/SocketContext";
@@ -391,9 +391,6 @@ export default function ApplyPage() {
          ? { ...backendUser, summary: data.summary }
          : backendUser;
          
-      if (import.meta.env.DEV) {
-        console.log("[ApplyPage] handleAuthResponse - userWithSummary:", userWithSummary);
-      }
       setApplicant(userWithSummary);
       setUserData(userWithSummary);
 
@@ -749,7 +746,13 @@ export default function ApplyPage() {
             handleAuthResponse(p);
         }
       }
-    } catch (e: any) { setErrorMessage(e?.message || "OTP verification failed."); } finally { setIsVerifying(false); }
+    } catch (e: any) { 
+      let msg = e?.message || "OTP verification failed.";
+      if (msg.toLowerCase().includes("exist") || msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("wrong")) {
+        msg = "The OTP is invalid or has expired. Please try again.";
+      }
+      setErrorMessage(msg); 
+    } finally { setIsVerifying(false); }
   }, [normalizedMsisdn, otp, setApplicant, isVerifying, handleAuthResponse]);
 
 
@@ -1302,43 +1305,60 @@ export default function ApplyPage() {
   // ═══════════════════════════════════════
   if (view === "success") {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in duration-500">
-        
-        {/* Success Icon */}
-        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-green-100/50">
-          <CheckCircle2 className="h-12 w-12 text-green-600" />
+      <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+        {/* Background Accents */}
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-pink-200/40 rounded-full blur-[100px]" />
+           <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-rose-100/40 rounded-full blur-[100px]" />
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h2>
-        <p className="text-muted-foreground text-sm mb-8">We've received your loan request.</p>
-
-        {/* What Happens Next Timeline using Real-Time status card */}
-        <div className="w-full max-w-sm text-left mb-8">
-            <ApplicationStatusCard loanId="" userMsisdn={applicant?.msisdn} initialStatus={applicant?.loanStatus || "AWAITING_ENDORSEMENT"} />
-        </div>
-
-
-
-        <Button 
-          onClick={() => {
-             // Update context with nodeCode and user identifiers
-             if (applicant) {
-                setApplicant({ 
-                   ...applicant, 
-                   nodeCode: successNodeCode || applicant.nodeCode,
-                   // Ensure MSISDN/ID is preserved or set from input if missing
-                   msisdn: applicant.msisdn || msisdnInput || (userData as any)?.msisdn,
-                   userId: applicant.userId || (userData as any)?.userId 
-                });
-             }
-             setIsSubmittingOnboarding(false); // Ensure onboarding mode is off
-             setOnboardingStep(0); 
-             setView("loan-dashboard");
-          }} 
-          className="w-full max-w-sm h-14 rounded-full bg-primary text-primary-foreground text-lg uppercase font-bold tracking-widest shadow-lg hover:shadow-primary/25 transition-all"
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="relative z-10 flex flex-col items-center max-w-md w-full bg-white p-8 rounded-[2rem] shadow-xl shadow-pink-900/5 border border-pink-50"
         >
-          View Loan Status
-        </Button>
+          {/* Animated Success Icon */}
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
+            className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6 shadow-inner"
+          >
+            <CheckCircle2 className="h-10 w-10 text-green-500" />
+          </motion.div>
+
+          <h2 className="text-2xl font-black text-gray-900 mb-3 tracking-tight">Application Received</h2>
+          <p className="text-gray-500 text-sm mb-8 leading-relaxed px-4">
+            Your loan request has been successfully submitted. We are currently processing your application.
+          </p>
+
+          {/* What Happens Next Timeline using Real-Time status card */}
+          <div className="w-full text-left mb-8">
+              <ApplicationStatusCard loanId="" userMsisdn={applicant?.msisdn} initialStatus={applicant?.loanStatus || "AWAITING_ENDORSEMENT"} />
+          </div>
+
+
+
+          <Button 
+            onClick={() => {
+               if (applicant) {
+                  setApplicant({ 
+                     ...applicant, 
+                     nodeCode: successNodeCode || applicant.nodeCode,
+                     msisdn: applicant.msisdn || msisdnInput || (userData as any)?.msisdn,
+                     userId: applicant.userId || (userData as any)?.userId 
+                  });
+               }
+               setIsSubmittingOnboarding(false);
+               setOnboardingStep(0); 
+               setView("loan-dashboard");
+            }} 
+            className="w-full h-14 rounded-2xl bg-[#EC1B84] text-white hover:bg-[#D01773] text-[15px] font-bold shadow-lg shadow-[#EC1B84]/25 transition-all outline-none border-none ring-0 focus-visible:ring-0"
+          >
+            Go to Dashboard
+          </Button>
+        </motion.div>
       </div>
     );
   }
@@ -1868,9 +1888,7 @@ export default function ApplyPage() {
              dueDate={activeLoanDetails?.dueDate || "Unknown"}
              msisdn={userData?.msisdn ? String(userData.msisdn) : applicant?.msisdn ? String(applicant.msisdn) : ""}
              userName={
-                applicant?.fullName || applicant?.user?.fullName || `${applicant?.firstName || applicant?.user?.firstName || ""} ${applicant?.lastName || applicant?.surname || applicant?.user?.lastName || applicant?.user?.surname || ""}`.trim() ||
-                userData?.fullName || userData?.user?.fullName || `${userData?.firstName || userData?.user?.firstName || ""} ${userData?.lastName || userData?.surname || userData?.user?.lastName || userData?.user?.surname || ""}`.trim() ||
-                "Account Holder"
+                getApplicantName(applicant, "") || getApplicantName(userData, "Account Holder")
              }
              onBack={() => setIsRepaymentOpen(false)}
              onRepay={(amount) => {
