@@ -69,8 +69,8 @@ api.interceptors.response.use(
   }
 );
 
-export const initiateRepayment = async (amount: number, msisdn: string) => {
-  const response = await api.post('/api/repayments/initiate', { amount, msisdn });
+export const initiateRepayment = async (amount: number) => {
+  const response = await api.post('/api/repayments/initiate', { amount });
   return response.data;
 };
 

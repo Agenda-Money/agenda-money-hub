@@ -87,7 +87,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
     // Smooth transition: Ensure button spinner shows for at least 800ms
     try {
         // 1. Initiate API Call with minimum delay
-        const response = await initiateRepayment(amountToPay, msisdn);
+        const response = await initiateRepayment(amountToPay);
         
         if (response?.authorizationUrl) {
             const currentUrl = window.location.href;
