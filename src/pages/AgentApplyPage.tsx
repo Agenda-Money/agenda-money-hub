@@ -159,7 +159,6 @@ export default function AgentApplyPage() {
     }
   };
 
-  // Auth Handlers
   const handleRequestOtp = async () => {
     const formatted = normalizeMsisdn(msisdnInput);
     if (!formatted) {
@@ -172,6 +171,25 @@ export default function AgentApplyPage() {
     setIsRequesting(true);
     setErrorMessage(null);
     try {
+      // 1. Check if user is already an agent or pending
+      const checkRes = await fetch(`${baseApiUrl}/api/agents/public/check/${formatted}`);
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        
+        if (checkData.status === 'AGENT_LOGIN') {
+          setErrorMessage("This number is already registered as an Active Agent. Redirecting to login...");
+          // Leave setIsRequesting(true) so the button stays disabled/loading during the timeout
+          setTimeout(() => window.location.href = "/", 3000);
+          return;
+        } else if (checkData.status === 'PENDING') {
+          setErrorMessage("Your agent application is currently under review. We will notify you once approved.");
+          setIsRequesting(false);
+          return;
+        }
+        // If status === 'NEW', continue to OTP request...
+      }
+
+      // 2. Request OTP
       const res = await fetch(`${baseApiUrl}/api/auth/request`, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -208,14 +226,36 @@ export default function AgentApplyPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "OTP verification failed.");
+
+      // After successful verification, do a final check to ensure they shouldn't bypass onboarding check
+      const checkRes = await fetch(`${baseApiUrl}/api/agents/public/check/${normalizedMsisdn}`);
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        if (checkData.status === 'AGENT_LOGIN') {
+          toast.success("Welcome back! Redirecting to login...");
+          // Redirect strictly to the dashboard or agent login
+          setTimeout(() => window.location.href = "/", 1500);
+          return;
+        } else if (checkData.status === 'PENDING') {
+          setErrorMessage("Your agent application is currently under review. We will notify you once approved.");
+          // Send them back to auth view or stay here with error
+          setView("auth");
+          setOtp("");
+          return;
+        }
+      }
       
-      // Verification Successful.
+      // Verification Successful & User is NEW.
       // Move to onboarding.
       toast.success("Phone verified successfully!");
       setView("onboarding");
       
     } catch (e: any) {
-      setErrorMessage(e?.message || "OTP verification failed.");
+      let msg = e?.message || "OTP verification failed.";
+      if (msg.toLowerCase().includes("exist") || msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("wrong")) {
+        msg = "The OTP is invalid or has expired. Please try again.";
+      }
+      setErrorMessage(msg);
     } finally {
       setIsVerifying(false);
     }

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { ArrowLeft, ChevronRight, CheckSquare, Square, Send, Loader2, AlertCircle, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, getApplicantName } from "@/lib/utils";
 import api from "@/lib/api";
 import {
   AlertDialog,
@@ -178,7 +178,9 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                <div className="space-y-2">
                  <div className="flex justify-between items-center text-sm">
                    <span className="text-gray-400">Full name</span>
-                   <span className="font-bold text-gray-900 uppercase">{applicant?.firstName} {applicant?.lastName}</span>
+                   <span className="font-bold text-gray-900 uppercase">
+                      {getApplicantName(applicant)}
+                   </span>
                  </div>
                  <div className="flex justify-between items-center text-sm">
                    <span className="text-gray-400">Phone number</span>
@@ -241,7 +243,9 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                         <span className="leading-tight text-center">MTN<br/>MoMo</span>
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-900 uppercase">{applicant?.firstName} {applicant?.lastName}</p>
+                      <p className="text-sm font-bold text-gray-900 uppercase">
+                         {getApplicantName(applicant)}
+                      </p>
                       <p className="text-xs text-gray-500">{formattedPhone}</p>
                     </div>
                   </div>

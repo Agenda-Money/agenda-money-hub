@@ -1,6 +1,5 @@
-import { Menu, Search, Bell, ChevronDown } from "lucide-react";
+import { Menu, Bell, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,14 +39,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           <Menu className="h-5 w-5" />
         </Button>
 
-        {/* Search */}
-        <div className="hidden md:flex items-center relative">
-          <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search users, loans..."
-            className="w-[300px] pl-10 bg-muted/50 border-0 focus-visible:ring-primary"
-          />
-        </div>
+
       </div>
 
       {/* Right Side */}

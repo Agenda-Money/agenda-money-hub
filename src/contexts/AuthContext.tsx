@@ -21,7 +21,7 @@ interface AuthContextType {
   loading: boolean;
   signup: (data: any) => Promise<boolean>;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string; user?: AdminUser }>;
-  logout: () => void;
+  logout: (showToast?: boolean) => void;
   forgotPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
   resetPassword: (token: string, password: string) => Promise<{ success: boolean; message?: string }>;
   updateProfile: (data: { fullName?: string; email?: string }) => Promise<{ success: boolean; message?: string }>;
@@ -243,13 +243,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
 
-  const logout = () => {
+  const logout = (showToast = true) => {
     localStorage.removeItem("token");
     localStorage.removeItem("token_expiry");
     sessionStorage.removeItem("token");
     setUser(null);
     delete api.defaults.headers.common["Authorization"];
-    toast.success("Logged out successfully");
+    if (showToast) {
+      toast.success("Logged out successfully");
+    }
   };
 
   const contextValue = useMemo(

@@ -393,27 +393,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
                             />
                         </div>
 
-                        {/* Quick Select Chips */}
-                        <div className="flex justify-center gap-2 w-full pt-2">
-                           {[0.25, 0.50, 0.75].map((pct) => {
-                               const chipAmount = Math.floor(amountDue * pct).toString();
-                               const isSelected = partialAmount === chipAmount;
-                               return (
-                                   <button 
-                                     key={pct}
-                                     onClick={() => setPartialAmount(chipAmount)}
-                                     className={cn(
-                                         "px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200",
-                                         isSelected 
-                                            ? "bg-[#EC1B84] text-white shadow-md shadow-pink-200" 
-                                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900"
-                                     )}
-                                   >
-                                     {pct * 100}%
-                                   </button>
-                               );
-                           })}
-                        </div>
+
 
                         <p className="text-xs text-gray-400 font-medium pt-2 border-t border-gray-100 w-full">
                            Min. GHS{MIN_PARTIAL_PAYMENT}
