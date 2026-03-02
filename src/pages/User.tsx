@@ -6,6 +6,7 @@ import { LoanStatusCard, LoanStatus } from "@/components/dashboard/LoanStatusCar
 import { Wallet, CheckCircle2 } from "lucide-react";
 import { TIERS, getTierByLevel } from "@/lib/constants";
 import { format } from "date-fns";
+import { useWebSocketListener } from "@/hooks/useWebSocketListener";
 
 interface UserDashboardProps {
   applicant: any;
@@ -57,6 +58,24 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
   else if (isOverdue) feedStatus = "overdue";
   else if (isActive) feedStatus = "active";
   else feedStatus = "eligible";
+
+  // Real-time WebSocket Logic
+  const { latestLoanEvent } = useWebSocketListener(applicant?.msisdn);
+  
+  // Real-time overrides
+  let cardColorOverride = undefined;
+  let titleOverride = undefined;
+  let subtextOverride = undefined;
+
+  if (latestLoanEvent && feedStatus === "review") {
+     cardColorOverride = latestLoanEvent.cardColor;
+     if (latestLoanEvent.status === 'DISBURSING') {
+        titleOverride = "Loan Approved!";
+     } else if (latestLoanEvent.status === 'REJECTED') {
+        titleOverride = "Application Not Approved";
+     }
+     subtextOverride = latestLoanEvent.message;
+  }
 
   const container = {
     hidden: { opacity: 0 },
@@ -111,6 +130,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
                 (activeLoanDetails?.repaymentProgress?.percentage ? (activeLoanDetails.repaymentProgress.percentage / 100) : 0) 
                 : 0
             }
+            cardColor={cardColorOverride}
+            titleOverride={titleOverride}
+            subtextOverride={subtextOverride}
             onAction={onAction}
             className="shadow-sm relative bg-white"
           />
