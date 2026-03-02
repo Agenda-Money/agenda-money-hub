@@ -27,6 +27,7 @@ import { ProfileTab } from "./ProfileTab";
 import { LoanSummaryPage } from "./LoanSummaryPage";
 import { RepaymentPage } from "./RepaymentPage";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
+import { ApplicationStatusCard } from "@/components/dashboard/ApplicationStatusCard";
 import {
   Bell,
   Home,
@@ -1311,6 +1312,7 @@ export default function ApplyPage() {
            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-rose-100/40 rounded-full blur-[100px]" />
         </div>
 
+<<<<<<< feat/paystack-integration
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -1352,6 +1354,15 @@ export default function ApplyPage() {
                       <p className="text-[11px] text-green-600 font-semibold mt-0.5 uppercase tracking-wider">Completed</p>
                    </div>
                 </motion.div>
+=======
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h2>
+        <p className="text-muted-foreground text-sm mb-8">We've received your loan request.</p>
+
+        {/* What Happens Next Timeline using Real-Time status card */}
+        <div className="w-full max-w-sm text-left mb-8">
+            <ApplicationStatusCard loanId="" userMsisdn={applicant?.msisdn} initialStatus={applicant?.loanStatus || "AWAITING_ENDORSEMENT"} />
+        </div>
+>>>>>>> main
 
                 {/* Step 2 */}
                 <motion.div 
@@ -1746,42 +1757,14 @@ export default function ApplyPage() {
                    <p className="text-sm text-gray-500 mt-1">Track the progress of your loan</p>
                 </div>
 
-                <div className="space-y-6 relative max-w-[90%] mx-auto">
-                   {/* Connecting Line */}
-                   <div className="absolute top-3 left-[15px] bottom-3 w-0.5 bg-gray-100 -z-10" />
-
-                   {/* Step 1: Node (First) */}
-                   <div className="flex gap-4 items-start">
-                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10 animate-pulse">
-                         <div className="w-3 h-3 bg-amber-500 rounded-full" />
-                      </div>
-                      <div className="pt-1">
-                         <h4 className="text-sm font-bold text-gray-900">Node Endorsement</h4>
-                         <p className="text-xs text-amber-600 font-medium">Waiting for Node approval...</p>
-                      </div>
-                   </div>
-
-                   {/* Step 2: KYC (Second) */}
-                   <div className="flex gap-4 items-start">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10">
-                         <div className="w-3 h-3 bg-gray-300 rounded-full" />
-                      </div>
-                      <div className="pt-1">
-                         <h4 className="text-sm font-bold text-gray-900">Identity Verification</h4>
-                         <p className="text-xs text-gray-500 font-medium">Pending Review</p>
-                      </div>
-                   </div>
-
-                   {/* Step 3: Loan (Third) */}
-                   <div className="flex gap-4 items-start">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 ring-4 ring-white z-10">
-                         <div className="w-3 h-3 bg-gray-300 rounded-full" />
-                      </div>
-                      <div className="pt-1">
-                         <h4 className="text-sm font-bold text-gray-400">Final Loan Approval</h4>
-                         <p className="text-xs text-gray-400">Pending</p>
-                      </div>
-                   </div>
+                <div className="w-full max-w-[90%] mx-auto">
+                   <ApplicationStatusCard 
+                      hideTitle 
+                      className="shadow-none border-0 p-0 bg-transparent" 
+                      loanId="" 
+                      userMsisdn={applicant?.msisdn || (userData as any)?.msisdn} 
+                      initialStatus={applicant?.loanStatus || (userData as any)?.loanStatus || "AWAITING_ENDORSEMENT"} 
+                   />
                 </div>
 
                 <Button 
