@@ -53,10 +53,19 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
 
   // Determine Main Feed Card Status
   let feedStatus: LoanStatus = "eligible";
-  if (isPending) feedStatus = "review";
-  else if (isOverdue) feedStatus = "overdue";
-  else if (isActive) feedStatus = "active";
-  else feedStatus = "eligible";
+  const currentLoanStatus = (loanStatus || activeLoanDetails?.status || summary?.status || "").toUpperCase();
+
+  if (currentLoanStatus === 'AWAITING_ENDORSEMENT') {
+      feedStatus = "awaiting_endorsement";
+  } else if (isPending || currentLoanStatus === 'PENDING') {
+      feedStatus = "review";
+  } else if (isOverdue) {
+      feedStatus = "overdue";
+  } else if (isActive || currentLoanStatus === 'ACTIVE') {
+      feedStatus = "active";
+  } else {
+      feedStatus = "eligible";
+  }
 
   const container = {
     hidden: { opacity: 0 },
@@ -100,12 +109,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
           <LoanStatusCard
             status={feedStatus}
             amount={
-                isActive ? (activeLoanDetails?.outstandingBalance || 0) :
+                isActive || feedStatus === 'overdue' ? (activeLoanDetails?.outstandingBalance || 0) :
                 isEligible ? currentTierConfig.maxAmount : 
                 (activeLoanDetails?.outstandingBalance || 0)
             } 
             dueDate={activeLoanDetails?.dueDate ? new Date(activeLoanDetails.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : undefined}
-            overdueDays={isOverdue ? (activeLoanDetails?.overdueDays || 1) : 0}
+            overdueDays={isOverdue && activeLoanDetails?.daysRemaining < 0 ? Math.abs(activeLoanDetails.daysRemaining) : (activeLoanDetails?.overdueDays || 1)}
             progress={
                 isActive ? 
                 (activeLoanDetails?.repaymentProgress?.percentage ? (activeLoanDetails.repaymentProgress.percentage / 100) : 0) 
