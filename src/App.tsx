@@ -34,6 +34,7 @@ import AgentPortfolio from "./pages/agent/AgentPortfolio";
 import AgentProfile from "./pages/agent/AgentProfile";
 import AgentCommissionsPage from "./pages/agent/AgentCommissionsPage";
 import AgentEndorsementsPage from "./pages/agent/AgentEndorsementsPage";
+import AdminPayoutsPage from './pages/AdminPayoutsPage';
 import PendingKycPage from "./pages/PendingKycPage";
 import { SessionManager } from "./components/auth/SessionManager";
 
@@ -130,6 +131,7 @@ const App = () => {
                       <Route path="/loans/closed" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
                       <Route path="/loans/overdue" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
                       <Route path="/repayments" element={<RequireAuth><AdminRoute><RepaymentsPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/payouts" element={<RequireAuth><AdminRoute><AdminPayoutsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/analytics" element={<RequireAuth><AdminRoute><AnalyticsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/settings" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents" element={<RequireAuth><AdminRoute><AgentsPage /></AdminRoute></RequireAuth>} />
