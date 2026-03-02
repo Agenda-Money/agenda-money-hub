@@ -35,6 +35,7 @@ import AgentProfile from "./pages/agent/AgentProfile";
 import AgentCommissionsPage from "./pages/agent/AgentCommissionsPage";
 import AgentEndorsementsPage from "./pages/agent/AgentEndorsementsPage";
 import PendingKycPage from "./pages/PendingKycPage";
+import { SessionManager } from "./components/auth/SessionManager";
 
 import { getSubdomain } from "@/lib/domain";
 
@@ -66,6 +67,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <SessionManager />
         <ApplicantProvider>
           <SocketProvider>
             <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
