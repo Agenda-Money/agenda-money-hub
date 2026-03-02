@@ -13,7 +13,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
-import { cn } from "@/lib/utils";
+import { cn, getApplicantName } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket } from "@/contexts/SocketContext";
@@ -390,9 +390,6 @@ export default function ApplyPage() {
          ? { ...backendUser, summary: data.summary }
          : backendUser;
          
-      if (import.meta.env.DEV) {
-        console.log("[ApplyPage] handleAuthResponse - userWithSummary:", userWithSummary);
-      }
       setApplicant(userWithSummary);
       setUserData(userWithSummary);
 
@@ -1961,9 +1958,7 @@ export default function ApplyPage() {
              dueDate={activeLoanDetails?.dueDate || "Unknown"}
              msisdn={userData?.msisdn ? String(userData.msisdn) : applicant?.msisdn ? String(applicant.msisdn) : ""}
              userName={
-                applicant?.fullName || applicant?.user?.fullName || `${applicant?.firstName || applicant?.user?.firstName || ""} ${applicant?.lastName || applicant?.surname || applicant?.user?.lastName || applicant?.user?.surname || ""}`.trim() ||
-                userData?.fullName || userData?.user?.fullName || `${userData?.firstName || userData?.user?.firstName || ""} ${userData?.lastName || userData?.surname || userData?.user?.lastName || userData?.user?.surname || ""}`.trim() ||
-                "Account Holder"
+                getApplicantName(applicant, "") || getApplicantName(userData, "Account Holder")
              }
              onBack={() => setIsRepaymentOpen(false)}
              onRepay={(amount) => {

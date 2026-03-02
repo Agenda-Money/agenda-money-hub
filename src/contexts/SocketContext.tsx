@@ -46,7 +46,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     setSocket(newSocket);
 
     newSocket.on("connect", () => {
-        console.log("Socket connected:", newSocket.id);
         // Join the user-specific room
         newSocket.emit("join-user-room", msisdn);
     });
