@@ -337,10 +337,12 @@ export default function RepaymentsPage() {
                             </td>
 
                             {/* Status */}
-                            <td className="py-4 pr-2 flex justify-end h-full items-center">
-                               <Badge variant="outline" className={rep.isFullPayment ? "bg-success/10 text-success border-success/20" : "bg-warning/10 text-warning border-warning/20"}>
+                            <td className="py-4 pr-2">
+                              <div className="flex justify-end h-full items-center">
+                                <Badge variant="outline" className={rep.isFullPayment ? "bg-success/10 text-success border-success/20" : "bg-warning/10 text-warning border-warning/20"}>
                                   {rep.isFullPayment ? "Fully Paid" : "Partial"}
-                               </Badge>
+                                </Badge>
+                              </div>
                             </td>
                          </tr>
                       ))}

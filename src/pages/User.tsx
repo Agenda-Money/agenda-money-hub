@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -21,17 +21,63 @@ interface UserDashboardProps {
 export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLimit = 300, onAction, notifications = [], recentActivity = [], isLoading = false, activeLoanDetails, loanStatus }) => {
 
   const [showAllActivity, setShowAllActivity] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const viewAllButtonRef = useRef<HTMLButtonElement>(null);
+
+  const handleCloseModal = useCallback(() => {
+    setShowAllActivity(false);
+  }, []);
 
   useEffect(() => {
     if (showAllActivity) {
       document.body.style.overflow = "hidden";
+      // Auto-focus the close button when modal opens
+      requestAnimationFrame(() => closeButtonRef.current?.focus());
     } else {
       document.body.style.overflow = "unset";
+      // Return focus to the "View All" button when modal closes
+      viewAllButtonRef.current?.focus();
     }
     return () => {
       document.body.style.overflow = "unset";
     };
   }, [showAllActivity]);
+
+  // Escape key and focus trap for modal
+  useEffect(() => {
+    if (!showAllActivity) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleCloseModal();
+        return;
+      }
+      // Focus trap: keep Tab/Shift+Tab inside modal
+      if (e.key === "Tab") {
+        const modal = document.getElementById("all-activity-modal");
+        if (!modal) return;
+        const focusable = modal.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showAllActivity, handleCloseModal]);
 
   const hasActiveLoan = !!activeLoanDetails;
   
@@ -147,8 +193,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
             <h3 className="text-sm font-bold text-gray-900">Recent Activity</h3>
             {recentActivity.length > 5 && (
                <button 
+                  ref={viewAllButtonRef}
                   onClick={() => setShowAllActivity(true)} 
                   className="text-xs font-medium text-[#EC1B84] hover:text-[#EC1B84]/80 transition-colors"
+                  aria-label="View all recent activity"
                >
                   View All
                </button>
@@ -205,15 +253,27 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
 
       {/* MODAL FOR ALL ACTIVITY */}
       {showAllActivity && createPortal(
-         <div className="fixed inset-0 z-[100] flex flex-col bg-gray-50/95 backdrop-blur-sm sm:items-center sm:justify-center animate-in fade-in duration-200">
-            <div className="w-full h-full sm:h-auto sm:max-h-[85vh] sm:max-w-md bg-white sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+         <div
+            className="fixed inset-0 z-[100] flex flex-col bg-gray-50/95 backdrop-blur-sm sm:items-center sm:justify-center animate-in fade-in duration-200"
+            onClick={handleCloseModal}
+         >
+            <div
+               id="all-activity-modal"
+               role="dialog"
+               aria-modal="true"
+               aria-label="All Recent Activity"
+               className="w-full h-full sm:h-auto sm:max-h-[85vh] sm:max-w-md bg-white sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+               onClick={(e) => e.stopPropagation()}
+            >
                
                {/* Modal Header */}
                <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-white sticky top-0 z-10">
                   <h3 className="text-lg font-bold text-gray-900">All Recent Activity</h3>
                   <button 
-                     onClick={() => setShowAllActivity(false)}
+                     ref={closeButtonRef}
+                     onClick={handleCloseModal}
                      className="p-2 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
+                     aria-label="Close modal"
                   >
                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                   </button>
