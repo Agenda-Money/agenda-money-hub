@@ -40,7 +40,7 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, repay
   const renderTopCard = () => {
       const loanStatus = loan?.status || loan?.loanStatus;
 
-      if (loanStatus === 'AWAITING_ENDORSEMENT') {
+      if (String(loanStatus).toUpperCase() === 'AWAITING_ENDORSEMENT') {
           return (
              <div className="mb-6">
                  <LoanStatusCard status="awaiting_endorsement" onAction={onAction} className="shadow-sm" />
