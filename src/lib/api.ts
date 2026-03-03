@@ -69,9 +69,37 @@ api.interceptors.response.use(
   }
 );
 
-export const initiateRepayment = async (amount: number) => {
+type InitiateRepaymentResponse = {
+  authorizationUrl?: string;
+  [key: string]: any;
+};
+
+const extractAuthorizationUrl = (payload: any): string | undefined => {
+  if (!payload || typeof payload !== 'object') return undefined;
+
+  return (
+    payload.authorizationUrl ||
+    payload.authorization_url ||
+    payload?.data?.authorizationUrl ||
+    payload?.data?.authorization_url ||
+    payload?.result?.authorizationUrl ||
+    payload?.result?.authorization_url
+  );
+};
+
+export const initiateRepayment = async (amount: number): Promise<InitiateRepaymentResponse> => {
   const response = await api.post('/api/repayments/initiate', { amount });
-  return response.data;
+  const payload = response.data;
+  const authorizationUrl = extractAuthorizationUrl(payload);
+
+  if (authorizationUrl) {
+    return {
+      ...payload,
+      authorizationUrl,
+    };
+  }
+
+  return payload;
 };
 
 export const getMe = async () => {
