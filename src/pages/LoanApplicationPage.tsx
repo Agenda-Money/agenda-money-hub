@@ -185,7 +185,13 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
              })}
            </div>
            
-           <p className="text-xs text-gray-400 pl-1">Interest per day is 0.5%</p>
+           <div className="space-y-1 mt-2">
+               <p className="text-xs text-gray-400 pl-1 font-medium">Daily interest rate is 0.5%</p>
+               <div className="flex items-start gap-1.5 text-gray-400 pl-1 pt-1">
+                  <Info className="w-3.5 h-3.5 mt-0.5" />
+                  <p className="text-xs font-medium">Earlier repayment reduces interest.</p>
+               </div>
+           </div>
         </div>
 
         {/* Loan Purpose Section */}
@@ -224,8 +230,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                    <p className="text-sm text-gray-500">Enter a node code. We will confirm with the node owner.</p>
                </div>
                
-               <div className="relative flex items-center gap-3">
-                  <div className="relative flex-1">
+                   <div className="relative w-full">
                       <input
                          type="text"
                          value={nodeCode}
@@ -239,18 +244,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                          )}
                          maxLength={10}
                       />
-                  </div>
-                  
-                  {/* Verified Indicator on the side */}
-                  <div className={cn(
-                      "flex items-center justify-center shrink-0 w-14 h-14 rounded-2xl transition-all duration-300",
-                      nodeCode.length >= 4 
-                          ? "bg-[#EC1B84]/10 text-[#EC1B84] border border-[#EC1B84]/20 opacity-100 scale-100" 
-                          : "bg-gray-50 text-gray-300 border border-transparent opacity-50 scale-95"
-                  )}>
-                      <CheckSquare className={cn("w-6 h-6 transition-all", nodeCode.length >= 4 && "animate-in zoom-in")} />
-                  </div>
-               </div>
+                   </div>
                {nodeCode.length > 0 && nodeCode.length < 4 && (
                    <p className="text-xs text-red-500 font-medium text-center">
                       Code must be at least 4 characters
@@ -262,11 +256,6 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
         {/* Footer (Now inside scroll view) */}
         <div className="pt-8 pb-4">
           <div className="max-w-md mx-auto space-y-4">
-             <div className="flex items-center justify-center gap-2 text-gray-400">
-                <Info className="w-4 h-4" />
-                <p className="text-xs font-medium">Earlier repayment reduces interest.</p>
-             </div>
-             
              <Button 
                onClick={() => {
                  const finalAmount = Math.max(MIN_LOAN_AMOUNT, amount);
