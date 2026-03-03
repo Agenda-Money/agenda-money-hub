@@ -13,6 +13,7 @@ import {
   ChevronRight,
   X,
   CheckCircle,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -175,6 +176,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     // Admin-only items (bottom)
     ...(user?.role === "admin"
       ? [
+          { to: "/payouts", icon: Wallet, label: "Payouts" },
           { to: "/analytics", icon: BarChart3, label: "Analytics" },
         ]
       : []),

@@ -88,11 +88,11 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   });
 
   const userDetails = userResponse?.data?.user || userResponse?.data || userResponse || {};
+  
   // Prioritize fetched personalNodeCode -> fetched nodeCode -> loan prop nodeCode -> N/A
   const displayNodeCode = userDetails.personalNodeCode || userDetails.nodeCode || loan?.nodeCode || "N/A";
   const displayTier = loan?.tier || loanUser?.currentTier || userDetails?.currentTier || 1;
-  const kycStatus = (loan?.kycStatus || loanUser?.kycStatus || userDetails?.kycStatus || userDetails?.onboardingData?.kycStatus || "Unknown") as string;
-  const selfieUrl = loan?.selfieUrl || loanUser?.selfieUrl || userDetails?.selfieUrl || userDetails?.kyc?.selfieUrl || userDetails?.kycData?.selfieUrl || userDetails?.onboardingData?.selfieUrl || "";
+  const kycStatus = (userDetails?.kycStatus || loan?.kycStatus || loanUser?.kycStatus || userDetails?.onboardingData?.kycStatus || userDetails?.kyc?.status || "Unknown") as string;
   const status = (loan?.status || "PENDING").toString().toUpperCase();
   const isPending = status === "PENDING";
   const isDisbursing = status === "DISBURSING";
@@ -246,22 +246,10 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-14">
             <div className="rounded-xl border border-border bg-muted/60 p-4">
-              <p className="text-sm font-semibold text-muted-foreground">Identity</p>
-              <div className="mt-4 flex items-center gap-4">
-                <div className="h-20 w-20 overflow-hidden rounded-xl bg-background flex items-center justify-center">
-                  {selfieUrl ? (
-                    <img src={selfieUrl} alt="Live selfie" className="h-full w-full object-cover" />
-                  ) : (
-                    <User className="h-8 w-8 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Live Selfie</p>
-                  <Badge variant="outline" className={kycBadgeClass}>
-                    KYC: {kycStatus}
-                  </Badge>
-                </div>
-              </div>
+              <p className="text-sm font-semibold text-muted-foreground mb-3">KYC Verification</p>
+              <Badge variant="outline" className={kycBadgeClass}>
+                {kycStatus}
+              </Badge>
             </div>
 
             {loan.guaranteedBy && (

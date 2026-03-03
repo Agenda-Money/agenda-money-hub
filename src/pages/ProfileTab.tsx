@@ -1,34 +1,48 @@
 import React, { useState } from "react";
-import { 
-  Bell, 
-  FileText, 
-  Lock, 
-  HelpCircle, 
-  LogOut, 
-  ChevronRight, 
+import {
+  Bell,
+  FileText,
+  Lock,
+  HelpCircle,
+  LogOut,
+  ChevronRight,
   ShieldCheck,
   CheckCircle,
   Clock,
   XCircle,
   Share2,
-  Copy
+  Copy,
+  Gift, // Added Gift icon
+  Users // Added Users icon
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ProfileTabProps {
-  onboardingData: any;
-  userData: any;
-  onShowTerms: () => void;
-  onShowPrivacy: () => void;
-  onHelp: () => void;
+  onboardingData?: any; // Made optional
+  userData?: any; // Made optional
+  onShowTerms?: () => void; // Made optional
+  onShowPrivacy?: () => void; // Made optional
+  onHelp?: () => void; // Made optional
   isGraduatedNode?: boolean;
   onEndorsements?: () => void;
+  onRewards?: () => void; // Added
+  onNetwork?: () => void; // Added
 }
 
-export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData, onShowTerms, onShowPrivacy, onHelp, isGraduatedNode, onEndorsements }) => {
+export const ProfileTab: React.FC<ProfileTabProps> = ({
+  onboardingData,
+  userData,
+  onShowTerms,
+  onShowPrivacy,
+  onHelp,
+  isGraduatedNode,
+  onEndorsements,
+  onRewards, // Added
+  onNetwork // Added
+}) => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  
+
   // Handle potential field mismatches (Agent onboarding uses fullName, Self uses firstName)
   // Handle potential field mismatches
   const rawFirstName = userData?.firstName || onboardingData?.firstName;
@@ -74,6 +88,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ onboardingData, userData
   };
 
   const menuItems = [
+    { icon: Gift, label: "My Rewards", action: onRewards },
+    ...(isGraduatedNode ? [{ icon: Users, label: "My Network", action: onNetwork }] : []),
     ...(isGraduatedNode ? [{ icon: Clock, label: "Pending Endorsements", action: onEndorsements }] : []),
     { icon: FileText, label: "Terms & Conditions", action: onShowTerms },
     { icon: Lock, label: "Privacy Policy", action: onShowPrivacy },
