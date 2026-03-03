@@ -83,11 +83,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
   const hasActiveLoan = !!activeLoanDetails;
   
   // New Backend Logic: Check flags from applicant summary or activeLoanDetails
-  const summary = applicant?.summary || {};
-  const isPending = summary.isPending || activeLoanDetails?.status === 'PENDING' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT';
+  const summary = applicant?.summary || applicant?.activeLoan || {};
+  const isAwaitingEndorsement = summary.status === 'AWAITING_ENDORSEMENT' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT';
+  const isPending = summary.isPending || (activeLoanDetails?.status === 'PENDING' && !isAwaitingEndorsement) || summary.status === 'PENDING' || loanStatus === 'PENDING' || applicant?.loanStatus === 'PENDING';
   const isOverdue = summary.isOverdue || activeLoanDetails?.isOverdue;
-  const isActive = hasActiveLoan && !isPending && !isOverdue;
-  const isEligible = !isActive && !isPending && !isOverdue;
+  const isActive = hasActiveLoan && !isPending && !isOverdue && !isAwaitingEndorsement;
+  const isEligible = !isActive && !isPending && !isOverdue && !isAwaitingEndorsement;
   
   const isGraduatedNode = 
     applicant?.isGraduatedNode === true || 
@@ -97,7 +98,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
 
   // Determine Main Feed Card Status
   let feedStatus: LoanStatus = "eligible";
-  const currentLoanStatus = (loanStatus || activeLoanDetails?.status || summary?.status || "").toUpperCase();
+  const currentLoanStatus = (loanStatus || activeLoanDetails?.status || summary?.status || applicant?.activeLoan?.status || "").toUpperCase();
 
   if (currentLoanStatus === 'AWAITING_ENDORSEMENT') {
       feedStatus = "awaiting_endorsement";

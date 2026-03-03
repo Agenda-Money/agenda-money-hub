@@ -40,7 +40,7 @@ const statusConfig = {
   OVERDUE: { label: "Overdue", icon: AlertTriangle, color: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20" },
   DEFAULTED: { label: "Defaulted", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
   REJECTED: { label: "Rejected", icon: XCircle, color: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20" },
-  "AWAITING_ENDORSEMENT": { label: "Awaiting Node", icon: Clock, color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" },
+  AWAITING_ENDORSEMENT: { label: "Awaiting Node", icon: Clock, color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" },
   "DUE TODAY": { label: "Due Today", icon: AlertTriangle, color: "bg-warning/10 text-warning border-warning/20" },
 };
 
