@@ -359,7 +359,7 @@ export default function LoansPage() {
       }
     }
 
-    return {
+    const mappedLoan = {
     id: l.id ?? l._id ?? l.loanReference, // Prioritize DB ID for API calls, only falling back when null/undefined
     reference: l.loanReference ?? "N/A",
     user: l.user?.fullName  ?? l.user ?? "Unknown User", 
@@ -379,6 +379,9 @@ export default function LoansPage() {
     guaranteedByMsisdn: l.guaranteedByMsisdn,
     guaranteedAt: l.guaranteedAt
     };
+
+
+    return mappedLoan;
   });
 
   return (
