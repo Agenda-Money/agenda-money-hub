@@ -212,7 +212,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                   </div>
 
                   <div className="flex justify-between items-center text-sm py-3 bg-gray-50 -mx-2 px-2 rounded-lg mt-2">
-                    <span className="text-gray-600 font-bold">Total repayment</span>
+                    <span className="text-gray-600 font-bold">Repayment amount</span>
                     <span className="font-extrabold text-gray-900 text-lg">GHS{totalRepayment}</span>
                   </div>
                  
