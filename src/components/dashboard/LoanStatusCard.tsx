@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Send, Share2, Crown, Lock } from "lucide-react";
 
-export type LoanStatus = "eligible" | "active" | "overdue" | "review" | "progress" | "node";
+export type LoanStatus = "eligible" | "active" | "overdue" | "review" | "progress" | "node" | "awaiting_endorsement";
 
 interface LoanStatusCardProps {
   status: LoanStatus;
@@ -54,7 +54,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       subtext: "Fast approval, secure process.",
       icon: Send, 
       mainText: `Up to GHS ${amount}`,
-      mainTextClass: "text-3xl font-extrabold tracking-tight text-[#EC1B84] mt-2 mb-1", 
+      mainTextClass: "text-2xl sm:text-3xl font-extrabold tracking-tight text-[#EC1B84] mt-2 mb-1 whitespace-nowrap", 
       bottomText: null,
       bottomTextClass: null,
       buttonLabel: "Apply Now",
@@ -63,8 +63,8 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       btnClass: "bg-[#EC1B84] text-white hover:bg-[#D41472] rounded-full px-8 py-3 text-sm font-bold shadow-lg shadow-pink-200 transform transition hover:scale-105",
     },
     review: {
-      title: titleOverride || "Application under review",
-      subtext: subtextOverride || "Check back in a few minutes",
+      title: "Application under review",
+      subtext: "Awaiting admin approval",
       icon: Send,
       mainText: null,
       bottomText: null,
@@ -81,11 +81,44 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
                 cardColor === 'blue' ? "bg-blue-200 text-blue-800 hover:bg-blue-300 rounded-lg px-4 py-2 text-xs font-bold" :
                 "bg-gray-200 text-gray-600 hover:bg-gray-300 rounded-lg px-4 py-2 text-xs font-bold",
     },
+    awaiting_endorsement: {
+      title: "Awaiting Node Consent",
+      subtext: "Waiting for Node approval",
+      icon: Send,
+      mainText: null,
+      bottomText: null,
+      buttonLabel: "Check Status",
+      buttonAction: "status",
+      bgClass: "bg-pink-50 border border-pink-100 shadow-[0_4px_20px_rgb(236,27,132,0.15)]",
+      btnClass: "bg-pink-100 text-[#EC1B84] font-bold hover:bg-pink-200 rounded-lg px-4 py-2 text-xs transition duration-200",
+      customRender: () => (
+         <div className="flex-1 w-full pt-1">
+             <div className="flex items-center gap-2 mb-3">
+                 <div className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EC1B84] opacity-50"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[#EC1B84]"></span>
+                 </div>
+                 <span className="text-xs font-semibold text-[#EC1B84]">Notification sent to Node</span>
+             </div>
+             <div className="flex justify-end mt-2">
+                <button 
+                  className="bg-[#EC1B84] text-white font-bold hover:bg-[#D41472] rounded-xl px-5 py-2.5 text-xs shadow-lg shadow-pink-200 transition duration-200"
+                  onClick={(e) => {
+                      e.stopPropagation();
+                      onAction && onAction("status");
+                  }}
+                >
+                     Check Status
+                </button>
+             </div>
+         </div>
+      ),
+    },
     active: {
       title: "Your Active Loan",
       subtext: "Outstanding Balance",
       mainText: `GHS ${amount.toFixed(2)}`,
-      mainTextClass: "text-4xl font-bold tracking-tight text-gray-900",
+      mainTextClass: "text-3xl font-bold tracking-tight text-gray-900",
       bottomText: `Due: ${dueDate || "Unknown"}`,
       buttonLabel: "Repay",
       buttonAction: "repay",
@@ -96,7 +129,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       title: "Payment Overdue",
       subtext: "Your loan repayment is past due",
       mainText: `GHS ${amount.toFixed(2)}`,
-      mainTextClass: "text-4xl font-bold tracking-tight text-red-600",
+      mainTextClass: "text-3xl font-bold tracking-tight text-red-600",
       bottomText: overdueDays ? `Overdue by ${overdueDays} days` : "Payment is late",
       bottomTextClass: "text-red-600 font-medium",
       buttonLabel: "Repay Now",
@@ -215,8 +248,8 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
                 {current.subtext}
             </p>
          </div>
-         {Icon && <div className={cn("p-2 rounded-full", status === 'review' ? "bg-gray-200/50" : "bg-primary/10")}>
-            <Icon className={cn("h-5 w-5", status ==='review' ? "text-gray-600" : "text-primary")} />
+         {Icon && <div className={cn("p-2 rounded-full", status === 'review' ? "bg-gray-200/50" : status === 'awaiting_endorsement' ? "bg-rose-100" : "bg-primary/10")}>
+            <Icon className={cn("h-5 w-5", status ==='review' ? "text-gray-600" : status === 'awaiting_endorsement' ? "text-[#EC1B84]" : "text-primary")} />
          </div>}
       </div>
 
@@ -226,7 +259,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
             typeof current.customRender === 'function' ? current.customRender() : current.customRender
         ) : (
             <>
-                <div>
+                <div className="flex-1 min-w-0 pr-3">
                    {current.mainText && <h4 className={cn("leading-none", current.mainTextClass)}>{current.mainText}</h4>}
                    {current.bottomText && <p className={cn("text-xs font-semibold mt-1", current.bottomTextClass || "text-gray-500")}>
                        {current.bottomText}

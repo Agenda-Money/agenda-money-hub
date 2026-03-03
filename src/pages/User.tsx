@@ -83,11 +83,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
   const hasActiveLoan = !!activeLoanDetails;
   
   // New Backend Logic: Check flags from applicant summary or activeLoanDetails
-  const summary = applicant?.summary || {};
-  const isPending = summary.isPending || activeLoanDetails?.status === 'PENDING' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT';
+  const summary = applicant?.summary || applicant?.activeLoan || {};
+  const isAwaitingEndorsement = summary.status === 'AWAITING_ENDORSEMENT' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT';
+  const isPending = summary.isPending || (activeLoanDetails?.status === 'PENDING' && !isAwaitingEndorsement) || summary.status === 'PENDING' || loanStatus === 'PENDING' || applicant?.loanStatus === 'PENDING';
   const isOverdue = summary.isOverdue || activeLoanDetails?.isOverdue;
-  const isActive = hasActiveLoan && !isPending && !isOverdue;
-  const isEligible = !isActive && !isPending && !isOverdue;
+  const isActive = hasActiveLoan && !isPending && !isOverdue && !isAwaitingEndorsement;
+  const isEligible = !isActive && !isPending && !isOverdue && !isAwaitingEndorsement;
   
   const isGraduatedNode = 
     applicant?.isGraduatedNode === true || 
@@ -97,10 +98,19 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
 
   // Determine Main Feed Card Status
   let feedStatus: LoanStatus = "eligible";
-  if (isPending) feedStatus = "review";
-  else if (isOverdue) feedStatus = "overdue";
-  else if (isActive) feedStatus = "active";
-  else feedStatus = "eligible";
+  const currentLoanStatus = (loanStatus || activeLoanDetails?.status || summary?.status || applicant?.activeLoan?.status || "").toUpperCase();
+
+  if (currentLoanStatus === 'AWAITING_ENDORSEMENT') {
+      feedStatus = "awaiting_endorsement";
+  } else if (isPending || currentLoanStatus === 'PENDING') {
+      feedStatus = "review";
+  } else if (isOverdue || currentLoanStatus === 'OVERDUE') {
+      feedStatus = "overdue";
+  } else if (isActive || currentLoanStatus === 'ACTIVE') {
+      feedStatus = "active";
+  } else {
+      feedStatus = "eligible";
+  }
 
   // Real-time WebSocket Logic
   const { latestLoanEvent } = useWebSocketListener(applicant?.msisdn);
@@ -162,12 +172,19 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
           <LoanStatusCard
             status={feedStatus}
             amount={
-                isActive ? (activeLoanDetails?.outstandingBalance || 0) :
+                isActive || feedStatus === 'overdue' ? (activeLoanDetails?.outstandingBalance || 0) :
                 isEligible ? currentTierConfig.maxAmount : 
                 (activeLoanDetails?.outstandingBalance || 0)
             } 
             dueDate={activeLoanDetails?.dueDate ? new Date(activeLoanDetails.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : undefined}
-            overdueDays={isOverdue ? (activeLoanDetails?.overdueDays || 1) : 0}
+            overdueDays={(() => {
+              if (!isOverdue) return undefined;
+              if (typeof activeLoanDetails?.daysRemaining === "number" && activeLoanDetails.daysRemaining < 0)
+                return Math.abs(activeLoanDetails.daysRemaining);
+              if (typeof activeLoanDetails?.overdueDays === "number")
+                return activeLoanDetails.overdueDays;
+              return undefined;
+            })()}
             progress={
                 isActive ? 
                 (activeLoanDetails?.repaymentProgress?.percentage ? (activeLoanDetails.repaymentProgress.percentage / 100) : 0) 
