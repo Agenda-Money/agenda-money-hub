@@ -59,7 +59,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
       feedStatus = "awaiting_endorsement";
   } else if (isPending || currentLoanStatus === 'PENDING') {
       feedStatus = "review";
-  } else if (isOverdue) {
+  } else if (isOverdue || currentLoanStatus === 'OVERDUE') {
       feedStatus = "overdue";
   } else if (isActive || currentLoanStatus === 'ACTIVE') {
       feedStatus = "active";
@@ -114,7 +114,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
                 (activeLoanDetails?.outstandingBalance || 0)
             } 
             dueDate={activeLoanDetails?.dueDate ? new Date(activeLoanDetails.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : undefined}
-            overdueDays={isOverdue && activeLoanDetails?.daysRemaining < 0 ? Math.abs(activeLoanDetails.daysRemaining) : (activeLoanDetails?.overdueDays || 1)}
+            overdueDays={(() => {
+              if (!isOverdue) return undefined;
+              if (typeof activeLoanDetails?.daysRemaining === "number" && activeLoanDetails.daysRemaining < 0)
+                return Math.abs(activeLoanDetails.daysRemaining);
+              if (typeof activeLoanDetails?.overdueDays === "number")
+                return activeLoanDetails.overdueDays;
+              return undefined;
+            })()}
             progress={
                 isActive ? 
                 (activeLoanDetails?.repaymentProgress?.percentage ? (activeLoanDetails.repaymentProgress.percentage / 100) : 0) 

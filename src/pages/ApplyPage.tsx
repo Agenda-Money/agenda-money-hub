@@ -459,21 +459,25 @@ export default function ApplyPage() {
   // Handle Paystack repayment & Endorsement WebSocket events
   useEffect(() => {
     if (!socket) return;
+
+    const refreshUser = async () => {
+        const token = globalThis.sessionStorage.getItem("agenda_token");
+        if (!token) return;
+        const response = await fetch(`${baseApiUrl}/api/auth/me`, {
+            headers: {
+               Accept: "application/json",
+               Authorization: `Bearer ${token}`
+            }
+        });
+        const payload = await response.json();
+        if (response.ok && (payload?.user || payload?.msisdn)) {
+           handleAuthResponse(payload);
+        }
+    };
     
     const handleRepaymentProcessed = async () => {
         try {
-            const token = globalThis.sessionStorage.getItem("agenda_token");
-            if (!token) return;
-            const r = await fetch(`${baseApiUrl}/api/auth/me`, { 
-                headers: { 
-                   Accept: "application/json", 
-                   Authorization: `Bearer ${token}` 
-                } 
-            });
-            const p = await r.json();
-            if (r.ok && (p?.user || p?.msisdn)) {
-               handleAuthResponse(p);
-            }
+            await refreshUser();
         } catch (e) {
             console.error("Failed to refresh user on repayment processed", e);
         }
@@ -488,19 +492,7 @@ export default function ApplyPage() {
               icon: '✅',
             });
             
-            // Refetch user to update applicant state and loans
-            const token = globalThis.sessionStorage.getItem("agenda_token");
-            if (!token) return;
-            const r = await fetch(`${baseApiUrl}/api/auth/me`, { 
-                headers: { 
-                   Accept: "application/json", 
-                   Authorization: `Bearer ${token}` 
-                } 
-            });
-            const p = await r.json();
-            if (r.ok && (p?.user || p?.msisdn)) {
-               handleAuthResponse(p);
-            }
+            await refreshUser();
         } catch (e) {
             console.error("Failed to refresh user on loan endorsed", e);
         }
@@ -1365,7 +1357,6 @@ export default function ApplyPage() {
               </div>
 
               {(() => {
-                 const kycState = (userData?.kycStatus || onboardingData?.kycStatus || "UNVERIFIED").toUpperCase();
                  // Immediately after submission, loanStatus might not be instantly available, but if it is:
                  const loanState = ((applicant as any)?.loanStatus || "AWAITING_ENDORSEMENT").toUpperCase();
 
