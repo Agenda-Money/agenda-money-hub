@@ -54,7 +54,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       subtext: "Fast approval, secure process.",
       icon: Send, 
       mainText: `Up to GHS ${amount}`,
-      mainTextClass: "text-3xl font-extrabold tracking-tight text-[#EC1B84] mt-2 mb-1", 
+      mainTextClass: "text-2xl sm:text-3xl font-extrabold tracking-tight text-[#EC1B84] mt-2 mb-1 whitespace-nowrap", 
       bottomText: null,
       bottomTextClass: null,
       buttonLabel: "Apply Now",
@@ -82,15 +82,37 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
                 "bg-gray-200 text-gray-600 hover:bg-gray-300 rounded-lg px-4 py-2 text-xs font-bold",
     },
     awaiting_endorsement: {
-      title: "Pending Endorsement",
+      title: "Awaiting Node Consent",
       subtext: "Waiting for Node approval",
       icon: Send,
       mainText: null,
       bottomText: null,
       buttonLabel: "Check Status",
       buttonAction: "status",
-      bgClass: "bg-rose-50 border border-rose-100",
-      btnClass: "bg-rose-100 text-[#EC1B84] font-bold hover:bg-rose-200 rounded-lg px-4 py-2 text-xs",
+      bgClass: "bg-pink-50 border border-pink-100 shadow-[0_4px_20px_rgb(236,27,132,0.15)]",
+      btnClass: "bg-pink-100 text-[#EC1B84] font-bold hover:bg-pink-200 rounded-lg px-4 py-2 text-xs transition duration-200",
+      customRender: () => (
+         <div className="flex-1 w-full pt-1">
+             <div className="flex items-center gap-2 mb-3">
+                 <div className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EC1B84] opacity-50"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[#EC1B84]"></span>
+                 </div>
+                 <span className="text-xs font-semibold text-[#EC1B84]">Notification sent to Node</span>
+             </div>
+             <div className="flex justify-end mt-2">
+                <button 
+                  className="bg-[#EC1B84] text-white font-bold hover:bg-[#D41472] rounded-xl px-5 py-2.5 text-xs shadow-lg shadow-pink-200 transition duration-200"
+                  onClick={(e) => {
+                      e.stopPropagation();
+                      onAction && onAction("status");
+                  }}
+                >
+                     Check Status
+                </button>
+             </div>
+         </div>
+      ),
     },
     active: {
       title: "Your Active Loan",
@@ -238,8 +260,8 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
         ) : (
             <>
                 <div className="flex-1 min-w-0 pr-3">
-                   {current.mainText && <h4 className={cn("leading-none truncate", current.mainTextClass)}>{current.mainText}</h4>}
-                   {current.bottomText && <p className={cn("text-xs font-semibold mt-1 truncate", current.bottomTextClass || "text-gray-500")}>
+                   {current.mainText && <h4 className={cn("leading-none", current.mainTextClass)}>{current.mainText}</h4>}
+                   {current.bottomText && <p className={cn("text-xs font-semibold mt-1", current.bottomTextClass || "text-gray-500")}>
                        {current.bottomText}
                    </p>}
                 </div>
