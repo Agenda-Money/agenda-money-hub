@@ -87,10 +87,19 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
     // Smooth transition: Ensure button spinner shows for at least 800ms
     try {
         // 1. Initiate API Call with minimum delay
-        const response = await initiateRepayment(amountToPay, msisdn);
+        const response = await initiateRepayment(amountToPay);
         
         if (response?.authorizationUrl) {
+            const currentUrl = window.location.href;
             window.location.href = response.authorizationUrl;
+
+            // Fallback: if navigation does not occur, reset loading state and show an error
+            setTimeout(() => {
+              if (window.location.href === currentUrl) {
+                setIsButtonLoading(false);
+                setErrorMessage("Redirect to payment page failed. Please try again.");
+              }
+            }, 10000);
             return;
         }
         
@@ -384,27 +393,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
                             />
                         </div>
 
-                        {/* Quick Select Chips */}
-                        <div className="flex justify-center gap-2 w-full pt-2">
-                           {[0.25, 0.50, 0.75].map((pct) => {
-                               const chipAmount = Math.floor(amountDue * pct).toString();
-                               const isSelected = partialAmount === chipAmount;
-                               return (
-                                   <button 
-                                     key={pct}
-                                     onClick={() => setPartialAmount(chipAmount)}
-                                     className={cn(
-                                         "px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200",
-                                         isSelected 
-                                            ? "bg-[#EC1B84] text-white shadow-md shadow-pink-200" 
-                                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900"
-                                     )}
-                                   >
-                                     {pct * 100}%
-                                   </button>
-                               );
-                           })}
-                        </div>
+
 
                         <p className="text-xs text-gray-400 font-medium pt-2 border-t border-gray-100 w-full">
                            Min. GHS{MIN_PARTIAL_PAYMENT}

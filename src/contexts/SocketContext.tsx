@@ -35,7 +35,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         return;
     }
 
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
     
     // Connect to the socket server
     const newSocket = io(apiUrl, {
@@ -46,7 +46,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     setSocket(newSocket);
 
     newSocket.on("connect", () => {
-        console.log("Socket connected:", newSocket.id);
         // Join the user-specific room
         newSocket.emit("join-user-room", msisdn);
     });

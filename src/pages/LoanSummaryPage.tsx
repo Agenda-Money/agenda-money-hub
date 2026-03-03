@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { ArrowLeft, ChevronRight, CheckSquare, Square, Send, Loader2, AlertCircle, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, getApplicantName } from "@/lib/utils";
 import api from "@/lib/api";
 import {
   AlertDialog,
@@ -90,7 +90,6 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
               console.log("Submitting loan request to /api/loans/request...");
             }
             const payload = {
-                msisdn: applicant?.msisdn,
                 amount: loanData.amount,
                 tenureDays: loanData.tenure,
                 purpose: loanData.purpose
@@ -179,7 +178,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                  <div className="flex justify-between items-center text-sm">
                    <span className="text-gray-400">Full name</span>
                    <span className="font-bold text-gray-900 uppercase">
-                      {applicant?.fullName || applicant?.user?.fullName || `${applicant?.firstName || applicant?.user?.firstName || ""} ${applicant?.lastName || applicant?.surname || applicant?.user?.lastName || applicant?.user?.surname || ""}`.trim() || "Applicant"}
+                      {getApplicantName(applicant)}
                    </span>
                  </div>
                  <div className="flex justify-between items-center text-sm">
@@ -213,7 +212,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                   </div>
 
                   <div className="flex justify-between items-center text-sm py-3 bg-gray-50 -mx-2 px-2 rounded-lg mt-2">
-                    <span className="text-gray-600 font-bold">Total repayment</span>
+                    <span className="text-gray-600 font-bold">Repayment amount</span>
                     <span className="font-extrabold text-gray-900 text-lg">GHS{totalRepayment}</span>
                   </div>
                  
@@ -244,7 +243,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                     </div>
                     <div>
                       <p className="text-sm font-bold text-gray-900 uppercase">
-                         {applicant?.fullName || applicant?.user?.fullName || `${applicant?.firstName || applicant?.user?.firstName || ""} ${applicant?.lastName || applicant?.surname || applicant?.user?.lastName || applicant?.user?.surname || ""}`.trim() || "Applicant"}
+                         {getApplicantName(applicant)}
                       </p>
                       <p className="text-xs text-gray-500">{formattedPhone}</p>
                     </div>
