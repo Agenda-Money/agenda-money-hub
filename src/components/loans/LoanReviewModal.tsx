@@ -153,8 +153,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   });
 
   const syncMutation = useMutation({
-    mutationFn: async (referenceNo: string) => {
-      const res = await api.post(`/api/payments/sync-status/${referenceNo}`);
+    mutationFn: async (id: string) => {
+      const res = await api.post(`/api/payments/paystack/sync-transfer`, { loanId: id });
       return res.data;
     },
     onSuccess: (data) => {
@@ -206,9 +206,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   };
 
   const handleSync = () => {
-    const referenceNo = loan.loanReference || loan.reference || loan.id;
-    if (!referenceNo) return;
-    syncMutation.mutate(referenceNo);
+    if (!loanId) return;
+    syncMutation.mutate(loanId);
   };
 
   return (
@@ -356,7 +355,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                     {syncMutation.isPending ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Checking Uniwallet...
+                        Syncing Status...
                       </>
                     ) : (
                       <>

@@ -168,7 +168,7 @@ export function AgentSidebar({ isOpen, onToggle }: AgentSidebarProps) {
           <motion.button 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={logout}
+            onClick={() => logout()}
             className="flex items-center justify-center gap-2 px-4 py-3 w-full rounded-xl text-sm font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 transition-all duration-200"
           >
             <LogOut className="h-4 w-4" />

@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export function SessionManager() {
   const { isAuthenticated, logout } = useAuth();
-  const [warned, setWarned] = useState(false);
+  const warned = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setWarned(false);
+      warned.current = false;
       return;
     }
 
@@ -21,20 +21,19 @@ export function SessionManager() {
       const timeLeft = expiry - now;
 
       if (timeLeft <= 0) {
-        toast.error("Session Expired", {
-          description: "Your session has reached its time limit. Please log in again."
-        });
-        logout();
-      } else if (timeLeft <= 30 * 60 * 1000 && !warned) {
+        // Perform logout on expiry; the API interceptor is responsible
+        // for showing any "Session Expired" notifications to the user.
+        logout(false);
+      } else if (timeLeft <= 30 * 60 * 1000 && !warned.current) {
         toast.warning("Session Expiring Soon", {
           description: "Your session will expire in 30 minutes."
         });
-        setWarned(true);
+        warned.current = true;
       }
-    }, 60000); // Check every minute
+    }, 10000); // Check every 10 seconds for more precise timing
 
     return () => clearInterval(intervalId);
-  }, [isAuthenticated, logout, warned]);
+  }, [isAuthenticated, logout]);
 
   return null;
 }

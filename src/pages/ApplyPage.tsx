@@ -10,10 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Slider } from "@/components/ui/slider";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
-import { cn } from "@/lib/utils";
+import { cn, getApplicantName } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket } from "@/contexts/SocketContext";
@@ -27,6 +28,7 @@ import { ProfileTab } from "./ProfileTab";
 import { LoanSummaryPage } from "./LoanSummaryPage";
 import { RepaymentPage } from "./RepaymentPage";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
+import { ApplicationStatusCard } from "@/components/dashboard/ApplicationStatusCard";
 import {
   Bell,
   Home,
@@ -51,7 +53,9 @@ import {
   ShieldCheck,
   Smartphone,
   Share2,
-  HelpCircle
+  HelpCircle,
+  Square,
+  CheckSquare
 } from "lucide-react";
 
 const baseApiUrl = import.meta.env.VITE_API_URL || "";
@@ -314,7 +318,19 @@ export default function ApplyPage() {
 
   const [onboardingData, setOnboardingData] = useState<OnboardingData>(() => {
     const saved = globalThis.sessionStorage.getItem("agenda_onboarding_data");
-    return saved ? { ...DEFAULT_ONBOARDING_DATA, ...JSON.parse(saved) } : DEFAULT_ONBOARDING_DATA;
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            // Blob URLs do not survive page reloads. Scrub them so they don't show as 'Uploaded'
+            if (parsed.ghanaCardFrontUrl?.startsWith("blob:")) parsed.ghanaCardFrontUrl = "";
+            if (parsed.ghanaCardBackUrl?.startsWith("blob:")) parsed.ghanaCardBackUrl = "";
+            if (parsed.selfieUrl?.startsWith("blob:")) parsed.selfieUrl = "";
+            return { ...DEFAULT_ONBOARDING_DATA, ...parsed };
+        } catch (e) {
+            console.error("Failed to parse onboarding data", e);
+        }
+    }
+    return DEFAULT_ONBOARDING_DATA;
   });
 
   useEffect(() => {
@@ -339,6 +355,7 @@ export default function ApplyPage() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [, setLoanSummary] = useState<{
     disbursementAmount: number; repaymentAmount: number; repaymentDate: string; msisdn: string;
   } | null>(null);
@@ -390,9 +407,6 @@ export default function ApplyPage() {
          ? { ...backendUser, summary: data.summary }
          : backendUser;
          
-      if (import.meta.env.DEV) {
-        console.log("[ApplyPage] handleAuthResponse - userWithSummary:", userWithSummary);
-      }
       setApplicant(userWithSummary);
       setUserData(userWithSummary);
 
@@ -437,10 +451,17 @@ export default function ApplyPage() {
       case 'ONBOARDING_KYC':
         setView('onboarding');
         setOnboardingStep(3); // Direct to ID upload step
+        // Clear images on fresh session load / backend resume
+        setOnboardingData((prev) => ({
+            ...prev,
+            ghanaCardFrontUrl: "",
+            ghanaCardBackUrl: "",
+            selfieUrl: ""
+        }));
         break;
       case 'ONBOARDING_PERSONAL':
         setView('onboarding');
-        setOnboardingStep(1); // Direct to Bio-data
+        setOnboardingStep(0); // Direct to T&C Consent first (Step 0)
         break;
       default:
         // Safety fallback: If backend doesn't provide a valid nextStep
@@ -687,6 +708,8 @@ export default function ApplyPage() {
     };
   }, [onboardingData.ghanaCardFrontUrl, onboardingData.ghanaCardBackUrl, onboardingData.selfieUrl]);
 
+
+
   // ─── Handlers ───
 
   const resetAutoSubmit = useCallback(() => { autoSubmitRef.current = false; }, []);
@@ -775,7 +798,13 @@ export default function ApplyPage() {
             handleAuthResponse(p);
         }
       }
-    } catch (e: any) { setErrorMessage(e?.message || "OTP verification failed."); } finally { setIsVerifying(false); }
+    } catch (e: any) { 
+      let msg = e?.message || "OTP verification failed.";
+      if (msg.toLowerCase().includes("exist") || msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("wrong")) {
+        msg = "The OTP is invalid or has expired. Please try again.";
+      }
+      setErrorMessage(msg); 
+    } finally { setIsVerifying(false); }
   }, [normalizedMsisdn, otp, setApplicant, isVerifying, handleAuthResponse]);
 
 
@@ -877,6 +906,14 @@ export default function ApplyPage() {
           hasDeadBlob(finalBackUrl, uploadedFiles.ghanaCardBackUrl) || 
           hasDeadBlob(finalSelfieUrl, uploadedFiles.selfieUrl)) {
           
+          // Clear the dead blob strings from state so the UI correctly shows them as empty
+          setOnboardingData(prev => ({
+              ...prev,
+              ghanaCardFrontUrl: hasDeadBlob(prev.ghanaCardFrontUrl, uploadedFiles.ghanaCardFrontUrl) ? "" : prev.ghanaCardFrontUrl,
+              ghanaCardBackUrl: hasDeadBlob(prev.ghanaCardBackUrl, uploadedFiles.ghanaCardBackUrl) ? "" : prev.ghanaCardBackUrl,
+              selfieUrl: hasDeadBlob(prev.selfieUrl, uploadedFiles.selfieUrl) ? "" : prev.selfieUrl
+          }));
+
           setErrorMessage("Session expired. Please re-upload your ID cards to continue.");
           setOnboardingStep(3); // Go to Identity Step
           setIdentityStep('upload'); // Go to Upload screen
@@ -1328,33 +1365,33 @@ export default function ApplyPage() {
   // ═══════════════════════════════════════
   if (view === "success") {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in duration-500">
-        
-        {/* Success Icon */}
-        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-green-100/50">
-          <CheckCircle2 className="h-12 w-12 text-green-600" />
+      <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+        {/* Background Accents */}
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-pink-200/40 rounded-full blur-[100px]" />
+           <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-rose-100/40 rounded-full blur-[100px]" />
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h2>
-        <p className="text-muted-foreground text-sm mb-8">We've received your loan request.</p>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="relative z-10 flex flex-col items-center max-w-md w-full bg-white p-8 rounded-[2rem] shadow-xl shadow-pink-900/5 border border-pink-50"
+        >
+          {/* Animated Success Icon */}
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
+            className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6 shadow-inner"
+          >
+            <CheckCircle2 className="h-10 w-10 text-green-500" />
+          </motion.div>
 
-        {/* What Happens Next Timeline */}
-        <div className="w-full max-w-sm bg-gray-50 rounded-2xl p-5 mb-8 text-left border border-gray-100">
-           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 pl-1">What Happens Next</h3>
-           <div className="space-y-6 relative">
-              {/* Vertical Line */}
-              <div className="absolute top-2 left-[11px] bottom-2 w-0.5 bg-gray-200 -z-10" />
-
-              {/* Step 1 */}
-              <div className="flex gap-4 items-start">
-                 <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0 border-2 border-white shadow-sm">
-                    <Check className="w-3 h-3 text-white" />
-                 </div>
-                 <div>
-                    <p className="text-sm font-bold text-gray-900">Application Received</p>
-                    <p className="text-xs text-green-600 font-medium">Completed</p>
-                 </div>
-              </div>
+          <h2 className="text-2xl font-black text-gray-900 mb-3 tracking-tight">Application Received</h2>
+          <p className="text-gray-500 text-sm mb-8 leading-relaxed px-4">
+            Your loan request has been successfully submitted. We are currently processing your application.
+          </p>
 
               {(() => {
                  // Immediately after submission, loanStatus might not be instantly available, but if it is:
@@ -1403,26 +1440,25 @@ export default function ApplyPage() {
 
 
 
-        <Button 
-          onClick={() => {
-             // Update context with nodeCode and user identifiers
-             if (applicant) {
-                setApplicant({ 
-                   ...applicant, 
-                   nodeCode: successNodeCode || applicant.nodeCode,
-                   // Ensure MSISDN/ID is preserved or set from input if missing
-                   msisdn: applicant.msisdn || msisdnInput || (userData as any)?.msisdn,
-                   userId: applicant.userId || (userData as any)?.userId 
-                });
-             }
-             setIsSubmittingOnboarding(false); // Ensure onboarding mode is off
-             setOnboardingStep(0); 
-             setView("loan-dashboard");
-          }} 
-          className="w-full max-w-sm h-14 rounded-full bg-primary text-primary-foreground text-lg uppercase font-bold tracking-widest shadow-lg hover:shadow-primary/25 transition-all"
-        >
-          View Loan Status
-        </Button>
+          <Button 
+            onClick={() => {
+               if (applicant) {
+                  setApplicant({ 
+                     ...applicant, 
+                     nodeCode: successNodeCode || applicant.nodeCode,
+                     msisdn: applicant.msisdn || msisdnInput || (userData as any)?.msisdn,
+                     userId: applicant.userId || (userData as any)?.userId 
+                  });
+               }
+               setIsSubmittingOnboarding(false);
+               setOnboardingStep(0); 
+               setView("loan-dashboard");
+            }} 
+            className="w-full h-14 rounded-2xl bg-[#EC1B84] text-white hover:bg-[#D01773] text-[15px] font-bold shadow-lg shadow-[#EC1B84]/25 transition-all outline-none border-none ring-0 focus-visible:ring-0"
+          >
+            Go to Dashboard
+          </Button>
+        </motion.div>
       </div>
     );
   }
@@ -1726,7 +1762,7 @@ export default function ApplyPage() {
                   >
                       {/* Header */}
                       <div className="flex items-center justify-between">
-                          <h3 className="text-xl font-bold text-gray-900">Agenda Money T&Cs</h3>
+                          <h3 className="text-xl font-bold text-gray-900">Agenda Money</h3>
                           <button 
                               onClick={() => setIsTermsOpen(false)}
                               className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
@@ -2036,9 +2072,7 @@ export default function ApplyPage() {
              dueDate={activeLoanDetails?.dueDate || "Unknown"}
              msisdn={userData?.msisdn ? String(userData.msisdn) : applicant?.msisdn ? String(applicant.msisdn) : ""}
              userName={
-                applicant?.fullName || applicant?.user?.fullName || `${applicant?.firstName || applicant?.user?.firstName || ""} ${applicant?.lastName || applicant?.surname || applicant?.user?.lastName || applicant?.user?.surname || ""}`.trim() ||
-                userData?.fullName || userData?.user?.fullName || `${userData?.firstName || userData?.user?.firstName || ""} ${userData?.lastName || userData?.surname || userData?.user?.lastName || userData?.user?.surname || ""}`.trim() ||
-                "Account Holder"
+                getApplicantName(applicant, "") || getApplicantName(userData, "Account Holder")
              }
              onBack={() => setIsRepaymentOpen(false)}
              onRepay={(amount) => {
@@ -2112,35 +2146,37 @@ export default function ApplyPage() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <PageHeader subtitle={`Step ${onboardingStep} of 5`} onLogoClick={handleBack} />
+      <PageHeader subtitle={onboardingStep > 0 ? `Step ${onboardingStep} of 5` : undefined} onLogoClick={handleBack} />
 
       <main className="max-w-md mx-auto px-4 py-5 space-y-5">
         {/* Circle Step Indicator */}
-        <div className="relative flex justify-between items-start px-2 mb-8">
-           {/* Connecting Line */}
-           <div className="absolute top-3.5 left-6 right-6 h-[1px] bg-gray-100 -z-10" />
-           
-           {STEPS.map((s) => {
-             const isActive = onboardingStep === s.number;
-             const isCompleted = onboardingStep > s.number;
-             
-             return (
-               <div key={s.number} className="flex flex-col items-center gap-2 bg-background z-10">
-                 <div className={cn(
-                   "w-7 h-7 rounded-full flex items-center justify-center border text-xs font-semibold transition-all",
-                   isActive ? "border-gray-900 text-gray-900 bg-white" : 
-                   isCompleted ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-300 bg-white"
-                 )}>
-                   {isCompleted ? <Check className="w-3.5 h-3.5" /> : s.number}
-                 </div>
-                 <span className={cn(
-                   "text-[10px] font-medium",
-                   isActive ? "text-gray-900" : "text-gray-400"
-                 )}>{s.label}</span>
-               </div>
-             );
-           })}
-        </div>
+        {onboardingStep > 0 && (
+            <div className="relative flex justify-between items-start px-2 mb-8">
+               {/* Connecting Line */}
+               <div className="absolute top-3.5 left-6 right-6 h-[1px] bg-gray-100 -z-10" />
+               
+               {STEPS.map((s) => {
+                 const isActive = onboardingStep === s.number;
+                 const isCompleted = onboardingStep > s.number;
+                 
+                 return (
+                   <div key={s.number} className="flex flex-col items-center gap-2 bg-background z-10">
+                     <div className={cn(
+                       "w-7 h-7 rounded-full flex items-center justify-center border text-xs font-semibold transition-all",
+                       isActive ? "border-gray-900 text-gray-900 bg-white" : 
+                       isCompleted ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-300 bg-white"
+                     )}>
+                       {isCompleted ? <Check className="w-3.5 h-3.5" /> : s.number}
+                     </div>
+                     <span className={cn(
+                       "text-[10px] font-medium",
+                       isActive ? "text-gray-900" : "text-gray-400"
+                     )}>{s.label}</span>
+                   </div>
+                 );
+               })}
+            </div>
+        )}
 
         {errorMessage && (
           <Alert className="border-destructive/30 bg-destructive/5">
@@ -2152,6 +2188,79 @@ export default function ApplyPage() {
           <motion.div key={onboardingStep} custom={onboardingDirection} variants={slideVariants}
             initial="enter" animate="center" exit="exit"
             transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+
+            {/* Step 0: Terms and Conditions (New Users Only) */}
+            {onboardingStep === 0 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="text-center space-y-2">
+                        <div className="mx-auto w-12 h-12 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center mb-4">
+                            <Shield className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Terms & Conditions</h2>
+                        <p className="text-sm text-gray-500 max-w-[260px] mx-auto">
+                            Please read and accept our terms before continuing with your application.
+                        </p>
+                    </div>
+
+                    <div className="bg-white border rounded-2xl p-5 h-[40vh] overflow-y-auto shadow-sm space-y-4 text-sm text-gray-600 leading-relaxed scrollbar-thin scrollbar-thumb-gray-200">
+                        <p className="font-bold text-gray-900">Agenda Money</p>
+                        
+                        <div className="space-y-4">
+                            <div className="flex gap-3">
+                                <span className="font-bold text-gray-900 shrink-0">1.</span>
+                                <span>Interest rate: 0.5% per day</span>
+                            </div>
+                            <div className="flex gap-3">
+                                <span className="font-bold text-gray-900 shrink-0">2.</span>
+                                <span>Processing fee: GHS 30 flat</span>
+                            </div>
+                            <div className="flex gap-3">
+                                <span className="font-bold text-gray-900 shrink-0">3.</span>
+                                <span>Requirement: 18+ years</span>
+                            </div>
+                            <div className="flex gap-3">
+                                <span className="font-bold text-gray-900 shrink-0">4.</span>
+                                <span>Requirement: Valid Ghana Card</span>
+                            </div>
+                            <div className="flex gap-3">
+                                <span className="font-bold text-gray-900 shrink-0">5.</span>
+                                <span>Late payment affects credit score</span>
+                            </div>
+                            <div className="flex gap-3">
+                                <span className="font-bold text-gray-900 shrink-0">6.</span>
+                                <span>Penal interest: 2% per day on overdue amount</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-2 space-y-6">
+                        <button 
+                            onClick={() => setTermsAccepted(!termsAccepted)}
+                            className="flex items-start gap-3 w-full group text-left px-1"
+                        >
+                            <div className={cn("mt-0.5 shrink-0 transition-colors", termsAccepted ? "text-[#EC1B84]" : "text-gray-300 group-hover:text-gray-400")}>
+                                {termsAccepted ? <CheckSquare className="w-6 h-6" /> : <Square className="w-6 h-6" />}
+                            </div>
+                            <span className="text-sm text-gray-600 font-medium select-none">
+                                I have read, understood, and agree to the Terms & Conditions.
+                            </span>
+                        </button>
+
+                        <Button 
+                            onClick={() => setOnboardingStep(1)}
+                            disabled={!termsAccepted}
+                            className={cn(
+                                "w-full h-14 rounded-full font-bold text-lg uppercase tracking-widest transition-all",
+                                termsAccepted 
+                                  ? "bg-[#EC1B84] hover:bg-[#D41574] text-white shadow-lg shadow-pink-200" 
+                                  : "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
+                            )}
+                        >
+                            Accept & Continue
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Step 1: Personal Info */}
             {onboardingStep === 1 && (
@@ -2292,7 +2401,7 @@ export default function ApplyPage() {
                                     className={cn(
                                         "flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border-2 transition-all duration-200",
                                         onboardingData.accommodationType === opt.val
-                                            ? "border-[#EC1B84] bg-[#EC1B84]/10 text-[#EC1B84] shadow-sm scale-[1.02]"
+                                            ? "bg-pink-50 text-pink-700 border-pink-200 shadow-sm scale-[1.02]"
                                             : "border-gray-100 bg-white text-gray-500 hover:border-pink-200 hover:bg-pink-50/10"
                                     )}
                                 >
@@ -2387,7 +2496,7 @@ export default function ApplyPage() {
                                      className={cn(
                                          "px-4 py-2.5 rounded-full text-sm font-bold border transition-all duration-200",
                                          onboardingData.employmentStatus === status
-                                             ? "bg-gray-900 text-white border-gray-900 shadow-md transform scale-[1.02]"
+                                             ? "bg-pink-50 text-pink-700 border-pink-200 shadow-sm transform scale-[1.02]"
                                              : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                                      )}
                                  >
@@ -2428,19 +2537,14 @@ export default function ApplyPage() {
                         </div>
                         
                         <div className="px-2 pb-6">
-                            {/* Custom Slider Simulation since we don't have the Slider component imported yet, 
-                                but to avoid build errors if Slider isn't in scope, I'll use a styled input range 
-                                for immediate reliability without checking imports */}
-                            <input 
-                                type="range" 
-                                min="0" 
-                                max="3" 
-                                step="1"
-                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#EC1B84]"
-                                value={INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "") === -1 ? 0 : INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "")}
-                                onChange={(e) => handleOnboardingChange("monthlyIncome", INCOME_BRACKETS[parseInt(e.target.value)])}
+                            <Slider
+                                value={[INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "") === -1 ? 0 : INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "")]}
+                                onValueChange={(vals) => handleOnboardingChange("monthlyIncome", INCOME_BRACKETS[vals[0]])}
+                                max={3}
+                                step={1}
+                                className="[&_[role=slider]]:bg-[#EC1B84] [&_[role=slider]]:border-[#EC1B84] [&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:shadow-lg [&_[role=slider]]:shadow-pink-200"
                             />
-                            <div className="flex justify-between mt-2 text-[10px] text-gray-400 font-medium">
+                            <div className="flex justify-between mt-4 text-[10px] text-gray-400 font-bold px-1">
                                 <span>&lt;1k</span>
                                 <span>1-2k</span>
                                 <span>2-5k</span>
@@ -2457,7 +2561,12 @@ export default function ApplyPage() {
 
             {/* Step 3: Identity Verification */}
             {onboardingStep === 3 && (
-              <div className="space-y-6">
+              <div className="space-y-6" ref={(el) => {
+                  if (el) {
+                      // Small delay to ensure render is complete before scrolling
+                      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                  }
+              }}>
                  {/* ─── Screen 1: Intro / Consent ─── */}
                  {identityStep === 'intro' && (
                     <div className="space-y-6">
@@ -2529,7 +2638,11 @@ export default function ApplyPage() {
 
                  {/* ─── Screen 2: Uploads ─── */}
                  {identityStep === 'upload' && (
-                    <div className="space-y-6">
+                    <div className="space-y-6" ref={(el) => {
+                        if (el) {
+                            setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                        }
+                    }}>
                         <div className="mt-2">
                            <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2 mb-2 rounded-full" onClick={handleOnboardingBack}>
                              <ArrowLeft className="h-4 w-4" />

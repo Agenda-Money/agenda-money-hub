@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'sonner';
 
 // Create axios instance with base URL
 const api = axios.create({
@@ -28,8 +29,6 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
-
-import { toast } from 'sonner';
 
 // Response interceptor for API calls
 api.interceptors.response.use(
@@ -64,14 +63,14 @@ api.interceptors.response.use(
       // Alternatively, we could just rely on the router to redirect, but since we are clearing storage here:
       setTimeout(() => {
         window.location.href = "/login";
-      }, 1500);
+      }, 4000);
     }
     return Promise.reject(error);
   }
 );
 
-export const initiateRepayment = async (amount: number, msisdn: string) => {
-  const response = await api.post('/api/repayments/initiate', { amount, msisdn });
+export const initiateRepayment = async (amount: number) => {
+  const response = await api.post('/api/repayments/initiate', { amount });
   return response.data;
 };
 
