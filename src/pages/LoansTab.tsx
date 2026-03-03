@@ -35,8 +35,19 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, repay
 
   // Urgency Logic
   const isUrgent = activeLoan ? (activeLoan.daysRemaining < 3 && activeLoan.daysRemaining >= 0) : false;
+  const isOverdue = activeLoan ? activeLoan.daysRemaining < 0 : false;
 
   const renderTopCard = () => {
+      const loanStatus = loan?.status || loan?.loanStatus;
+
+      if (String(loanStatus).toUpperCase() === 'AWAITING_ENDORSEMENT') {
+          return (
+             <div className="mb-6">
+                 <LoanStatusCard status="awaiting_endorsement" onAction={onAction} className="shadow-sm" />
+             </div>
+          );
+      }
+
       if (isPending) {
           return (
              <div className="mb-6">
@@ -64,9 +75,10 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, repay
       return (
           <>
             <LoanStatusCard 
-              status="active"
+              status={isOverdue ? "overdue" : "active"}
               amount={activeLoan.outstandingBalance} // Use Outstanding Balance
               dueDate={activeLoan.dueDate}
+              overdueDays={isOverdue ? Math.abs(activeLoan.daysRemaining) : undefined}
               progress={activeLoan.progressPercent / 100} // Pass 0-1 range if component expects it, or just use percentage
               className="shadow-sm mb-6"
               onAction={(action) => {
@@ -118,10 +130,19 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, repay
               <div className="space-y-3 pt-2">
                  <p className="text-sm font-bold text-gray-900">Loan Details</p>
                  <div className="flex justify-between text-sm">
-                    <span className={cn("font-medium", isUrgent ? "text-[#EC1B84]" : "text-gray-500")}>Due Date</span>
-                    <span className={cn("font-bold", isUrgent ? "text-[#EC1B84]" : "text-gray-900")}>
-                        {activeLoan.dueDate} {isUrgent && activeLoan.daysRemaining > 0 && `(${activeLoan.daysRemaining} days left)`}
-                    </span>
+                    {isOverdue ? (
+                        <>
+                            <span className="font-medium text-red-600">Overdue By</span>
+                            <span className="font-bold text-red-600">{Math.abs(activeLoan.daysRemaining)} days</span>
+                        </>
+                    ) : (
+                        <>
+                            <span className={cn("font-medium", isUrgent ? "text-[#EC1B84]" : "text-gray-500")}>Due Date</span>
+                            <span className={cn("font-bold", isUrgent ? "text-[#EC1B84]" : "text-gray-900")}>
+                                {activeLoan.dueDate} {isUrgent && activeLoan.daysRemaining > 0 && `(${activeLoan.daysRemaining} days left)`}
+                            </span>
+                        </>
+                    )}
                  </div>
                  <div className="flex justify-between text-sm">
                     <span className="text-gray-500 font-medium">Disbursement Date</span>

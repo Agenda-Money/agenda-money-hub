@@ -26,6 +26,7 @@ export function useWebSocketListener(userMsisdn?: string, isAdmin: boolean = fal
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
     
     const newSocket = io(apiUrl, {
+      transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,

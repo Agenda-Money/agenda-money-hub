@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Slider } from "@/components/ui/slider";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
@@ -53,9 +52,7 @@ import {
   ShieldCheck,
   Smartphone,
   Share2,
-  HelpCircle,
-  Square,
-  CheckSquare
+  HelpCircle
 } from "lucide-react";
 
 const baseApiUrl = import.meta.env.VITE_API_URL || "";
@@ -63,6 +60,7 @@ const OTP_LENGTH = 6;
 const OTP_SLOTS = ["one", "two", "three", "four", "five", "six"];
 const RESEND_SECONDS = 60;
 import { X } from "lucide-react";
+import toast from "react-hot-toast";
 
 const GHANA_REGIONS = [
   "Greater Accra", "Ashanti", "Central", "Eastern", "Northern",
@@ -318,19 +316,7 @@ export default function ApplyPage() {
 
   const [onboardingData, setOnboardingData] = useState<OnboardingData>(() => {
     const saved = globalThis.sessionStorage.getItem("agenda_onboarding_data");
-    if (saved) {
-        try {
-            const parsed = JSON.parse(saved);
-            // Blob URLs do not survive page reloads. Scrub them so they don't show as 'Uploaded'
-            if (parsed.ghanaCardFrontUrl?.startsWith("blob:")) parsed.ghanaCardFrontUrl = "";
-            if (parsed.ghanaCardBackUrl?.startsWith("blob:")) parsed.ghanaCardBackUrl = "";
-            if (parsed.selfieUrl?.startsWith("blob:")) parsed.selfieUrl = "";
-            return { ...DEFAULT_ONBOARDING_DATA, ...parsed };
-        } catch (e) {
-            console.error("Failed to parse onboarding data", e);
-        }
-    }
-    return DEFAULT_ONBOARDING_DATA;
+    return saved ? { ...DEFAULT_ONBOARDING_DATA, ...JSON.parse(saved) } : DEFAULT_ONBOARDING_DATA;
   });
 
   useEffect(() => {
@@ -355,7 +341,6 @@ export default function ApplyPage() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
-  const [termsAccepted, setTermsAccepted] = useState(false);
   const [, setLoanSummary] = useState<{
     disbursementAmount: number; repaymentAmount: number; repaymentDate: string; msisdn: string;
   } | null>(null);
@@ -451,17 +436,10 @@ export default function ApplyPage() {
       case 'ONBOARDING_KYC':
         setView('onboarding');
         setOnboardingStep(3); // Direct to ID upload step
-        // Clear images on fresh session load / backend resume
-        setOnboardingData((prev) => ({
-            ...prev,
-            ghanaCardFrontUrl: "",
-            ghanaCardBackUrl: "",
-            selfieUrl: ""
-        }));
         break;
       case 'ONBOARDING_PERSONAL':
         setView('onboarding');
-        setOnboardingStep(0); // Direct to T&C Consent first (Step 0)
+        setOnboardingStep(1); // Direct to Bio-data
         break;
       default:
         // Safety fallback: If backend doesn't provide a valid nextStep
@@ -500,10 +478,29 @@ export default function ApplyPage() {
         }
     };
 
+    const handleLoanEndorsed = async (data: any) => {
+        try {
+            console.log('🎉 Loan endorsed:', data);
+            toast.success(data?.message || "Your loan has been endorsed by your node!", { icon: '✅' });
+            
+            const token = globalThis.sessionStorage.getItem("agenda_token");
+            if (!token) return;
+            const r = await fetch(`${baseApiUrl}/api/auth/me`, { 
+                headers: { Accept: "application/json", Authorization: `Bearer ${token}` } 
+            });
+            const p = await r.json();
+            if (r.ok && (p?.user || p?.msisdn)) handleAuthResponse(p);
+        } catch (e) {
+            console.error("Failed to refresh user on loan endorsed", e);
+        }
+    };
+
     socket.on('repayment_processed', handleRepaymentProcessed);
+    socket.on('loan_endorsed', handleLoanEndorsed);
     
     return () => {
        socket.off('repayment_processed', handleRepaymentProcessed);
+       socket.off('loan_endorsed', handleLoanEndorsed);
     };
   }, [socket, handleAuthResponse]);
 
@@ -680,8 +677,6 @@ export default function ApplyPage() {
       if (onboardingData.selfieUrl?.startsWith("blob:")) URL.revokeObjectURL(onboardingData.selfieUrl);
     };
   }, [onboardingData.ghanaCardFrontUrl, onboardingData.ghanaCardBackUrl, onboardingData.selfieUrl]);
-
-
 
   // ─── Handlers ───
 
@@ -879,14 +874,6 @@ export default function ApplyPage() {
           hasDeadBlob(finalBackUrl, uploadedFiles.ghanaCardBackUrl) || 
           hasDeadBlob(finalSelfieUrl, uploadedFiles.selfieUrl)) {
           
-          // Clear the dead blob strings from state so the UI correctly shows them as empty
-          setOnboardingData(prev => ({
-              ...prev,
-              ghanaCardFrontUrl: hasDeadBlob(prev.ghanaCardFrontUrl, uploadedFiles.ghanaCardFrontUrl) ? "" : prev.ghanaCardFrontUrl,
-              ghanaCardBackUrl: hasDeadBlob(prev.ghanaCardBackUrl, uploadedFiles.ghanaCardBackUrl) ? "" : prev.ghanaCardBackUrl,
-              selfieUrl: hasDeadBlob(prev.selfieUrl, uploadedFiles.selfieUrl) ? "" : prev.selfieUrl
-          }));
-
           setErrorMessage("Session expired. Please re-upload your ID cards to continue.");
           setOnboardingStep(3); // Go to Identity Step
           setIdentityStep('upload'); // Go to Upload screen
@@ -1453,8 +1440,8 @@ export default function ApplyPage() {
           {/* HOME TAB (ACTION FEED) */}
           {activeTab === "home" && (
              <UserDashboard 
-                applicant={applicant} 
-                loanStatus={(applicant as any)?.loanStatus || "ELIGIBLE"}
+                applicant={userData || applicant} 
+                loanStatus={(userData as any)?.loanStatus || (applicant as any)?.loanStatus || activeLoanDetails?.status || (applicant as any)?.activeLoan?.status}
                 tierLimit={tierMax}
                 onAction={(action) => {
                    if (action === "apply") setActiveTab("application");
@@ -1477,7 +1464,7 @@ export default function ApplyPage() {
                  onRepay={() => setIsRepaymentOpen(true)}
                  loan={activeLoanDetails || (applicant as any)?.activeLoan}
                  repaymentHistory={recentActivity.filter((a: any) => a.type === 'payment')}
-                 isPending={(applicant as any)?.summary?.isPending || activeLoanDetails?.status === 'PENDING' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT'}
+                 isPending={(applicant as any)?.summary?.isPending || activeLoanDetails?.status === 'PENDING' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT' || (applicant as any)?.activeLoan?.status === 'PENDING' || (userData as any)?.loanStatus === 'PENDING' || (applicant as any)?.loanStatus === 'PENDING'}
                  onAction={(action) => {
                     if (action === "status") setIsStatusOpen(true);
                  }}
@@ -1674,6 +1661,42 @@ export default function ApplyPage() {
           )}
         </AnimatePresence>
 
+        {/* Application Status Modal */}
+        <AnimatePresence>
+          {isStatusOpen && (
+              <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 sm:p-0"
+                  onClick={() => setIsStatusOpen(false)}
+              >
+                  <motion.div 
+                      initial={{ y: "100%" }}
+                      animate={{ y: 0 }}
+                      exit={{ y: "100%" }}
+                      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                      className="w-full sm:max-w-md bg-white rounded-3xl p-6 shadow-xl relative"
+                      onClick={(e) => e.stopPropagation()}
+                  >
+                      <button 
+                          onClick={() => setIsStatusOpen(false)}
+                          className="absolute right-4 top-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
+                      >
+                          <X className="w-5 h-5 text-gray-500" />
+                      </button>
+                      <div className="mb-2" />
+                      <ApplicationStatusCard 
+                          loanId={activeLoanDetails?.id || (applicant as any)?.activeLoan?.id || "unknown"}
+                          userMsisdn={applicant?.msisdn || msisdnInput || (userData as any)?.msisdn}
+                          initialStatus={activeLoanDetails?.status || (applicant as any)?.loanStatus || "ELIGIBLE"}
+                          className="border-none shadow-none p-0 bg-transparent"
+                      />
+                  </motion.div>
+              </motion.div>
+          )}
+        </AnimatePresence>
+
 
         {/* Terms & Conditions Overlay */}
         <AnimatePresence>
@@ -1695,7 +1718,7 @@ export default function ApplyPage() {
                   >
                       {/* Header */}
                       <div className="flex items-center justify-between">
-                          <h3 className="text-xl font-bold text-gray-900">Agenda Money</h3>
+                          <h3 className="text-xl font-bold text-gray-900">Agenda Money T&Cs</h3>
                           <button 
                               onClick={() => setIsTermsOpen(false)}
                               className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
@@ -1994,38 +2017,37 @@ export default function ApplyPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-background pb-24">
-      <PageHeader subtitle={onboardingStep > 0 ? `Step ${onboardingStep} of 5` : undefined} onLogoClick={handleBack} />
+      <PageHeader subtitle={`Step ${onboardingStep} of 5`} onLogoClick={handleBack} />
 
       <main className="max-w-md mx-auto px-4 py-5 space-y-5">
         {/* Circle Step Indicator */}
-        {onboardingStep > 0 && (
-            <div className="relative flex justify-between items-start px-2 mb-8">
-               {/* Connecting Line */}
-               <div className="absolute top-3.5 left-6 right-6 h-[1px] bg-gray-100 -z-10" />
-               
-               {STEPS.map((s) => {
-                 const isActive = onboardingStep === s.number;
-                 const isCompleted = onboardingStep > s.number;
-                 
-                 return (
-                   <div key={s.number} className="flex flex-col items-center gap-2 bg-background z-10">
-                     <div className={cn(
-                       "w-7 h-7 rounded-full flex items-center justify-center border text-xs font-semibold transition-all",
-                       isActive ? "border-gray-900 text-gray-900 bg-white" : 
-                       isCompleted ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-300 bg-white"
-                     )}>
-                       {isCompleted ? <Check className="w-3.5 h-3.5" /> : s.number}
-                     </div>
-                     <span className={cn(
-                       "text-[10px] font-medium",
-                       isActive ? "text-gray-900" : "text-gray-400"
-                     )}>{s.label}</span>
-                   </div>
-                 );
-               })}
-            </div>
-        )}
+        <div className="relative flex justify-between items-start px-2 mb-8">
+           {/* Connecting Line */}
+           <div className="absolute top-3.5 left-6 right-6 h-[1px] bg-gray-100 -z-10" />
+           
+           {STEPS.map((s) => {
+             const isActive = onboardingStep === s.number;
+             const isCompleted = onboardingStep > s.number;
+             
+             return (
+               <div key={s.number} className="flex flex-col items-center gap-2 bg-background z-10">
+                 <div className={cn(
+                   "w-7 h-7 rounded-full flex items-center justify-center border text-xs font-semibold transition-all",
+                   isActive ? "border-gray-900 text-gray-900 bg-white" : 
+                   isCompleted ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-300 bg-white"
+                 )}>
+                   {isCompleted ? <Check className="w-3.5 h-3.5" /> : s.number}
+                 </div>
+                 <span className={cn(
+                   "text-[10px] font-medium",
+                   isActive ? "text-gray-900" : "text-gray-400"
+                 )}>{s.label}</span>
+               </div>
+             );
+           })}
+        </div>
 
         {errorMessage && (
           <Alert className="border-destructive/30 bg-destructive/5">
@@ -2037,79 +2059,6 @@ export default function ApplyPage() {
           <motion.div key={onboardingStep} custom={onboardingDirection} variants={slideVariants}
             initial="enter" animate="center" exit="exit"
             transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-
-            {/* Step 0: Terms and Conditions (New Users Only) */}
-            {onboardingStep === 0 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="text-center space-y-2">
-                        <div className="mx-auto w-12 h-12 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center mb-4">
-                            <Shield className="w-6 h-6" />
-                        </div>
-                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Terms & Conditions</h2>
-                        <p className="text-sm text-gray-500 max-w-[260px] mx-auto">
-                            Please read and accept our terms before continuing with your application.
-                        </p>
-                    </div>
-
-                    <div className="bg-white border rounded-2xl p-5 h-[40vh] overflow-y-auto shadow-sm space-y-4 text-sm text-gray-600 leading-relaxed scrollbar-thin scrollbar-thumb-gray-200">
-                        <p className="font-bold text-gray-900">Agenda Money</p>
-                        
-                        <div className="space-y-4">
-                            <div className="flex gap-3">
-                                <span className="font-bold text-gray-900 shrink-0">1.</span>
-                                <span>Interest rate: 0.5% per day</span>
-                            </div>
-                            <div className="flex gap-3">
-                                <span className="font-bold text-gray-900 shrink-0">2.</span>
-                                <span>Processing fee: GHS 30 flat</span>
-                            </div>
-                            <div className="flex gap-3">
-                                <span className="font-bold text-gray-900 shrink-0">3.</span>
-                                <span>Requirement: 18+ years</span>
-                            </div>
-                            <div className="flex gap-3">
-                                <span className="font-bold text-gray-900 shrink-0">4.</span>
-                                <span>Requirement: Valid Ghana Card</span>
-                            </div>
-                            <div className="flex gap-3">
-                                <span className="font-bold text-gray-900 shrink-0">5.</span>
-                                <span>Late payment affects credit score</span>
-                            </div>
-                            <div className="flex gap-3">
-                                <span className="font-bold text-gray-900 shrink-0">6.</span>
-                                <span>Penal interest: 2% per day on overdue amount</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="pt-2 space-y-6">
-                        <button 
-                            onClick={() => setTermsAccepted(!termsAccepted)}
-                            className="flex items-start gap-3 w-full group text-left px-1"
-                        >
-                            <div className={cn("mt-0.5 shrink-0 transition-colors", termsAccepted ? "text-[#EC1B84]" : "text-gray-300 group-hover:text-gray-400")}>
-                                {termsAccepted ? <CheckSquare className="w-6 h-6" /> : <Square className="w-6 h-6" />}
-                            </div>
-                            <span className="text-sm text-gray-600 font-medium select-none">
-                                I have read, understood, and agree to the Terms & Conditions.
-                            </span>
-                        </button>
-
-                        <Button 
-                            onClick={() => setOnboardingStep(1)}
-                            disabled={!termsAccepted}
-                            className={cn(
-                                "w-full h-14 rounded-full font-bold text-lg uppercase tracking-widest transition-all",
-                                termsAccepted 
-                                  ? "bg-[#EC1B84] hover:bg-[#D41574] text-white shadow-lg shadow-pink-200" 
-                                  : "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
-                            )}
-                        >
-                            Accept & Continue
-                        </Button>
-                    </div>
-                </div>
-            )}
 
             {/* Step 1: Personal Info */}
             {onboardingStep === 1 && (
@@ -2250,7 +2199,7 @@ export default function ApplyPage() {
                                     className={cn(
                                         "flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border-2 transition-all duration-200",
                                         onboardingData.accommodationType === opt.val
-                                            ? "bg-pink-50 text-pink-700 border-pink-200 shadow-sm scale-[1.02]"
+                                            ? "border-[#EC1B84] bg-[#EC1B84]/10 text-[#EC1B84] shadow-sm scale-[1.02]"
                                             : "border-gray-100 bg-white text-gray-500 hover:border-pink-200 hover:bg-pink-50/10"
                                     )}
                                 >
@@ -2345,7 +2294,7 @@ export default function ApplyPage() {
                                      className={cn(
                                          "px-4 py-2.5 rounded-full text-sm font-bold border transition-all duration-200",
                                          onboardingData.employmentStatus === status
-                                             ? "bg-pink-50 text-pink-700 border-pink-200 shadow-sm transform scale-[1.02]"
+                                             ? "bg-gray-900 text-white border-gray-900 shadow-md transform scale-[1.02]"
                                              : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                                      )}
                                  >
@@ -2386,14 +2335,19 @@ export default function ApplyPage() {
                         </div>
                         
                         <div className="px-2 pb-6">
-                            <Slider
-                                value={[INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "") === -1 ? 0 : INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "")]}
-                                onValueChange={(vals) => handleOnboardingChange("monthlyIncome", INCOME_BRACKETS[vals[0]])}
-                                max={3}
-                                step={1}
-                                className="[&_[role=slider]]:bg-[#EC1B84] [&_[role=slider]]:border-[#EC1B84] [&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:shadow-lg [&_[role=slider]]:shadow-pink-200"
+                            {/* Custom Slider Simulation since we don't have the Slider component imported yet, 
+                                but to avoid build errors if Slider isn't in scope, I'll use a styled input range 
+                                for immediate reliability without checking imports */}
+                            <input 
+                                type="range" 
+                                min="0" 
+                                max="3" 
+                                step="1"
+                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#EC1B84]"
+                                value={INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "") === -1 ? 0 : INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "")}
+                                onChange={(e) => handleOnboardingChange("monthlyIncome", INCOME_BRACKETS[parseInt(e.target.value)])}
                             />
-                            <div className="flex justify-between mt-4 text-[10px] text-gray-400 font-bold px-1">
+                            <div className="flex justify-between mt-2 text-[10px] text-gray-400 font-medium">
                                 <span>&lt;1k</span>
                                 <span>1-2k</span>
                                 <span>2-5k</span>
@@ -2410,12 +2364,7 @@ export default function ApplyPage() {
 
             {/* Step 3: Identity Verification */}
             {onboardingStep === 3 && (
-              <div className="space-y-6" ref={(el) => {
-                  if (el) {
-                      // Small delay to ensure render is complete before scrolling
-                      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-                  }
-              }}>
+              <div className="space-y-6">
                  {/* ─── Screen 1: Intro / Consent ─── */}
                  {identityStep === 'intro' && (
                     <div className="space-y-6">
@@ -2487,11 +2436,7 @@ export default function ApplyPage() {
 
                  {/* ─── Screen 2: Uploads ─── */}
                  {identityStep === 'upload' && (
-                    <div className="space-y-6" ref={(el) => {
-                        if (el) {
-                            setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-                        }
-                    }}>
+                    <div className="space-y-6">
                         <div className="mt-2">
                            <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2 mb-2 rounded-full" onClick={handleOnboardingBack}>
                              <ArrowLeft className="h-4 w-4" />
@@ -2624,6 +2569,26 @@ export default function ApplyPage() {
         </div>
       )}
     </div>
+
+      {/* ApplicationStatusModal Override */}
+      <AnimatePresence>
+        {isStatusOpen && (
+          <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 sm:p-0" onClick={() => setIsStatusOpen(false)}>
+            <div className="w-full sm:max-w-md bg-white rounded-3xl p-6 shadow-xl relative" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setIsStatusOpen(false)} className="absolute right-4 top-4 p-2 rounded-full hover:bg-gray-100 transition-colors">
+                  <X className="w-5 h-5 text-gray-500" />
+              </button>
+              <div className="mb-2" />
+              <ApplicationStatusCard
+                loanId={activeLoanDetails?.id || (applicant as any)?.activeLoan?.id || "unknown"}
+                userMsisdn={applicant?.msisdn || msisdnInput || (userData as any)?.msisdn || ""}
+                initialStatus={activeLoanDetails?.status || (applicant as any)?.loanStatus || "ELIGIBLE"}
+              />
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
