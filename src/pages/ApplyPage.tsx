@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Slider } from "@/components/ui/slider";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import imageCompression from "browser-image-compression";
 import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
 import { cn, getApplicantName } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
@@ -101,6 +103,7 @@ interface OnboardingData {
   ghanaCardFrontUrl: string;
   ghanaCardBackUrl: string;
   selfieUrl: string;
+  hasAcceptedTerms: boolean;
 }
 
 const buildAmountOptions = (tier?: TierConfig) => {
@@ -695,10 +698,32 @@ export default function ApplyPage() {
   const handleGhanaCardChange = (v: string) => { if (!v.startsWith("GHA-")) return; handleOnboardingChange("ghanaCardNumber", formatGhanaCardNumber(v)); };
 
   const handleUpload = async (file: File, field: "ghanaCardFrontUrl" | "ghanaCardBackUrl" | "selfieUrl") => {
-    const old = onboardingData[field];
-    old?.startsWith("blob:") && URL.revokeObjectURL(old);
-    handleOnboardingChange(field, URL.createObjectURL(file));
-    setUploadedFiles((p) => ({ ...p, [field]: file }));
+    setUploadProgress(prev => ({ ...prev, [field]: 10 }));
+    setErrorMessage(null);
+    let finalFile = file;
+
+    // 1️⃣ Compress immediately upon capture!
+    if (file.type.startsWith('image/')) {
+        try {
+          finalFile = await imageCompression(file, {
+            maxSizeMB: 1.5, // slightly larger max size allows it to skip heavy compression
+            maxWidthOrHeight: 1280, // resize aggressively before compression for speed
+            useWebWorker: true,
+            initialQuality: 0.9,
+            alwaysKeepResolution: false
+          });
+          console.log(`Compressed ${field}: ${file.size / 1024 / 1024} MB -> ${finalFile.size / 1024 / 1024} MB`);
+        } catch (error) {
+          console.error("Compression failed:", error);
+        }
+    }
+
+    const localUrl = URL.createObjectURL(finalFile);
+    setOnboardingData(prev => ({ ...prev, [field]: localUrl }));
+    setUploadProgress(prev => ({ ...prev, [field]: 0 }));
+    
+    // Store the compressed file in state
+    setUploadedFiles(prev => ({ ...prev, [field]: finalFile }));
   };
 
   const getFileExtension = useCallback((file: File): string => {
@@ -876,7 +901,18 @@ export default function ApplyPage() {
           hasDeadBlob(finalBackUrl, uploadedFiles.ghanaCardBackUrl) || 
           hasDeadBlob(finalSelfieUrl, uploadedFiles.selfieUrl)) {
           
-          setErrorMessage("Session expired. Please re-upload your ID cards to continue.");
+          setErrorMessage("Your uploaded images have expired. Please re-upload them.");
+          setUploadProgress({
+              ghanaCardFrontUrl: 0,
+              ghanaCardBackUrl: 0,
+              selfieUrl: 0
+          });
+          setOnboardingData(prev => ({
+            ...prev,
+            ghanaCardFrontUrl: "",
+            ghanaCardBackUrl: "",
+            selfieUrl: ""
+          }));
           setOnboardingStep(3); // Go to Identity Step
           setIdentityStep('upload'); // Go to Upload screen
           setIsSubmittingOnboarding(false);
@@ -894,6 +930,7 @@ export default function ApplyPage() {
       // 🎯 CRITICAL: Overwrite blobs with real Supabase links if new files exist (DO IT IN PARALLEL FOR SPEED)
       const uploadPromises = [];
 
+      // The files in uploadedFiles are already compressed from handleUpload!
       if (uploadedFiles.ghanaCardFrontUrl) {
           uploadPromises.push(
               uploadFile(uploadedFiles.ghanaCardFrontUrl, "ghana-card-front", "Front ID upload failed.")
@@ -953,7 +990,7 @@ export default function ApplyPage() {
         ...p.user, 
         nodeCode: code,
         // Force these to ensure Dashboard shows "Pending" + "Phone" instantly
-        loanStatus: p.user?.loanStatus || "PENDING", 
+        loanStatus: "AWAITING_ENDORSEMENT", 
         summary: { 
             ...(p.user?.summary || {}), 
             isPending: true 
@@ -1408,7 +1445,7 @@ export default function ApplyPage() {
         </div>
 
         {/* Sticky Top Bar - Redesigned */}
-        {activeTab !== "application" && activeTab !== "summary" && (
+        {activeTab !== "application" && activeTab !== "summary" && activeTab !== "rewards" && activeTab !== "network" && (
           <PageHeader 
             user={userData || onboardingData} 
             onAvatarClick={() => setActiveTab("profile")}
@@ -1419,7 +1456,7 @@ export default function ApplyPage() {
 
         <main className={cn(
           "max-w-md mx-auto relative z-10 min-h-screen",
-          (activeTab === "application" || activeTab === "summary") ? "p-0" : "px-4 pt-6 pb-32"
+          (activeTab === "application" || activeTab === "summary" || activeTab === "rewards" || activeTab === "network") ? "p-0" : "px-4 pt-6 pb-32"
         )}>
           <AnimatePresence mode="wait">
             <motion.div
@@ -1485,9 +1522,9 @@ export default function ApplyPage() {
                  userData?.isGraduatedNode === "true" ||
                  (applicant as any)?.user?.isGraduatedNode === true
                }
-               onEndorsements={() => setActiveTab("endorsements" as any)}
-               onRewards={() => setActiveTab("rewards")}
-               onNetwork={() => setActiveTab("network")}
+               onEndorsements={() => { setActiveTab("endorsements" as any); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+               onRewards={() => { setActiveTab("rewards"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+               onNetwork={() => { setActiveTab("network"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                onShowTerms={() => setIsTermsOpen(true)} 
                onShowPrivacy={() => setIsPrivacyOpen(true)}
                onHelp={() => setIsHelpOpen(true)}
@@ -1497,7 +1534,7 @@ export default function ApplyPage() {
            {/* REWARDS TAB */}
            {activeTab === "rewards" && (
              <UserRewardsTab 
-               onBack={() => setActiveTab("profile")} 
+               onBack={() => { setActiveTab("profile"); window.scrollTo({ top: 0, behavior: "smooth" }); }} 
                userMsisdn={normalizeMsisdn(msisdnInput || userData?.msisdn || applicant?.msisdn)}
              />
            )}
@@ -1505,7 +1542,7 @@ export default function ApplyPage() {
            {/* NETWORK TAB */}
            {activeTab === "network" && (
              <UserNetworkTab 
-               onBack={() => setActiveTab("profile")} 
+               onBack={() => { setActiveTab("profile"); window.scrollTo({ top: 0, behavior: "smooth" }); }} 
                userMsisdn={normalizeMsisdn(msisdnInput || userData?.msisdn || applicant?.msisdn)}
                personalNodeCode={(applicant as any)?.personalNodeCode || (applicant as any)?.user?.personalNodeCode || applicant?.nodeCode || userData?.personalNodeCode}
              />
@@ -1513,7 +1550,7 @@ export default function ApplyPage() {
 
            {/* ENDORSEMENTS TAB */}
            {activeTab === "endorsements" && (
-             <UserEndorsementsTab onBack={() => setActiveTab("profile" as any)} />
+             <UserEndorsementsTab onBack={() => { setActiveTab("profile" as any); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
            )}
 
            {/* LOAN APPLICATION PAGE */}
@@ -2044,31 +2081,33 @@ export default function ApplyPage() {
 
       <main className="max-w-md mx-auto px-4 py-5 space-y-5">
         {/* Circle Step Indicator */}
-        <div className="relative flex justify-between items-start px-2 mb-8">
-           {/* Connecting Line */}
-           <div className="absolute top-3.5 left-6 right-6 h-[1px] bg-gray-100 -z-10" />
-           
-           {STEPS.map((s) => {
-             const isActive = onboardingStep === s.number;
-             const isCompleted = onboardingStep > s.number;
+        {onboardingData.hasAcceptedTerms && (
+          <div className="relative flex justify-between items-start px-2 mb-8">
+             {/* Connecting Line */}
+             <div className="absolute top-3.5 left-6 right-6 h-[1px] bg-gray-100 -z-10" />
              
-             return (
-               <div key={s.number} className="flex flex-col items-center gap-2 bg-background z-10">
-                 <div className={cn(
-                   "w-7 h-7 rounded-full flex items-center justify-center border text-xs font-semibold transition-all",
-                   isActive ? "border-gray-900 text-gray-900 bg-white" : 
-                   isCompleted ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-300 bg-white"
-                 )}>
-                   {isCompleted ? <Check className="w-3.5 h-3.5" /> : s.number}
+             {STEPS.map((s) => {
+               const isActive = onboardingStep === s.number;
+               const isCompleted = onboardingStep > s.number;
+               
+               return (
+                 <div key={s.number} className="flex flex-col items-center gap-2 bg-background z-10">
+                   <div className={cn(
+                     "w-7 h-7 rounded-full flex items-center justify-center border text-xs font-semibold transition-all",
+                     isActive ? "border-gray-900 text-gray-900 bg-white" : 
+                     isCompleted ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-300 bg-white"
+                   )}>
+                     {isCompleted ? <Check className="w-3.5 h-3.5" /> : s.number}
+                   </div>
+                   <span className={cn(
+                     "text-[10px] font-medium",
+                     isActive ? "text-gray-900" : "text-gray-400"
+                   )}>{s.label}</span>
                  </div>
-                 <span className={cn(
-                   "text-[10px] font-medium",
-                   isActive ? "text-gray-900" : "text-gray-400"
-                 )}>{s.label}</span>
-               </div>
-             );
-           })}
-        </div>
+               );
+             })}
+          </div>
+        )}
 
         {errorMessage && (
           <Alert className="border-destructive/30 bg-destructive/5">
@@ -2077,12 +2116,47 @@ export default function ApplyPage() {
         )}
 
         <AnimatePresence mode="wait" custom={onboardingDirection}>
-          <motion.div key={onboardingStep} custom={onboardingDirection} variants={slideVariants}
+          <motion.div key={onboardingData.hasAcceptedTerms ? onboardingStep : 0} custom={onboardingDirection} variants={slideVariants}
             initial="enter" animate="center" exit="exit"
             transition={{ type: "spring", stiffness: 300, damping: 30 }}>
 
+            {/* Step 0: Terms and Conditions */}
+            {!onboardingData.hasAcceptedTerms && (
+              <div className="space-y-6">
+                <div className="text-center space-y-2 mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Terms & Conditions</h2>
+                  <p className="text-sm text-gray-500">Please review before continuing</p>
+                </div>
+                
+                <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+                  {TERMS_LIST.map((term, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-2xl bg-gray-50 border border-gray-100">
+                        <div className="mt-0.5 min-w-[20px] h-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                            {i + 1}
+                        </div>
+                        <p className="text-sm font-medium text-gray-700 leading-relaxed">
+                            {term}
+                        </p>
+                    </div>
+                  ))}
+                </div>
+
+                <Button 
+                   onClick={() => {
+                     handleOnboardingChange("hasAcceptedTerms", "true");
+                     // We actually set boolean in state, the generic handler converts string back if needed, but let's just set the object directly to be safe
+                     setOnboardingData(p => ({ ...p, hasAcceptedTerms: true }));
+                     window.scrollTo({ top: 0, behavior: "smooth" });
+                   }}
+                   className="w-full h-14 rounded-full font-bold bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200 mt-6"
+                >
+                   Accept & Continue
+                </Button>
+              </div>
+            )}
+
             {/* Step 1: Personal Info */}
-            {onboardingStep === 1 && (
+            {onboardingData.hasAcceptedTerms && onboardingStep === 1 && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-gray-800">Personal Information</h2>
 
@@ -2110,32 +2184,33 @@ export default function ApplyPage() {
                    <div className="space-y-1.5">
                      <Label className="text-sm font-medium text-gray-500">Date of Birth</Label>
                      <div className="relative w-full">
-                        <DatePicker
-                            selected={onboardingData.dob ? new Date(onboardingData.dob) : null}
-                            onChange={(date) => {
-                                if (date) {
-                                    const iso = format(date, "yyyy-MM-dd");
-                                    handleOnboardingChange("dob", iso);
-                                    setDobInput(format(date, "dd / MM / yyyy"));
-                                    setDobError(null);
-                                } else {
-                                    handleOnboardingChange("dob", "");
-                                    setDobInput("");
-                                }
-                            }}
-                            dateFormat="dd / MM / yyyy"
-                            placeholderText="DD / MM / YYYY"
-                            showYearDropdown
-                            showMonthDropdown
-                            scrollableYearDropdown
-                            yearDropdownItemNumber={100}
-                            maxDate={new Date()}
-                            className={cn(
-                                "h-12 w-full rounded-lg border-gray-300 bg-transparent px-3 py-2 text-sm font-medium shadow-sm transition-all focus:border-gray-900 focus:ring-0 placeholder:text-gray-300 font-mono w-full block",
-                                dobError && "border-red-500 focus:border-red-500"
-                            )}
-                            wrapperClassName="w-full"
-                        />
+                           <DatePicker
+                               selected={onboardingData.dob ? new Date(onboardingData.dob) : null}
+                               onChange={(date) => {
+                                   if (date) {
+                                       const iso = format(date, "yyyy-MM-dd");
+                                       handleOnboardingChange("dob", iso);
+                                       setDobInput(format(date, "dd / MM / yyyy"));
+                                       setDobError(null);
+                                   } else {
+                                       handleOnboardingChange("dob", "");
+                                       setDobInput("");
+                                   }
+                               }}
+                               onChangeRaw={(e) => e.preventDefault()}
+                               dateFormat="dd / MM / yyyy"
+                               placeholderText="DD / MM / YYYY"
+                               showYearDropdown
+                               showMonthDropdown
+                               scrollableYearDropdown
+                               yearDropdownItemNumber={100}
+                               maxDate={new Date()}
+                               className={cn(
+                                   "h-12 w-full rounded-lg border-gray-300 bg-transparent px-3 py-2 text-sm font-medium shadow-sm transition-all focus:border-gray-900 focus:ring-0 placeholder:text-gray-300 font-mono w-full block",
+                                   dobError && "border-red-500 focus:border-red-500"
+                               )}
+                               wrapperClassName="w-full"
+                           />
                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                             <CalendarIcon className="h-4 w-4" />
                          </div>
@@ -2315,7 +2390,7 @@ export default function ApplyPage() {
                                      className={cn(
                                          "px-4 py-2.5 rounded-full text-sm font-bold border transition-all duration-200",
                                          onboardingData.employmentStatus === status
-                                             ? "bg-gray-900 text-white border-gray-900 shadow-md transform scale-[1.02]"
+                                             ? "border-[#EC1B84] bg-[#EC1B84]/10 text-[#EC1B84] shadow-sm scale-[1.02]"
                                              : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                                      )}
                                  >
@@ -2355,20 +2430,16 @@ export default function ApplyPage() {
                             </span>
                         </div>
                         
-                        <div className="px-2 pb-6">
-                            {/* Custom Slider Simulation since we don't have the Slider component imported yet, 
-                                but to avoid build errors if Slider isn't in scope, I'll use a styled input range 
-                                for immediate reliability without checking imports */}
-                            <input 
-                                type="range" 
-                                min="0" 
-                                max="3" 
-                                step="1"
-                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#EC1B84]"
-                                value={INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "") === -1 ? 0 : INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || "")}
-                                onChange={(e) => handleOnboardingChange("monthlyIncome", INCOME_BRACKETS[parseInt(e.target.value)])}
+                        <div className="px-2 pb-6 pt-2">
+                            <Slider 
+                                value={[Math.max(0, INCOME_BRACKETS.indexOf(onboardingData.monthlyIncome || ""))]} 
+                                onValueChange={(vals) => handleOnboardingChange("monthlyIncome", INCOME_BRACKETS[vals[0]])}
+                                max={3} 
+                                min={0} 
+                                step={1} 
+                                className="[&_[role=slider]]:bg-[#EC1B84] [&_[role=slider]]:border-[#EC1B84] [&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:shadow-lg [&_[role=slider]]:shadow-pink-200"
                             />
-                            <div className="flex justify-between mt-2 text-[10px] text-gray-400 font-medium">
+                            <div className="flex justify-between mt-3 text-[10px] text-gray-400 font-medium">
                                 <span>&lt;1k</span>
                                 <span>1-2k</span>
                                 <span>2-5k</span>

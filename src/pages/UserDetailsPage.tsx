@@ -344,40 +344,54 @@ export default function UserDetailsPage() {
             </motion.div>
           )}
 
-          {/* Header with Tier Visualizer */}
-          <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-            <div className="flex flex-col lg:flex-row justify-between gap-6">
-              <div className="flex gap-4">
-                <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center text-primary text-3xl font-bold">
+        {/* Header with Tier Visualizer */}
+        <div className="bg-white rounded-[2rem] shadow-sm border border-border/50 overflow-hidden">
+          <div className="bg-gradient-to-r from-primary/5 via-transparent to-transparent p-6">
+            <div className="flex flex-col lg:flex-row justify-between gap-8">
+              <div className="flex items-center gap-6">
+                <div className="h-24 w-24 rounded-[2rem] bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary text-4xl font-black shadow-inner">
                   {user.name.charAt(0)}
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold">{user.name}</h1>
-                  <p className="text-muted-foreground">{user.phone}</p>
-                  <div className="flex gap-2 mt-2">
-                    <Badge className={cn("px-3 py-1", tierColors[user.tier] ?? tierColors.L1)}>{user.tier}</Badge>
-                    <Badge variant="secondary" className="bg-muted text-xs">Joined {user.joinedAt}</Badge>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-3xl font-black tracking-tight text-foreground">{user.name}</h1>
+                    <Badge className={cn("px-4 py-1 text-xs font-bold rounded-full", tierColors[user.tier] ?? tierColors.L1)}>{user.tier}</Badge>
+                  </div>
+                  <div className="flex items-center gap-4 text-muted-foreground">
+                    <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-full text-xs font-medium">
+                      <Phone className="h-3.5 w-3.5" />
+                      {user.phone}
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-full text-xs font-medium">
+                      <Calendar className="h-3.5 w-3.5" />
+                      Joined {user.joinedAt}
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Tier Progress (for returning users) */}
               {!isFirstTimeUser && (
-                <div className="lg:w-64 space-y-2">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span>Progress to {`L${parseInt(user.tier.slice(1)) + 1}`}</span>
-                    <span>{user.totalLoansTaken % 5}/5 Loans</span>
+                <div className="lg:w-72 self-center p-5 rounded-2xl bg-muted/30 border border-border/40">
+                  <div className="flex justify-between items-end mb-3">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tier Advancement</p>
+                      <p className="text-sm font-bold text-foreground">Progress to {`L${parseInt(user.tier.slice(1)) + 1}`}</p>
+                    </div>
+                    <span className="text-sm font-black text-primary">{user.totalLoansTaken % 5}/5 <span className="text-[10px] text-muted-foreground font-medium uppercase">Loans</span></span>
                   </div>
-                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all duration-500"
-                      style={{ width: `${(user.totalLoansTaken % 5) * 20}%` }}
+                  <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden shadow-inner">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(user.totalLoansTaken % 5) * 20}%` }}
+                      className="h-full bg-gradient-to-r from-primary/80 to-primary transition-all duration-1000 ease-out"
                     />
                   </div>
                 </div>
               )}
             </div>
           </div>
+        </div>
         </motion.div>
 
         {/* Identity & KYC Section */}
@@ -395,47 +409,16 @@ export default function UserDetailsPage() {
           }}
         />
 
-        {/* Loan & Health Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Active Loan Card (Priority for Returning Users) */}
-          <Card className={cn(hasOverdueLoan ? "border-destructive/50 bg-destructive/5" : "bg-primary/5 border-primary/20")}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Current Obligation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {currentLoan ? (
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">₵{currentLoan.balance.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">Due on {currentLoan.dueDate}</p>
-                  </div>
-                  <Badge className={
-                    hasOverdueLoan ? "bg-destructive" : 
-                    isDueToday ? "bg-warning text-warning-foreground" : 
-                    "bg-primary"
-                  }>
-                    {currentLoan.status.toString().toUpperCase()}
-                  </Badge>
-                </div>
-              ) : (
-                <div className="py-4 text-center">
-                  <p className="text-sm text-muted-foreground">No active loan</p>
-                  <Button variant="link" className="text-primary text-xs" onClick={() => navigate('/loans')}>Disburse New</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="lg:col-span-2">
-            <FinancialHealthSection
-              creditScore={user.creditScore}
-              walletBalance={user.walletBalance}
-              totalBorrowed={user.totalBorrowed}
-              totalInterestPaid={user.totalInterestPaid}
-              onTimeRepaymentPercent={user.onTimeRepaymentPercent}
-              currentLoan={currentLoan}
-            />
-          </div>
+        {/* Loan & Health Section */}
+        <div className="w-full">
+          <FinancialHealthSection
+            creditScore={user.creditScore}
+            walletBalance={user.walletBalance}
+            totalBorrowed={user.totalBorrowed}
+            totalInterestPaid={user.totalInterestPaid}
+            onTimeRepaymentPercent={user.onTimeRepaymentPercent}
+            currentLoan={currentLoan}
+          />
         </div>
 
         {/* Tabs for History */}
