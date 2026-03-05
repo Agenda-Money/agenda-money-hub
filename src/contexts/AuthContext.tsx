@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
 import api from "@/lib/api";
+import { tokenRefreshService } from "@/services/tokenRefreshService";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { getSubdomain } from "@/lib/domain";
@@ -41,18 +42,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     checkAuth();
+    tokenRefreshService.init();
+    return () => tokenRefreshService.stopRefreshTimer();
   }, []);
 
-  const checkAuth = async () => {
-    let token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    const expiry = localStorage.getItem("token_expiry");
+  // Manual handleTokenRefresh if needed by components, otherwise the service handles it
+  const handleTokenRefresh = async () => {
+    return await tokenRefreshService.refreshAccessToken();
+  };
 
-    // Check custom UI timeout constraints (12h admin / 24h agent)
-    if (expiry && Date.now() > parseInt(expiry, 10)) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("token_expiry");
-      sessionStorage.removeItem("token");
-      token = null;
+  const checkAuth = async () => {
+    let token = localStorage.getItem("accessToken") || localStorage.getItem("token") || sessionStorage.getItem("token");
+    const expiry = localStorage.getItem("expiresAt") || localStorage.getItem("token_expires_at") || localStorage.getItem("token_expiry");
+
+    // Check expiry (handle both ms and seconds during migration)
+    if (expiry) {
+       const expiryNum = parseInt(expiry, 10);
+       const isSeconds = expiryNum < 10000000000; // Simple heuristic for seconds vs ms
+       const expiryMs = isSeconds ? expiryNum * 1000 : expiryNum;
+
+       if (Date.now() > expiryMs) {
+          const hasRefreshToken = !!(localStorage.getItem("refreshToken") || localStorage.getItem("refresh_token"));
+          if (!hasRefreshToken) {
+             logout(false);
+             return;
+          }
+          // Service will attempt refresh on initialization if enabled, or checkAuth will trigger 401
+       }
     }
 
     if (!token) {
@@ -63,46 +79,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const response = await api.get("/api/admin/auth/me");
       
-      // Checking for HTTP 200 or 201 as the source of truth
       if (response.status === 200 || response.status === 201) {
-        // Flexibly parse the user data payload
         const adminData = response.data.data || response.data.admin || response.data.user || response.data;
         const sub = getSubdomain();
         const actualRole = extractRole(adminData);
         
-        // Silent clear if token role doesn't match subdomain.
         if (sub === "admin" && actualRole !== "admin") {
-          localStorage.removeItem("token");
-          localStorage.removeItem("token_expiry");
-          sessionStorage.removeItem("token");
-          setUser(null);
+          logout(false);
         } else if (sub === "agent" && actualRole !== "agent") {
-          localStorage.removeItem("token");
-          localStorage.removeItem("token_expiry");
-          sessionStorage.removeItem("token");
-          setUser(null);
+          logout(false);
         } else if (
           sub === "apply" &&
           (actualRole === "admin" || actualRole === "agent")
         ) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("token_expiry");
-          sessionStorage.removeItem("token");
-          setUser(null);
+          logout(false);
         } else {
-          // Normalize: ensure user.role always reflects the extracted role
           setUser({ ...adminData, role: actualRole });
         }
       } else {
-        localStorage.removeItem("token");
-        localStorage.removeItem("token_expiry");
-        sessionStorage.removeItem("token");
+        logout(false);
       }
     } catch (error) {
       console.error("Auth check failed", error);
-      localStorage.removeItem("token");
-      localStorage.removeItem("token_expiry");
-      sessionStorage.removeItem("token");
+      // If it's a 401, the interceptor might have already handled it or will handle it
+      // But for checkAuth, if it fails, we usually want to be safe
+      // logout(false);
     } finally {
       setLoading(false);
     }
@@ -132,7 +133,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const sub = getSubdomain();
 
-      // The apply subdomain uses OTP-based authentication, not password login.
       if (sub === "apply") {
         return { success: false, message: "Invalid credentials. Please try again." };
       }
@@ -144,9 +144,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { success: false, message: msg };
       }
 
-      // Some endpoints return the user as `admin`, others might return `user` or `data`
       const admin = response.data.admin || response.data.user || response.data.data;
       const token = response.data.token || response.data.accessToken;
+      const refreshToken = response.data.refreshToken;
+      const expiresAt = response.data.expiresAt;
+      const expiresIn = response.data.expiresIn; // Usually seconds
 
       if (!admin || !token) {
         return { success: false, message: "An error occurred during login. Please try again." };
@@ -161,13 +163,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { success: false, message: "Invalid credentials. Please try again." };
       }
 
-      const expiresInHours = actualRole === "agent" ? 24 : 12;
-      const expiryTimestamp = Date.now() + expiresInHours * 60 * 60 * 1000;
+      const expiryTimestamp = expiresAt 
+        ? new Date(expiresAt).getTime() 
+        : (expiresIn ? (Date.now() + expiresIn * 1000) : (Date.now() + (actualRole === "agent" ? 24 : 12) * 60 * 60 * 1000));
 
-      localStorage.setItem("token", token);
-      localStorage.setItem("token_expiry", expiryTimestamp.toString());
-      sessionStorage.removeItem("token"); // Cleanup old state
-      // Normalize: ensure user.role always reflects the extracted role
+      localStorage.setItem("accessToken", token);
+      if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
+      localStorage.setItem("expiresAt", expiresAt.toString());
+      localStorage.setItem("user", JSON.stringify(admin));
+      
+      // Cleanup old legacy keys
+      localStorage.removeItem("token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("token_expires_at");
+      localStorage.removeItem("token_expiry");
+      sessionStorage.removeItem("token");
+
+      // Start refresh timer
+      tokenRefreshService.startRefreshTimer(expiresAt);
+
       const normalizedAdmin = { ...admin, role: actualRole };
       setUser(normalizedAdmin);
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -244,9 +258,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const logout = (showToast = true) => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("expiresAt");
+    localStorage.removeItem("user");
+    
+    // Legacy keys cleanup
     localStorage.removeItem("token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("token_expires_at");
     localStorage.removeItem("token_expiry");
     sessionStorage.removeItem("token");
+    sessionStorage.removeItem("agenda_token");
+    
+    tokenRefreshService.stopRefreshTimer();
     setUser(null);
     delete api.defaults.headers.common["Authorization"];
     if (showToast) {

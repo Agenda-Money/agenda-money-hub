@@ -220,7 +220,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
                status="node"
                nodeCode={(applicant as any)?.personalNodeCode || (applicant as any)?.user?.personalNodeCode || applicant?.nodeCode}
                points={applicant?.tempWalletBalance || 0} // Using temp wallet as points/rewards placeholder
-               onAction={() => onAction("share")}
+               onAction={undefined}
                className="shadow-sm min-h-[130px]" 
             />
          </motion.div>
