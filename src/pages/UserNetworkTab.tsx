@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowLeft, Share2, Copy, Users, UserCheck, ShieldCheck, CheckCircle2, ChevronRight, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { getUserNetworkSummary } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
@@ -16,61 +16,15 @@ interface UserNetworkTabProps {
 export const UserNetworkTab: React.FC<UserNetworkTabProps> = ({ onBack, userMsisdn, personalNodeCode }) => {
   const { toast } = useToast();
 
-  const { data: networkData, isLoading } = useQuery({
+  const { data: networkResponse, isLoading } = useQuery({
     queryKey: ["userNetwork", userMsisdn],
     queryFn: async () => {
-      try {
-        const res = await api.get("/users/network");
-        return res.data;
-      } catch (err) {
-        console.warn("Using mock network data as backend endpoint might be pending");
-        return {
-          referrer: {
-            msisdn: "233501234567",
-            fullName: "Kojo Mensah",
-            nodeCode: "KM5678",
-            userRole: "NODE"
-          },
-          activeReferrals: 2,
-          capacity: "2/3",
-          referredUsers: [
-            {
-              id: "user_123",
-              fullName: "Ama Osei",
-              msisdn: "233502345678",
-              userRole: "EDGE",
-              status: "ACTIVE",
-              loanAmount: 200,
-              loanStatus: "ACTIVE",
-              daysUntilRepayment: 5,
-              tier: 2
-            },
-            {
-              id: "user_456",
-              fullName: "James K",
-              msisdn: "233503456789",
-              userRole: "EDGE",
-              status: "ACTIVE",
-              loanAmount: 150,
-              loanStatus: "ACTIVE",
-              daysUntilRepayment: 3,
-              tier: 1
-            },
-            {
-              id: "user_789",
-              fullName: "Abena N",
-              msisdn: "233504567890",
-              userRole: "EDGE",
-              status: "REPAID",
-              loanAmount: 100,
-              loanStatus: "REPAID",
-              tier: 2
-            }
-          ]
-        };
-      }
+      const res = await getUserNetworkSummary();
+      return res.data;
     }
   });
+
+  const networkData = networkResponse;
 
   const handleShare = async () => {
     if (!personalNodeCode) return;
@@ -97,7 +51,10 @@ export const UserNetworkTab: React.FC<UserNetworkTabProps> = ({ onBack, userMsis
 
   const calculateProgress = () => {
     if (!networkData) return 0;
-    // Capacity format is typically "2/3"
+    // Assuming capacity is returned as a number or string like "2/3"
+    if (typeof networkData.capacity === 'number') {
+       return (networkData.activeReferrals / networkData.capacity) * 100;
+    }
     const [current, max] = (networkData.capacity || "0/3").split("/").map(Number);
     if (!max || max === 0) return 0;
     return (current / max) * 100;
@@ -116,7 +73,9 @@ export const UserNetworkTab: React.FC<UserNetworkTabProps> = ({ onBack, userMsis
   }
 
   const progressPercent = calculateProgress();
-  const availableSlots = 3 - (networkData?.activeReferrals || 0);
+  const activeReferralsCount = networkData?.activeReferrals || 0;
+  const capacityValue = networkData?.capacityLimit || 3;
+  const availableSlots = Math.max(0, capacityValue - activeReferralsCount);
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] pb-24 animate-in fade-in slide-in-from-right-8 duration-500">
@@ -144,9 +103,11 @@ export const UserNetworkTab: React.FC<UserNetworkTabProps> = ({ onBack, userMsis
                      <p className="text-sm font-bold text-gray-900">{networkData.referrer.fullName}</p>
                   </div>
                </div>
-               <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-bold font-mono tracking-wider border border-blue-100/50">
-                  {networkData.referrer.nodeCode}
-               </div>
+               {networkData.referrer.nodeCode && (
+                 <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-bold font-mono tracking-wider border border-blue-100/50">
+                    {networkData.referrer.nodeCode}
+                 </div>
+               )}
             </div>
          )}
 
@@ -155,7 +116,7 @@ export const UserNetworkTab: React.FC<UserNetworkTabProps> = ({ onBack, userMsis
             <h2 className="text-sm font-bold text-gray-900 mb-2">Network Capacity</h2>
             <div className="flex items-end justify-between mb-4">
                <div>
-                  <p className="text-2xl font-black text-[#EC1B84]">{networkData?.activeReferrals || 0}<span className="text-gray-400 text-lg">/3</span></p>
+                  <p className="text-2xl font-black text-[#EC1B84]">{activeReferralsCount}<span className="text-gray-400 text-lg">/{capacityValue}</span></p>
                   <p className="text-xs font-medium text-gray-500 mt-1">Active Loans</p>
                </div>
                <div className="text-right">
