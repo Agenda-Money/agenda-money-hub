@@ -27,7 +27,7 @@ import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
 import { ProfileTab } from "./ProfileTab";
 import { LoanSummaryPage } from "./LoanSummaryPage";
-import { ApplySuccessView } from "./ApplySuccessView";
+import { RepaymentPage } from "./RepaymentPage";
 import { UserRewardsTab } from "./UserRewardsTab";
 import { UserNetworkTab } from "./UserNetworkTab";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
@@ -316,7 +316,8 @@ export default function ApplyPage() {
     ghanaCardNumber: "",
     ghanaCardFrontUrl: "",
     ghanaCardBackUrl: "",
-    selfieUrl: ""
+    selfieUrl: "",
+    hasAcceptedTerms: false
   };
 
   const [onboardingData, setOnboardingData] = useState<OnboardingData>(() => {
@@ -345,7 +346,7 @@ export default function ApplyPage() {
   const [, setIsRequestingLoan] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
-  const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [, setLoanSummary] = useState<{
     disbursementAmount: number; repaymentAmount: number; repaymentDate: string; msisdn: string;
   } | null>(null);
@@ -1535,7 +1536,7 @@ export default function ApplyPage() {
            {activeTab === "rewards" && (
              <UserRewardsTab 
                onBack={() => { setActiveTab("profile"); window.scrollTo({ top: 0, behavior: "smooth" }); }} 
-               userMsisdn={normalizeMsisdn(msisdnInput || userData?.msisdn || applicant?.msisdn)}
+               userMsisdn={normalizeMsisdn((msisdnInput || userData?.msisdn || applicant?.msisdn) as string)}
              />
            )}
 
@@ -1543,7 +1544,7 @@ export default function ApplyPage() {
            {activeTab === "network" && (
              <UserNetworkTab 
                onBack={() => { setActiveTab("profile"); window.scrollTo({ top: 0, behavior: "smooth" }); }} 
-               userMsisdn={normalizeMsisdn(msisdnInput || userData?.msisdn || applicant?.msisdn)}
+               userMsisdn={normalizeMsisdn((msisdnInput || userData?.msisdn || applicant?.msisdn) as string)}
                personalNodeCode={(applicant as any)?.personalNodeCode || (applicant as any)?.user?.personalNodeCode || applicant?.nodeCode || userData?.personalNodeCode}
              />
            )}
@@ -2005,7 +2006,7 @@ export default function ApplyPage() {
                 getApplicantName(applicant, "") || getApplicantName(userData, "Account Holder")
              }
              onBack={() => setIsRepaymentOpen(false)}
-             onRepay={(amount) => {
+             onRepay={(amount, method) => {
                 // Refresh Dashboard data after success
                 if (userData?.msisdn) {
                     // Force refresh by reloading the page so dashboard APIs run again
