@@ -49,7 +49,10 @@ api.interceptors.response.use(
       
       if (newToken) {
         api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+        originalRequest.headers = {
+          ...(originalRequest.headers || {}),
+          Authorization: `Bearer ${newToken}`,
+        };
         return api(originalRequest);
       }
 

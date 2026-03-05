@@ -53,7 +53,11 @@ export const UserNetworkTab: React.FC<UserNetworkTabProps> = ({ onBack, userMsis
     if (!networkData) return 0;
     // Assuming capacity is returned as a number or string like "2/3"
     if (typeof networkData.capacity === 'number') {
-       return (networkData.activeReferrals / networkData.capacity) * 100;
+      const activeReferrals = networkData.activeReferrals || 0;
+      if (!networkData.capacity || networkData.capacity <= 0) {
+        return 0;
+      }
+      return (activeReferrals / networkData.capacity) * 100;
     }
     const [current, max] = (networkData.capacity || "0/3").split("/").map(Number);
     if (!max || max === 0) return 0;

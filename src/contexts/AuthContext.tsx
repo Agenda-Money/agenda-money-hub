@@ -169,7 +169,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       localStorage.setItem("accessToken", token);
       if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
-      localStorage.setItem("expiresAt", expiresAt.toString());
+      localStorage.setItem("expiresAt", String(expiryTimestamp));
       localStorage.setItem("user", JSON.stringify(admin));
       
       // Cleanup old legacy keys
@@ -179,8 +179,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem("token_expiry");
       sessionStorage.removeItem("token");
 
-      // Start refresh timer
-      tokenRefreshService.startRefreshTimer(expiresAt);
+      // expiryTimestamp is in milliseconds; divide by 1000 to convert to seconds for the refresh timer
+      tokenRefreshService.startRefreshTimer(Math.floor(expiryTimestamp / 1000));
 
       const normalizedAdmin = { ...admin, role: actualRole };
       setUser(normalizedAdmin);

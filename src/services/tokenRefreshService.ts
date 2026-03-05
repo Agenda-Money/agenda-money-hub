@@ -7,6 +7,7 @@ import axios from 'axios';
 export class TokenRefreshService {
   private refreshTimeout: ReturnType<typeof setTimeout> | null = null;
   private isRefreshing = false;
+  private refreshPromise: Promise<string | null> | null = null;
 
   /**
    * Start automatic token refresh timer
@@ -33,51 +34,64 @@ export class TokenRefreshService {
   }
 
   /**
-   * Refresh the access token using the stored refresh token
+   * Refresh the access token using the stored refresh token.
+   * Concurrent callers will await the same in-flight promise instead of
+   * getting an immediate null and triggering a premature logout.
    */
   async refreshAccessToken(): Promise<string | null> {
-    if (this.isRefreshing) return null;
-    
-    try {
-      this.isRefreshing = true;
-      const refreshToken = localStorage.getItem('refreshToken');
-      
-      if (!refreshToken) {
-        console.warn('[TokenRefreshService] No refresh token available');
+    if (this.isRefreshing && this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.isRefreshing = true;
+    this.refreshPromise = (async () => {
+      try {
+        // Support both the current and legacy refresh token key names
+        const refreshToken =
+          localStorage.getItem('refreshToken') || localStorage.getItem('refresh_token');
+
+        if (!refreshToken) {
+          console.warn('[TokenRefreshService] No refresh token available');
+          this.handleSessionExpired();
+          return null;
+        }
+
+        console.log('[TokenRefreshService] Attempting to refresh access token...');
+
+        const response = await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/admin/auth/refresh-token`, {
+          refreshToken
+        });
+
+        if (response.status !== 200 && response.status !== 201) {
+          throw new Error('Refresh request failed');
+        }
+
+        const { token, refreshToken: newRefreshToken, expiresAt } = response.data;
+
+        // Update storage with new credentials (normalize to current key names)
+        localStorage.setItem('accessToken', token);
+        if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+        localStorage.setItem('expiresAt', expiresAt.toString());
+        // Remove legacy keys to avoid stale data
+        localStorage.removeItem('refresh_token');
+
+        console.log('✅ [TokenRefreshService] Token refreshed successfully');
+
+        // Restart timer with new expiry
+        this.startRefreshTimer(expiresAt);
+
+        return token;
+      } catch (error) {
+        console.error('❌ [TokenRefreshService] Token refresh failed:', error);
         this.handleSessionExpired();
         return null;
+      } finally {
+        this.isRefreshing = false;
+        this.refreshPromise = null;
       }
+    })();
 
-      console.log('[TokenRefreshService] Attempting to refresh access token...');
-      
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/admin/auth/refresh-token`, {
-        refreshToken
-      });
-
-      if (response.status !== 200 && response.status !== 201) {
-        throw new Error('Refresh request failed');
-      }
-
-      const { token, refreshToken: newRefreshToken, expiresAt } = response.data;
-
-      // Update storage with new credentials
-      localStorage.setItem('accessToken', token);
-      if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
-      localStorage.setItem('expiresAt', expiresAt.toString());
-
-      console.log('✅ [TokenRefreshService] Token refreshed successfully');
-
-      // Restart timer with new expiry
-      this.startRefreshTimer(expiresAt);
-
-      return token;
-    } catch (error) {
-      console.error('❌ [TokenRefreshService] Token refresh failed:', error);
-      this.handleSessionExpired();
-      return null;
-    } finally {
-      this.isRefreshing = false;
-    }
+    return this.refreshPromise;
   }
 
   /**

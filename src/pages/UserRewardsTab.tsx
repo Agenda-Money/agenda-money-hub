@@ -41,7 +41,7 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
   const rewardsData = rewardsResponse;
 
   const { data: historyData, isLoading: isHistoryLoading, isFetching: isFetchingNextPage } = useQuery({
-    queryKey: ["userRewardsHistory", historyPage],
+    queryKey: ["userRewardsHistory", userMsisdn, historyPage],
     queryFn: async () => {
       const res = await getUserRewardsHistory(historyPage, 20);
       return res.data;
@@ -99,7 +99,14 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
      PAID: "text-green-600 bg-green-50"
   };
 
-  const renderRewardItem = (reward: any, i: number) => (
+  const renderRewardItem = (reward: any, i: number) => {
+    const rewardDate = reward?.date ? new Date(reward.date) : null;
+    const isValidRewardDate = rewardDate instanceof Date && !isNaN(rewardDate.getTime());
+    const relativeTime = isValidRewardDate && rewardDate
+      ? formatDistanceToNow(rewardDate, { addSuffix: true })
+      : "—";
+
+    return (
     <div key={reward.id || i} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
        <div className="flex items-center gap-3">
           <div className={"w-10 h-10 rounded-full flex items-center justify-center " + (
@@ -115,7 +122,7 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
                 <span className="text-xs font-semibold text-green-600">+GHS {reward.amount?.toFixed(2)}</span>
                 <span className="text-gray-300">•</span>
                 <span className="text-xs font-medium text-gray-400">
-                   {formatDistanceToNow(new Date(reward.date), { addSuffix: true })}
+                   {relativeTime}
                 </span>
              </div>
           </div>
@@ -124,7 +131,8 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
           {reward.status === "ACCUMULATED" ? "ACCUM" : reward.status.replace(/_/g, " ")}
        </div>
     </div>
-  );
+    );
+  };
 
   if (isSummaryLoading && !showFullHistory) {
     return (

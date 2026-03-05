@@ -316,7 +316,8 @@ export default function ApplyPage() {
     ghanaCardNumber: "",
     ghanaCardFrontUrl: "",
     ghanaCardBackUrl: "",
-    selfieUrl: ""
+    selfieUrl: "",
+    hasAcceptedTerms: false
   };
 
   const [onboardingData, setOnboardingData] = useState<OnboardingData>(() => {
@@ -698,7 +699,7 @@ export default function ApplyPage() {
   const handleGhanaCardChange = (v: string) => { if (!v.startsWith("GHA-")) return; handleOnboardingChange("ghanaCardNumber", formatGhanaCardNumber(v)); };
 
   const handleUpload = async (file: File, field: "ghanaCardFrontUrl" | "ghanaCardBackUrl" | "selfieUrl") => {
-    setUploadProgress(prev => ({ ...prev, [field]: 10 }));
+    setUploadProgress(prev => ({ ...prev, [field]: true }));
     setErrorMessage(null);
     let finalFile = file;
 
@@ -720,7 +721,7 @@ export default function ApplyPage() {
 
     const localUrl = URL.createObjectURL(finalFile);
     setOnboardingData(prev => ({ ...prev, [field]: localUrl }));
-    setUploadProgress(prev => ({ ...prev, [field]: 0 }));
+    setUploadProgress(prev => ({ ...prev, [field]: false }));
     
     // Store the compressed file in state
     setUploadedFiles(prev => ({ ...prev, [field]: finalFile }));
