@@ -28,6 +28,7 @@ import { LoansTab } from "@/pages/LoansTab";
 import { ProfileTab } from "./ProfileTab";
 import { LoanSummaryPage } from "./LoanSummaryPage";
 import { ApplySuccessView } from "./ApplySuccessView";
+import { RepaymentPage } from "./RepaymentPage";
 import { UserRewardsTab } from "./UserRewardsTab";
 import { UserNetworkTab } from "./UserNetworkTab";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
@@ -2005,7 +2006,7 @@ export default function ApplyPage() {
                 getApplicantName(applicant, "") || getApplicantName(userData, "Account Holder")
              }
              onBack={() => setIsRepaymentOpen(false)}
-             onRepay={(amount) => {
+             onRepay={(amount, method) => {
                 // Refresh Dashboard data after success
                 if (userData?.msisdn) {
                     // Force refresh by reloading the page so dashboard APIs run again
