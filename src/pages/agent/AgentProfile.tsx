@@ -89,7 +89,7 @@ export default function AgentProfile() {
     totalCommission: typeof dashboardStats?.stats?.totalCommission === 'number' 
       ? `₵${dashboardStats.stats.totalCommission.toLocaleString()}`
       : dashboardStats?.stats?.totalCommission ?? "₵0",
-    joinedDate: "2024-01-01",
+    joinedDate: user?.createdAt || (user as any)?.created_at || new Date().toISOString(),
     tier: "Gold Agent",
   };
 

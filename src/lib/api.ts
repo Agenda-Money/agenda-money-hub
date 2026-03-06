@@ -16,7 +16,7 @@ api.interceptors.request.use(
   (config) => {
     // Check for both admin token and applicant token
     const adminToken = localStorage.getItem('accessToken') || localStorage.getItem('token') || sessionStorage.getItem('token');
-    const applicantToken = sessionStorage.getItem('agenda_token');
+    const applicantToken = localStorage.getItem('agenda_token') || sessionStorage.getItem('agenda_token');
     const token = adminToken || applicantToken;
     const hasAuthHeader = Object.keys(config.headers || {}).some(
       (key) => key.toLowerCase() === 'authorization'
@@ -75,6 +75,7 @@ api.interceptors.response.use(
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('token_expires_at');
       localStorage.removeItem('token_expiry');
+      localStorage.removeItem('agenda_token');
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('agenda_token');
       

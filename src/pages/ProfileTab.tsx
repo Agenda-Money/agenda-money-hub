@@ -179,7 +179,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       {/* 4. Logout Button */}
       <button 
         onClick={() => {
-            globalThis.sessionStorage.removeItem("agenda_token");
+            globalThis.localStorage.removeItem("agenda_token");
             globalThis.sessionStorage.removeItem("applicant_user");
             globalThis.localStorage.removeItem("token");
             globalThis.localStorage.removeItem("token_expiry");

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
 import api from "@/lib/api";
 import { tokenRefreshService } from "@/services/tokenRefreshService";
-import { supabase } from "@/lib/supabase";
+
 import { toast } from "sonner";
 import { getSubdomain } from "@/lib/domain";
 
@@ -14,6 +14,8 @@ interface AdminUser {
   agentCode?: string;
   phoneNumber?: string;
   alternatePhone?: string;
+  createdAt?: string;
+  created_at?: string;
 }
 
 
@@ -22,7 +24,7 @@ interface AuthContextType {
   loading: boolean;
   signup: (data: any) => Promise<boolean>;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string; user?: AdminUser }>;
-  logout: (showToast?: boolean) => void;
+  logout: (showToast?: boolean) => Promise<void>;
   forgotPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
   resetPassword: (token: string, password: string) => Promise<{ success: boolean; message?: string }>;
   updateProfile: (data: { fullName?: string; email?: string }) => Promise<{ success: boolean; message?: string }>;
@@ -57,9 +59,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Check expiry (handle both ms and seconds during migration)
     if (expiry) {
-       const expiryNum = parseInt(expiry, 10);
-       const isSeconds = expiryNum < 10000000000; // Simple heuristic for seconds vs ms
-       const expiryMs = isSeconds ? expiryNum * 1000 : expiryNum;
+       let expiryMs: number;
+       if (isNaN(Number(expiry))) {
+         // It's a string (e.g. ISO string)
+         expiryMs = new Date(expiry).getTime();
+       } else {
+         const expiryNum = parseInt(expiry, 10);
+         const isSeconds = expiryNum < 10000000000; // Simple heuristic for seconds vs ms
+         expiryMs = isSeconds ? expiryNum * 1000 : expiryNum;
+       }
 
        if (Date.now() > expiryMs) {
           const hasRefreshToken = !!(localStorage.getItem("refreshToken") || localStorage.getItem("refresh_token"));
@@ -101,9 +109,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error("Auth check failed", error);
-      // If it's a 401, the interceptor might have already handled it or will handle it
-      // But for checkAuth, if it fails, we usually want to be safe
-      // logout(false);
     } finally {
       setLoading(false);
     }
@@ -154,23 +159,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { success: false, message: "An error occurred during login. Please try again." };
       }
 
-      const actualRole = extractRole(admin);
+      const actualRole = extractRole(admin)?.toLowerCase();
 
-      if (sub === "admin" && actualRole !== "admin") {
-        return { success: false, message: "Invalid credentials. Please try again." };
+    if (sub === "admin" && actualRole !== "admin" && actualRole !== "superadmin" && actualRole !== "super_admin") {
+      return { success: false, message: "Invalid credentials. Please try again." };
+    }
+    if (sub === "agent" && actualRole !== "agent") {
+      return { success: false, message: "Invalid credentials. Please try again." };
+    }
+
+      let expiryTimestamp: number;
+    let finalExpiresAt = expiresAt;
+    
+    if (expiresAt) {
+      expiryTimestamp = new Date(expiresAt).getTime();
+    } else if (expiresIn) {
+      // Handle potential string formats like "8h", "24h", "30d" or seconds numeric format
+      let secondsToAdd = 86400; // default 24h
+      if (typeof expiresIn === 'string') {
+        if (expiresIn.endsWith('h')) {
+          secondsToAdd = parseInt(expiresIn, 10) * 3600;
+        } else if (expiresIn.endsWith('d')) {
+          secondsToAdd = parseInt(expiresIn, 10) * 86400;
+        } else if (expiresIn.endsWith('m')) {
+          secondsToAdd = parseInt(expiresIn, 10) * 60;
+        } else {
+          secondsToAdd = parseInt(expiresIn, 10);
+        }
+      } else if (typeof expiresIn === 'number') {
+        secondsToAdd = expiresIn;
       }
-      if (sub === "agent" && actualRole !== "agent") {
-        return { success: false, message: "Invalid credentials. Please try again." };
-      }
+      expiryTimestamp = Date.now() + (secondsToAdd * 1000);
+      finalExpiresAt = new Date(expiryTimestamp).toISOString();
+    } else {
+      expiryTimestamp = Date.now() + (actualRole === "agent" ? 24 : 12) * 60 * 60 * 1000;
+      finalExpiresAt = new Date(expiryTimestamp).toISOString();
+    }
 
-      const expiryTimestamp = expiresAt 
-        ? new Date(expiresAt).getTime() 
-        : (expiresIn ? (Date.now() + expiresIn * 1000) : (Date.now() + (actualRole === "agent" ? 24 : 12) * 60 * 60 * 1000));
-
-      localStorage.setItem("accessToken", token);
-      if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
-      localStorage.setItem("expiresAt", expiresAt.toString());
-      localStorage.setItem("user", JSON.stringify(admin));
+    localStorage.setItem("accessToken", token);
+    if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
+    if (finalExpiresAt) localStorage.setItem("expiresAt", finalExpiresAt.toString());
+    localStorage.setItem("user", JSON.stringify(admin));
       
       // Cleanup old legacy keys
       localStorage.removeItem("token");
@@ -213,25 +242,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const resetPassword = async (token: string, password: string): Promise<{ success: boolean; message?: string }> => {
-    let useToken = token;
-    
-    // Fallback: If no token provided (or empty/whitespace), try to get from active session
-    if (!useToken || useToken.trim() === '') {
-        const { data } = await supabase.auth.getSession();
-        if (data.session?.access_token) {
-            useToken = data.session.access_token;
-        }
-    }
-
-    if (!useToken) {
-        return { success: false, message: "No session token found. Session expired or invalid link." };
+    if (!token || token.trim() === '') {
+        return { success: false, message: "Invalid reset token." };
     }
 
     try {
-      const response = await api.patch("/api/admin/auth/reset-password", 
-        { password },
-        { headers: { Authorization: `Bearer ${useToken}` } }
-      );
+      const response = await api.post("/api/admin/auth/reset-password", { token, newPassword: password });
       if (response.data.success) {
         toast.success("Password reset successful", { description: "You can now login with your new password." });
         return { success: true };
@@ -257,7 +273,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
 
-  const logout = (showToast = true) => {
+  const logout = async (showToast = true) => {
+    try {
+      const token = localStorage.getItem("accessToken") || localStorage.getItem("token") || sessionStorage.getItem("token");
+      if (token) {
+        await api.post("/api/admin/auth/logout");
+      }
+    } catch (e) {
+      console.error("Logout API call failed", e);
+    }
+
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("expiresAt");
@@ -268,6 +293,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("token_expires_at");
     localStorage.removeItem("token_expiry");
+    localStorage.removeItem("agenda_token");
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("agenda_token");
     

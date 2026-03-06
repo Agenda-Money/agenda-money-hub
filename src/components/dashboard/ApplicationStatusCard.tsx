@@ -26,7 +26,7 @@ export const ApplicationStatusCard: React.FC<ApplicationStatusCardProps> = ({ lo
   const [steps, setSteps] = useState<Step[]>([
     {
       id: 'node-endorsement',
-      title: 'Node Endorsement',
+      title: 'Node Approval',
       status: initialStatus === 'AWAITING_ENDORSEMENT' ? 'in-progress' : initialStatus === 'PENDING_VERIFICATION' || initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'completed' : 'waiting',
       color: initialStatus === 'AWAITING_ENDORSEMENT' ? 'pink' : initialStatus === 'PENDING_VERIFICATION' || initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'green' : 'gray'
     },
@@ -38,7 +38,7 @@ export const ApplicationStatusCard: React.FC<ApplicationStatusCardProps> = ({ lo
     },
     {
       id: 'final-approval',
-      title: 'Final Loan Approval',
+      title: 'Admin Approval',
       status: initialStatus === 'PENDING' ? 'in-progress' : initialStatus === 'DISBURSING' ? 'completed' : 'waiting',
       color: initialStatus === 'PENDING' ? 'pink' : initialStatus === 'DISBURSING' ? 'green' : 'gray'
     }
@@ -53,7 +53,7 @@ export const ApplicationStatusCard: React.FC<ApplicationStatusCardProps> = ({ lo
     setSteps([
       {
         id: 'node-endorsement',
-        title: 'Node Endorsement',
+        title: 'Node Approval',
         status: initialStatus === 'AWAITING_ENDORSEMENT' ? 'in-progress' : initialStatus === 'PENDING_VERIFICATION' || initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'completed' : 'waiting',
         color: initialStatus === 'AWAITING_ENDORSEMENT' ? 'pink' : initialStatus === 'PENDING_VERIFICATION' || initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'green' : 'gray'
       },
@@ -65,7 +65,7 @@ export const ApplicationStatusCard: React.FC<ApplicationStatusCardProps> = ({ lo
       },
       {
         id: 'final-approval',
-        title: 'Final Loan Approval',
+        title: 'Admin Approval',
         status: initialStatus === 'PENDING' ? 'in-progress' : initialStatus === 'DISBURSING' ? 'completed' : 'waiting',
         color: initialStatus === 'PENDING' ? 'pink' : initialStatus === 'DISBURSING' ? 'green' : 'gray'
       }
