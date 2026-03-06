@@ -94,7 +94,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                 tenureDays: loanData.tenure,
                 purpose: loanData.purpose
             };
-            const applicantAuthToken = sessionStorage.getItem("agenda_token");
+            const applicantAuthToken = localStorage.getItem("agenda_token");
             const res = await api.post(
               '/api/loans/request',
               payload,

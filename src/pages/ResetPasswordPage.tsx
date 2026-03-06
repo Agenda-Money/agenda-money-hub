@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, Lock, CircleAlert, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { toast } from "sonner";
 
 const ResetPasswordPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -15,53 +14,38 @@ const ResetPasswordPage = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   
   const navigate = useNavigate();
+  const { resetPassword } = useAuth();
+  const [searchParams] = useSearchParams();
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sessionValid, setSessionValid] = useState(false);
+  
+  // Try to get token from query params or hash
+  const getResetToken = () => {
+    let token = searchParams.get("token");
+    if (!token) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      token = hashParams.get("access_token") || hashParams.get("token");
+    }
+    return token;
+  };
+
+  const resetToken = getResetToken();
 
   useEffect(() => {
-    // Check for errors in the URL hash (e.g., generic Supabase auth errors)
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const errorDescription = hashParams.get("error_description");
-    const errorParam = hashParams.get("error");
-    
-    if (errorDescription || errorParam) {
-      setError(errorDescription?.replace(/\+/g, " ") || errorParam || "Invalid or expired link");
-      return; 
+    if (!resetToken) {
+      setError("Invalid or expired reset link. Please request a new password reset.");
     }
-
-    // Check if we have an active session (which happens after clicking the email link)
-    let subscription: { unsubscribe: () => void } | null = null;
-    
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        setSessionValid(true);
-      } else {
-        // If no session, wait for the auth state change which might happen nicely
-        // when the hash is processed
-        const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
-            setSessionValid(true);
-          }
-        });
-        
-        subscription = authSubscription;
-      }
-    };
-    
-    void checkSession();
-    
-    // Cleanup subscription on unmount
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, []);
+  }, [resetToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!resetToken) {
+      setError("Cannot reset password without a valid token.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -76,18 +60,12 @@ const ResetPasswordPage = () => {
     setError(null);
     
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password
-      });
+      const result = await resetPassword(resetToken, password);
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.message || "Failed to reset password");
       }
 
-      toast.success("Password updated successfully", {
-        description: "You can now login with your new password."
-      });
-      
       // Small delay to allow user to read the success toast
       setTimeout(() => {
         navigate("/login");
@@ -120,15 +98,6 @@ const ResetPasswordPage = () => {
               <CardDescription>Enter your new password below</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!sessionValid && !error && (
-                <Alert>
-                  <CircleAlert className="h-4 w-4" />
-                  <AlertTitle>Verifying Session</AlertTitle>
-                  <AlertDescription>
-                    Please wait while we verify your password reset link...
-                  </AlertDescription>
-                </Alert>
-              )}
               
               {error && (
                 <Alert variant="destructive">
@@ -148,6 +117,7 @@ const ResetPasswordPage = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    disabled={!resetToken}
                   />
                   <Button
                     type="button"
@@ -155,6 +125,7 @@ const ResetPasswordPage = () => {
                     size="icon"
                     className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
+                    disabled={!resetToken}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -174,11 +145,12 @@ const ResetPasswordPage = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
+                  disabled={!resetToken}
                 />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={loading || !sessionValid}>
+              <Button type="submit" className="w-full" disabled={loading || !resetToken}>
                 {loading ? "Resetting password..." : "Reset Password"}
               </Button>
               <Link to="/login" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
