@@ -89,7 +89,7 @@ export default function AgentProfile() {
     totalCommission: typeof dashboardStats?.stats?.totalCommission === 'number' 
       ? `₵${dashboardStats.stats.totalCommission.toLocaleString()}`
       : dashboardStats?.stats?.totalCommission ?? "₵0",
-    joinedDate: user?.createdAt || (user as any)?.created_at || new Date().toISOString(),
+    joinedDate: user?.createdAt || user?.created_at || "N/A",
     tier: "Gold Agent",
   };
 
@@ -195,7 +195,9 @@ export default function AgentProfile() {
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Member Since</p>
                 <p className="text-3xl font-bold text-foreground mt-1">
-                  {new Date(stats.joinedDate).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
+                  {stats.joinedDate === "N/A"
+                    ? "N/A"
+                    : new Date(stats.joinedDate).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">Active agent</p>
               </CardContent>

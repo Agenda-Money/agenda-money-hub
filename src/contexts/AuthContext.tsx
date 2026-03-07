@@ -92,7 +92,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const sub = getSubdomain();
         const actualRole = extractRole(adminData);
         
-        if (sub === "admin" && actualRole !== "admin") {
+        if (sub === "admin" && actualRole !== "admin" && actualRole !== "superadmin" && actualRole !== "super_admin") {
           logout(false);
         } else if (sub === "agent" && actualRole !== "agent") {
           logout(false);
