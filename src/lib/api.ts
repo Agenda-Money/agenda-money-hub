@@ -40,7 +40,11 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     
     // Handle 401 Unauthorized
-    // Don't refresh on login failure or if we've already tried identifying it as a retry
+    // 304 Not Modified is a success cache hit, ignore it. Do not refresh on login failure or if we've already tried identifying it as a retry
+    if (error.response?.status === 304) {
+       return Promise.resolve(error.response);
+    }
+    
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes("/auth/login")) {
       originalRequest._retry = true;
       
