@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (response.status === 200 || response.status === 201) {
         const adminData = response.data.data || response.data.admin || response.data.user || response.data;
         const sub = getSubdomain();
-        const actualRole = extractRole(adminData);
+        const actualRole = extractRole(adminData)?.toLowerCase();
         
         if (sub === "admin" && actualRole !== "admin" && actualRole !== "superadmin" && actualRole !== "super_admin") {
           logout(false);
@@ -208,8 +208,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem("token_expiry");
       sessionStorage.removeItem("token");
 
-      // Start refresh timer
-      tokenRefreshService.startRefreshTimer(expiresAt);
+      // Start refresh timer using the correctly parsed finalExpiresAt
+      if (finalExpiresAt) {
+        tokenRefreshService.startRefreshTimer(finalExpiresAt);
+      }
 
       const normalizedAdmin = { ...admin, role: actualRole };
       setUser(normalizedAdmin);

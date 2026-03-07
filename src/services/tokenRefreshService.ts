@@ -81,12 +81,29 @@ export class TokenRefreshService {
       const responseData = response.data.data || response.data;
       const token = responseData.token || responseData.accessToken;
       const newRefreshToken = responseData.refreshToken;
-      const expiresAt = responseData.expiresAt;
+      
+      let expiresAtMs = Date.now() + 86400 * 1000;
+      if (responseData.expiresAt) {
+        expiresAtMs = new Date(responseData.expiresAt).getTime();
+      } else if (responseData.expiresIn) {
+        const expiresIn = responseData.expiresIn;
+        if (typeof expiresIn === 'string') {
+          if (expiresIn.endsWith('h')) expiresAtMs = Date.now() + parseInt(expiresIn, 10) * 3600 * 1000;
+          else if (expiresIn.endsWith('d')) expiresAtMs = Date.now() + parseInt(expiresIn, 10) * 86400 * 1000;
+          else if (expiresIn.endsWith('m')) expiresAtMs = Date.now() + parseInt(expiresIn, 10) * 60 * 1000;
+          else expiresAtMs = Date.now() + parseInt(expiresIn, 10) * 1000;
+        } else if (typeof expiresIn === 'number') {
+          expiresAtMs = Date.now() + expiresIn * 1000;
+        }
+      }
+      const expiresAt = new Date(expiresAtMs).toISOString();
 
       // Update storage with new credentials
       localStorage.setItem('accessToken', token);
-      if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
-      localStorage.setItem('expiresAt', expiresAt.toString());
+      if (newRefreshToken) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+      }
+      localStorage.setItem('expiresAt', expiresAt);
 
       console.log('✅ [TokenRefreshService] Token refreshed successfully');
 
