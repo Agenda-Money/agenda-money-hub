@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,6 @@ import api from "@/lib/api";
 import { tokenRefreshService } from "@/services/tokenRefreshService";
 
 const SignupPage = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
@@ -40,7 +39,7 @@ const SignupPage = () => {
     const fetchSignupInfo = async () => {
       setIsFetchingInfo(true);
       try {
-        const response = await api.get(`/api/admin/auth/signup-info?token=${token}`);
+        const response = await api.get(`/api/admin/auth/signup-info?token=${encodeURIComponent(token)}`);
         if (response.data) {
           setFormData(prev => ({
             ...prev,
@@ -177,8 +176,9 @@ const SignupPage = () => {
                     type="text"
                     placeholder={isFetchingInfo ? "Loading..." : "John Doe"}
                     value={formData.fullName}
+                    onChange={(e) => updateField("fullName", e.target.value)}
                     required
-                    disabled
+                    disabled={isFetchingInfo || !!formData.fullName}
                     className="bg-muted/50 font-medium text-muted-foreground"
                   />
                   {isFetchingInfo && (

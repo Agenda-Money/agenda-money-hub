@@ -10,7 +10,7 @@ export class TokenRefreshService {
 
   /**
    * Start automatic token refresh timer
-   * @param expiresAt Timestamp in seconds from Unix epoch
+   * @param expiresAtInput Expiration time as an ISO 8601 string, numeric string, or Unix timestamp in milliseconds or seconds
    */
   startRefreshTimer(expiresAtInput: string | number) {
     this.stopRefreshTimer();

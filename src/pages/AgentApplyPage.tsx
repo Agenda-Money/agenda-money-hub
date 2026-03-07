@@ -65,10 +65,16 @@ export default function AgentApplyPage() {
   const [view, setView] = useState<View>("landing");
   const [currentStep, setCurrentStep] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { setTheme } = useTheme();
+  const { setTheme, theme } = useTheme();
+  const previousThemeRef = useRef(theme);
 
   useEffect(() => {
+    const prevTheme = previousThemeRef.current;
     setTheme("light");
+
+    return () => {
+      setTheme(prevTheme);
+    };
   }, [setTheme]);
 
   // Auth State
