@@ -111,10 +111,16 @@ export default function AgentOnboarding() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
   const [onboardedNodeCode, setOnboardedNodeCode] = useState<string | null>(null);
   const [isAwaitingConsent, setIsAwaitingConsent] = useState(false);
-  const { setTheme } = useTheme();
+  const { setTheme, theme } = useTheme();
+  const previousThemeRef = useRef(theme);
 
   useEffect(() => {
+    const prevTheme = previousThemeRef.current;
     setTheme("light");
+
+    return () => {
+      setTheme(prevTheme);
+    };
   }, [setTheme]);
 
   const frontInputRef = useRef<HTMLInputElement>(null);
