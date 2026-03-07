@@ -227,7 +227,7 @@ export const UserEndorsementsTab: React.FC<UserEndorsementsTabProps> = ({ onBack
         <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex items-start gap-4 mt-8">
            <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
            <p className="text-sm text-blue-800 leading-relaxed font-medium">
-             As a Graduated user, you vouch for people who sign up with your code. Endorsing their first loan allows them to be reviewed by admins.
+             Endorse your invites so admins can review their loan.
            </p>
         </div>
       </div>

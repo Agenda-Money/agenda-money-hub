@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
+  const { forgotPassword } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -21,12 +22,10 @@ const ForgotPasswordPage = () => {
     setSuccess(false);
     
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + "/reset-password",
-      });
+      const result = await forgotPassword(email);
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.message || "Failed to send reset link");
       }
       
       setSuccess(true);

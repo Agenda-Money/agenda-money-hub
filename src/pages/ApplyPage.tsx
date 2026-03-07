@@ -467,7 +467,7 @@ export default function ApplyPage() {
     
     const handleRepaymentProcessed = async () => {
         try {
-            const token = globalThis.sessionStorage.getItem("agenda_token");
+            const token = globalThis.localStorage.getItem("agenda_token");
             if (!token) return;
             const r = await fetch(`${baseApiUrl}/api/auth/me`, { 
                 headers: { 
@@ -489,7 +489,7 @@ export default function ApplyPage() {
             console.log('🎉 Loan endorsed:', data);
             toast.success(data?.message || "Your loan has been endorsed by your node!", { icon: '✅' });
             
-            const token = globalThis.sessionStorage.getItem("agenda_token");
+            const token = globalThis.localStorage.getItem("agenda_token");
             if (!token) return;
             const r = await fetch(`${baseApiUrl}/api/auth/me`, { 
                 headers: { Accept: "application/json", Authorization: `Bearer ${token}` } 
@@ -513,7 +513,7 @@ export default function ApplyPage() {
   // ─── Effects ───
   useEffect(() => {
     const checkAuth = async () => {
-       const storedToken = globalThis.sessionStorage.getItem("agenda_token");
+       const storedToken = globalThis.localStorage.getItem("agenda_token");
        if (!storedToken) {
           setIsCheckingAuth(false);
           return;
@@ -529,13 +529,13 @@ export default function ApplyPage() {
             handleAuthResponse(p);
          } else {
            console.error("Session check failed: API Error", r.status, p);
-           globalThis.sessionStorage.removeItem("agenda_token"); setAuthToken(null);
+           globalThis.localStorage.removeItem("agenda_token"); setAuthToken(null);
          }
        } catch (e) { 
          console.error("Session check failed: Network/Code Error", e); 
          // Optional: Don't remove token immediately on network error? 
          // For now, keep existing behavior but log it.
-         globalThis.sessionStorage.removeItem("agenda_token"); setAuthToken(null);
+         globalThis.localStorage.removeItem("agenda_token"); setAuthToken(null);
        } finally {
          setTimeout(() => setIsCheckingAuth(false), 500);
        }
@@ -556,7 +556,7 @@ export default function ApplyPage() {
   useEffect(() => {
     const fetchActiveLoan = async () => {
       // Auth-First: No longer need msisdn in URL
-      const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
+      const token = authToken || globalThis.localStorage.getItem("agenda_token");
       if (!token) return;
 
       try {
@@ -587,7 +587,7 @@ export default function ApplyPage() {
   // ─── Recent Activity Fetching ───
   useEffect(() => {
     const fetchRecentActivity = async () => {
-      const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
+      const token = authToken || globalThis.localStorage.getItem("agenda_token");
       if (!token) return;
 
       setIsFetchingActivity(true);
@@ -637,7 +637,7 @@ export default function ApplyPage() {
   useEffect(() => {
     const fetchNetwork = async () => {
       if (!isShareOpen) return;
-      const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
+      const token = authToken || globalThis.localStorage.getItem("agenda_token");
       if (!token) return;
 
       setIsFetchingNetwork(true);
@@ -768,7 +768,7 @@ export default function ApplyPage() {
       if (!r.ok) throw new Error(p?.message || "OTP verification failed.");
       
       if (p?.token) { 
-        globalThis.sessionStorage.setItem("agenda_token", p.token); 
+        globalThis.localStorage.setItem("agenda_token", p.token); 
         setAuthToken(p.token); 
         
         // Fetch full profile to ensure we have nodeCode and latest details

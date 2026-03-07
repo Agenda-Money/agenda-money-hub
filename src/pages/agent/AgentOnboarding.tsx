@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Upload, CreditCard, TrendingUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { uploadToSupabase } from "@/lib/supabase";
 import api from "@/lib/api";
@@ -109,7 +110,18 @@ export default function AgentOnboarding() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
   const [onboardedNodeCode, setOnboardedNodeCode] = useState<string | null>(null);
-   const [isAwaitingConsent, setIsAwaitingConsent] = useState(false);
+  const [isAwaitingConsent, setIsAwaitingConsent] = useState(false);
+  const { setTheme, theme } = useTheme();
+  const previousThemeRef = useRef(theme);
+
+  useEffect(() => {
+    const prevTheme = previousThemeRef.current;
+    setTheme("light");
+
+    return () => {
+      setTheme(prevTheme);
+    };
+  }, [setTheme]);
 
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
