@@ -10,14 +10,30 @@ export class TokenRefreshService {
 
   /**
    * Start automatic token refresh timer
-   * @param expiresAt Timestamp in seconds from Unix epoch
+   * @param expiresAtInput Expiration time as an ISO 8601 string, numeric string, or Unix timestamp in milliseconds or seconds
    */
-  startRefreshTimer(expiresAt: number) {
+  startRefreshTimer(expiresAtInput: string | number) {
     this.stopRefreshTimer();
 
-    if (!expiresAt) return;
+    if (!expiresAtInput) return;
 
-    const expiresAtMs = expiresAt * 1000;
+    let expiresAtMs: number;
+    if (typeof expiresAtInput === 'string') {
+      // Check if it's an ISO string or numeric string
+      const parsed = isNaN(Number(expiresAtInput)) 
+        ? new Date(expiresAtInput).getTime() 
+        : Number(expiresAtInput);
+      expiresAtMs = parsed;
+    } else {
+      expiresAtMs = expiresAtInput;
+    }
+
+    // Some backends return expiresAt in seconds instead of ms depending on the JWT structure
+    // If the timestamp is unreasonably small (e.g. year 1970), assume it's in seconds
+    if (expiresAtMs < Date.now() / 10) {
+      expiresAtMs = expiresAtMs * 1000;
+    }
+
     const now = Date.now();
     const timeUntilExpiry = expiresAtMs - now;
     
@@ -50,20 +66,44 @@ export class TokenRefreshService {
 
       console.log('[TokenRefreshService] Attempting to refresh access token...');
       
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/admin/auth/refresh-token`, {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/admin/auth/refresh`, {
         refreshToken
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (response.status !== 200 && response.status !== 201) {
         throw new Error('Refresh request failed');
       }
 
-      const { token, refreshToken: newRefreshToken, expiresAt } = response.data;
+      const responseData = response.data.data || response.data;
+      const token = responseData.token || responseData.accessToken;
+      const newRefreshToken = responseData.refreshToken;
+      
+      let expiresAtMs = Date.now() + 86400 * 1000;
+      if (responseData.expiresAt) {
+        expiresAtMs = new Date(responseData.expiresAt).getTime();
+      } else if (responseData.expiresIn) {
+        const expiresIn = responseData.expiresIn;
+        if (typeof expiresIn === 'string') {
+          if (expiresIn.endsWith('h')) expiresAtMs = Date.now() + parseInt(expiresIn, 10) * 3600 * 1000;
+          else if (expiresIn.endsWith('d')) expiresAtMs = Date.now() + parseInt(expiresIn, 10) * 86400 * 1000;
+          else if (expiresIn.endsWith('m')) expiresAtMs = Date.now() + parseInt(expiresIn, 10) * 60 * 1000;
+          else expiresAtMs = Date.now() + parseInt(expiresIn, 10) * 1000;
+        } else if (typeof expiresIn === 'number') {
+          expiresAtMs = Date.now() + expiresIn * 1000;
+        }
+      }
+      const expiresAt = new Date(expiresAtMs).toISOString();
 
       // Update storage with new credentials
       localStorage.setItem('accessToken', token);
-      if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
-      localStorage.setItem('expiresAt', expiresAt.toString());
+      if (newRefreshToken) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+      }
+      localStorage.setItem('expiresAt', expiresAt);
 
       console.log('✅ [TokenRefreshService] Token refreshed successfully');
 
@@ -121,14 +161,14 @@ export class TokenRefreshService {
     const accessToken = localStorage.getItem('accessToken');
 
     if (expiresAt && accessToken) {
-      this.startRefreshTimer(parseInt(expiresAt, 10));
+      this.startRefreshTimer(expiresAt);
     }
 
     // Set up multi-tab synchronization
     window.addEventListener('storage', (e) => {
       if (e.key === 'expiresAt' && e.newValue) {
         console.log('[TokenRefreshService] Detected token refresh in another tab');
-        this.startRefreshTimer(parseInt(e.newValue, 10));
+        this.startRefreshTimer(e.newValue);
       }
       if (e.key === 'accessToken' && !e.newValue) {
         console.log('[TokenRefreshService] Detected logout in another tab');

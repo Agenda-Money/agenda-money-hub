@@ -16,6 +16,7 @@ import {
   CreditCard,
   MapPin,
   Mail,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
@@ -63,6 +65,17 @@ export default function AgentApplyPage() {
   const [view, setView] = useState<View>("landing");
   const [currentStep, setCurrentStep] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { setTheme, theme } = useTheme();
+  const previousThemeRef = useRef(theme);
+
+  useEffect(() => {
+    const prevTheme = previousThemeRef.current;
+    setTheme("light");
+
+    return () => {
+      setTheme(prevTheme);
+    };
+  }, [setTheme]);
 
   // Auth State
   const [msisdnInput, setMsisdnInput] = useState("");
@@ -151,7 +164,7 @@ export default function AgentApplyPage() {
 
     if (result.success && result.url) {
       updateField(fieldMap[type], result.url);
-      toast.success("Image uploaded successfully!");
+      toast.success("Image uploaded successfully!", { duration: 1500 });
     } else {
       toast.error("Upload failed", {
         description: result.error || "Please try again later or check your connection",
@@ -275,7 +288,7 @@ export default function AgentApplyPage() {
           formData.surname.trim() &&
           formData.email.trim() &&
           formData.email.includes("@") &&
-          formData.address.trim() &&
+          formData.address.trim().split(/\s+/).length >= 3 &&
           formData.region
         );
       case 2:
@@ -544,7 +557,7 @@ export default function AgentApplyPage() {
     const canVerify = otp.length === OTP_LENGTH;
 
     return (
-      <div className="flex h-auto min-h-screen items-center justify-center overflow-x-hidden bg-white py-10 relative" data-theme="light">
+      <div className="flex h-auto min-h-screen items-center justify-center overflow-x-hidden bg-white py-10 relative">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-[radial-gradient(circle,rgba(236,27,132,0.15)_0%,rgba(255,255,255,0)_70%)] blur-[120px] pointer-events-none animate-pulse" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.15)_0%,rgba(255,255,255,0)_70%)] blur-[120px] pointer-events-none animate-pulse delay-1000" />
         
@@ -624,8 +637,8 @@ export default function AgentApplyPage() {
                 <div className="space-y-6">
                    <div className="flex justify-center">
                      <InputOTP value={otp} onChange={(v) => { setOtp(v); if (v.length === OTP_LENGTH) handleVerifyOtp(v); }} maxLength={OTP_LENGTH}>
-                       <InputOTPGroup>
-                         {OTP_SLOTS.map((slot, i) => <InputOTPSlot key={slot} index={i} className="h-14 w-10 sm:w-12 bg-transparent border-b-2 border-border/50 rounded-none text-xl focus:border-primary focus:ring-0 transition-all font-bold" />)}
+                       <InputOTPGroup className="gap-2">
+                         {OTP_SLOTS.map((slot, i) => <InputOTPSlot key={slot} index={i} className="h-14 w-10 sm:w-12 bg-slate-100 border border-slate-200 rounded-md text-xl focus:border-primary focus:ring-1 focus:ring-primary transition-all font-bold" />)}
                        </InputOTPGroup>
                      </InputOTP>
                    </div>
@@ -780,7 +793,7 @@ export default function AgentApplyPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="address">Residential/Business Address</Label>
+                    <Label htmlFor="address">Residential/Business Address *</Label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
                       <Input
@@ -791,6 +804,12 @@ export default function AgentApplyPage() {
                         className="h-12 pl-10 bg-muted/50 border-0 focus-visible:ring-primary"
                       />
                     </div>
+                    {formData.address.length > 0 && formData.address.trim().split(/\s+/).length < 3 && (
+                      <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Address requires at least 3 relevant words
+                      </p>
+                    )}
                   </div>
 
                 </div>

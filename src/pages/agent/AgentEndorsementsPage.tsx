@@ -240,7 +240,7 @@ export default function AgentEndorsementsPage() {
         <div className="space-y-1">
           <p className="font-semibold">Why do I need to endorse these?</p>
           <p className="text-sm opacity-90 max-w-3xl leading-relaxed">
-            As a Node Owner, you are vouching for the trustworthiness of your network. First-time borrowers must be endorsed by their referring node before the admin will review their application. Once you endorse their first loan, future loans will be automatically sent to the admin. Note that you are taking partial responsibility for guiding their repayment.
+            As an Agent, you are vouching for the trustworthiness of your network. First-time borrowers must be endorsed by you before the admin will review their application. Once you endorse their first loan, future loans will be automatically sent to the admin. Note that you are taking partial responsibility for guiding their repayment.
           </p>
         </div>
       </div>
