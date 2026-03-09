@@ -75,7 +75,7 @@ export const uploadToSupabase = async (
       return { success: false, error: error.message };
     }
 
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = supabase!.storage
       .from(BUCKET_ID)
       .getPublicUrl(data.path);
 

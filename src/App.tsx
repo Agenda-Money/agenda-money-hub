@@ -78,6 +78,9 @@ const App = () => {
               <Sonner />
               <BrowserRouter>
                 <Routes>
+                  {/* Public Routes - Email Templates */}
+                  <Route path="/email-templates" element={<EmailTemplatesPage />} />
+
                   {subdomain === "apply" && (
                     <>
                       <Route path="/" element={<ApplyPage />} />
