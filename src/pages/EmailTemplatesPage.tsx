@@ -176,22 +176,22 @@ export default function EmailTemplatesPage() {
 
         {/* Template Statistics */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6">
-            <h4 className="font-semibold text-slate-900 mb-2">Mobile Optimized</h4>
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
+            <h4 className="font-semibold text-slate-900 mb-2">Fintech Optimized</h4>
             <p className="text-sm text-slate-600">
-              All templates are fully responsive and tested across devices and email clients.
+              Designed specifically for financial services with trust-building elements and clear CTAs.
             </p>
           </div>
-          <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-6">
-            <h4 className="font-semibold text-slate-900 mb-2">Brand Consistent</h4>
+          <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg p-6 border border-yellow-200">
+            <h4 className="font-semibold text-slate-900 mb-2">Mobile First</h4>
             <p className="text-sm text-slate-600">
-              Uses your exact brand colors, fonts, and styling for consistent user experience.
+              Fully responsive design tested across all major email clients and devices.
             </p>
           </div>
-          <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6">
-            <h4 className="font-semibold text-slate-900 mb-2">Production Ready</h4>
+          <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
+            <h4 className="font-semibold text-slate-900 mb-2">Conversion Focused</h4>
             <p className="text-sm text-slate-600">
-              Templates are coded with best practices and ready for immediate deployment.
+              Built with behavioral psychology and financial best practices to drive engagement.
             </p>
           </div>
         </div>
