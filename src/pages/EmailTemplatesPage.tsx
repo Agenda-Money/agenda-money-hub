@@ -149,27 +149,27 @@ export default function EmailTemplatesPage() {
 
         {/* Color Palette Reference */}
         <div className="mt-12 bg-white rounded-xl border border-slate-200 p-6">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Brand Color Palette</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Fintech Brand Colors</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="w-16 h-16 rounded-lg mx-auto mb-2" style={{ backgroundColor: '#EC1B84' }}></div>
-              <p className="text-sm font-medium text-slate-700">Primary Pink</p>
-              <p className="text-xs text-slate-500">#EC1B84</p>
+              <div className="w-16 h-16 rounded-lg mx-auto mb-2" style={{ backgroundColor: '#2563EB' }}></div>
+              <p className="text-sm font-medium text-slate-700">Primary Blue</p>
+              <p className="text-xs text-slate-500">#2563EB</p>
             </div>
             <div className="text-center">
-              <div className="w-16 h-16 rounded-lg mx-auto mb-2" style={{ backgroundColor: '#C2185B' }}></div>
-              <p className="text-sm font-medium text-slate-700">Deep Rose</p>
-              <p className="text-xs text-slate-500">#C2185B</p>
+              <div className="w-16 h-16 rounded-lg mx-auto mb-2" style={{ backgroundColor: '#EAB308' }}></div>
+              <p className="text-sm font-medium text-slate-700">Accent Yellow</p>
+              <p className="text-xs text-slate-500">#EAB308</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-lg mx-auto mb-2" style={{ backgroundColor: '#059669' }}></div>
+              <p className="text-sm font-medium text-slate-700">Success Green</p>
+              <p className="text-xs text-slate-500">#059669</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 rounded-lg mx-auto mb-2 border" style={{ backgroundColor: '#F8FAFC' }}></div>
-              <p className="text-sm font-medium text-slate-700">Ghost White</p>
+              <p className="text-sm font-medium text-slate-700">Clean White</p>
               <p className="text-xs text-slate-500">#F8FAFC</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-lg mx-auto mb-2" style={{ backgroundColor: '#1E293B' }}></div>
-              <p className="text-sm font-medium text-slate-700">Charcoal Slate</p>
-              <p className="text-xs text-slate-500">#1E293B</p>
             </div>
           </div>
         </div>
