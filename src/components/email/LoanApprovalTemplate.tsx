@@ -13,7 +13,7 @@ export function LoanApprovalTemplate() {
         <h1 className="text-2xl font-bold text-white mb-2">
           🎉 Loan Approved!
         </h1>
-        <p className="text-green-100 text-sm">
+        <p className="text-success-foreground/80 text-sm">
           Your financial goals are now within reach
         </p>
       </div>
