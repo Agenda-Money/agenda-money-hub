@@ -1,8 +1,11 @@
 import { EmailTemplateCard } from "@/components/email/EmailTemplateCard";
 import { WelcomeEmailTemplate } from "@/components/email/WelcomeEmailTemplate";
-import { PasswordResetTemplate } from "@/components/email/PasswordResetTemplate";
 import { LoanApprovalTemplate } from "@/components/email/LoanApprovalTemplate";
+import { LoanDisbursementTemplate } from "@/components/email/LoanDisbursementTemplate";
 import { PaymentReminderTemplate } from "@/components/email/PaymentReminderTemplate";
+import { PaymentConfirmationTemplate } from "@/components/email/PaymentConfirmationTemplate";
+import { PromotionalOfferTemplate } from "@/components/email/PromotionalOfferTemplate";
+import { PasswordResetTemplate } from "@/components/email/PasswordResetTemplate";
 import { KycVerificationTemplate } from "@/components/email/KycVerificationTemplate";
 import { LoanRejectionTemplate } from "@/components/email/LoanRejectionTemplate";
 import { MonthlyStatementTemplate } from "@/components/email/MonthlyStatementTemplate";
