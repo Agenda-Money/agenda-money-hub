@@ -13,7 +13,7 @@ export function WelcomeEmailTemplate() {
         <h1 className="text-2xl font-bold text-white mb-2">
           Welcome to Agenda Money! 💸
         </h1>
-        <p className="text-pink-100 text-sm">
+        <p className="text-primary-foreground/80 text-sm">
           Your journey to financial empowerment starts here
         </p>
       </div>
