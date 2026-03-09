@@ -2,81 +2,72 @@ import { Button } from "@/components/ui/button";
 
 export function PasswordResetTemplate() {
   return (
-    <div className="max-w-2xl mx-auto bg-white">
+    <div className="max-w-lg mx-auto bg-white font-sans">
       {/* Header */}
-      <div 
-        className="px-8 py-6 text-center"
-        style={{
-          background: 'linear-gradient(135deg, hsl(215, 16%, 17%) 0%, hsl(215, 16%, 30%) 100%)'
-        }}
-      >
-        <h1 className="text-2xl font-bold text-white mb-2">
-          🔐 Password Reset Request
+      <div className="px-8 pt-12 pb-8 text-center">
+        <div className="w-12 h-12 bg-slate-900 rounded-full mx-auto mb-6 flex items-center justify-center">
+          <span className="text-white font-bold text-lg">🔒</span>
+        </div>
+        <h1 className="text-2xl font-semibold text-slate-900 mb-2">
+          Reset Your Password
         </h1>
-        <p className="text-muted-foreground/60 text-sm">
-          Secure your Agenda Money account
+        <p className="text-slate-500 text-sm">
+          We received a password reset request
         </p>
       </div>
 
       {/* Content */}
-      <div className="px-8 py-8">
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-slate-800 mb-3">
-            Reset Your Password
-          </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
-            We received a request to reset the password for your Agenda Money account. 
-            If you didn't make this request, you can safely ignore this email.
-          </p>
+      <div className="px-8 pb-8">
+        <div className="mb-8">
           <p className="text-slate-600 leading-relaxed mb-6">
-            To reset your password, click the button below. This link will expire in 24 hours 
-            for your security.
+            Click the button below to reset your password. This link will expire in 24 hours. 
+            If you didn't request this, you can safely ignore this email.
           </p>
         </div>
 
         {/* CTA Button */}
         <div className="text-center mb-8">
-          <Button 
-            className="px-8 py-3 text-base font-medium bg-primary text-primary-foreground hover:bg-primary/90"
-            style={{
-              borderRadius: '40px'
-            }}
+          <a 
+            href="#" 
+            className="inline-block bg-slate-900 text-white px-8 py-3 rounded-full font-medium hover:bg-slate-800 transition-colors"
           >
-            Reset My Password
-          </Button>
+            Reset Password
+          </a>
         </div>
 
-        {/* Security Info */}
-        <div className="bg-slate-50 rounded-lg p-6 mb-6">
-          <h3 className="font-medium text-slate-800 mb-3 flex items-center gap-2">
-            🛡️ Security Notice
-          </h3>
-          <div className="space-y-2 text-sm text-slate-600">
-            <p>• This link expires in 24 hours</p>
-            <p>• Only use this link from a secure device</p>
-            <p>• Choose a strong, unique password</p>
-            <p>• Never share your password with anyone</p>
+        {/* Security Notice */}
+        <div className="bg-slate-50 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-xs">🛡️</span>
+            </div>
+            <div>
+              <h3 className="font-medium text-slate-800 text-sm mb-1">Security Notice</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                This link expires in 24 hours. Only use from a secure device and choose a strong password.
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Alternative Method */}
+        {/* Fallback Link */}
         <div className="text-center">
-          <p className="text-sm text-slate-500 mb-2">
-            If the button doesn't work, copy and paste this link:
+          <p className="text-xs text-slate-400 mb-2">
+            Having trouble? Copy this link:
           </p>
-          <p className="text-xs text-primary bg-primary/5 px-3 py-2 rounded font-mono break-all">
-            https://agendamoney.com/reset-password?token=abc123xyz789
+          <p className="text-xs text-slate-500 bg-slate-50 px-3 py-2 rounded font-mono break-all">
+            agendamoney.com/reset?t=abc123
           </p>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="px-8 py-6 bg-slate-50 text-center border-t">
-        <p className="text-xs text-slate-500 mb-2">
-          Having trouble? Contact us at security@agendamoney.com
+      <div className="px-8 py-6 bg-slate-50 border-t text-center">
+        <p className="text-xs text-slate-500 mb-1">
+          Questions? Reply to this email or contact support
         </p>
         <p className="text-xs text-slate-400">
-          © 2024 Agenda Money. All rights reserved.
+          © 2024 Agenda Money
         </p>
       </div>
     </div>
