@@ -36,15 +36,15 @@ export default function EmailTemplatesPage() {
             
             <div className="flex items-center gap-4 text-sm text-slate-500">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-gradient-to-r from-primary to-primary/80"></div>
-                <span>Brand Colors</span>
+                <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-600 to-blue-700"></div>
+                <span>Fintech Branding</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                 <span>Mobile Optimized</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
                 <span>Production Ready</span>
               </div>
             </div>
