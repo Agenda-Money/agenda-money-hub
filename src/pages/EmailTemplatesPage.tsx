@@ -92,6 +92,16 @@ export default function EmailTemplatesPage() {
             </EmailTemplateCard>
           </TabsContent>
 
+          <TabsContent value="rejection" className="space-y-6">
+            <EmailTemplateCard
+              title="Loan Rejection"
+              description="Empathetic and clear communication regarding declined applications"
+              onPreview={() => window.open('#rejection-preview', '_blank')}
+            >
+              <LoanRejectionTemplate />
+            </EmailTemplateCard>
+          </TabsContent>
+
           <TabsContent value="reminder" className="space-y-6">
             <EmailTemplateCard
               title="Payment Reminder"
@@ -99,6 +109,26 @@ export default function EmailTemplatesPage() {
               onPreview={() => window.open('#reminder-preview', '_blank')}
             >
               <PaymentReminderTemplate />
+            </EmailTemplateCard>
+          </TabsContent>
+
+          <TabsContent value="kyc" className="space-y-6">
+            <EmailTemplateCard
+              title="KYC Verification Success"
+              description="Confirm successful identity verification and account activation"
+              onPreview={() => window.open('#kyc-preview', '_blank')}
+            >
+              <KycVerificationTemplate />
+            </EmailTemplateCard>
+          </TabsContent>
+
+          <TabsContent value="statement" className="space-y-6">
+            <EmailTemplateCard
+              title="Monthly Statement"
+              description="Deliver regular account summaries and statements"
+              onPreview={() => window.open('#statement-preview', '_blank')}
+            >
+              <MonthlyStatementTemplate />
             </EmailTemplateCard>
           </TabsContent>
         </Tabs>
