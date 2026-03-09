@@ -37,10 +37,8 @@ export function PasswordResetTemplate() {
         {/* CTA Button */}
         <div className="text-center mb-8">
           <Button 
-            className="px-8 py-3 text-base font-medium"
+            className="px-8 py-3 text-base font-medium bg-primary text-primary-foreground hover:bg-primary/90"
             style={{
-              background: 'linear-gradient(135deg, #EC1B84 0%, #C2185B 100%)',
-              color: 'white',
               borderRadius: '40px'
             }}
           >

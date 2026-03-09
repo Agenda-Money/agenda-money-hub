@@ -60,10 +60,8 @@ export function PaymentReminderTemplate() {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
           <Button 
-            className="flex-1 px-6 py-3 text-base font-medium"
+            className="flex-1 px-6 py-3 text-base font-medium bg-primary text-primary-foreground hover:bg-primary/90"
             style={{
-              background: 'linear-gradient(135deg, #EC1B84 0%, #C2185B 100%)',
-              color: 'white',
               borderRadius: '40px'
             }}
           >
