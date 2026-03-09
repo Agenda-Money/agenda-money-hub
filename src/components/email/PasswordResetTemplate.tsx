@@ -7,7 +7,7 @@ export function PasswordResetTemplate() {
       <div 
         className="px-8 py-6 text-center"
         style={{
-          background: 'linear-gradient(135deg, #1E293B 0%, #475569 100%)'
+          background: 'linear-gradient(135deg, hsl(215, 16%, 17%) 0%, hsl(215, 16%, 30%) 100%)'
         }}
       >
         <h1 className="text-2xl font-bold text-white mb-2">
