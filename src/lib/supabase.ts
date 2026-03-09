@@ -3,11 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn("Supabase credentials not found. Image uploads will not work.");
-}
+// Create a null client if credentials are missing to prevent crashes
+export const supabase = (supabaseUrl && supabaseAnonKey) 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!supabase) {
+  console.warn("Supabase credentials not found. Upload features will not work.");
+}
 
 // export const uploadToSupabase = async (
 //   file: File,
@@ -47,6 +50,10 @@ export const uploadToSupabase = async (
   path: string
 ): Promise<{ success: boolean; url?: string; error?: string }> => {
   try {
+    if (!supabase) {
+      return { success: false, error: "Supabase not configured" };
+    }
+
     // Prefer an explicit env var for the bucket name so it's configurable per environment.
     const envBucket = import.meta.env.VITE_SUPABASE_BUCKET as string | undefined;
     const BUCKET_ID = envBucket || bucket || "KYC-BUCKET";
@@ -68,7 +75,7 @@ export const uploadToSupabase = async (
       return { success: false, error: error.message };
     }
 
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = supabase!.storage
       .from(BUCKET_ID)
       .getPublicUrl(data.path);
 

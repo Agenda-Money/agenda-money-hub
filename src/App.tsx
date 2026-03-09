@@ -36,6 +36,7 @@ import AgentCommissionsPage from "./pages/agent/AgentCommissionsPage";
 import AgentEndorsementsPage from "./pages/agent/AgentEndorsementsPage";
 import AdminPayoutsPage from './pages/AdminPayoutsPage';
 import PendingKycPage from "./pages/PendingKycPage";
+import EmailTemplatesPage from "./pages/EmailTemplatesPage";
 import { SessionManager } from "./components/auth/SessionManager";
 
 import { getSubdomain } from "@/lib/domain";
@@ -77,6 +78,9 @@ const App = () => {
               <Sonner />
               <BrowserRouter>
                 <Routes>
+                  {/* Public Routes - Email Templates */}
+                  <Route path="/email-templates" element={<EmailTemplatesPage />} />
+
                   {subdomain === "apply" && (
                     <>
                       <Route path="/" element={<ApplyPage />} />
