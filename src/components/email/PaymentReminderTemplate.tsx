@@ -13,7 +13,7 @@ export function PaymentReminderTemplate() {
         <h1 className="text-2xl font-bold text-white mb-2">
           ⏰ Payment Reminder
         </h1>
-        <p className="text-orange-100 text-sm">
+        <p className="text-warning-foreground/80 text-sm">
           Your loan payment is due soon
         </p>
       </div>
