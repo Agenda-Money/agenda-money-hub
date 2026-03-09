@@ -13,7 +13,7 @@ export function PasswordResetTemplate() {
         <h1 className="text-2xl font-bold text-white mb-2">
           🔐 Password Reset Request
         </h1>
-        <p className="text-slate-300 text-sm">
+        <p className="text-muted-foreground/60 text-sm">
           Secure your Agenda Money account
         </p>
       </div>
