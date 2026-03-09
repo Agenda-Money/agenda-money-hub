@@ -50,6 +50,10 @@ export const uploadToSupabase = async (
   path: string
 ): Promise<{ success: boolean; url?: string; error?: string }> => {
   try {
+    if (!supabase) {
+      return { success: false, error: "Supabase not configured" };
+    }
+
     // Prefer an explicit env var for the bucket name so it's configurable per environment.
     const envBucket = import.meta.env.VITE_SUPABASE_BUCKET as string | undefined;
     const BUCKET_ID = envBucket || bucket || "KYC-BUCKET";
