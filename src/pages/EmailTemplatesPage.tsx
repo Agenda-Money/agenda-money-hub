@@ -69,10 +69,60 @@ export default function EmailTemplatesPage() {
           <TabsContent value="welcome" className="space-y-6">
             <EmailTemplateCard
               title="Welcome Email"
-              description="Onboard new users with a warm welcome message"
+              description="Onboard new users with financial empowerment messaging and next steps"
               onPreview={() => window.open('#welcome-preview', '_blank')}
             >
               <WelcomeEmailTemplate />
+            </EmailTemplateCard>
+          </TabsContent>
+
+          <TabsContent value="approval" className="space-y-6">
+            <EmailTemplateCard
+              title="Loan Approval"
+              description="Celebrate successful loan approvals with clear loan summary and next steps"
+              onPreview={() => window.open('#approval-preview', '_blank')}
+            >
+              <LoanApprovalTemplate />
+            </EmailTemplateCard>
+          </TabsContent>
+
+          <TabsContent value="disbursement" className="space-y-6">
+            <EmailTemplateCard
+              title="Loan Disbursement"
+              description="Confirm funds transfer with transaction details and payment setup"
+              onPreview={() => window.open('#disbursement-preview', '_blank')}
+            >
+              <LoanDisbursementTemplate />
+            </EmailTemplateCard>
+          </TabsContent>
+
+          <TabsContent value="reminder" className="space-y-6">
+            <EmailTemplateCard
+              title="Payment Reminder"
+              description="Friendly reminders with payment benefits and auto-pay options"
+              onPreview={() => window.open('#reminder-preview', '_blank')}
+            >
+              <PaymentReminderTemplate />
+            </EmailTemplateCard>
+          </TabsContent>
+
+          <TabsContent value="confirmation" className="space-y-6">
+            <EmailTemplateCard
+              title="Payment Confirmation"
+              description="Confirm successful payments with credit building encouragement"
+              onPreview={() => window.open('#confirmation-preview', '_blank')}
+            >
+              <PaymentConfirmationTemplate />
+            </EmailTemplateCard>
+          </TabsContent>
+
+          <TabsContent value="promotion" className="space-y-6">
+            <EmailTemplateCard
+              title="Promotional Offer"
+              description="Exclusive loan offers with urgency and social proof elements"
+              onPreview={() => window.open('#promotion-preview', '_blank')}
+            >
+              <PromotionalOfferTemplate />
             </EmailTemplateCard>
           </TabsContent>
 
@@ -86,36 +136,6 @@ export default function EmailTemplatesPage() {
             </EmailTemplateCard>
           </TabsContent>
 
-          <TabsContent value="approval" className="space-y-6">
-            <EmailTemplateCard
-              title="Loan Approval"
-              description="Celebrate successful loan approvals with next steps"
-              onPreview={() => window.open('#approval-preview', '_blank')}
-            >
-              <LoanApprovalTemplate />
-            </EmailTemplateCard>
-          </TabsContent>
-
-          <TabsContent value="rejection" className="space-y-6">
-            <EmailTemplateCard
-              title="Loan Rejection"
-              description="Empathetic and clear communication regarding declined applications"
-              onPreview={() => window.open('#rejection-preview', '_blank')}
-            >
-              <LoanRejectionTemplate />
-            </EmailTemplateCard>
-          </TabsContent>
-
-          <TabsContent value="reminder" className="space-y-6">
-            <EmailTemplateCard
-              title="Payment Reminder"
-              description="Friendly payment reminders to maintain good standing"
-              onPreview={() => window.open('#reminder-preview', '_blank')}
-            >
-              <PaymentReminderTemplate />
-            </EmailTemplateCard>
-          </TabsContent>
-
           <TabsContent value="kyc" className="space-y-6">
             <EmailTemplateCard
               title="KYC Verification Success"
@@ -123,16 +143,6 @@ export default function EmailTemplatesPage() {
               onPreview={() => window.open('#kyc-preview', '_blank')}
             >
               <KycVerificationTemplate />
-            </EmailTemplateCard>
-          </TabsContent>
-
-          <TabsContent value="statement" className="space-y-6">
-            <EmailTemplateCard
-              title="Monthly Statement"
-              description="Deliver regular account summaries and statements"
-              onPreview={() => window.open('#statement-preview', '_blank')}
-            >
-              <MonthlyStatementTemplate />
             </EmailTemplateCard>
           </TabsContent>
         </Tabs>
