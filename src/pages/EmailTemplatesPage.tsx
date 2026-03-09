@@ -57,12 +57,13 @@ export default function EmailTemplatesPage() {
         <Tabs defaultValue="welcome" className="space-y-8">
           <TabsList className="flex flex-wrap h-auto w-full justify-start gap-2 bg-transparent p-0">
             <TabsTrigger value="welcome" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Welcome</TabsTrigger>
-            <TabsTrigger value="reset" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Password Reset</TabsTrigger>
             <TabsTrigger value="approval" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Loan Approval</TabsTrigger>
-            <TabsTrigger value="rejection" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Loan Rejection</TabsTrigger>
+            <TabsTrigger value="disbursement" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Disbursement</TabsTrigger>
             <TabsTrigger value="reminder" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Payment Reminder</TabsTrigger>
+            <TabsTrigger value="confirmation" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Payment Success</TabsTrigger>
+            <TabsTrigger value="promotion" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Special Offer</TabsTrigger>
+            <TabsTrigger value="reset" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Password Reset</TabsTrigger>
             <TabsTrigger value="kyc" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">KYC Success</TabsTrigger>
-            <TabsTrigger value="statement" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Monthly Statement</TabsTrigger>
           </TabsList>
 
           <TabsContent value="welcome" className="space-y-6">
