@@ -3,6 +3,9 @@ import { WelcomeEmailTemplate } from "@/components/email/WelcomeEmailTemplate";
 import { PasswordResetTemplate } from "@/components/email/PasswordResetTemplate";
 import { LoanApprovalTemplate } from "@/components/email/LoanApprovalTemplate";
 import { PaymentReminderTemplate } from "@/components/email/PaymentReminderTemplate";
+import { KycVerificationTemplate } from "@/components/email/KycVerificationTemplate";
+import { LoanRejectionTemplate } from "@/components/email/LoanRejectionTemplate";
+import { MonthlyStatementTemplate } from "@/components/email/MonthlyStatementTemplate";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -49,11 +52,14 @@ export default function EmailTemplatesPage() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="welcome" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-4 lg:w-fit lg:grid-cols-4">
-            <TabsTrigger value="welcome">Welcome</TabsTrigger>
-            <TabsTrigger value="reset">Password Reset</TabsTrigger>
-            <TabsTrigger value="approval">Loan Approval</TabsTrigger>
-            <TabsTrigger value="reminder">Payment Reminder</TabsTrigger>
+          <TabsList className="flex flex-wrap h-auto w-full justify-start gap-2 bg-transparent p-0">
+            <TabsTrigger value="welcome" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Welcome</TabsTrigger>
+            <TabsTrigger value="reset" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Password Reset</TabsTrigger>
+            <TabsTrigger value="approval" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Loan Approval</TabsTrigger>
+            <TabsTrigger value="rejection" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Loan Rejection</TabsTrigger>
+            <TabsTrigger value="reminder" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Payment Reminder</TabsTrigger>
+            <TabsTrigger value="kyc" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">KYC Success</TabsTrigger>
+            <TabsTrigger value="statement" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-slate-200 rounded-full px-4 py-2">Monthly Statement</TabsTrigger>
           </TabsList>
 
           <TabsContent value="welcome" className="space-y-6">
