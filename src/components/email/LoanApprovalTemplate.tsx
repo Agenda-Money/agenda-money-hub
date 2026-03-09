@@ -7,7 +7,7 @@ export function LoanApprovalTemplate() {
       <div 
         className="px-8 py-6 text-center"
         style={{
-          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+          background: 'linear-gradient(135deg, hsl(160, 84%, 39%) 0%, hsl(160, 84%, 35%) 100%)'
         }}
       >
         <h1 className="text-2xl font-bold text-white mb-2">
