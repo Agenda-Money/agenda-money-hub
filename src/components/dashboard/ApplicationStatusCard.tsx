@@ -27,20 +27,14 @@ export const ApplicationStatusCard: React.FC<ApplicationStatusCardProps> = ({ lo
     {
       id: 'node-endorsement',
       title: 'Node Approval',
-      status: initialStatus === 'AWAITING_ENDORSEMENT' ? 'in-progress' : initialStatus === 'PENDING_VERIFICATION' || initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'completed' : 'waiting',
-      color: initialStatus === 'AWAITING_ENDORSEMENT' ? 'pink' : initialStatus === 'PENDING_VERIFICATION' || initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'green' : 'gray'
-    },
-    {
-      id: 'kyc-verification',
-      title: 'Identity Verification',
-      status: initialStatus === 'PENDING_VERIFICATION' ? 'in-progress' : initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'completed' : 'waiting',
-      color: initialStatus === 'PENDING_VERIFICATION' ? 'pink' : initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'green' : 'gray'
+      status: initialStatus === 'AWAITING_ENDORSEMENT' ? 'in-progress' : initialStatus === 'PENDING' || initialStatus === 'DISBURSING' || initialStatus === 'ACTIVE' ? 'completed' : 'waiting',
+      color: initialStatus === 'AWAITING_ENDORSEMENT' ? 'pink' : initialStatus === 'PENDING' || initialStatus === 'DISBURSING' || initialStatus === 'ACTIVE' ? 'green' : 'gray'
     },
     {
       id: 'final-approval',
       title: 'Admin Approval',
-      status: initialStatus === 'PENDING' ? 'in-progress' : initialStatus === 'DISBURSING' ? 'completed' : 'waiting',
-      color: initialStatus === 'PENDING' ? 'pink' : initialStatus === 'DISBURSING' ? 'green' : 'gray'
+      status: initialStatus === 'PENDING' ? 'in-progress' : initialStatus === 'DISBURSING' || initialStatus === 'ACTIVE' ? 'completed' : 'waiting',
+      color: initialStatus === 'PENDING' ? 'pink' : initialStatus === 'DISBURSING' || initialStatus === 'ACTIVE' ? 'green' : 'gray'
     }
   ]);
 
@@ -54,20 +48,14 @@ export const ApplicationStatusCard: React.FC<ApplicationStatusCardProps> = ({ lo
       {
         id: 'node-endorsement',
         title: 'Node Approval',
-        status: initialStatus === 'AWAITING_ENDORSEMENT' ? 'in-progress' : initialStatus === 'PENDING_VERIFICATION' || initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'completed' : 'waiting',
-        color: initialStatus === 'AWAITING_ENDORSEMENT' ? 'pink' : initialStatus === 'PENDING_VERIFICATION' || initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'green' : 'gray'
-      },
-      {
-        id: 'kyc-verification',
-        title: 'Identity Verification',
-        status: initialStatus === 'PENDING_VERIFICATION' ? 'in-progress' : initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'completed' : 'waiting',
-        color: initialStatus === 'PENDING_VERIFICATION' ? 'pink' : initialStatus === 'PENDING' || initialStatus === 'DISBURSING' ? 'green' : 'gray'
+        status: initialStatus === 'AWAITING_ENDORSEMENT' ? 'in-progress' : initialStatus === 'PENDING' || initialStatus === 'DISBURSING' || initialStatus === 'ACTIVE' ? 'completed' : 'waiting',
+        color: initialStatus === 'AWAITING_ENDORSEMENT' ? 'pink' : initialStatus === 'PENDING' || initialStatus === 'DISBURSING' || initialStatus === 'ACTIVE' ? 'green' : 'gray'
       },
       {
         id: 'final-approval',
         title: 'Admin Approval',
-        status: initialStatus === 'PENDING' ? 'in-progress' : initialStatus === 'DISBURSING' ? 'completed' : 'waiting',
-        color: initialStatus === 'PENDING' ? 'pink' : initialStatus === 'DISBURSING' ? 'green' : 'gray'
+        status: initialStatus === 'PENDING' ? 'in-progress' : initialStatus === 'DISBURSING' || initialStatus === 'ACTIVE' ? 'completed' : 'waiting',
+        color: initialStatus === 'PENDING' ? 'pink' : initialStatus === 'DISBURSING' || initialStatus === 'ACTIVE' ? 'green' : 'gray'
       }
     ]);
   }, [initialStatus]);
@@ -76,20 +64,13 @@ export const ApplicationStatusCard: React.FC<ApplicationStatusCardProps> = ({ lo
   useEffect(() => {
     if (nodeEndorsedEvent) {
       updateStep('node-endorsement', { status: 'completed', color: 'green' });
-      updateStep('kyc-verification', { status: 'in-progress', color: 'pink', text: 'Awaiting KYC Verification' });
+      updateStep('final-approval', { status: 'in-progress', color: 'pink', text: 'Awaiting Admin Review' });
     }
   }, [nodeEndorsedEvent]);
 
   useEffect(() => {
-    if (kycEvent) {
-      updateStep('kyc-verification', { status: 'completed', color: 'green' });
-      updateStep('final-approval', { status: 'in-progress', color: 'pink', text: 'Awaiting Final Approval' });
-    }
-  }, [kycEvent]);
-
-  useEffect(() => {
     if (latestLoanEvent) {
-      if (latestLoanEvent.cardColor === 'green' && latestLoanEvent.status === 'DISBURSING') {
+      if (latestLoanEvent.cardColor === 'green' && (latestLoanEvent.status === 'DISBURSING' || latestLoanEvent.status === 'ACTIVE')) {
         updateStep('final-approval', { status: 'completed', color: 'green' });
       } else if (latestLoanEvent.cardColor === 'red' && latestLoanEvent.status === 'REJECTED') {
         updateStep('final-approval', { status: 'rejected', color: 'red', text: 'Application Not Approved' });

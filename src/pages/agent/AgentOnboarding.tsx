@@ -723,7 +723,7 @@ export default function AgentOnboarding() {
                       <SelectTrigger className="h-12 bg-muted/50 border-0">
                         <SelectValue placeholder="Select region" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper" className="max-h-[250px] overflow-y-auto">
                         {GHANA_REGIONS.map((region) => (
                           <SelectItem key={region} value={region}>{region}</SelectItem>
                         ))}

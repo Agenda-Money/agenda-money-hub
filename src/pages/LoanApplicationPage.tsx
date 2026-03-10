@@ -186,7 +186,10 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
            </div>
            
            <div className="space-y-1 mt-2">
-               <p className="text-xs text-gray-400 pl-1 font-medium">Daily interest rate is 0.5%</p>
+               <div className="flex items-center gap-1.5 text-gray-400 pl-1">
+                  <Info className="w-3.5 h-3.5" />
+                  <p className="text-xs font-medium">Daily interest rate is 0.5%</p>
+               </div>
                <div className="flex items-start gap-1.5 text-gray-400 pl-1 pt-1">
                   <Info className="w-3.5 h-3.5 mt-0.5" />
                   <p className="text-xs font-medium">Earlier repayment reduces interest.</p>
