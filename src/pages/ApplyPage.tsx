@@ -32,6 +32,7 @@ import { UserRewardsTab } from "./UserRewardsTab";
 import { UserNetworkTab } from "./UserNetworkTab";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
 import { ApplicationStatusCard } from "@/components/dashboard/ApplicationStatusCard";
+import { useWebSocketListener } from "@/hooks/useWebSocketListener";
 import {
   Bell,
   Home,
@@ -182,11 +183,12 @@ function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick, hasNot
         ) : (
           /* Simple Header for Onboarding */
           <>
-             <button onClick={onLogoClick} type="button" className={cn("transition-transform", onLogoClick && "cursor-pointer active:scale-95 hover:opacity-90")}>
-               <img src={agendaLogo} alt="Agenda Money" className="h-8 rounded-xl" />
+             <button onClick={onLogoClick} type="button" className={cn("transition-transform flex items-center gap-2.5", onLogoClick && "cursor-pointer active:scale-95 hover:opacity-90")}>
+               <img src={agendaLogo} alt="Agenda Money" className="h-8 rounded-xl shadow-sm" />
+               <span className="font-bold text-xl text-gray-900 tracking-tight hidden sm:block">Agenda Money</span>
              </button>
              {subtitle && (
-               <span className="text-xs font-medium text-muted-foreground">{subtitle}</span>
+               <span className="text-xs font-semibold text-[#EC1B84] bg-pink-50 border border-pink-100 px-3 py-1.5 rounded-full shadow-sm">{subtitle}</span>
              )}
           </>
         )}
@@ -268,6 +270,8 @@ function normalizeMsisdn(msisdn: string | undefined): string {
 export default function ApplyPage() {
   const { setApplicant, applicant } = useApplicant();
   const { socket } = useSocket();
+  const baseMsisdn = applicant?.msisdn || (applicant as any)?.user?.msisdn;
+  const { latestLoanEvent, nodeEndorsedEvent } = useWebSocketListener(baseMsisdn);
 
   const [view, setView] = useState<View>("landing");
   const [direction, setDirection] = useState(0);
@@ -297,6 +301,7 @@ export default function ApplyPage() {
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [termsChecked, setTermsChecked] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
@@ -584,7 +589,37 @@ export default function ApplyPage() {
     }
   }, [view, baseApiUrl, authToken]);
 
-  // ─── Recent Activity Fetching ───
+  // ─── Recent Activity Fetching & Real-time Updates ───
+
+  // Listen for real-time updates and "upsert" them into the activity list
+  useEffect(() => {
+    if (!latestLoanEvent || !latestLoanEvent.loanId) return;
+
+    setRecentActivity(prev => {
+      const loanActivityId = `loan-${latestLoanEvent.loanId}`;
+      const existingIndex = prev.findIndex(a => a.id === loanActivityId);
+      
+      const updatedItem = {
+        id: loanActivityId,
+        type: 'loan',
+        title: latestLoanEvent.title || (latestLoanEvent.status === 'ACTIVE' ? 'Loan Disbursed' : 'Loan Update'),
+        amount: (latestLoanEvent as any).amount || (prev[existingIndex]?.amount) || 0,
+        date: latestLoanEvent.timestamp || new Date().toISOString(),
+        status: latestLoanEvent.status
+      };
+
+      if (existingIndex > -1) {
+        // Update existing item
+        const newActivities = [...prev];
+        newActivities[existingIndex] = updatedItem;
+        return newActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      } else {
+        // Add new item to the top
+        return [updatedItem, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      }
+    });
+  }, [latestLoanEvent]);
+
   useEffect(() => {
     const fetchRecentActivity = async () => {
       const token = authToken || globalThis.localStorage.getItem("agenda_token");
@@ -605,9 +640,11 @@ export default function ApplyPage() {
            ...loans.map((l: any) => ({
               id: `loan-${l.loanId || l._id}`,
               type: 'loan',
-              title: 'Loan Disbursed',
+              title: l.status === 'ACTIVE' ? 'Loan Disbursed' : 
+                     l.status === 'DISBURSING' ? 'Disbursement In Progress' : 'Loan Application',
               amount: l.disbursementAmount || l.principal || 0,
               date: l.disbursedAt || l.createdAt,
+              status: l.status
            })),
            ...repayments.map((r: any) => ({
               id: `rep-${r.repaymentId || r._id}`,
@@ -1395,7 +1432,16 @@ export default function ApplyPage() {
 
           {/* What Happens Next Timeline using Real-Time status card */}
           <div className="w-full text-left mb-8">
-              <ApplicationStatusCard loanId="" userMsisdn={applicant?.msisdn as string} initialStatus={(applicant?.loanStatus as string) || "AWAITING_ENDORSEMENT"} />
+              <ApplicationStatusCard 
+                 loanId="" 
+                 userMsisdn={applicant?.msisdn as string} 
+                 initialStatus={
+                   latestLoanEvent?.status || 
+                   (nodeEndorsedEvent ? "PENDING" : undefined) || 
+                   (applicant?.loanStatus as string) || 
+                   "AWAITING_ENDORSEMENT"
+                 } 
+              />
           </div>
 
 
@@ -1634,6 +1680,9 @@ export default function ApplyPage() {
                 <div className="bg-gray-50 rounded-2xl p-6 mb-6 text-center border border-gray-100">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Your Node Code</p>
                   <p className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{(applicant as any)?.personalNodeCode || applicant?.nodeCode || "---"}</p>
+                  <p className="text-xs text-[#EC1B84] font-medium mt-3">
+                    → invite friends & family to take loan from Agenda Money and be rewarded
+                  </p>
                 </div>
 
                 {/* My Network Section */}
@@ -2078,7 +2127,7 @@ export default function ApplyPage() {
   return (
     <>
     <div className="min-h-screen bg-background pb-24">
-      <PageHeader subtitle={`Step ${onboardingStep} of 5`} onLogoClick={handleBack} />
+      <PageHeader subtitle={!onboardingData.hasAcceptedTerms ? "Terms & Conditions" : `Step ${onboardingStep} of 5`} onLogoClick={handleBack} />
 
       <main className="max-w-md mx-auto px-4 py-5 space-y-5">
         {/* Circle Step Indicator */}
@@ -2142,6 +2191,21 @@ export default function ApplyPage() {
                   ))}
                 </div>
 
+                <div className="pt-4 flex items-start gap-3">
+                   <div className="flex items-center h-5">
+                      <input 
+                        id="terms-checkbox" 
+                        type="checkbox" 
+                        checked={termsChecked}
+                        onChange={(e) => setTermsChecked(e.target.checked)}
+                        className="h-5 w-5 rounded border-gray-300 text-[#EC1B84] focus:ring-[#EC1B84] accent-[#EC1B84]" 
+                      />
+                   </div>
+                   <label htmlFor="terms-checkbox" className="text-sm font-medium text-gray-600 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      I have read and agree to the Terms & Conditions
+                   </label>
+                </div>
+
                 <Button 
                    onClick={() => {
                      handleOnboardingChange("hasAcceptedTerms", "true");
@@ -2149,7 +2213,8 @@ export default function ApplyPage() {
                      setOnboardingData(p => ({ ...p, hasAcceptedTerms: true }));
                      window.scrollTo({ top: 0, behavior: "smooth" });
                    }}
-                   className="w-full h-14 rounded-full font-bold bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200 mt-6"
+                   disabled={!termsChecked}
+                   className="w-full h-14 rounded-full font-bold bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200 mt-6 disabled:opacity-50"
                 >
                    Accept & Continue
                 </Button>
@@ -2233,7 +2298,7 @@ export default function ApplyPage() {
                        <Label className="text-sm font-medium text-gray-500">Region</Label>
                        <Select value={onboardingData.region} onValueChange={(v) => handleOnboardingChange("region", v)}>
                          <SelectTrigger className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900"><SelectValue /></SelectTrigger>
-                         <SelectContent>{GHANA_REGIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                         <SelectContent position="popper" className="max-h-[250px] overflow-y-auto">{GHANA_REGIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                        </Select>
                      </div>
                    </div>
@@ -2440,7 +2505,7 @@ export default function ApplyPage() {
                                 step={1} 
                                 className="[&_[role=slider]]:bg-[#EC1B84] [&_[role=slider]]:border-[#EC1B84] [&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:shadow-lg [&_[role=slider]]:shadow-pink-200"
                             />
-                            <div className="flex justify-between mt-3 text-[10px] text-gray-400 font-medium">
+                            <div className="flex justify-between mt-3 text-xs text-gray-800 font-semibold max-w-[280px] mx-auto sm:max-w-none">
                                 <span>&lt;1k</span>
                                 <span>1-2k</span>
                                 <span>2-5k</span>
@@ -2501,7 +2566,7 @@ export default function ApplyPage() {
                                    type="checkbox" 
                                    checked={identityConsent}
                                    onChange={(e) => setIdentityConsent(e.target.checked)}
-                                   className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary" 
+                                   className="h-5 w-5 rounded border-gray-300 text-[#EC1B84] focus:ring-[#EC1B84] accent-[#EC1B84]" 
                                  />
                               </div>
                               <label htmlFor="consent-checkbox" className="text-sm font-medium text-gray-600 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -2675,7 +2740,13 @@ export default function ApplyPage() {
               <ApplicationStatusCard
                 loanId={activeLoanDetails?.id || (applicant as any)?.activeLoan?.id || "unknown"}
                 userMsisdn={applicant?.msisdn || msisdnInput || (userData as any)?.msisdn || ""}
-                initialStatus={activeLoanDetails?.status || (applicant as any)?.loanStatus || "ELIGIBLE"}
+                initialStatus={
+                  latestLoanEvent?.status || 
+                  (nodeEndorsedEvent ? "PENDING" : undefined) || 
+                  activeLoanDetails?.status || 
+                  (applicant as any)?.loanStatus || 
+                  "ELIGIBLE"
+                }
               />
             </div>
           </div>

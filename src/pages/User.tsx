@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { LoanStatusCard, LoanStatus } from "@/components/dashboard/LoanStatusCard";
-import { Wallet, CheckCircle2 } from "lucide-react";
+import { Wallet, CheckCircle2, Clock } from "lucide-react";
 import { TIERS, getTierByLevel } from "@/lib/constants";
 import { format } from "date-fns";
 import { useWebSocketListener } from "@/hooks/useWebSocketListener";
@@ -113,12 +113,19 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
   }
 
   // Real-time WebSocket Logic
-  const { latestLoanEvent } = useWebSocketListener(applicant?.msisdn);
+  const { latestLoanEvent, nodeEndorsedEvent } = useWebSocketListener(applicant?.msisdn);
   
   // Real-time overrides
   let cardColorOverride = undefined;
   let titleOverride = undefined;
   let subtextOverride = undefined;
+
+  if (nodeEndorsedEvent && feedStatus === "awaiting_endorsement") {
+      feedStatus = "review"; // Shift UI to review state instantly
+      cardColorOverride = "pink";
+      titleOverride = "Admin Review";
+      subtextOverride = nodeEndorsedEvent.message || "Your loan has been endorsed. Now under admin review.";
+  }
 
   if (latestLoanEvent && feedStatus === "review") {
      cardColorOverride = latestLoanEvent.cardColor;
@@ -322,22 +329,32 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
                <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-24 sm:pb-4">
                   {recentActivity.map((activity, index) => {
                      const isPayment = activity.type?.toLowerCase() === 'payment';
+                     const isDisbursing = activity.status === 'DISBURSING';
                      const displayDate = activity.date 
                         ? format(new Date(activity.date), "dd MMM yyyy, h:mm a")
                         : "Unknown Date";
                         
                      return (
-                        <div key={activity.id || index} className="p-4 flex items-center justify-between bg-white rounded-2xl border border-gray-50 shadow-sm">
+                        <div key={activity.id || index} className="p-4 flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm">
                               <div className="flex items-center gap-3">
-                                 <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", isPayment ? "bg-[#EC1B84]/10 text-[#EC1B84]" : "bg-green-50 text-green-600")}>
-                                    {isPayment ? <Wallet className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+                                 <div className={cn(
+                                    "w-10 h-10 rounded-full flex items-center justify-center shrink-0", 
+                                    isPayment ? "bg-[#EC1B84]/10 text-[#EC1B84]" : 
+                                    isDisbursing ? "bg-blue-50 text-blue-600" : "bg-green-50 text-green-600"
+                                 )}>
+                                    {isPayment ? <Wallet className="w-5 h-5" /> : 
+                                     isDisbursing ? <Clock className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
                                  </div>
                                  <div>
                                     <p className="text-sm font-bold text-gray-900">{activity.title}</p>
                                     <p className="text-xs text-gray-500">{displayDate}</p>
                                  </div>
                               </div>
-                              <span className={cn("text-sm font-bold", isPayment ? "text-[#EC1B84]" : "text-green-600")}>
+                              <span className={cn(
+                                 "text-sm font-bold", 
+                                 isPayment ? "text-[#EC1B84]" : 
+                                 isDisbursing ? "text-blue-600" : "text-green-600"
+                              )}>
                                  {isPayment ? '-' : '+'}GHS {Math.abs(activity.amount).toFixed(2)}
                               </span>
                         </div>
