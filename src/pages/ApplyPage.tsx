@@ -271,7 +271,7 @@ export default function ApplyPage() {
   const { setApplicant, applicant } = useApplicant();
   const { socket } = useSocket();
   const baseMsisdn = applicant?.msisdn || (applicant as any)?.user?.msisdn;
-  const { latestLoanEvent, nodeEndorsedEvent } = useWebSocketListener(baseMsisdn);
+  const { latestLoanEvent, nodeEndorsedEvent } = useWebSocketListener(baseMsisdn, false, socket);
 
   const [view, setView] = useState<View>("landing");
   const [direction, setDirection] = useState(0);
@@ -603,7 +603,11 @@ export default function ApplyPage() {
         id: loanActivityId,
         type: 'loan',
         title: latestLoanEvent.title || (latestLoanEvent.status === 'ACTIVE' ? 'Loan Disbursed' : 'Loan Update'),
-        amount: (latestLoanEvent as any).amount || (prev[existingIndex]?.amount) || 0,
+        amount: typeof latestLoanEvent.amount === 'number'
+          ? latestLoanEvent.amount
+          : existingIndex > -1
+            ? prev[existingIndex].amount
+            : undefined,
         date: latestLoanEvent.timestamp || new Date().toISOString(),
         status: latestLoanEvent.status
       };
@@ -2198,7 +2202,7 @@ export default function ApplyPage() {
                         type="checkbox" 
                         checked={termsChecked}
                         onChange={(e) => setTermsChecked(e.target.checked)}
-                        className="h-5 w-5 rounded border-gray-300 text-[#EC1B84] focus:ring-[#EC1B84] accent-[#EC1B84]" 
+                        className="peer h-5 w-5 rounded border-gray-300 text-[#EC1B84] focus:ring-[#EC1B84] accent-[#EC1B84]" 
                       />
                    </div>
                    <label htmlFor="terms-checkbox" className="text-sm font-medium text-gray-600 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -2208,8 +2212,6 @@ export default function ApplyPage() {
 
                 <Button 
                    onClick={() => {
-                     handleOnboardingChange("hasAcceptedTerms", "true");
-                     // We actually set boolean in state, the generic handler converts string back if needed, but let's just set the object directly to be safe
                      setOnboardingData(p => ({ ...p, hasAcceptedTerms: true }));
                      window.scrollTo({ top: 0, behavior: "smooth" });
                    }}

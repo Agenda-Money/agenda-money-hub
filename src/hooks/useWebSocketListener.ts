@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import io, { Socket } from 'socket.io-client';
 
-export type CardColor = 'green' | 'red' | 'yellow' | 'blue' | 'gray';
+export type CardColor = 'green' | 'red' | 'yellow' | 'blue' | 'gray' | 'pink';
 
 export interface LoanStatusData {
   loanId: string;
@@ -10,10 +10,16 @@ export interface LoanStatusData {
   message: string;
   title?: string;
   timestamp?: string;
+  amount?: number;
 }
 
-export function useWebSocketListener(userMsisdn?: string, isAdmin: boolean = false) {
-  const [socket, setSocket] = useState<Socket | null>(null);
+export function useWebSocketListener(
+  userMsisdn?: string,
+  isAdmin: boolean = false,
+  existingSocket?: Socket | null
+) {
+  // Only manage our own socket when no existing socket is provided
+  const [ownSocket, setOwnSocket] = useState<Socket | null>(null);
   
   // Expose these state variables to components for real-time reactivity
   const [latestLoanEvent, setLatestLoanEvent] = useState<LoanStatusData | null>(null);
@@ -21,7 +27,53 @@ export function useWebSocketListener(userMsisdn?: string, isAdmin: boolean = fal
   const [nodeEndorsedEvent, setNodeEndorsedEvent] = useState<any>(null);
 
   useEffect(() => {
-    // Determine the user identifier to listen to
+    // If an existing socket is provided, use it directly without opening a new connection
+    if (existingSocket) {
+      const handleLoanStatusUpdated = (data: any) => {
+        if (import.meta.env.DEV) {
+          console.log('🎯 Loan Status Updated:', data);
+        }
+        const cardColor: CardColor =
+          data.newStatus === 'DISBURSING' || data.newStatus === 'ACTIVE'
+            ? 'green'
+            : data.newStatus === 'REJECTED'
+              ? 'red'
+              : 'pink';
+        setLatestLoanEvent({
+          loanId: data.loanId,
+          message: data.message,
+          title: data.title,
+          timestamp: data.timestamp,
+          status: data.newStatus,
+          amount: typeof data.amount === 'number' ? data.amount : undefined,
+          cardColor,
+        });
+      };
+
+      const handleLoanEndorsed = (data: any) => {
+        if (import.meta.env.DEV) {
+          console.log('🎯 Loan Endorsed:', data);
+        }
+        setNodeEndorsedEvent(data);
+      };
+
+      const handleKycVerified = (data: any) => setKycEvent(data);
+      const handleKycVerifiedSuccess = (data: any) => setKycEvent({ ...data, status: 'VERIFIED' });
+
+      existingSocket.on('loan_status_updated', handleLoanStatusUpdated);
+      existingSocket.on('loan_endorsed', handleLoanEndorsed);
+      existingSocket.on('kyc_verified', handleKycVerified);
+      existingSocket.on('KYC_VERIFIED_SUCCESS', handleKycVerifiedSuccess);
+
+      return () => {
+        existingSocket.off('loan_status_updated', handleLoanStatusUpdated);
+        existingSocket.off('loan_endorsed', handleLoanEndorsed);
+        existingSocket.off('kyc_verified', handleKycVerified);
+        existingSocket.off('KYC_VERIFIED_SUCCESS', handleKycVerifiedSuccess);
+      };
+    }
+
+    // No existing socket — create our own (fallback for standalone usage)
     if (!userMsisdn && !isAdmin) return;
 
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -36,7 +88,9 @@ export function useWebSocketListener(userMsisdn?: string, isAdmin: boolean = fal
 
     // Connection lifecycle
     newSocket.on('connect', () => {
-      console.log('✅ Connected to WebSocket');
+      if (import.meta.env.DEV) {
+        console.log('✅ Connected to WebSocket');
+      }
       if (userMsisdn) {
         newSocket.emit('join-user-room', userMsisdn);
       }
@@ -46,15 +100,19 @@ export function useWebSocketListener(userMsisdn?: string, isAdmin: boolean = fal
     });
 
     newSocket.on('disconnect', () => {
-      console.log('❌ Disconnected from WebSocket');
+      if (import.meta.env.DEV) {
+        console.log('❌ Disconnected from WebSocket');
+      }
     });
 
     // Loan core events mapping (User side)
     newSocket.on('loan_status_updated', (data: any) => {
-      console.log('🎯 Loan Status Updated:', data);
+      if (import.meta.env.DEV) {
+        console.log('🎯 Loan Status Updated:', data);
+      }
       
       // Determine card color based on UI logic
-      const cardColor = data.newStatus === 'DISBURSING' || data.newStatus === 'ACTIVE' 
+      const cardColor: CardColor = data.newStatus === 'DISBURSING' || data.newStatus === 'ACTIVE' 
         ? 'green' 
         : data.newStatus === 'REJECTED' 
           ? 'red' 
@@ -66,12 +124,15 @@ export function useWebSocketListener(userMsisdn?: string, isAdmin: boolean = fal
         title: data.title,
         timestamp: data.timestamp,
         status: data.newStatus,
-        cardColor
+        amount: typeof data.amount === 'number' ? data.amount : undefined,
+        cardColor,
       });
     });
 
     newSocket.on('loan_endorsed', (data: any) => {
-      console.log('🎯 Loan Endorsed:', data);
+      if (import.meta.env.DEV) {
+        console.log('🎯 Loan Endorsed:', data);
+      }
       setNodeEndorsedEvent(data);
     });
 
@@ -87,15 +148,15 @@ export function useWebSocketListener(userMsisdn?: string, isAdmin: boolean = fal
 
     // Admin events mapping could be added here later...
     
-    setSocket(newSocket);
+    setOwnSocket(newSocket);
 
     return () => {
       newSocket.disconnect();
     };
-  }, [userMsisdn, isAdmin]);
+  }, [userMsisdn, isAdmin, existingSocket]);
 
   return {
-    socket,
+    socket: existingSocket ?? ownSocket,
     latestLoanEvent,
     kycEvent,
     nodeEndorsedEvent
