@@ -179,10 +179,13 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       {/* 4. Logout Button */}
       <button 
         onClick={() => {
-            globalThis.localStorage.removeItem("agenda_token");
+            // Standard cleanup for all possible token keys
+            const keys = ["accessToken", "refreshToken", "expiresAt", "user", "token", "refresh_token", "agenda_token", "token_expiry"];
+            keys.forEach(k => {
+                globalThis.localStorage.removeItem(k);
+                globalThis.sessionStorage.removeItem(k);
+            });
             globalThis.sessionStorage.removeItem("applicant_user");
-            globalThis.localStorage.removeItem("token");
-            globalThis.localStorage.removeItem("token_expiry");
             window.location.reload();
         }}
         className="w-full bg-white rounded-[24px] p-5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] border border-gray-100 flex items-center gap-3 hover:bg-gray-50 transition-colors"

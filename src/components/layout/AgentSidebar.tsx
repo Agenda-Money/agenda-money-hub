@@ -12,7 +12,7 @@ interface AgentSidebarProps {
 
 const navItems = [
   { to: "/agent", icon: Home, label: "Dashboard", description: "Overview & stats" },
-  { to: "/agent/onboard", icon: UserPlus, label: "New Onboarding", description: "Register customer" },
+  { to: "/agent/onboard", icon: UserPlus, label: "Onboard Client", description: "Register customer" },
   { to: "/agent/portfolio", icon: Users, label: "My Portfolio", description: "Track customers" },
   { to: "/agent/endorsements", icon: Clock, label: "Endorsements", description: "Approve loans" },
   { to: "/agent/commissions", icon: Banknote, label: "Commissions", description: "Earnings & deductions" },

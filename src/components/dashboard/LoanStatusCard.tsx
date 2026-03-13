@@ -1,9 +1,9 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Send, Share2, Crown, Lock } from "lucide-react";
+import { Send, Share2, Crown, Lock, Clock, CheckCircle2, Shield } from "lucide-react";
 
-export type LoanStatus = "eligible" | "active" | "overdue" | "review" | "progress" | "node" | "awaiting_endorsement";
+export type LoanStatus = "eligible" | "active" | "overdue" | "review" | "progress" | "node" | "awaiting_endorsement" | "kyc_awaiting";
 
 interface LoanStatusCardProps {
   status: LoanStatus;
@@ -21,9 +21,13 @@ interface LoanStatusCardProps {
   activeTier?: { tier: number }; // Pass plain object or similar
   nextTierLimit?: number;
   isMaxTier?: boolean;
-  cardColor?: 'green' | 'red' | 'yellow' | 'blue' | 'gray';
+  cardColor?: 'green' | 'red' | 'yellow' | 'blue' | 'gray' | 'pink';
   onAction?: (action: string) => void;
   className?: string;
+  loanRef?: string;
+  step?: number;
+  totalSteps?: number;
+  estTime?: string;
 }
 
 export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
@@ -44,7 +48,11 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
   isMaxTier = false,
   cardColor,
   titleOverride,
-  subtextOverride
+  subtextOverride,
+  loanRef,
+  step = 1,
+  totalSteps = 3,
+  estTime = "under 30 mins"
 }) => {
     
   // Configuration for each state
@@ -63,56 +71,247 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       btnClass: "bg-[#EC1B84] text-white hover:bg-[#D41472] rounded-full px-8 py-3 text-sm font-bold shadow-lg shadow-pink-200 transform transition hover:scale-105",
     },
     review: {
-      title: "Application under review",
-      subtext: "Awaiting admin approval",
+      title: titleOverride || "Application under review",
+      subtext: subtextOverride || "Awaiting admin approval",
       icon: Send,
-      mainText: null,
-      bottomText: null,
-      buttonLabel: "Check Status",
-      buttonAction: "status",
-      bgClass: cardColor === 'green' ? "bg-emerald-50 border-emerald-100" :
-               cardColor === 'red' ? "bg-red-50 border-red-100" :
-               cardColor === 'yellow' ? "bg-amber-50 border-amber-100" :
-               cardColor === 'blue' ? "bg-blue-50 border-blue-100" :
-               "bg-gray-50 border-gray-100",
-      btnClass: cardColor === 'green' ? "bg-emerald-200 text-emerald-800 hover:bg-emerald-300 rounded-lg px-4 py-2 text-xs font-bold" :
-                cardColor === 'red' ? "bg-red-200 text-red-800 hover:bg-red-300 rounded-lg px-4 py-2 text-xs font-bold" :
-                cardColor === 'yellow' ? "bg-amber-200 text-amber-800 hover:bg-amber-300 rounded-lg px-4 py-2 text-xs font-bold" :
-                cardColor === 'blue' ? "bg-blue-200 text-blue-800 hover:bg-blue-300 rounded-lg px-4 py-2 text-xs font-bold" :
-                "bg-gray-200 text-gray-600 hover:bg-gray-300 rounded-lg px-4 py-2 text-xs font-bold",
+      bgClass: "bg-white border border-gray-100 shadow-sm",
+      customRender: () => {
+        const progressPercent = (step / totalSteps) * 100;
+        
+        return (
+          <div className="w-full space-y-4">
+            {/* Top Badge & Status */}
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-100">
+                  <div className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Under Review</span>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 tracking-tight mt-1.5">
+                  Application under review
+                </h3>
+              </div>
+              <div className="p-3 rounded-2xl bg-pink-50 text-[#EC1B84]">
+                <Send className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="h-px bg-gray-50 -mx-6" />
+
+            {/* Loan Details Row */}
+            <div className="flex justify-between items-end">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Loan Amount</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm font-bold text-gray-400">GHS</span>
+                  <span className="text-3xl font-bold text-gray-800 tracking-tighter">
+                    {amount ? amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Approval Progress */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Approval Progress</span>
+                <span className="text-[11px] font-bold text-[#EC1B84]">Step {step} of {totalSteps}</span>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100/50">
+                <motion.div 
+                   initial={{ width: 0 }}
+                   animate={{ width: `${progressPercent}%` }}
+                   className="h-full bg-gradient-to-r from-[#EC1B84] to-[#ff479d] rounded-full"
+                />
+              </div>
+
+              {/* Timeline Indicator */}
+              <div className="flex justify-between items-center relative px-2">
+                <div className="absolute top-1/2 left-8 right-8 h-0.5 bg-gray-100 -translate-y-1/2 z-0" />
+                
+                {[
+                  { label: "Submitted", color: "text-emerald-500", active: step >= 1 },
+                  { label: "Review", color: "text-[#EC1B84]", active: step >= 2 },
+                  { label: "Approved", color: "text-gray-300", active: step >= 3 }
+                ].map((s, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5 relative z-10">
+                    <div className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors duration-500",
+                      s.active 
+                        ? i === 1 ? "bg-white border-[#EC1B84]" : "bg-emerald-500 border-emerald-500"
+                        : "bg-white border-gray-100"
+                    )}>
+                      {i === 0 ? (
+                         <div className="w-3 h-3 text-white fill-current"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6L9 17L4 12" /></svg></div>
+                      ) : i === 1 ? (
+                         <div className="w-1.5 h-1.5 rounded-full bg-[#EC1B84]" />
+                      ) : (
+                         <span className="text-[10px] font-bold text-gray-300">3</span>
+                      )}
+                    </div>
+                    <span className={cn("text-[10px] font-bold uppercase tracking-wide", s.active ? s.color : "text-gray-300")}>
+                      {s.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-gray-50 -mx-6" />
+
+            {/* Footer */}
+            <div className="flex items-center gap-2 text-gray-400 pt-1">
+              <Clock className="w-4 h-4 text-[#EC1B84]" />
+              <span className="text-[11px] font-bold tracking-wide">Est. approval: {estTime}</span>
+            </div>
+          </div>
+        );
+      },
     },
     awaiting_endorsement: {
       title: "Awaiting Node Consent",
       subtext: "Waiting for Node approval",
       icon: Send,
-      mainText: null,
-      bottomText: null,
-      buttonLabel: "Check Status",
-      buttonAction: "status",
-      bgClass: "bg-pink-50 border border-pink-100 shadow-[0_4px_20px_rgb(236,27,132,0.15)]",
-      btnClass: "bg-pink-100 text-[#EC1B84] font-bold hover:bg-pink-200 rounded-lg px-4 py-2 text-xs transition duration-200",
-      customRender: () => (
-         <div className="flex-1 w-full pt-1">
-             <div className="flex items-center gap-2 mb-3">
-                 <div className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EC1B84] opacity-50"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[#EC1B84]"></span>
-                 </div>
-                 <span className="text-xs font-semibold text-[#EC1B84]">Notification sent to Node</span>
-             </div>
-             <div className="flex justify-end mt-2">
-                <button 
-                  className="bg-[#EC1B84] text-white font-bold hover:bg-[#D41472] rounded-xl px-5 py-2.5 text-xs shadow-lg shadow-pink-200 transition duration-200"
-                  onClick={(e) => {
-                      e.stopPropagation();
-                      onAction && onAction("status");
-                  }}
-                >
-                     Check Status
-                </button>
-             </div>
-         </div>
-      ),
+      bgClass: "bg-white border border-pink-100 shadow-sm",
+      customRender: () => {
+        const progressPercent = (step / totalSteps) * 100;
+        
+        return (
+          <div className="w-full space-y-4">
+            {/* Top Badge & Status */}
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-50 border border-pink-100">
+                  <div className="w-2 h-2 rounded-full bg-[#EC1B84] animate-pulse" />
+                  <span className="text-[11px] font-bold text-[#EC1B84] uppercase tracking-wider">Pending Consent</span>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 tracking-tight mt-1.5">
+                  Awaiting Node Consent
+                </h3>
+                <p className="text-sm text-gray-400 font-medium">
+                  Waiting for your Node to endorse this request
+                </p>
+              </div>
+              <div className="p-3 rounded-2xl bg-pink-50 text-[#EC1B84]">
+                <Send className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="h-px bg-gray-50 -mx-6" />
+
+            {/* Loan Details Row */}
+            <div className="flex justify-between items-end">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Loan Amount</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm font-bold text-gray-400">GHS</span>
+                  <span className="text-3xl font-bold text-gray-800 tracking-tighter">
+                    {amount ? amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Approval Progress */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Approval Progress</span>
+                <span className="text-[11px] font-bold text-[#EC1B84]">Step {step} of {totalSteps}</span>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100/50">
+                <motion.div 
+                   initial={{ width: 0 }}
+                   animate={{ width: `${progressPercent}%` }}
+                   className="h-full bg-gradient-to-r from-[#EC1B84] to-[#ff479d] rounded-full"
+                />
+              </div>
+
+              {/* Timeline Indicator */}
+              <div className="flex justify-between items-center relative px-2">
+                <div className="absolute top-1/2 left-8 right-8 h-0.5 bg-gray-100 -translate-y-1/2 z-0" />
+                
+                {[
+                  { label: "Submitted", color: "text-[#EC1B84]", icon: null, active: step >= 1 },
+                  { label: "Review", color: "text-gray-300", icon: null, active: step >= 2 },
+                  { label: "Approved", color: "text-gray-300", icon: null, active: step >= 3 }
+                ].map((s, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5 relative z-10">
+                    <div className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors duration-500",
+                      s.active 
+                        ? i === 0 ? "bg-white border-[#EC1B84]" : "bg-[#EC1B84] border-[#EC1B84]"
+                        : "bg-white border-gray-100"
+                    )}>
+                      {i === 0 ? (
+                         <div className="w-1.5 h-1.5 rounded-full bg-[#EC1B84]" />
+                      ) : i === 1 ? (
+                         <span className="text-[10px] font-bold text-gray-400">2</span>
+                      ) : (
+                         <span className="text-[10px] font-bold text-gray-400">3</span>
+                      )}
+                    </div>
+                    <span className={cn("text-[10px] font-bold uppercase tracking-wide", s.active ? s.color : "text-gray-300")}>
+                      {s.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-gray-50 -mx-6" />
+
+            {/* Footer */}
+            <div className="flex items-center gap-2 text-gray-400 pt-1">
+              <Clock className="w-4 h-4 text-[#EC1B84]" />
+              <span className="text-[11px] font-bold tracking-wide">Est. approval: {estTime}</span>
+            </div>
+          </div>
+        );
+      },
+    },
+    kyc_awaiting: {
+        title: "Identity Verification",
+        subtext: "We need to verify your identity to keep your account safe and compliant.",
+        icon: Shield,
+        bgClass: "bg-[#EC1B84] text-white border-0 shadow-[0_20px_40px_rgba(236,27,132,0.25)]",
+        customRender: () => (
+           <div className="relative w-full h-full min-h-[180px] flex flex-col items-center justify-center text-center py-2 overflow-hidden">
+               {/* Decorative Background Elements */}
+               <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+               <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+               
+               {/* Shield Icon in Dashed Circle */}
+               <div className="relative mb-6">
+                   <div className="absolute inset-0 scale-150 border border-dashed border-white/30 rounded-full animate-[spin_10s_linear_infinite]" />
+                   <div className="relative w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-inner">
+                       <Shield className="w-8 h-8 text-white" strokeWidth={1.5} />
+                   </div>
+               </div>
+
+               {/* Text Content */}
+               <div className="relative z-10 mb-6 px-4">
+                   <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-2">
+                       Identity Verification
+                   </h3>
+                   <p className="text-sm text-white/80 font-medium leading-relaxed max-w-xs mx-auto">
+                       We need to verify your identity to keep your account safe and compliant.
+                   </p>
+               </div>
+
+               {/* Status Badge */}
+               <div className="relative z-10 px-6 py-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center gap-2.5 shadow-sm">
+                   <div className="relative flex h-2.5 w-2.5">
+                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-400" />
+                   </div>
+                   <span className="text-sm font-bold text-white tracking-wide">Verification in progress</span>
+               </div>
+           </div>
+        ),
     },
     active: {
       title: "Your Active Loan",
@@ -122,7 +321,7 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       bottomText: `Due: ${dueDate || "Unknown"}`,
       buttonLabel: "Repay",
       buttonAction: "repay",
-      bgClass: "bg-white border border-gray-100 shadow-sm",
+      bgClass: "bg-pink-50/50 border border-pink-100 shadow-sm",
       btnClass: "bg-[#EC1B84] text-white hover:bg-[#D41472] rounded-xl px-6 py-3 font-bold shadow-lg shadow-pink-200",
     },
     overdue: {
@@ -238,20 +437,22 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
         }
       }}
     >
-      {/* Top Section */}
-      <div className="flex justify-between items-start mb-4 relative z-10">
-         <div>
-            <h3 className={cn("font-bold text-lg leading-tight", status === 'overdue' ? "text-red-900" : "text-gray-900")}>
-                {current.title}
-            </h3>
-            <p className={cn("text-sm mt-1", status === 'overdue' ? "text-red-700/80" : "text-gray-500")}>
-                {current.subtext}
-            </p>
-         </div>
-         {Icon && <div className={cn("p-2 rounded-full", status === 'review' ? "bg-gray-200/50" : status === 'awaiting_endorsement' ? "bg-rose-100" : "bg-primary/10")}>
-            <Icon className={cn("h-5 w-5", status ==='review' ? "text-gray-600" : status === 'awaiting_endorsement' ? "text-[#EC1B84]" : "text-primary")} />
-         </div>}
-      </div>
+      {/* Top Section - Hide if customRender exists to avoid repetition */}
+      {!current.customRender && (
+        <div className="flex justify-between items-start mb-4 relative z-10">
+           <div>
+              <h3 className={cn("font-bold text-lg leading-tight", status === 'overdue' ? "text-red-900" : "text-gray-900")}>
+                  {current.title}
+              </h3>
+              <p className={cn("text-sm mt-1", status === 'overdue' ? "text-red-700/80" : "text-gray-500")}>
+                  {current.subtext}
+              </p>
+           </div>
+           {Icon && <div className={cn("p-2 rounded-full", status === 'review' ? "bg-gray-200/50" : status === 'awaiting_endorsement' ? "bg-rose-100" : "bg-primary/10")}>
+              <Icon className={cn("h-5 w-5", status ==='review' ? "text-gray-600" : status === 'awaiting_endorsement' ? "text-[#EC1B84]" : "text-primary")} />
+           </div>}
+        </div>
+      )}
 
       {/* Middle/Bottom Section */}
       <div className="flex items-end justify-between relative z-10 w-full">

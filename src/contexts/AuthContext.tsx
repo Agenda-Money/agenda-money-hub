@@ -302,8 +302,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     tokenRefreshService.stopRefreshTimer();
     setUser(null);
     delete api.defaults.headers.common["Authorization"];
+    
     if (showToast) {
       toast.success("Logged out successfully");
+    }
+
+    // Explicit redirection to login page or home
+    const sub = getSubdomain();
+    if (sub === "admin" || sub === "agent") {
+      window.location.href = "/login";
+    } else if (window.location.pathname !== "/") {
+      window.location.href = "/";
+    } else if (showToast) {
+       // Only reload if it was a manual logout to clear any memory states
+       window.location.reload();
     }
   };
 

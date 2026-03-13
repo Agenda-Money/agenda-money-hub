@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -18,7 +17,7 @@ import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
 import { cn, getApplicantName } from "@/lib/utils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSocket } from "@/contexts/SocketContext";
+import { useSocketContext } from "@/contexts/SocketContext";
 import api, { getUserLoansHistory, getUserRepaymentsHistory } from "@/lib/api";
 import { uploadToSupabase } from "@/lib/supabase";
 import { TIER_LIMITS, type TierConfig } from "@/lib/constants";
@@ -27,12 +26,12 @@ import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
 import { ProfileTab } from "./ProfileTab";
 import { LoanSummaryPage } from "./LoanSummaryPage";
-import { RepaymentPage } from "./RepaymentPage";
+
 import { UserRewardsTab } from "./UserRewardsTab";
 import { UserNetworkTab } from "./UserNetworkTab";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
-import { ApplicationStatusCard } from "@/components/dashboard/ApplicationStatusCard";
-import { useWebSocketListener } from "@/hooks/useWebSocketListener";
+import { RepaymentPage } from "./RepaymentPage";
+import { LoanStatusCard } from "@/components/dashboard/LoanStatusCard";
 import {
   Bell,
   Home,
@@ -183,12 +182,11 @@ function PageHeader({ user, subtitle, onAvatarClick, onNotificationClick, hasNot
         ) : (
           /* Simple Header for Onboarding */
           <>
-             <button onClick={onLogoClick} type="button" className={cn("transition-transform flex items-center gap-2.5", onLogoClick && "cursor-pointer active:scale-95 hover:opacity-90")}>
-               <img src={agendaLogo} alt="Agenda Money" className="h-8 rounded-xl shadow-sm" />
-               <span className="font-bold text-xl text-gray-900 tracking-tight hidden sm:block">Agenda Money</span>
+             <button onClick={onLogoClick} type="button" className={cn("transition-transform", onLogoClick && "cursor-pointer active:scale-95 hover:opacity-90")}>
+               <img src={agendaLogo} alt="Agenda Money" className="h-8 rounded-xl" />
              </button>
              {subtitle && (
-               <span className="text-xs font-semibold text-[#EC1B84] bg-pink-50 border border-pink-100 px-3 py-1.5 rounded-full shadow-sm">{subtitle}</span>
+               <span className="text-xs font-medium text-muted-foreground">{subtitle}</span>
              )}
           </>
         )}
@@ -243,6 +241,20 @@ const tabVariants = {
   exit: { opacity: 0, y: -10, scale: 0.95 },
 };
 
+function sanitizeMsisdnEntryInput(value: string): string {
+  let digitsOnly = value.replace(/\D/g, "");
+
+  // Handle pasted numbers that include Ghana country code.
+  if (digitsOnly.startsWith("233")) {
+    digitsOnly = digitsOnly.slice(3);
+  }
+
+  if (!digitsOnly) return "";
+
+  // Allow 10 digits only when they start with 0, otherwise cap at 9 digits.
+  return digitsOnly.startsWith("0") ? digitsOnly.slice(0, 10) : digitsOnly.slice(0, 9);
+}
+
 /**
  * Normalizes a phone number to the format 233XXXXXXXXX
  * Handles three cases:
@@ -269,9 +281,7 @@ function normalizeMsisdn(msisdn: string | undefined): string {
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export default function ApplyPage() {
   const { setApplicant, applicant } = useApplicant();
-  const { socket } = useSocket();
-  const baseMsisdn = applicant?.msisdn || (applicant as any)?.user?.msisdn;
-  const { latestLoanEvent, nodeEndorsedEvent } = useWebSocketListener(baseMsisdn);
+  const { socket } = useSocketContext();
 
   const [view, setView] = useState<View>("landing");
   const [direction, setDirection] = useState(0);
@@ -301,10 +311,8 @@ export default function ApplyPage() {
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
-  const [termsChecked, setTermsChecked] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
 
   const DEFAULT_ONBOARDING_DATA: OnboardingData = {
     firstName: "",
@@ -357,7 +365,7 @@ export default function ApplyPage() {
   } | null>(null);
   
   // Real-time notifications from Socket Context
-  const { notifications: socketNotifications } = useSocket();
+  const { notifications: socketNotifications } = useSocketContext();
   const notifications = socketNotifications.length > 0 ? socketNotifications : ((applicant as any)?.notifications || []);
 
   const frontCardRef = useRef<HTMLInputElement>(null); // Camera
@@ -384,9 +392,17 @@ export default function ApplyPage() {
   }, [activeTier, currentTier, loanTenure]);
 
   const normalizedMsisdn = useMemo(() => {
-    const parsed = parsePhoneNumberFromString(msisdnInput, "GH");
-    if (!parsed) return null;
-    return parsed.number.replace("+", "");
+    const digitsOnly = sanitizeMsisdnEntryInput(msisdnInput);
+
+    if (digitsOnly.length === 9) {
+      return `233${digitsOnly}`;
+    }
+
+    if (digitsOnly.length === 10 && digitsOnly.startsWith("0")) {
+      return `233${digitsOnly.slice(1)}`;
+    }
+
+    return null;
   }, [msisdnInput]);
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -472,7 +488,7 @@ export default function ApplyPage() {
     
     const handleRepaymentProcessed = async () => {
         try {
-            const token = globalThis.localStorage.getItem("agenda_token");
+            const token = globalThis.sessionStorage.getItem("agenda_token");
             if (!token) return;
             const r = await fetch(`${baseApiUrl}/api/auth/me`, { 
                 headers: { 
@@ -491,10 +507,10 @@ export default function ApplyPage() {
 
     const handleLoanEndorsed = async (data: any) => {
         try {
-            console.log('🎉 Loan endorsed:', data);
+
             toast.success(data?.message || "Your loan has been endorsed by your node!", { icon: '✅' });
             
-            const token = globalThis.localStorage.getItem("agenda_token");
+            const token = globalThis.sessionStorage.getItem("agenda_token");
             if (!token) return;
             const r = await fetch(`${baseApiUrl}/api/auth/me`, { 
                 headers: { Accept: "application/json", Authorization: `Bearer ${token}` } 
@@ -518,7 +534,7 @@ export default function ApplyPage() {
   // ─── Effects ───
   useEffect(() => {
     const checkAuth = async () => {
-       const storedToken = globalThis.localStorage.getItem("agenda_token");
+       const storedToken = globalThis.sessionStorage.getItem("agenda_token");
        if (!storedToken) {
           setIsCheckingAuth(false);
           return;
@@ -534,13 +550,13 @@ export default function ApplyPage() {
             handleAuthResponse(p);
          } else {
            console.error("Session check failed: API Error", r.status, p);
-           globalThis.localStorage.removeItem("agenda_token"); setAuthToken(null);
+           globalThis.sessionStorage.removeItem("agenda_token"); setAuthToken(null);
          }
        } catch (e) { 
          console.error("Session check failed: Network/Code Error", e); 
          // Optional: Don't remove token immediately on network error? 
          // For now, keep existing behavior but log it.
-         globalThis.localStorage.removeItem("agenda_token"); setAuthToken(null);
+         globalThis.sessionStorage.removeItem("agenda_token"); setAuthToken(null);
        } finally {
          setTimeout(() => setIsCheckingAuth(false), 500);
        }
@@ -561,7 +577,7 @@ export default function ApplyPage() {
   useEffect(() => {
     const fetchActiveLoan = async () => {
       // Auth-First: No longer need msisdn in URL
-      const token = authToken || globalThis.localStorage.getItem("agenda_token");
+      const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
       if (!token) return;
 
       try {
@@ -589,40 +605,10 @@ export default function ApplyPage() {
     }
   }, [view, baseApiUrl, authToken]);
 
-  // ─── Recent Activity Fetching & Real-time Updates ───
-
-  // Listen for real-time updates and "upsert" them into the activity list
-  useEffect(() => {
-    if (!latestLoanEvent || !latestLoanEvent.loanId) return;
-
-    setRecentActivity(prev => {
-      const loanActivityId = `loan-${latestLoanEvent.loanId}`;
-      const existingIndex = prev.findIndex(a => a.id === loanActivityId);
-      
-      const updatedItem = {
-        id: loanActivityId,
-        type: 'loan',
-        title: latestLoanEvent.title || (latestLoanEvent.status === 'ACTIVE' ? 'Loan Disbursed' : 'Loan Update'),
-        amount: (latestLoanEvent as any).amount || (prev[existingIndex]?.amount) || 0,
-        date: latestLoanEvent.timestamp || new Date().toISOString(),
-        status: latestLoanEvent.status
-      };
-
-      if (existingIndex > -1) {
-        // Update existing item
-        const newActivities = [...prev];
-        newActivities[existingIndex] = updatedItem;
-        return newActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      } else {
-        // Add new item to the top
-        return [updatedItem, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      }
-    });
-  }, [latestLoanEvent]);
-
+  // ─── Recent Activity Fetching ───
   useEffect(() => {
     const fetchRecentActivity = async () => {
-      const token = authToken || globalThis.localStorage.getItem("agenda_token");
+      const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
       if (!token) return;
 
       setIsFetchingActivity(true);
@@ -640,11 +626,9 @@ export default function ApplyPage() {
            ...loans.map((l: any) => ({
               id: `loan-${l.loanId || l._id}`,
               type: 'loan',
-              title: l.status === 'ACTIVE' ? 'Loan Disbursed' : 
-                     l.status === 'DISBURSING' ? 'Disbursement In Progress' : 'Loan Application',
+              title: 'Loan Disbursed',
               amount: l.disbursementAmount || l.principal || 0,
               date: l.disbursedAt || l.createdAt,
-              status: l.status
            })),
            ...repayments.map((r: any) => ({
               id: `rep-${r.repaymentId || r._id}`,
@@ -674,7 +658,7 @@ export default function ApplyPage() {
   useEffect(() => {
     const fetchNetwork = async () => {
       if (!isShareOpen) return;
-      const token = authToken || globalThis.localStorage.getItem("agenda_token");
+      const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
       if (!token) return;
 
       setIsFetchingNetwork(true);
@@ -691,7 +675,7 @@ export default function ApplyPage() {
         if (res.ok) {
           const json = await res.json();
           if (import.meta.env.DEV) {
-            console.log("Live Network API Response:", json); // For debugging to prove it's the real payload
+
           }
           if (json.success && json.data) {
             setNetworkData(json.data);
@@ -750,7 +734,7 @@ export default function ApplyPage() {
             initialQuality: 0.9,
             alwaysKeepResolution: false
           });
-          console.log(`Compressed ${field}: ${file.size / 1024 / 1024} MB -> ${finalFile.size / 1024 / 1024} MB`);
+
         } catch (error) {
           console.error("Compression failed:", error);
         }
@@ -805,7 +789,7 @@ export default function ApplyPage() {
       if (!r.ok) throw new Error(p?.message || "OTP verification failed.");
       
       if (p?.token) { 
-        globalThis.localStorage.setItem("agenda_token", p.token); 
+        globalThis.sessionStorage.setItem("agenda_token", p.token); 
         setAuthToken(p.token); 
         
         // Fetch full profile to ensure we have nodeCode and latest details
@@ -1050,7 +1034,7 @@ export default function ApplyPage() {
     } catch (e: any) { setErrorMessage(e?.message || "Onboarding failed."); } finally { setIsSubmittingOnboarding(false); }
   };
 
-  const canSubmitEntry = Boolean(msisdnInput.length >= 9 && normalizedMsisdn);
+  const canSubmitEntry = Boolean(normalizedMsisdn);
   const canVerify = otp.length === OTP_LENGTH;
 
   // ─── Upload Box ───
@@ -1307,34 +1291,16 @@ export default function ApplyPage() {
                         <Input 
                           id="msisdn"
                           type="tel"
+                          inputMode="numeric"
+                          maxLength={10}
                           value={msisdnInput}
                           onChange={(e) => {
-                            const val = e.target.value; // Allow all chars while typing
-                            if (val.length <= 20) { // Reasonable limit for raw input
-                              setMsisdnInput(val);
-                            }
+                            setMsisdnInput(sanitizeMsisdnEntryInput(e.target.value));
                           }}
                           onBlur={() => {
-                            // 🎯 Auto-format on leave
-                            let val = msisdnInput.replace(/\D/g, "");
-                            
-                            // Handle 233 prefix first (e.g. 233541562819 -> 541562819)
-                            if (val.startsWith("233") && val.length > 9) {
-                                val = val.slice(3);
-                            }
-                            // Handle 0 prefix (e.g. 0541562819 -> 541562819)
-                            else if (val.startsWith("0") && val.length > 9) {
-                                val = val.slice(1);
-                            }
-                            
-                            // If user pasted something huge, truncate to 9 if it looks valid
-                            if (val.length > 9) {
-                                val = val.slice(0, 9);
-                            }
-                            
-                            setMsisdnInput(val);
+                            setMsisdnInput((prev) => sanitizeMsisdnEntryInput(prev));
                           }}
-                          placeholder="50 XXX XXXX"
+                          placeholder="24 XXX XXXX"
                           className="flex-1 bg-transparent border-0 h-full text-xl font-mono font-medium tracking-wider text-gray-800 focus:ring-0 focus:outline-none placeholder:text-gray-400 ml-2"
                         />
                       </div>
@@ -1432,15 +1398,10 @@ export default function ApplyPage() {
 
           {/* What Happens Next Timeline using Real-Time status card */}
           <div className="w-full text-left mb-8">
-              <ApplicationStatusCard 
-                 loanId="" 
-                 userMsisdn={applicant?.msisdn as string} 
-                 initialStatus={
-                   latestLoanEvent?.status || 
-                   (nodeEndorsedEvent ? "PENDING" : undefined) || 
-                   (applicant?.loanStatus as string) || 
-                   "AWAITING_ENDORSEMENT"
-                 } 
+              <LoanStatusCard 
+                 status="awaiting_endorsement"
+                 amount={Number(loanAmount)}
+                 className="shadow-md border-pink-100"
               />
           </div>
 
@@ -1533,8 +1494,7 @@ export default function ApplyPage() {
                    if (action === "apply") setActiveTab("application");
                    if (action === "repay") setIsRepaymentOpen(true);
                    if (action === "share") setIsShareOpen(true);
-                   if (action === "history") setActiveTab("loans");
-                   if (action === "status") setIsStatusOpen(true);
+                   if (action === "history" || action === "details") setActiveTab("loans");
                 }}
                 notifications={notifications}
                 recentActivity={recentActivity}
@@ -1552,7 +1512,7 @@ export default function ApplyPage() {
                  repaymentHistory={recentActivity.filter((a: any) => a.type === 'payment')}
                  isPending={(applicant as any)?.summary?.isPending || activeLoanDetails?.status === 'PENDING' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT' || (applicant as any)?.activeLoan?.status === 'PENDING' || (userData as any)?.loanStatus === 'PENDING' || (applicant as any)?.loanStatus === 'PENDING'}
                  onAction={(action) => {
-                    if (action === "status") setIsStatusOpen(true);
+                    // Status drawer removed
                  }}
                />
              )}
@@ -1582,7 +1542,7 @@ export default function ApplyPage() {
            {activeTab === "rewards" && (
              <UserRewardsTab 
                onBack={() => { setActiveTab("profile"); window.scrollTo({ top: 0, behavior: "smooth" }); }} 
-               userMsisdn={normalizeMsisdn((msisdnInput || userData?.msisdn || applicant?.msisdn) as string)}
+               userMsisdn={normalizeMsisdn(msisdnInput || (userData?.msisdn as string) || (applicant?.msisdn as string))}
              />
            )}
 
@@ -1590,7 +1550,7 @@ export default function ApplyPage() {
            {activeTab === "network" && (
              <UserNetworkTab 
                onBack={() => { setActiveTab("profile"); window.scrollTo({ top: 0, behavior: "smooth" }); }} 
-               userMsisdn={normalizeMsisdn((msisdnInput || userData?.msisdn || applicant?.msisdn) as string)}
+               userMsisdn={normalizeMsisdn(msisdnInput || (userData?.msisdn as string) || (applicant?.msisdn as string))}
                personalNodeCode={(applicant as any)?.personalNodeCode || (applicant as any)?.user?.personalNodeCode || applicant?.nodeCode || userData?.personalNodeCode}
              />
            )}
@@ -1680,9 +1640,6 @@ export default function ApplyPage() {
                 <div className="bg-gray-50 rounded-2xl p-6 mb-6 text-center border border-gray-100">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Your Node Code</p>
                   <p className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{(applicant as any)?.personalNodeCode || applicant?.nodeCode || "---"}</p>
-                  <p className="text-xs text-[#EC1B84] font-medium mt-3">
-                    → invite friends & family to take loan from Agenda Money and be rewarded
-                  </p>
                 </div>
 
                 {/* My Network Section */}
@@ -1769,41 +1726,7 @@ export default function ApplyPage() {
           )}
         </AnimatePresence>
 
-        {/* Application Status Modal */}
-        <AnimatePresence>
-          {isStatusOpen && (
-              <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 sm:p-0"
-                  onClick={() => setIsStatusOpen(false)}
-              >
-                  <motion.div 
-                      initial={{ y: "100%" }}
-                      animate={{ y: 0 }}
-                      exit={{ y: "100%" }}
-                      transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                      className="w-full sm:max-w-md bg-white rounded-3xl p-6 shadow-xl relative"
-                      onClick={(e) => e.stopPropagation()}
-                  >
-                      <button 
-                          onClick={() => setIsStatusOpen(false)}
-                          className="absolute right-4 top-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
-                      >
-                          <X className="w-5 h-5 text-gray-500" />
-                      </button>
-                      <div className="mb-2" />
-                      <ApplicationStatusCard 
-                          loanId={activeLoanDetails?.id || (applicant as any)?.activeLoan?.id || "unknown"}
-                          userMsisdn={applicant?.msisdn || msisdnInput || (userData as any)?.msisdn}
-                          initialStatus={activeLoanDetails?.status || (applicant as any)?.loanStatus || "ELIGIBLE"}
-                          className="border-none shadow-none p-0 bg-transparent"
-                      />
-                  </motion.div>
-              </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Application Status Modal Removed */}
 
 
         {/* Terms & Conditions Overlay */}
@@ -1855,39 +1778,7 @@ export default function ApplyPage() {
           )}
         </AnimatePresence>
 
-        {/* Status Check Drawer */}
-        <AnimatePresence>
-          {isStatusOpen && (
-            <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsStatusOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" />
-              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-6 z-[70] pb-10">
-                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
-                
-                <div className="text-center mb-8">
-                   <h3 className="text-2xl font-bold text-gray-900">Application Status</h3>
-                   <p className="text-sm text-gray-500 mt-1">Track the progress of your loan</p>
-                </div>
-
-                <div className="w-full max-w-[90%] mx-auto">
-                   <ApplicationStatusCard 
-                      hideTitle 
-                      className="shadow-none border-0 p-0 bg-transparent" 
-                      loanId="" 
-                      userMsisdn={applicant?.msisdn || (userData as any)?.msisdn} 
-                      initialStatus={applicant?.loanStatus || (userData as any)?.loanStatus || "AWAITING_ENDORSEMENT"} 
-                   />
-                </div>
-
-                <Button 
-                    onClick={() => setIsStatusOpen(false)} 
-                   className="w-full h-14 rounded-full bg-gray-900 text-white font-bold mt-10 hover:bg-gray-800"
-                >
-                   Close
-                </Button>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        {/* Application Status Drawer Removed */}
 
         {/* Privacy Policy Overlay */}
         <AnimatePresence>
@@ -1980,7 +1871,7 @@ export default function ApplyPage() {
                    </a>
 
                    <a 
-                     href="mailto:Agendamoney4all@gmail.com" 
+                     href="mailto:support@agendamoney.com" 
                      className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors w-full text-left"
                    >
                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
@@ -1988,7 +1879,7 @@ export default function ApplyPage() {
                      </div>
                      <div>
                         <h4 className="text-sm font-bold text-gray-900">Email Support</h4>
-                        <p className="text-xs text-gray-500">Agendamoney4all@gmail.com</p>
+                        <p className="text-xs text-gray-500">support@agendamoney.com</p>
                      </div>
                    </a>
                 </div>
@@ -2055,7 +1946,7 @@ export default function ApplyPage() {
                 getApplicantName(applicant, "") || getApplicantName(userData, "Account Holder")
              }
              onBack={() => setIsRepaymentOpen(false)}
-             onRepay={(amount, method) => {
+             onRepay={(amount) => {
                 // Refresh Dashboard data after success
                 if (userData?.msisdn) {
                     // Force refresh by reloading the page so dashboard APIs run again
@@ -2127,7 +2018,7 @@ export default function ApplyPage() {
   return (
     <>
     <div className="min-h-screen bg-background pb-24">
-      <PageHeader subtitle={!onboardingData.hasAcceptedTerms ? "Terms & Conditions" : `Step ${onboardingStep} of 5`} onLogoClick={handleBack} />
+      <PageHeader subtitle={onboardingData.hasAcceptedTerms ? `Step ${onboardingStep} of 5` : undefined} onLogoClick={handleBack} />
 
       <main className="max-w-md mx-auto px-4 py-5 space-y-5">
         {/* Circle Step Indicator */}
@@ -2191,21 +2082,6 @@ export default function ApplyPage() {
                   ))}
                 </div>
 
-                <div className="pt-4 flex items-start gap-3">
-                   <div className="flex items-center h-5">
-                      <input 
-                        id="terms-checkbox" 
-                        type="checkbox" 
-                        checked={termsChecked}
-                        onChange={(e) => setTermsChecked(e.target.checked)}
-                        className="h-5 w-5 rounded border-gray-300 text-[#EC1B84] focus:ring-[#EC1B84] accent-[#EC1B84]" 
-                      />
-                   </div>
-                   <label htmlFor="terms-checkbox" className="text-sm font-medium text-gray-600 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      I have read and agree to the Terms & Conditions
-                   </label>
-                </div>
-
                 <Button 
                    onClick={() => {
                      handleOnboardingChange("hasAcceptedTerms", "true");
@@ -2213,8 +2089,7 @@ export default function ApplyPage() {
                      setOnboardingData(p => ({ ...p, hasAcceptedTerms: true }));
                      window.scrollTo({ top: 0, behavior: "smooth" });
                    }}
-                   disabled={!termsChecked}
-                   className="w-full h-14 rounded-full font-bold bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200 mt-6 disabled:opacity-50"
+                   className="w-full h-14 rounded-full font-bold bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200 mt-6"
                 >
                    Accept & Continue
                 </Button>
@@ -2298,7 +2173,7 @@ export default function ApplyPage() {
                        <Label className="text-sm font-medium text-gray-500">Region</Label>
                        <Select value={onboardingData.region} onValueChange={(v) => handleOnboardingChange("region", v)}>
                          <SelectTrigger className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900"><SelectValue /></SelectTrigger>
-                         <SelectContent position="popper" className="max-h-[250px] overflow-y-auto">{GHANA_REGIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                         <SelectContent>{GHANA_REGIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                        </Select>
                      </div>
                    </div>
@@ -2505,7 +2380,7 @@ export default function ApplyPage() {
                                 step={1} 
                                 className="[&_[role=slider]]:bg-[#EC1B84] [&_[role=slider]]:border-[#EC1B84] [&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:shadow-lg [&_[role=slider]]:shadow-pink-200"
                             />
-                            <div className="flex justify-between mt-3 text-xs text-gray-800 font-semibold max-w-[280px] mx-auto sm:max-w-none">
+                            <div className="flex justify-between mt-3 text-sm text-gray-600 font-bold">
                                 <span>&lt;1k</span>
                                 <span>1-2k</span>
                                 <span>2-5k</span>
@@ -2566,7 +2441,7 @@ export default function ApplyPage() {
                                    type="checkbox" 
                                    checked={identityConsent}
                                    onChange={(e) => setIdentityConsent(e.target.checked)}
-                                   className="h-5 w-5 rounded border-gray-300 text-[#EC1B84] focus:ring-[#EC1B84] accent-[#EC1B84]" 
+                                   className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary" 
                                  />
                               </div>
                               <label htmlFor="consent-checkbox" className="text-sm font-medium text-gray-600 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -2728,30 +2603,7 @@ export default function ApplyPage() {
       )}
     </div>
 
-      {/* ApplicationStatusModal Override */}
-      <AnimatePresence>
-        {isStatusOpen && (
-          <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 sm:p-0" onClick={() => setIsStatusOpen(false)}>
-            <div className="w-full sm:max-w-md bg-white rounded-3xl p-6 shadow-xl relative" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setIsStatusOpen(false)} className="absolute right-4 top-4 p-2 rounded-full hover:bg-gray-100 transition-colors">
-                  <X className="w-5 h-5 text-gray-500" />
-              </button>
-              <div className="mb-2" />
-              <ApplicationStatusCard
-                loanId={activeLoanDetails?.id || (applicant as any)?.activeLoan?.id || "unknown"}
-                userMsisdn={applicant?.msisdn || msisdnInput || (userData as any)?.msisdn || ""}
-                initialStatus={
-                  latestLoanEvent?.status || 
-                  (nodeEndorsedEvent ? "PENDING" : undefined) || 
-                  activeLoanDetails?.status || 
-                  (applicant as any)?.loanStatus || 
-                  "ELIGIBLE"
-                }
-              />
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* ApplicationStatusModal Override Removed */}
     </>
   );
 }

@@ -48,7 +48,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes("/auth/login")) {
       originalRequest._retry = true;
       
-      console.log('[API Interceptor] 401 detected, attempting reactive refresh...');
+
       const newToken = await tokenRefreshService.refreshAccessToken();
       
       if (newToken) {
@@ -150,6 +150,22 @@ export const getAgentRewardsSummary = async () => {
     return response.data;
 };
 
+export const getAgentCommissions = async (params?: {
+  startDate?: string;
+  endDate?: string;
+  type?: 'SIGNUP' | 'REPAYMENT' | 'DEFAULT_DEDUCTION';
+  page?: number;
+  limit?: number;
+}) => {
+  const response = await api.get('/api/agents/commissions', { params });
+  return response.data;
+};
+
+export const getAgentCommissionSummary = async () => {
+  const response = await api.get('/api/agents/commissions/summary');
+  return response.data;
+};
+
 export const getAgentRewardsHistory = async (page = 1, limit = 20) => {
     const response = await api.get(`/api/agents/rewards/history?page=${page}&limit=${limit}`);
     return response.data;
@@ -158,6 +174,32 @@ export const getAgentRewardsHistory = async (page = 1, limit = 20) => {
 export const requestAgentRewardPayout = async () => {
     const response = await api.post('/api/agents/rewards/payout');
     return response.data;
+};
+
+export const getAdminPayoutRequests = async (params?: {
+  status?: 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'PAID';
+  requesterType?: 'USER' | 'AGENT';
+  source?: 'REWARD' | 'COMMISSION';
+  page?: number;
+  limit?: number;
+}) => {
+  const response = await api.get('/api/admin/payouts', { params });
+  return response.data;
+};
+
+export const approveAdminPayoutRequest = async (requestId: string) => {
+  const response = await api.post(`/api/admin/payouts/${requestId}/approve`);
+  return response.data;
+};
+
+export const rejectAdminPayoutRequest = async (requestId: string, reason: string) => {
+  const response = await api.post(`/api/admin/payouts/${requestId}/reject`, { reason });
+  return response.data;
+};
+
+export const markAdminPayoutPaid = async (requestId: string, paymentReference?: string) => {
+  const response = await api.post(`/api/admin/payouts/${requestId}/mark-paid`, paymentReference ? { paymentReference } : {});
+  return response.data;
 };
 
 export default api;
