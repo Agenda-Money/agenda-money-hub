@@ -8,6 +8,7 @@ export interface LoanStatusData {
   status: string;
   cardColor: CardColor;
   message: string;
+  title?: string;
   timestamp?: string;
 }
 
@@ -49,11 +50,28 @@ export function useWebSocketListener(userMsisdn?: string, isAdmin: boolean = fal
     });
 
     // Loan core events mapping (User side)
-    newSocket.on('loan_status_update', (data: LoanStatusData) => {
-      setLatestLoanEvent(data);
+    newSocket.on('loan_status_updated', (data: any) => {
+      console.log('🎯 Loan Status Updated:', data);
+      
+      // Determine card color based on UI logic
+      const cardColor = data.newStatus === 'DISBURSING' || data.newStatus === 'ACTIVE' 
+        ? 'green' 
+        : data.newStatus === 'REJECTED' 
+          ? 'red' 
+          : 'pink';
+          
+      setLatestLoanEvent({
+        loanId: data.loanId,
+        message: data.message,
+        title: data.title,
+        timestamp: data.timestamp,
+        status: data.newStatus,
+        cardColor
+      });
     });
 
     newSocket.on('loan_endorsed', (data: any) => {
+      console.log('🎯 Loan Endorsed:', data);
       setNodeEndorsedEvent(data);
     });
 

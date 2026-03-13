@@ -136,7 +136,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
             <p className="text-gray-500 mb-10 text-sm max-w-[280px] mx-auto">
                {isEndorsement 
                  ? "We've sent your request to your referring Node Owner to endorse before Admin review." 
-                 : "Check back in a few minutes for a decision from our Admins."}
+                 : "Check back in a few minutes for a decision on your application."}
             </p>
             
             <Button 

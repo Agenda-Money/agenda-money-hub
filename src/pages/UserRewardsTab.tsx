@@ -187,18 +187,7 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
                    {requestPayoutMutation.isPending ? "Processing..." : "Request Payout"}
                 </Button>
                 
-                {rewardsData?.payoutInfo && (
-                  <div className="mt-4 bg-gray-50 rounded-xl p-3 flex flex-col gap-2">
-                     <div className="flex items-start gap-2 text-xs text-gray-500 font-medium">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                        <p>Funds will be approved by the {rewardsData.payoutInfo.approvalDate}</p>
-                     </div>
-                     <div className="flex items-start gap-2 text-xs text-gray-500 font-medium">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                        <p>Payment window: {rewardsData.payoutInfo.paymentWindow}</p>
-                     </div>
-                  </div>
-                )}
+
              </div>
 
              {/* Recent Activity List */}
