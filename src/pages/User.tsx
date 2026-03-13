@@ -84,6 +84,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
   
   // New Backend Logic: Check flags from applicant summary or activeLoanDetails
   const summary = applicant?.summary || applicant?.activeLoan || {};
+  const isKycVerified = applicant?.isKycVerified === true || applicant?.isKycVerified === "true" || (applicant as any)?.user?.isKycVerified === true;
   const isAwaitingEndorsement = summary.status === 'AWAITING_ENDORSEMENT' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT';
   const isPending = summary.isPending || (activeLoanDetails?.status === 'PENDING' && !isAwaitingEndorsement) || summary.status === 'PENDING' || loanStatus === 'PENDING' || applicant?.loanStatus === 'PENDING';
   const isOverdue = summary.isOverdue || activeLoanDetails?.isOverdue;
@@ -113,12 +114,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
   }
 
   // Real-time WebSocket Logic
-  const { latestLoanEvent, nodeEndorsedEvent } = useWebSocketListener(applicant?.msisdn);
+  const { latestLoanEvent, nodeEndorsedEvent, kycEvent } = useWebSocketListener(applicant?.msisdn);
   
   // Real-time overrides
   let cardColorOverride = undefined;
   let titleOverride = undefined;
   let subtextOverride = undefined;
+
 
   if (nodeEndorsedEvent && feedStatus === "awaiting_endorsement") {
       feedStatus = "review"; // Shift UI to review state instantly
@@ -127,14 +129,21 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
       subtextOverride = nodeEndorsedEvent.message || "Your loan has been endorsed. Now under admin review.";
   }
 
-  if (latestLoanEvent && feedStatus === "review") {
-     cardColorOverride = latestLoanEvent.cardColor;
-     if (latestLoanEvent.status === 'DISBURSING') {
-        titleOverride = "Loan Approved!";
+  if (latestLoanEvent) {
+     if (['DISBURSING', 'ACTIVE'].includes(latestLoanEvent.status)) {
+        if (feedStatus === "review" || feedStatus === "awaiting_endorsement") {
+           feedStatus = latestLoanEvent.status === 'ACTIVE' ? "active" : "review";
+           cardColorOverride = latestLoanEvent.cardColor;
+           titleOverride = latestLoanEvent.status === 'ACTIVE' ? "Loan Active" : "Loan Approved!";
+           subtextOverride = latestLoanEvent.message;
+        }
      } else if (latestLoanEvent.status === 'REJECTED') {
-        titleOverride = "Application Not Approved";
+        if (feedStatus === "review") {
+           titleOverride = "Application Not Approved";
+           subtextOverride = latestLoanEvent.message;
+           cardColorOverride = "red";
+        }
      }
-     subtextOverride = latestLoanEvent.message;
   }
 
   const container = {
@@ -181,7 +190,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
             amount={
                 isActive || feedStatus === 'overdue' ? (activeLoanDetails?.outstandingBalance || 0) :
                 isEligible ? currentTierConfig.maxAmount : 
-                (activeLoanDetails?.outstandingBalance || 0)
+                (activeLoanDetails?.principal || activeLoanDetails?.requestedAmount || activeLoanDetails?.amount || summary?.amount || activeLoanDetails?.outstandingBalance || 0)
             } 
             dueDate={activeLoanDetails?.dueDate ? new Date(activeLoanDetails.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : undefined}
             overdueDays={(() => {
@@ -200,8 +209,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
             cardColor={cardColorOverride}
             titleOverride={titleOverride}
             subtextOverride={subtextOverride}
+            loanRef={activeLoanDetails?.loanCode || activeLoanDetails?.id?.slice(-8)?.toUpperCase() || (applicant?.activeLoan as any)?.loanCode}
+            step={feedStatus === "awaiting_endorsement" ? 1 : feedStatus === "review" ? 2 : 1}
+            totalSteps={3}
             onAction={onAction}
-            className="shadow-sm relative bg-white"
+            className="shadow-sm"
           />
         </motion.div>
 

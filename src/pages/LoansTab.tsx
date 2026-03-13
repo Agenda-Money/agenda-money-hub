@@ -22,7 +22,7 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, repay
 
   // Map the new deep detailed loan object
   const activeLoan = loan ? {
-    amount: loan.amount || 0,
+    amount: loan.principal || loan.amount || 0,
     totalDue: loan.totalPayable || loan.totalDue || 0,
     paidAmount: loan.paidAmount || 0, // Used for progress labels
     outstandingBalance: loan.outstandingBalance || 0, // Used for main bold currency
@@ -43,7 +43,13 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, repay
       if (String(loanStatus).toUpperCase() === 'AWAITING_ENDORSEMENT') {
           return (
              <div className="mb-6">
-                 <LoanStatusCard status="awaiting_endorsement" onAction={onAction} className="shadow-sm" />
+                 <LoanStatusCard 
+                   status="awaiting_endorsement" 
+                   amount={activeLoan?.amount || loan?.requestedAmount || 0}
+                   loanRef={loan?.loanCode || loan?.id?.slice(-8)?.toUpperCase()}
+                   onAction={onAction} 
+                   className="shadow-sm" 
+                 />
              </div>
           );
       }
@@ -51,7 +57,13 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, repay
       if (isPending) {
           return (
              <div className="mb-6">
-                 <LoanStatusCard status="review" onAction={onAction} className="shadow-sm" />
+                 <LoanStatusCard 
+                   status="review" 
+                   amount={activeLoan?.amount || loan?.requestedAmount || 0}
+                   loanRef={loan?.loanCode || loan?.id?.slice(-8)?.toUpperCase()}
+                   onAction={onAction} 
+                   className="shadow-sm" 
+                 />
              </div>
           );
       }

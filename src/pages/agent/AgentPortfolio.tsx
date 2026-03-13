@@ -131,7 +131,7 @@ export default function AgentPortfolio() {
           params: { page, limit: 10 }
         });
         
-        console.log(`Portfolio Response (Page ${page}):`, res.data);
+
 
         let rawDirectory: Record<string, unknown>[] = [];
         let pagination = { total: 0, page: 1, pages: 1 };
@@ -187,7 +187,7 @@ export default function AgentPortfolio() {
   });
 
   const { users = [], pagination = { total: 0, page: 1, pages: 1 } } = data || {};
-  console.log("Current Pagination State:", pagination);
+
 
   const filteredUsers = users.filter(u => {
     const matchesSearch = 

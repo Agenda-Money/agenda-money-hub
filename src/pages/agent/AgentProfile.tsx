@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { Badge } from "@/components/ui/badge";
-import { User, Mail, Phone, Shield, Award, Loader2, Moon, Sun, Monitor, Bell, Copy, Check, Sparkles } from "lucide-react";
+import { User, Mail, Phone, Shield, Loader2, Moon, Sun, Monitor, Bell, Copy, Check, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -39,8 +38,8 @@ export default function AgentProfile() {
   const { data: dashboardStats } = useQuery({
     queryKey: ["agent-dashboard-stats", user?.email],
     queryFn: async () => {
-      const res = await api.get("/api/agents/dashboard-stats");
-      return res.data?.data;
+      const res = await api.get("/api/agents/my-stats");
+      return res.data?.data || res.data;
     },
     enabled: !!user?.email,
   });
@@ -85,12 +84,8 @@ export default function AgentProfile() {
   };
 
   const stats = {
-    totalSignups: dashboardStats?.stats?.totalSignups ?? 0,
-    totalCommission: typeof dashboardStats?.stats?.totalCommission === 'number' 
-      ? `₵${dashboardStats.stats.totalCommission.toLocaleString()}`
-      : dashboardStats?.stats?.totalCommission ?? "₵0",
-    joinedDate: user?.createdAt || user?.created_at || "N/A",
-    tier: "Gold Agent",
+    totalSignups: dashboardStats?.metrics?.signUpsAllTime ?? 0,
+    activeLoans: dashboardStats?.portfolio?.loansActive ?? 0,
   };
 
   const themes = [
@@ -164,42 +159,26 @@ export default function AgentProfile() {
                       <p className="text-xs text-muted-foreground mt-1">Share this with customers during onboarding</p>
                     </div>
                   </div>
-                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 px-4 py-2 text-sm shadow-lg">
-                    <Award className="h-4 w-4 mr-2" />
-                    {stats.tier}
-                  </Badge>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
 
           {/* Performance Stats */}
-          <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card className="border-0 shadow-md">
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">Total Signups</p>
                 <p className="text-3xl font-bold text-foreground mt-1">{stats.totalSignups}</p>
-                <p className="text-xs text-emerald-600 mt-1">+12% from last month</p>
+                <p className="text-xs text-emerald-600 mt-1">Customers onboarded so far</p>
               </CardContent>
             </Card>
 
             <Card className="border-0 shadow-md">
               <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground">Total Commission</p>
-                <p className="text-3xl font-bold text-emerald-600 mt-1">{stats.totalCommission}</p>
-                <p className="text-xs text-muted-foreground mt-1">Lifetime earnings</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-md">
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground">Member Since</p>
-                <p className="text-3xl font-bold text-foreground mt-1">
-                  {stats.joinedDate === "N/A"
-                    ? "N/A"
-                    : new Date(stats.joinedDate).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Active agent</p>
+                <p className="text-sm text-muted-foreground">Active Loans</p>
+                <p className="text-3xl font-bold text-foreground mt-1">{stats.activeLoans}</p>
+                <p className="text-xs text-muted-foreground mt-1">Current customer loans in progress</p>
               </CardContent>
             </Card>
           </motion.div>

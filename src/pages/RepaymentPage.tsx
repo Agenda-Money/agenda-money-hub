@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ArrowLeft, CheckCircle2, RefreshCw, CloudOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getNetwork, getNetworkStyles } from "@/lib/momo";
 import { motion } from "framer-motion";
 import { initiateRepayment, getMe } from "@/lib/api";
 
@@ -17,25 +18,7 @@ interface RepaymentPageProps {
 const MIN_PARTIAL_PAYMENT = 5;
 
 // Helper to determine network from MSISDN
-const getNetwork = (msisdn: string) => {
-    const cleanNum = msisdn.replace(/\D/g, '');
-    const localPrefix = cleanNum.slice(0, 3);
-    const intlPrefix = cleanNum.startsWith('233') ? cleanNum.slice(0, 5) : '';
-    // Rough logic for Ghana prefixes
-    if (
-      ['024', '054', '055', '059', '025'].includes(localPrefix) ||
-      (intlPrefix && ['23324', '23354'].includes(intlPrefix))
-    ) return 'MTN';
-    if (
-      ['020', '050'].includes(localPrefix) ||
-      (intlPrefix && ['23320', '23350'].includes(intlPrefix))
-    ) return 'Telecel';
-    if (
-      ['027', '057', '026', '056'].includes(localPrefix) ||
-      (intlPrefix && ['23327', '23357'].includes(intlPrefix))
-    ) return 'AT';
-    return 'MTN'; // Defaulting to MTN as per user preference
-};
+// Removed local getNetwork as it is now centralized in @/lib/momo
 
 export const RepaymentPage: React.FC<RepaymentPageProps> = ({ 
   amountDue, 
@@ -408,11 +391,11 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
             <h3 className="text-sm font-bold text-gray-500 pl-1">Payment Method</h3>
             <div className="bg-white rounded-2xl p-4 flex items-center justify-between border border-gray-200 shadow-sm">
                 <div className="flex items-center gap-4">
-                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm",
-                        getNetwork(msisdn) === 'MTN' ? 'bg-[#FFCC00] text-black' : 
-                        getNetwork(msisdn) === 'Telecel' ? 'bg-red-600' : 'bg-blue-800'
+                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm leading-tight text-center px-1 uppercase",
+                        getNetworkStyles(getNetwork(msisdn)).bgColor,
+                        getNetworkStyles(getNetwork(msisdn)).textColor
                     )}>
-                        {getNetwork(msisdn)}
+                        {getNetworkStyles(getNetwork(msisdn)).name.replace(' ', '\n')}
                     </div>
                     <div>
                         <p className="text-sm font-bold text-gray-900 uppercase">{userName || "Account Holder"}</p>

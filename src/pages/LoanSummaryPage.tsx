@@ -3,6 +3,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { ArrowLeft, ChevronRight, CheckSquare, Square, Send, Loader2, AlertCircle, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, getApplicantName } from "@/lib/utils";
+import { getNetwork, getNetworkStyles } from "@/lib/momo";
 import api from "@/lib/api";
 import {
   AlertDialog,
@@ -87,7 +88,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
         } else {
             // Internal logic (Fallback)
             if (process.env.NODE_ENV !== "production") {
-              console.log("Submitting loan request to /api/loans/request...");
+
             }
             const payload = {
                 amount: loanData.amount,
@@ -212,7 +213,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                   </div>
 
                   <div className="flex justify-between items-center text-sm py-3 bg-gray-50 -mx-2 px-2 rounded-lg mt-2">
-                    <span className="text-gray-600 font-bold">Repayment amount</span>
+                    <span className="text-gray-600 font-bold">Repayment Amount</span>
                     <span className="font-extrabold text-gray-900 text-lg">GHS{totalRepayment}</span>
                   </div>
                  
@@ -237,9 +238,8 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                
                <div className="bg-gray-50 rounded-2xl p-4 flex items-center justify-between border border-gray-100">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-[#FFCC00] rounded-xl flex items-center justify-center text-xs font-bold text-black shrink-0 overflow-hidden shadow-sm">
-                        {/* Placeholder for MTN Logo if image not found */}
-                        <span className="leading-tight text-center">MTN<br/>MoMo</span>
+                    <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-[10px] font-bold shrink-0 overflow-hidden shadow-sm uppercase px-1 leading-tight text-center", getNetworkStyles(getNetwork(applicant?.msisdn)).bgColor, getNetworkStyles(getNetwork(applicant?.msisdn)).textColor)}>
+                        {getNetworkStyles(getNetwork(applicant?.msisdn)).name.replace(' ', '\n')}
                     </div>
                     <div>
                       <p className="text-sm font-bold text-gray-900 uppercase">

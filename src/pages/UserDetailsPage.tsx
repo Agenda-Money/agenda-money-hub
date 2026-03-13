@@ -48,7 +48,7 @@ export default function UserDetailsPage() {
     queryFn: async () => {
       const res = await api.get(`/api/admin/users/profile/${id}`);
       if (import.meta.env.DEV) {
-        console.log("USER API RESPONSE FOR KYC:", JSON.stringify(res.data, null, 2));
+
       }
       return res.data;
     },

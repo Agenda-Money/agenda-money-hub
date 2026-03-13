@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Upload, CreditCard, TrendingUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { uploadToSupabase } from "@/lib/supabase";
 import api from "@/lib/api";
@@ -109,19 +108,11 @@ export default function AgentOnboarding() {
   const [direction, setDirection] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
-  const [onboardedNodeCode, setOnboardedNodeCode] = useState<string | null>(null);
-  const [isAwaitingConsent, setIsAwaitingConsent] = useState(false);
-  const { setTheme, theme } = useTheme();
-  const previousThemeRef = useRef(theme);
-
-  useEffect(() => {
-    const prevTheme = previousThemeRef.current;
-    setTheme("light");
-
-    return () => {
-      setTheme(prevTheme);
-    };
-  }, [setTheme]);
+  const [submissionResult, setSubmissionResult] = useState<{
+    customerName: string;
+    nodeCode: string | null;
+    awaitingConsent: boolean;
+  } | null>(null);
 
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
@@ -150,8 +141,7 @@ export default function AgentOnboarding() {
       }
       
       // Reset consent and onboarding state when initializing
-      setIsAwaitingConsent(false);
-      setOnboardedNodeCode(null);
+      setSubmissionResult(null);
     } catch (error) {
       console.error("Failed to load form data from localStorage:", error);
       setFormData(prev => ({ ...prev, ghanaCardNumber: "GHA-" }));
@@ -419,26 +409,33 @@ export default function AgentOnboarding() {
       };
 
       const response = await api.post("/api/agents/onboard", payload);
+      const responseBody = response.data?.data || response.data || {};
+      const didSucceed = response.status >= 200 && response.status < 300 && responseBody.success !== false;
 
-      if (response.data.success) {
-         // Check for AWAITING_CONSENT status
-         if (response.data.status === 'AWAITING_CONSENT') {
-           setIsAwaitingConsent(true);
-         }
-       
-        setOnboardedNodeCode(response.data.nodeCode);
-        
-        // Clear storage immediately
-        localStorage.removeItem(STORAGE_KEY);
-        setFormData(INITIAL_FORM_DATA);
-        
-        // Vibrate if supported
-        if (navigator.vibrate) navigator.vibrate(200);
-        
-        toast.success("Customer Onboarded! 🎉", {
-          description: "Customer successfully registered.",
-        });
+      if (!didSucceed) {
+        throw new Error(responseBody.message || response.data?.message || "Customer onboarding could not be completed.");
       }
+
+      const awaitingConsent = responseBody.status === "AWAITING_CONSENT" || response.data?.status === "AWAITING_CONSENT";
+      const nodeCode = responseBody.nodeCode || response.data?.nodeCode || null;
+      const customerName = `${payload.fullName} ${payload.surname}`.trim();
+
+      setSubmissionResult({
+        customerName,
+        nodeCode,
+        awaitingConsent,
+      });
+
+      localStorage.removeItem(STORAGE_KEY);
+      setFormData({ ...INITIAL_FORM_DATA, ghanaCardNumber: "GHA-" });
+
+      if (navigator.vibrate) navigator.vibrate(200);
+
+      toast.success("Customer Onboarded! 🎉", {
+        description: awaitingConsent
+          ? "Authorization request sent successfully."
+          : "Customer successfully registered.",
+      });
     } catch (error: any) {
       toast.error("Submission Failed", {
         description: error.response?.data?.message || "Please try again",
@@ -456,7 +453,7 @@ export default function AgentOnboarding() {
   ];
 
   // Success Screen
-  if (onboardedNodeCode) {
+  if (submissionResult) {
     return (
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
@@ -479,7 +476,7 @@ export default function AgentOnboarding() {
             <div className="space-y-2">
                <h1 className="text-2xl font-bold text-foreground">Onboarding Complete!</h1>
              
-               {isAwaitingConsent ? (
+               {submissionResult.awaitingConsent ? (
                  <div className="space-y-3">
                    <p className="text-muted-foreground">
                      A request has been sent to the Node owner for authorization.
@@ -491,7 +488,7 @@ export default function AgentOnboarding() {
                  </div>
                ) : (
                  <p className="text-muted-foreground">
-                   Customer <strong>{formData.fullName}</strong> has been successfully registered.
+                   Customer <strong>{submissionResult.customerName}</strong> has been successfully registered.
                  </p>
                )}
             </div>
@@ -499,8 +496,7 @@ export default function AgentOnboarding() {
             <div className="space-y-3 pt-2">
               <Button
                 onClick={() => {
-                  setOnboardedNodeCode(null);
-                   setIsAwaitingConsent(false);
+                  setSubmissionResult(null);
                   setFormData({ ...INITIAL_FORM_DATA, ghanaCardNumber: "GHA-" });
                   localStorage.removeItem(STORAGE_KEY);
                   setCurrentStep(1);
@@ -723,7 +719,7 @@ export default function AgentOnboarding() {
                       <SelectTrigger className="h-12 bg-muted/50 border-0">
                         <SelectValue placeholder="Select region" />
                       </SelectTrigger>
-                      <SelectContent position="popper" className="max-h-[250px] overflow-y-auto">
+                      <SelectContent>
                         {GHANA_REGIONS.map((region) => (
                           <SelectItem key={region} value={region}>{region}</SelectItem>
                         ))}
@@ -773,7 +769,7 @@ export default function AgentOnboarding() {
                         value={formData.yearsAtAddress}
                         onChange={(e) => {
                           const val = parseInt(e.target.value);
-                          if (isNaN(val)) updateField("yearsAtAddress", "");
+                          if (Number.isNaN(val)) updateField("yearsAtAddress", "");
                           else if (val >= 0 && val <= 10) updateField("yearsAtAddress", String(val));
                           else if (val > 10) updateField("yearsAtAddress", "10");
                         }}
