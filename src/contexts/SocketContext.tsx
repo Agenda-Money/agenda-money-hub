@@ -1,19 +1,17 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { socket, joinUserRooms } from "@/lib/socket";
 import { useAuth } from "./AuthContext";
 import { useApplicant } from "./ApplicantContext";
-import { toast } from "sonner";
 import { getSubdomain } from "@/lib/domain";
 
 interface SocketContextType {
-  socket: Socket | null;
+  socket: any;
   notifications: any[];
 }
 
 const SocketContext = createContext<SocketContextType>({ socket: null, notifications: [] });
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const lastNotificationIdRef = useRef<string | number | null>(null);
   const { user } = useAuth();
@@ -23,57 +21,53 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const sub = getSubdomain();
   const msisdn = sub === "apply" 
     ? applicant?.msisdn || (applicant as any)?.user?.msisdn
-    : user?.phoneNumber || user?.alternatePhone; // Assuming AdminUser might have phone numbers, adjust if needed
+    : user?.phoneNumber || user?.alternatePhone;
 
   useEffect(() => {
     // Only connect if we have a valid identifier (msisdn)
     if (!msisdn) {
-        if (socket) {
+        if (socket.connected) {
             socket.disconnect();
-            setSocket(null);
         }
         return;
     }
 
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    
-    // Connect to the socket server
-    const newSocket = io(apiUrl, {
-        transports: ["websocket"],
-        autoConnect: true,
-    });
+    // Connect to the socket server using the singleton
+    if (!socket.connected) {
+        socket.connect();
+    }
 
-    setSocket(newSocket);
+    const handleConnect = () => {
+        joinUserRooms(msisdn);
+    };
 
-    newSocket.on("connect", () => {
-        // Join the user-specific room
-        newSocket.emit("join-user-room", msisdn);
-    });
-
-    // Listen for real-time notifications
-    newSocket.on("notifications", (items: any[]) => {
+    const handleNotifications = (items: any[]) => {
         setNotifications(items);
-        
-        // Only toast for truly new notifications by comparing the latest item's id
         if (items && items.length > 0) {
            const latest = items[0];
            const latestId = latest._id || latest.id;
            if (latestId && latestId !== lastNotificationIdRef.current) {
              lastNotificationIdRef.current = latestId;
-             // Disabled per user request (stopping KYC notification spam on login)
-             // toast.info(`New Notification: ${latest.title || 'Update'}`, {
-             //    description: latest.message || 'Check your dashboard for details.',
-             // });
            }
         }
-    });
+    };
 
-    newSocket.on("disconnect", () => {
-        console.log("Socket disconnected");
-    });
+    const handleDisconnect = () => {
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("notifications", handleNotifications);
+    socket.on("disconnect", handleDisconnect);
+
+    // If already connected (e.g. from a fast re-render or previous session), join room immediately
+    if (socket.connected) {
+        handleConnect();
+    }
 
     return () => {
-        newSocket.disconnect();
+        socket.off("connect", handleConnect);
+        socket.off("notifications", handleNotifications);
+        socket.off("disconnect", handleDisconnect);
     };
   }, [msisdn]);
 
@@ -84,4 +78,4 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export const useSocket = () => useContext(SocketContext);
+export const useSocketContext = () => useContext(SocketContext);

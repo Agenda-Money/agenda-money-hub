@@ -13,12 +13,12 @@ interface HeaderProps {
   onMenuClick: () => void;
 }
 
+import { useSocketContext } from "@/contexts/SocketContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSocket } from "@/contexts/SocketContext";
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth();
-  const { notifications } = useSocket();
+  const { notifications } = useSocketContext();
   
   const initials = user?.fullName 
     ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() 

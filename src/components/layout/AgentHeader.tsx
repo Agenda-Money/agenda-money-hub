@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSocket } from "@/contexts/SocketContext";
+import { useSocketContext } from "@/contexts/SocketContext";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 
@@ -13,7 +13,7 @@ interface AgentHeaderProps {
 
 export function AgentHeader({ onMenuClick }: AgentHeaderProps) {
   const { user } = useAuth();
-  const { notifications } = useSocket();
+  const { notifications } = useSocketContext();
   
   const initials = user?.fullName 
     ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() 

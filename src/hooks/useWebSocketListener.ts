@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import io, { Socket } from 'socket.io-client';
+import { useSocketContext } from '@/contexts/SocketContext';
 
-export type CardColor = 'green' | 'red' | 'yellow' | 'blue' | 'gray';
+export type CardColor = 'green' | 'red' | 'yellow' | 'blue' | 'gray' | 'pink';
 
 export interface LoanStatusData {
   loanId: string;
@@ -10,89 +10,69 @@ export interface LoanStatusData {
   message: string;
   title?: string;
   timestamp?: string;
+  loanReference?: string;
 }
 
 export function useWebSocketListener(userMsisdn?: string, isAdmin: boolean = false) {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const { socket } = useSocketContext();
   
-  // Expose these state variables to components for real-time reactivity
   const [latestLoanEvent, setLatestLoanEvent] = useState<LoanStatusData | null>(null);
   const [kycEvent, setKycEvent] = useState<any>(null);
   const [nodeEndorsedEvent, setNodeEndorsedEvent] = useState<any>(null);
 
   useEffect(() => {
-    // Determine the user identifier to listen to
-    if (!userMsisdn && !isAdmin) return;
+    if (!socket) return;
 
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    
-    const newSocket = io(apiUrl, {
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-    });
+    if (isAdmin) {
+      socket.emit('join-admin-room');
+    }
 
-    // Connection lifecycle
-    newSocket.on('connect', () => {
-      console.log('✅ Connected to WebSocket');
-      if (userMsisdn) {
-        newSocket.emit('join-user-room', userMsisdn);
-      }
-      if (isAdmin) {
-        newSocket.emit('join-admin-room');
-      }
-    });
+    const handleLoanStatusUpdated = (data: any) => {
 
-    newSocket.on('disconnect', () => {
-      console.log('❌ Disconnected from WebSocket');
-    });
-
-    // Loan core events mapping (User side)
-    newSocket.on('loan_status_updated', (data: any) => {
-      console.log('🎯 Loan Status Updated:', data);
       
-      // Determine card color based on UI logic
-      const cardColor = data.newStatus === 'DISBURSING' || data.newStatus === 'ACTIVE' 
-        ? 'green' 
-        : data.newStatus === 'REJECTED' 
-          ? 'red' 
-          : 'pink';
+      let cardColor: CardColor = 'pink';
+      if (['DISBURSING', 'ACTIVE', 'COMPLETED'].includes(data.newStatus)) {
+          cardColor = 'green';
+      } else if (['REJECTED', 'CANCELLED', 'OVERDUE'].includes(data.newStatus)) {
+          cardColor = 'red';
+      }
           
       setLatestLoanEvent({
         loanId: data.loanId,
+        loanReference: data.loanReference,
+        status: data.newStatus,
         message: data.message,
         title: data.title,
         timestamp: data.timestamp,
-        status: data.newStatus,
         cardColor
       });
-    });
+    };
 
-    newSocket.on('loan_endorsed', (data: any) => {
-      console.log('🎯 Loan Endorsed:', data);
+    const handleLoanEndorsed = (data: any) => {
+
       setNodeEndorsedEvent(data);
-    });
+    };
 
-    newSocket.on('kyc_verified', (data: any) => {
+    // Support both kyc_verified and KYC_VERIFIED_SUCCESS
+    const handleKycEvent = (data: any) => {
+
       setKycEvent(data);
-    });
+    };
 
-    newSocket.on('KYC_VERIFIED_SUCCESS', (data: any) => {
-      // The old backend format might only send { msisdn, name }
-      // Map it to ensure the dashboard reacts
-      setKycEvent({ ...data, status: 'VERIFIED' });
-    });
-
-    // Admin events mapping could be added here later...
-    
-    setSocket(newSocket);
+    socket.on('loan_status_updated', handleLoanStatusUpdated);
+    socket.on('loan_endorsed', handleLoanEndorsed);
+    socket.on('kyc_verified', handleKycEvent);
+    socket.on('KYC_VERIFIED_SUCCESS', handleKycEvent);
+    socket.on('KYC_REJECTED', handleKycEvent);
 
     return () => {
-      newSocket.disconnect();
+      socket.off('loan_status_updated', handleLoanStatusUpdated);
+      socket.off('loan_endorsed', handleLoanEndorsed);
+      socket.off('kyc_verified', handleKycEvent);
+      socket.off('KYC_VERIFIED_SUCCESS', handleKycEvent);
+      socket.off('KYC_REJECTED', handleKycEvent);
     };
-  }, [userMsisdn, isAdmin]);
+  }, [socket, isAdmin]);
 
   return {
     socket,

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, CreditCard, DollarSign, TrendingUp, UserPlus, ArrowUpRight, Activity, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Users, CreditCard, TrendingUp, UserPlus, ArrowUpRight, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
@@ -60,15 +60,6 @@ export default function AgentDashboard() {
     enabled: !!user?.email,
   });
 
-  const { data: summaryData } = useQuery({
-    queryKey: ["agent-commission-summary"],
-    queryFn: async () => {
-      const res = await api.get("/api/agents/commissions/summary");
-      return res.data?.summary;
-    },
-    enabled: !!user?.email,
-  });
-
   useSocket(wsUrl, (message) => {
     if (message?.type === "KYC_VERIFIED_SUCCESS") {
       refetchDashboard();
@@ -88,7 +79,6 @@ export default function AgentDashboard() {
     totalSignups: metrics.signUpsAllTime,
     signupsThisMonth: metrics.signUpsThisMonth,
     activeLoans: portfolio.loansActive,
-    totalCommission: summaryData?.netEarnings ?? 0,
     portfolioHealth: healthPercentage,
   };
   
@@ -119,17 +109,6 @@ export default function AgentDashboard() {
       trendUp: true,
       gradient: "from-amber-500 to-orange-500",
     },
-    {
-      title: "Total Commission",
-      value:
-        typeof (summaryData?.netEarnings ?? stats.totalCommission) === "number"
-          ? `₵${(summaryData?.netEarnings ?? stats.totalCommission).toLocaleString()}`
-          : String(summaryData?.netEarnings ?? stats.totalCommission ?? ""),
-      icon: DollarSign,
-      trend: "+15%",
-      trendUp: true,
-      gradient: "from-purple-500 to-purple-600",
-    },
   ];
 
   return (
@@ -157,7 +136,7 @@ export default function AgentDashboard() {
           className="bg-gradient-pink hover:opacity-90 shadow-pink w-full sm:w-auto"
         >
           <UserPlus className="h-4 w-4 mr-2" />
-          New Onboarding
+          Onboard Client
         </Button>
       </motion.div>
 
@@ -270,7 +249,7 @@ export default function AgentDashboard() {
                   <Users className="h-10 w-10 text-muted-foreground/50 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">No recent signups yet</p>
                   <Button variant="link" size="sm" onClick={() => navigate("/agent/onboard")}>
-                    Start onboarding
+                    Onboard client
                   </Button>
                 </div>
               )}
