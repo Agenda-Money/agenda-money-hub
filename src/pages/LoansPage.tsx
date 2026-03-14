@@ -332,7 +332,7 @@ export default function LoansPage() {
     let computedStatus = l.status?.toUpperCase() ?? "PENDING";
     
     if (import.meta.env.DEV) {
-      console.log(`[Loan Debug ${l.loanReference || l.id}] Raw Status: ${l.status} -> Computed: ${computedStatus}, dueDate: ${l.dueDate}, repaymentDate: ${l.repaymentDate}`);
+
     }
 
     // Dynamically check dates since backend cron may not have run
@@ -344,7 +344,7 @@ export default function LoansPage() {
       today.setHours(0, 0, 0, 0);
       
       if (import.meta.env.DEV) {
-        console.log(`[Date Check Loan ${l.loanReference}] Due: ${dateString} -> Parsed: ${due.getTime()}, Today: ${today.getTime()}, isNaN: ${isNaN(due.getTime())}`);
+
       }
 
       if (!isNaN(due.getTime())) {
@@ -355,7 +355,7 @@ export default function LoansPage() {
         }
       }
       if (import.meta.env.DEV) {
-        console.log(`[Date Check Loan ${l.loanReference || l.id}] Parsed: ${due.getTime()}, Today: ${today.getTime()} -> Final Status: ${computedStatus}`);
+
       }
     }
 

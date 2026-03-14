@@ -41,7 +41,7 @@ export class TokenRefreshService {
     // If less than 5 minutes remain, refresh in 10 seconds or immediately
     const refreshTime = Math.max(10000, timeUntilExpiry - 300000);
 
-    console.log(`[TokenRefreshService] Next refresh scheduled in ${Math.round(refreshTime / 1000 / 60)} minutes (${new Date(now + refreshTime).toLocaleTimeString()})`);
+
 
     this.refreshTimeout = setTimeout(() => {
       this.refreshAccessToken();
@@ -64,7 +64,7 @@ export class TokenRefreshService {
         return null;
       }
 
-      console.log('[TokenRefreshService] Attempting to refresh access token...');
+
       
       const response = await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/admin/auth/refresh`, {
         refreshToken
@@ -105,7 +105,7 @@ export class TokenRefreshService {
       }
       localStorage.setItem('expiresAt', expiresAt);
 
-      console.log('✅ [TokenRefreshService] Token refreshed successfully');
+
 
       // Restart timer with new expiry
       this.startRefreshTimer(expiresAt);
@@ -167,11 +167,11 @@ export class TokenRefreshService {
     // Set up multi-tab synchronization
     window.addEventListener('storage', (e) => {
       if (e.key === 'expiresAt' && e.newValue) {
-        console.log('[TokenRefreshService] Detected token refresh in another tab');
+
         this.startRefreshTimer(e.newValue);
       }
       if (e.key === 'accessToken' && !e.newValue) {
-        console.log('[TokenRefreshService] Detected logout in another tab');
+
         this.handleSessionExpired();
       }
     });
