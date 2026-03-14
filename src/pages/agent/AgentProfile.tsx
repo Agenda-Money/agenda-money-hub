@@ -15,16 +15,6 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
-};
-
 export default function AgentProfile() {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -37,55 +27,33 @@ export default function AgentProfile() {
 
   const { data: dashboardStats } = useQuery({
     queryKey: ["agent-dashboard-stats", user?.email],
-    queryFn: async () => {
-      const res = await api.get("/api/agents/my-stats");
-      return res.data?.data || res.data;
-    },
+    queryFn: async () => { const res = await api.get("/api/agents/my-stats"); return res.data?.data || res.data; },
     enabled: !!user?.email,
   });
 
   const [formData, setFormData] = useState({
-    fullName: user?.fullName || "",
-    email: user?.email || "",
-    phoneNumber: user?.phoneNumber || "",
-    alternatePhone: user?.alternatePhone || "",
+    fullName: user?.fullName || "", email: user?.email || "",
+    phoneNumber: user?.phoneNumber || "", alternatePhone: user?.alternatePhone || "",
   });
 
-  const updateField = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const updateField = (field: string, value: string) => setFormData(prev => ({ ...prev, [field]: value }));
 
   const handleSave = async () => {
     setIsSaving(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
     setIsSaving(false);
     setIsEditing(false);
-    toast.success("Profile updated successfully");
+    toast.success("Profile updated");
   };
 
   const handleCancel = () => {
-    setFormData({
-      fullName: user?.fullName || "",
-      email: user?.email || "",
-      phoneNumber: user?.phoneNumber || "",
-      alternatePhone: user?.alternatePhone || "",
-    });
+    setFormData({ fullName: user?.fullName || "", email: user?.email || "", phoneNumber: user?.phoneNumber || "", alternatePhone: user?.alternatePhone || "" });
     setIsEditing(false);
   };
 
   const copyAgentCode = () => {
-    const agentCode = dashboardStats?.agentCode || user?.agentCode;
-    if (agentCode) {
-      navigator.clipboard.writeText(agentCode);
-      setCopied(true);
-      toast.success("Agent code copied!");
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const stats = {
-    totalSignups: dashboardStats?.metrics?.signUpsAllTime ?? 0,
-    activeLoans: dashboardStats?.portfolio?.loansActive ?? 0,
+    const code = dashboardStats?.agentCode || user?.agentCode;
+    if (code) { navigator.clipboard.writeText(code); setCopied(true); toast.success("Copied!"); setTimeout(() => setCopied(false), 2000); }
   };
 
   const themes = [
@@ -94,294 +62,159 @@ export default function AgentProfile() {
     { value: "system", label: "Auto", icon: Monitor },
   ];
 
+  const fieldClass = "h-11 transition-colors rounded-xl";
+
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="max-w-4xl mx-auto space-y-6"
-    >
-      {/* Header */}
-      <motion.div variants={itemVariants}>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Account Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your profile, preferences, and notifications</p>
-      </motion.div>
+    <div className="max-w-3xl mx-auto space-y-5">
+      <div>
+        <h1 className="text-xl font-bold text-foreground">Settings</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Profile, theme & notifications</p>
+      </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
-        <motion.div variants={itemVariants}>
-          <TabsList className="grid w-full grid-cols-3 h-12 p-1 bg-muted/50">
-            <TabsTrigger value="profile" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <User className="h-4 w-4 mr-2 hidden sm:inline" />
-              Profile
-            </TabsTrigger>
-            <TabsTrigger value="appearance" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <Sun className="h-4 w-4 mr-2 hidden sm:inline" />
-              Theme
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <Bell className="h-4 w-4 mr-2 hidden sm:inline" />
-              Alerts
-            </TabsTrigger>
-          </TabsList>
-        </motion.div>
+      <Tabs defaultValue="profile" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3 h-10 p-0.5 bg-muted/50">
+          <TabsTrigger value="profile" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">Profile</TabsTrigger>
+          <TabsTrigger value="appearance" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">Theme</TabsTrigger>
+          <TabsTrigger value="notifications" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">Alerts</TabsTrigger>
+        </TabsList>
 
-        {/* Profile Tab */}
-        <TabsContent value="profile" className="space-y-6">
-          {/* Agent Code Hero Card */}
-          <motion.div variants={itemVariants}>
-            <Card className="overflow-hidden border-0 shadow-lg">
-              <div className="h-2 bg-gradient-pink" />
-              <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-16 w-16 rounded-2xl bg-gradient-pink flex items-center justify-center shadow-pink">
-                      <Sparkles className="h-8 w-8 text-primary-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Your Agent Code</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-2xl sm:text-3xl font-bold font-mono tracking-wider text-foreground">
-                          {dashboardStats?.agentCode || user?.agentCode || "N/A"}
-                        </p>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8" 
-                          onClick={copyAgentCode}
-                        >
-                          {copied ? (
-                            <Check className="h-4 w-4 text-emerald-600" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">Share this with customers during onboarding</p>
-                    </div>
+        <TabsContent value="profile" className="space-y-4">
+          {/* Agent Code */}
+          <Card className="border shadow-sm overflow-hidden">
+            <div className="h-1 bg-gradient-pink" />
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-xl bg-gradient-pink flex items-center justify-center shadow-pink">
+                    <Sparkles className="h-5 w-5 text-primary-foreground" />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Performance Stats */}
-          <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card className="border-0 shadow-md">
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground">Total Signups</p>
-                <p className="text-3xl font-bold text-foreground mt-1">{stats.totalSignups}</p>
-                <p className="text-xs text-emerald-600 mt-1">Customers onboarded so far</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-md">
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground">Active Loans</p>
-                <p className="text-3xl font-bold text-foreground mt-1">{stats.activeLoans}</p>
-                <p className="text-xs text-muted-foreground mt-1">Current customer loans in progress</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Personal Information */}
-          <motion.div variants={itemVariants}>
-            <Card className="border-0 shadow-md">
-              <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle className="text-lg">Personal Information</CardTitle>
-                    <CardDescription>Your contact details and account info</CardDescription>
-                  </div>
-                  {!isEditing && (
-                    <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
-                      Edit Profile
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName" className="flex items-center gap-2 text-muted-foreground">
-                      <User className="h-4 w-4" />
-                      Full Name
-                    </Label>
-                    <Input
-                      id="fullName"
-                      value={formData.fullName}
-                      onChange={(e) => updateField("fullName", e.target.value)}
-                      disabled={!isEditing}
-                      className={cn(
-                        "h-12 transition-colors",
-                        isEditing ? "bg-background" : "bg-muted/50 border-transparent"
-                      )}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="flex items-center gap-2 text-muted-foreground">
-                      <Mail className="h-4 w-4" />
-                      Email Address
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => updateField("email", e.target.value)}
-                      disabled={!isEditing}
-                      className={cn(
-                        "h-12 transition-colors",
-                        isEditing ? "bg-background" : "bg-muted/50 border-transparent"
-                      )}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-4 w-4" />
-                      Primary Phone
-                    </Label>
-                    <Input
-                      id="phone"
-                      value={formData.phoneNumber}
-                      onChange={(e) => updateField("phoneNumber", e.target.value)}
-                      disabled={!isEditing}
-                      className={cn(
-                        "h-12 transition-colors",
-                        isEditing ? "bg-background" : "bg-muted/50 border-transparent"
-                      )}
-                      maxLength={10}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="altPhone" className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-4 w-4" />
-                      Alternate Phone
-                    </Label>
-                    <Input
-                      id="altPhone"
-                      value={formData.alternatePhone}
-                      onChange={(e) => updateField("alternatePhone", e.target.value)}
-                      disabled={!isEditing}
-                      placeholder="Optional"
-                      className={cn(
-                        "h-12 transition-colors",
-                        isEditing ? "bg-background" : "bg-muted/50 border-transparent"
-                      )}
-                      maxLength={10}
-                    />
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Agent Code</p>
+                    <p className="text-xl font-bold font-mono tracking-wider text-foreground">{dashboardStats?.agentCode || user?.agentCode || "N/A"}</p>
                   </div>
                 </div>
+                <Button variant="ghost" size="icon" onClick={copyAgentCode} className="h-9 w-9">
+                  {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
-                {isEditing && (
-                  <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
-                    <Button onClick={handleCancel} variant="outline" className="flex-1 sm:flex-none">
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSave} disabled={isSaving} className="flex-1 sm:flex-none bg-gradient-pink hover:opacity-90">
-                      {isSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                      Save Changes
-                    </Button>
-                  </div>
-                )}
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="border shadow-sm">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Total Signups</p>
+                <p className="text-2xl font-bold text-foreground mt-0.5">{dashboardStats?.metrics?.signUpsAllTime ?? 0}</p>
               </CardContent>
             </Card>
-          </motion.div>
+            <Card className="border shadow-sm">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Active Loans</p>
+                <p className="text-2xl font-bold text-foreground mt-0.5">{dashboardStats?.portfolio?.loansActive ?? 0}</p>
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Security Notice */}
-          <motion.div variants={itemVariants}>
-            <Alert className="bg-amber-500/10 border-amber-500/30">
-              <Shield className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800 dark:text-amber-200">
-                For security reasons, you will be automatically logged out after 15 minutes of inactivity.
-              </AlertDescription>
-            </Alert>
-          </motion.div>
+          {/* Personal Info */}
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-3 px-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Personal Info</CardTitle>
+                  <CardDescription className="text-xs">Contact details</CardDescription>
+                </div>
+                {!isEditing && <Button onClick={() => setIsEditing(true)} variant="outline" size="sm" className="h-8 text-xs rounded-lg">Edit</Button>}
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  { id: "fullName", label: "Full Name", icon: User, value: formData.fullName },
+                  { id: "email", label: "Email", icon: Mail, value: formData.email, type: "email" },
+                  { id: "phoneNumber", label: "Phone", icon: Phone, value: formData.phoneNumber },
+                  { id: "alternatePhone", label: "Alt Phone", icon: Phone, value: formData.alternatePhone },
+                ].map((f) => (
+                  <div key={f.id} className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground uppercase tracking-wider flex items-center gap-1"><f.icon className="h-3 w-3" />{f.label}</Label>
+                    <Input
+                      value={f.value}
+                      onChange={(e) => updateField(f.id, e.target.value)}
+                      disabled={!isEditing}
+                      type={f.type || "text"}
+                      className={cn(fieldClass, isEditing ? "bg-background" : "bg-muted/50 border-transparent")}
+                      maxLength={f.id.includes("Phone") ? 10 : undefined}
+                    />
+                  </div>
+                ))}
+              </div>
+              {isEditing && (
+                <div className="flex gap-2 pt-3 border-t">
+                  <Button variant="outline" onClick={handleCancel} className="flex-1 h-10 rounded-xl text-xs">Cancel</Button>
+                  <Button onClick={handleSave} disabled={isSaving} className="flex-1 h-10 rounded-xl bg-gradient-pink hover:opacity-90 text-xs">
+                    {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />} Save
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Alert className="bg-warning/5 border-warning/20">
+            <Shield className="h-3.5 w-3.5 text-warning" />
+            <AlertDescription className="text-[11px] text-foreground/70">Auto-logout after 15 minutes of inactivity.</AlertDescription>
+          </Alert>
         </TabsContent>
 
-        {/* Appearance Tab */}
-        <TabsContent value="appearance" className="space-y-6">
-          <motion.div variants={itemVariants}>
-            <Card className="border-0 shadow-md">
-              <CardHeader>
-                <CardTitle className="text-lg">Theme Preferences</CardTitle>
-                <CardDescription>Choose how the portal looks to you</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-3">
-                  {themes.map(({ value, label, icon: Icon }) => (
-                    <motion.button
-                      key={value}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setTheme(value)}
-                      className={cn(
-                        "flex flex-col items-center gap-3 p-4 sm:p-6 rounded-xl border-2 transition-all duration-200",
-                        theme === value
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-muted/30 hover:border-primary/50 text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <Icon className="h-6 w-6 sm:h-8 sm:w-8" />
-                      <span className="font-medium text-sm">{label}</span>
-                    </motion.button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+        <TabsContent value="appearance" className="space-y-4">
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-3 px-4">
+              <CardTitle className="text-base">Theme</CardTitle>
+              <CardDescription className="text-xs">Choose your preferred appearance</CardDescription>
+            </CardHeader>
+            <CardContent className="px-4">
+              <div className="grid grid-cols-3 gap-2">
+                {themes.map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => setTheme(value)}
+                    className={cn(
+                      "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-sm",
+                      theme === value ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 hover:border-primary/50 text-muted-foreground"
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="font-medium text-xs">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        {/* Notifications Tab */}
-        <TabsContent value="notifications" className="space-y-6">
-          <motion.div variants={itemVariants}>
-            <Card className="border-0 shadow-md">
-              <CardHeader>
-                <CardTitle className="text-lg">Notification Preferences</CardTitle>
-                <CardDescription>Control how you receive updates</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="notifications" className="font-medium">Push Notifications</Label>
-                    <p className="text-sm text-muted-foreground">Real-time alerts for new signups</p>
+        <TabsContent value="notifications" className="space-y-4">
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-3 px-4">
+              <CardTitle className="text-base">Notifications</CardTitle>
+              <CardDescription className="text-xs">Control your alerts</CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 space-y-3">
+              {[
+                { id: "notifications", label: "Push Notifications", desc: "Real-time alerts", checked: notificationsEnabled, onChange: setNotificationsEnabled },
+                { id: "email-notif", label: "Email Summaries", desc: "Daily digest", checked: emailNotifications, onChange: setEmailNotifications },
+                { id: "sound", label: "Sound Alerts", desc: "Audio on KYC verify", checked: soundEnabled, onChange: setSoundEnabled },
+              ].map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl">
+                  <div>
+                    <Label htmlFor={item.id} className="font-medium text-sm">{item.label}</Label>
+                    <p className="text-[10px] text-muted-foreground">{item.desc}</p>
                   </div>
-                  <Switch
-                    id="notifications"
-                    checked={notificationsEnabled}
-                    onCheckedChange={setNotificationsEnabled}
-                  />
+                  <Switch id={item.id} checked={item.checked} onCheckedChange={item.onChange} />
                 </div>
-
-                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="email-notif" className="font-medium">Email Summaries</Label>
-                    <p className="text-sm text-muted-foreground">Daily digest of your activity</p>
-                  </div>
-                  <Switch
-                    id="email-notif"
-                    checked={emailNotifications}
-                    onCheckedChange={setEmailNotifications}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="sound" className="font-medium">Sound Alerts</Label>
-                    <p className="text-sm text-muted-foreground">Audio cue when KYC is verified</p>
-                  </div>
-                  <Switch
-                    id="sound"
-                    checked={soundEnabled}
-                    onCheckedChange={setSoundEnabled}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+              ))}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
-    </motion.div>
+    </div>
   );
 }

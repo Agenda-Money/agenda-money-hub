@@ -1,40 +1,17 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Clock, Check, Loader2, AlertCircle, X } from "lucide-react";
-import { Info } from "lucide-react";
+import { Clock, Check, Loader2, AlertCircle, X, Info, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { motion } from "framer-motion";
 
 interface EndorsementRequest {
   loanId: string;
@@ -42,7 +19,7 @@ interface EndorsementRequest {
   applicantName: string;
   applicantPhone: string;
   amount: number;
-  tenureDays?: number; // Might not be returned by API anymore, but keep as optional
+  tenureDays?: number;
   status?: string;
   appliedAt: string;
   purpose: string;
@@ -52,234 +29,172 @@ export default function AgentEndorsementsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [processingId, setProcessingId] = useState<string | null>(null);
-  
-  // Reject Dialog State
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  // Fetch pending endorsements
   const { data: response, isLoading, isError } = useQuery({
     queryKey: ["agent-endorsements", user?.id],
-    queryFn: async () => {
-      const res = await api.get("/api/agents/pending-endorsements");
-      return res.data;
-    },
+    queryFn: async () => { const res = await api.get("/api/agents/pending-endorsements"); return res.data; },
     enabled: !!user?.id,
   });
 
   const endorsements: EndorsementRequest[] = response?.endorsements || response?.data || response?.loans || [];
 
-  // Approve Endorsement Mutation
   const approveMutation = useMutation({
-    mutationFn: async (loanId: string) => {
-      const res = await api.post(`/api/agents/endorsements/${loanId}/approve`);
-      return res.data;
-    },
-    onSuccess: () => {
-      toast.success("Loan endorsed successfully! Sent to Admin for review.");
-      queryClient.invalidateQueries({ queryKey: ["agent-endorsements"] });
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to endorse loan.");
-    },
-    onSettled: () => {
-      setProcessingId(null);
-    }
+    mutationFn: async (loanId: string) => { const res = await api.post(`/api/agents/endorsements/${loanId}/approve`); return res.data; },
+    onSuccess: () => { toast.success("Loan endorsed!"); queryClient.invalidateQueries({ queryKey: ["agent-endorsements"] }); },
+    onError: (error: any) => { toast.error(error.response?.data?.message || "Failed to endorse."); },
+    onSettled: () => setProcessingId(null),
   });
 
-  const handleApprove = (loanId: string) => {
-    setProcessingId(loanId);
-    approveMutation.mutate(loanId);
-  };
-
-  // Reject Endorsement Mutation
   const rejectMutation = useMutation({
     mutationFn: async ({ loanId, reason }: { loanId: string; reason?: string }) => {
-      const payload = reason ? { reason } : {};
-      const res = await api.post(`/api/agents/endorsements/${loanId}/reject`, payload);
+      const res = await api.post(`/api/agents/endorsements/${loanId}/reject`, reason ? { reason } : {});
       return res.data;
     },
-    onSuccess: () => {
-      toast.success("Loan endorsement rejected.");
-      setRejectId(null);
-      setRejectReason("");
-      queryClient.invalidateQueries({ queryKey: ["agent-endorsements"] });
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to reject loan.");
-    },
-    onSettled: () => {
-      setProcessingId(null);
-    }
+    onSuccess: () => { toast.success("Endorsement declined."); setRejectId(null); setRejectReason(""); queryClient.invalidateQueries({ queryKey: ["agent-endorsements"] }); },
+    onError: (error: any) => { toast.error(error.response?.data?.message || "Failed to reject."); },
+    onSettled: () => setProcessingId(null),
   });
-
-  const handleRejectConfirm = () => {
-    if (!rejectId) return;
-    setProcessingId(rejectId);
-    rejectMutation.mutate({ loanId: rejectId, reason: rejectReason.trim() });
-  };
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-8 w-48 bg-muted rounded-md" />
-        <div className="h-64 bg-muted rounded-xl" />
+      <div className="space-y-4">
+        <div className="h-7 w-48 bg-muted rounded-md animate-pulse" />
+        <div className="h-48 bg-muted rounded-xl animate-pulse" />
       </div>
     );
   }
 
   if (isError) {
     return (
-      <Card className="border-red-500/20 bg-red-500/5">
-        <CardContent className="flex flex-col items-center justify-center p-12 text-center text-red-500">
-          <AlertCircle className="h-10 w-10 mb-4" />
-          <p className="text-lg font-semibold">Failed to load endorsements</p>
-          <p className="text-sm opacity-80 mt-1">Please try refreshing the page.</p>
+      <Card className="border-destructive/20">
+        <CardContent className="flex flex-col items-center justify-center p-10 text-center text-destructive">
+          <AlertCircle className="h-8 w-8 mb-3" />
+          <p className="font-semibold">Failed to load endorsements</p>
+          <p className="text-sm opacity-80 mt-1">Please refresh the page.</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Clock className="w-6 h-6 text-amber-500" />
-            Pending Endorsements
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            Endorsements
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Review and endorse first-time loans for users in your network.
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">Review first-time loan applications</p>
         </div>
-        <Badge variant="secondary" className="px-3 py-1.5 text-sm font-medium bg-amber-500/10 text-amber-600 border-amber-500/20">
-          {endorsements.length} Pending requests
+        <Badge variant="secondary" className="text-xs bg-warning/10 text-warning border-warning/20">
+          {endorsements.length} Pending
         </Badge>
       </div>
 
-      <Card className="border-border shadow-sm overflow-hidden">
-        {endorsements.length === 0 ? (
-          <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-              <Check className="h-8 w-8 text-muted-foreground opacity-50" />
+      {/* Cards */}
+      {endorsements.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center p-10 text-center">
+            <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mb-3">
+              <Check className="h-7 w-7 text-muted-foreground/50" />
             </div>
-            <p className="text-lg font-semibold text-foreground">All Caught Up</p>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              You have no pending loan endorsements to review right now. When users use your Node Code to apply for their first loan, they will appear here.
+            <p className="font-semibold text-foreground">All Caught Up</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+              No pending endorsements. When customers apply using your code, they'll appear here.
             </p>
           </CardContent>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="font-semibold text-muted-foreground">Borrower</TableHead>
-                  <TableHead className="font-semibold text-muted-foreground">Contact</TableHead>
-                  <TableHead className="font-semibold text-muted-foreground">Requested Amount</TableHead>
-                  <TableHead className="font-semibold text-muted-foreground">Purpose</TableHead>
-                  <TableHead className="font-semibold text-muted-foreground">Date Applied</TableHead>
-                  <TableHead className="text-right font-semibold text-muted-foreground">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {endorsements.map((req) => (
-                  <TableRow key={req.loanId} className="hover:bg-muted/30">
-                    <TableCell className="font-medium">
-                      {req.applicantName || "Unknown"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {req.applicantPhone || "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-bold text-lg">₵{Number(req.amount).toLocaleString()}</span>
-                    </TableCell>
-                    <TableCell>
-                      {req.purpose || "N/A"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {req.appliedAt ? format(new Date(req.appliedAt), "dd MMM yyyy, h:mm a") : "N/A"}
-                    </TableCell>
-                    <TableCell className="text-right flex items-center justify-end gap-2">
-                      <Button 
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {endorsements.map((req, index) => (
+            <motion.div
+              key={req.loanId}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <Card className="border shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    {/* Info */}
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
+                        {req.applicantName?.charAt(0) || "?"}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm text-foreground truncate">{req.applicantName || "Unknown"}</p>
+                        <p className="text-xs text-muted-foreground">{req.applicantPhone || "N/A"}</p>
+                        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                          <span className="text-lg font-bold text-foreground">₵{Number(req.amount).toLocaleString()}</span>
+                          <Badge variant="outline" className="text-[10px]">{req.purpose || "N/A"}</Badge>
+                          <span className="text-[10px] text-muted-foreground">
+                            {req.appliedAt ? format(new Date(req.appliedAt), "dd MMM yyyy") : "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                            setRejectId(req.loanId);
-                            setRejectReason("");
-                        }}
+                        onClick={() => { setRejectId(req.loanId); setRejectReason(""); }}
                         disabled={processingId === req.loanId}
-                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                        title="Decline"
+                        className="h-9 px-3 border-destructive/20 text-destructive hover:bg-destructive/5 rounded-lg"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3.5 w-3.5 mr-1" /> Decline
                       </Button>
-                      <Button 
+                      <Button
                         size="sm"
-                        onClick={() => handleApprove(req.loanId)}
+                        onClick={() => { setProcessingId(req.loanId); approveMutation.mutate(req.loanId); }}
                         disabled={processingId === req.loanId}
-                        className="bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-200"
-                        title="Approve"
+                        className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
                       >
-                        {processingId === req.loanId && !rejectId ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Check className="h-4 w-4" />
-                        )}
+                        {processingId === req.loanId && !rejectId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Check className="h-3.5 w-3.5 mr-1" /> Endorse</>}
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </Card>
-      
-      <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex items-start gap-4 text-blue-800">
-        <Info className="w-6 h-6 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <p className="font-semibold">Why do I need to endorse these?</p>
-          <p className="text-sm opacity-90 max-w-3xl leading-relaxed">
-            As an Agent, you are vouching for the trustworthiness of your network. First-time borrowers must be endorsed by you before the admin will review their application. Once you endorse their first loan, future loans will be automatically sent to the admin. Note that you are taking partial responsibility for guiding their repayment.
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Info Banner */}
+      <div className="bg-primary/5 border border-primary/10 rounded-xl p-3.5 flex items-start gap-3">
+        <Info className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
+        <div className="space-y-0.5">
+          <p className="font-semibold text-xs text-foreground">Why endorse?</p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            You're vouching for first-time borrowers. Once endorsed, the admin reviews the application. Future loans skip this step.
           </p>
         </div>
       </div>
 
       {/* Reject Dialog */}
       <Dialog open={!!rejectId} onOpenChange={(open) => !open && setRejectId(null)}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="sm:max-w-sm rounded-xl">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Decline Endorsement</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to decline this loan endorsement? 
-            </DialogDescription>
+            <DialogTitle className="text-lg">Decline Endorsement</DialogTitle>
+            <DialogDescription className="text-xs">This will reject the loan application.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="reason">Reason (Optional)</Label>
-              <Input
-                id="reason"
-                placeholder="e.g. I do not know this person"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                className="h-12 border-gray-200 focus-visible:ring-red-500 rounded-xl"
-              />
-            </div>
+          <div className="space-y-2 py-3">
+            <Label className="text-xs text-muted-foreground">Reason (Optional)</Label>
+            <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="e.g. I don't know this person" className="h-11 rounded-xl" />
           </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2 pb-2">
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setRejectId(null)} className="h-10 rounded-xl">Cancel</Button>
             <Button
-              variant="outline"
-              onClick={() => setRejectId(null)}
-              className="h-12 w-full sm:w-auto rounded-xl border-gray-200"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRejectConfirm}
+              onClick={() => { if (rejectId) { setProcessingId(rejectId); rejectMutation.mutate({ loanId: rejectId, reason: rejectReason.trim() }); } }}
               disabled={!!processingId}
-              className="h-12 w-full sm:w-auto rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-200"
+              className="h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
-              {processingId ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Confirm Decline"}
+              {processingId ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm Decline"}
             </Button>
           </DialogFooter>
         </DialogContent>
