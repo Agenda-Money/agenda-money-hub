@@ -331,10 +331,6 @@ export default function LoansPage() {
 
     let computedStatus = l.status?.toUpperCase() ?? "PENDING";
     
-    if (import.meta.env.DEV) {
-
-    }
-
     // Dynamically check dates since backend cron may not have run
     if (computedStatus === "ACTIVE" && (l.dueDate || l.repaymentDate)) {
       const dateString = l.dueDate || l.repaymentDate;
@@ -343,19 +339,12 @@ export default function LoansPage() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      if (import.meta.env.DEV) {
-
-      }
-
       if (!isNaN(due.getTime())) {
         if (due.getTime() < today.getTime()) {
           computedStatus = "OVERDUE";
         } else if (due.getTime() === today.getTime()) {
           computedStatus = "DUE TODAY";
         }
-      }
-      if (import.meta.env.DEV) {
-
       }
     }
 

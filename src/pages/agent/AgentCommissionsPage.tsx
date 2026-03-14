@@ -355,7 +355,7 @@ export default function AgentCommissionsPage() {
             <Card className="flex flex-col justify-center">
               <CardContent className="pt-6 space-y-4">
                 <div>
-                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Earned</p>
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Net Earnings</p>
                    {isSummaryLoading ? <Skeleton className="h-6 w-24" /> : <p className="text-xl font-bold text-gray-900">GHS {toNumber(summary?.netEarnings).toFixed(2)}</p>}
                 </div>
                 <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-4">

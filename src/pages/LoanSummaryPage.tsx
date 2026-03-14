@@ -87,9 +87,6 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
             setIsSuccess(true);
         } else {
             // Internal logic (Fallback)
-            if (process.env.NODE_ENV !== "production") {
-
-            }
             const payload = {
                 amount: loanData.amount,
                 tenureDays: loanData.tenure,

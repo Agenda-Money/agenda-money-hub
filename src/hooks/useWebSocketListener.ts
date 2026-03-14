@@ -13,7 +13,7 @@ export interface LoanStatusData {
   loanReference?: string;
 }
 
-export function useWebSocketListener(userMsisdn?: string, isAdmin: boolean = false) {
+export function useWebSocketListener(isAdmin: boolean = false) {
   const { socket } = useSocketContext();
   
   const [latestLoanEvent, setLatestLoanEvent] = useState<LoanStatusData | null>(null);

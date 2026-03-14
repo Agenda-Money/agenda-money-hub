@@ -11,7 +11,7 @@ interface NetworkStyles {
   accentColor: string;
 }
 
-export const getNetwork = (msisdn: string | number): NetworkType => {
+export const getNetwork = (msisdn: string | number | undefined | null): NetworkType => {
   if (!msisdn) return 'Unknown';
   
   const cleanNum = String(msisdn).replace(/\D/g, '');

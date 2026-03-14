@@ -114,7 +114,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
   }
 
   // Real-time WebSocket Logic
-  const { latestLoanEvent, nodeEndorsedEvent, kycEvent } = useWebSocketListener(applicant?.msisdn);
+  const { latestLoanEvent, nodeEndorsedEvent, kycEvent } = useWebSocketListener();
   
   // Real-time overrides
   let cardColorOverride = undefined;

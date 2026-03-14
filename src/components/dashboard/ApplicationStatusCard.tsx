@@ -21,7 +21,7 @@ interface Step {
 }
 
 export const ApplicationStatusCard: React.FC<ApplicationStatusCardProps> = ({ loanId, userMsisdn, initialStatus, hideTitle, className }) => {
-  const { latestLoanEvent, kycEvent, nodeEndorsedEvent } = useWebSocketListener(userMsisdn);
+  const { latestLoanEvent, kycEvent, nodeEndorsedEvent } = useWebSocketListener();
 
   const [steps, setSteps] = useState<Step[]>([
     {

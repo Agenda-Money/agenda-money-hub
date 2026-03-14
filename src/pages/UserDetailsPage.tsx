@@ -47,9 +47,6 @@ export default function UserDetailsPage() {
     queryKey: ["user", id],
     queryFn: async () => {
       const res = await api.get(`/api/admin/users/profile/${id}`);
-      if (import.meta.env.DEV) {
-
-      }
       return res.data;
     },
     enabled: !!id,
