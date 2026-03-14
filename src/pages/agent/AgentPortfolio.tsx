@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface OnboardedUser {
   id: string;
@@ -23,8 +17,8 @@ interface OnboardedUser {
   ghanaCardNumber: string;
   phoneNumber: string;
   region: string;
-  kycStatus: string; // The API returns lowercase string, could be "verified", "pending", etc.
-  loanStatus: string; // The API returns "none" or other statuses
+  kycStatus: string;
+  loanStatus: string;
   loanAmount?: number;
   onboardedDate: string;
   lastPayment?: string;
@@ -32,89 +26,38 @@ interface OnboardedUser {
 
 interface PortfolioResponse {
   users: OnboardedUser[];
-  pagination: {
-    total: number;
-    page: number;
-    pages: number;
-  };
+  pagination: { total: number; page: number; pages: number };
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
-};
-
 const getKycBadge = (status: string) => {
-  switch (status) {
-    case "verified":
-      return (
-        <Badge className="bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          Verified
-        </Badge>
-      );
-    case "pending":
-      return (
-        <Badge variant="outline" className="text-amber-600 border-amber-300 dark:text-amber-400">
-          <Clock className="h-3 w-3 mr-1" />
-          Pending
-        </Badge>
-      );
-    case "mismatch":
-      return (
-        <Badge className="bg-red-500/10 text-red-700 border-red-500/30 dark:text-red-400">
-          <AlertCircle className="h-3 w-3 mr-1" />
-          Mismatch
-        </Badge>
-      );
-    default:
-      return <Badge variant="secondary">Unknown</Badge>;
-  }
+  const map: Record<string, { icon: React.ElementType; label: string; cls: string }> = {
+    verified: { icon: CheckCircle2, label: "Verified", cls: "border-emerald-500/30 text-emerald-600 bg-emerald-500/5" },
+    pending: { icon: Clock, label: "Pending", cls: "border-warning/30 text-warning bg-warning/5" },
+    mismatch: { icon: AlertCircle, label: "Mismatch", cls: "border-destructive/30 text-destructive bg-destructive/5" },
+  };
+  const config = map[status] || { icon: Clock, label: "Unknown", cls: "" };
+  const Icon = config.icon;
+  return (
+    <Badge variant="outline" className={cn("text-[10px] font-semibold", config.cls)}>
+      <Icon className="h-3 w-3 mr-1" />{config.label}
+    </Badge>
+  );
 };
 
-const getLoanStatusBadge = (status: string, amount?: number) => {
-  const baseClasses = "text-xs font-medium";
-  switch (status) {
-    case "active":
-      return (
-        <div className="text-right">
-          <p className="font-bold text-foreground">₵{amount || 0}</p>
-          <Badge className={cn(baseClasses, "bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-400")}>
-            Active
-          </Badge>
-        </div>
-      );
-    case "repaid":
-      return (
-        <div className="text-right">
-          <p className="font-bold text-foreground">₵{amount || 0}</p>
-          <Badge className={cn(baseClasses, "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400")}>
-            Closed
-          </Badge>
-        </div>
-      );
-    case "overdue":
-      return (
-        <div className="text-right">
-          <p className="font-bold text-foreground">₵{amount || 0}</p>
-          <Badge className={cn(baseClasses, "bg-red-500/10 text-red-700 border-red-500/30 dark:text-red-400")}>
-            Overdue
-          </Badge>
-        </div>
-      );
-    default:
-      return (
-        <div className="text-right">
-          <p className="text-sm text-muted-foreground">—</p>
-          <Badge variant="secondary" className={baseClasses}>No Loan</Badge>
-        </div>
-      );
-  }
+const getLoanBadge = (status: string, amount?: number) => {
+  const map: Record<string, { label: string; cls: string }> = {
+    active: { label: "Active", cls: "border-primary/30 text-primary bg-primary/5" },
+    repaid: { label: "Closed", cls: "border-emerald-500/30 text-emerald-600 bg-emerald-500/5" },
+    overdue: { label: "Overdue", cls: "border-destructive/30 text-destructive bg-destructive/5" },
+  };
+  const config = map[status];
+  if (!config) return <span className="text-xs text-muted-foreground">—</span>;
+  return (
+    <div className="text-right">
+      <p className="font-bold text-sm text-foreground">₵{amount || 0}</p>
+      <Badge variant="outline" className={cn("text-[10px]", config.cls)}>{config.label}</Badge>
+    </div>
+  );
 };
 
 export default function AgentPortfolio() {
@@ -126,308 +69,159 @@ export default function AgentPortfolio() {
   const { data, isLoading, isError, error } = useQuery<PortfolioResponse>({
     queryKey: ["agent-portfolio", user?.email, page],
     queryFn: async () => {
-      try {
-        const res = await api.get("/api/agents/portfolio", {
-          params: { page, limit: 10 }
-        });
-        
-
-
-        let rawDirectory: Record<string, unknown>[] = [];
-        let pagination = { total: 0, page: 1, pages: 1 };
-
-        // Robust parsing:
-        // Case 1: Standard response { success: true, data: { directory: [], pagination: {} } }
-        if (res.data?.data?.directory) {
-          rawDirectory = res.data.data.directory;
-          pagination = res.data.data.pagination || pagination;
-        }
-        // Case 2: Direct response { directory: [], pagination: {} }
-        else if (res.data?.directory) {
-          rawDirectory = res.data.directory;
-          pagination = res.data.pagination || pagination;
-        }
-        // Case 3: Old/Array response { data: [] } or just []
-        else if (Array.isArray(res.data?.data)) {
-          rawDirectory = res.data.data;
-          pagination = { total: rawDirectory.length, page: 1, pages: 1 };
-        }
-        
-        const mappedUsers = rawDirectory.map((u) => ({
-          id: String(u._id ?? u.id ?? ""),
-          fullName: u.fullName as string,
-          ghanaCardNumber: u.ghanaCardNumber as string,
-          phoneNumber: u.phoneNumber as string,
-          region: u.region as string,
+      const res = await api.get("/api/agents/portfolio", { params: { page, limit: 10 } });
+      let rawDirectory: Record<string, unknown>[] = [];
+      let pagination = { total: 0, page: 1, pages: 1 };
+      if (res.data?.data?.directory) { rawDirectory = res.data.data.directory; pagination = res.data.data.pagination || pagination; }
+      else if (res.data?.directory) { rawDirectory = res.data.directory; pagination = res.data.pagination || pagination; }
+      else if (Array.isArray(res.data?.data)) { rawDirectory = res.data.data; pagination = { total: rawDirectory.length, page: 1, pages: 1 }; }
+      return {
+        users: rawDirectory.map((u) => ({
+          id: String(u._id ?? u.id ?? ""), fullName: u.fullName as string, ghanaCardNumber: u.ghanaCardNumber as string,
+          phoneNumber: u.phoneNumber as string, region: u.region as string,
           kycStatus: (u.kycStatus as string)?.toLowerCase() || "pending",
           loanStatus: (u.loanStatus as string)?.toLowerCase() || "none",
           loanAmount: u.loanAmount as number | undefined,
-          onboardedDate: u.onboardedDate as string,
-          lastPayment: u.lastPayment as string | undefined,
-        }));
-
-        return { users: mappedUsers, pagination };
-      } catch (err: any) {
-        console.error("Portfolio API Error Full Object:", err);
-        console.error("Portfolio API Error Response Data:", err.response?.data);
-        console.error("Portfolio API Error Status:", err.response?.status);
-        throw err;
-      }
+          onboardedDate: u.onboardedDate as string, lastPayment: u.lastPayment as string | undefined,
+        })),
+        pagination,
+      };
     },
     enabled: !!user,
   });
 
   const { data: myStatsData } = useQuery({
     queryKey: ["agent-my-stats", user?.email],
-    queryFn: async () => {
-      const res = await api.get("/api/agents/my-stats");
-      return res.data?.data || res.data;
-    },
+    queryFn: async () => { const res = await api.get("/api/agents/my-stats"); return res.data?.data || res.data; },
     enabled: !!user?.email,
   });
 
   const { users = [], pagination = { total: 0, page: 1, pages: 1 } } = data || {};
-
-
   const filteredUsers = users.filter(u => {
-    const matchesSearch = 
-      u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.ghanaCardNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.phoneNumber.includes(searchTerm);
-    
-    const matchesFilter = filterStatus === "all" || u.kycStatus === filterStatus;
-    
-    return matchesSearch && matchesFilter;
+    const matchesSearch = u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || u.phoneNumber.includes(searchTerm);
+    return matchesSearch && (filterStatus === "all" || u.kycStatus === filterStatus);
   });
 
-  const globalMetrics = myStatsData?.metrics || { signUpsAllTime: 0, signUpsThisMonth: 0 };
-  const globalPortfolio = myStatsData?.portfolio || { loansActive: 0, loansClosed: 0, loansOverdue: 0 };
-
-  // Calculate KYC Verified roughly or rely on local array if global isn't provided. 
-  // Given only general signup counts, we can fall back to the total signups.
-  // Assuming 'verified' might not be in my-stats explicitly based on the user prompt.
-  // We'll map "KYC Verified" to a locally filtered number or just leave it as is representing the local page.
-  // Actually, to make "Total Customers", "Active Loans", "Overdue" globally accurate:
-  const stats = {
-    total: globalMetrics.signUpsAllTime,
-    verified: users.filter(u => u.kycStatus === "verified").length, // still local page bound unless backend provides global KYC count
-    activeLoans: globalPortfolio.loansActive,
-    overdue: globalPortfolio.loansOverdue,
-  };
+  const globalMetrics = myStatsData?.metrics || { signUpsAllTime: 0 };
+  const globalPortfolio = myStatsData?.portfolio || { loansActive: 0, loansOverdue: 0 };
 
   const statCards = [
-    { label: "Total Customers", value: stats.total, icon: User, color: "from-blue-500 to-blue-600" },
-    { label: "KYC Verified", value: stats.verified, icon: CheckCircle2, color: "from-emerald-500 to-emerald-600" },
-    { label: "Active Loans", value: stats.activeLoans, icon: DollarSign, color: "from-amber-500 to-orange-500" },
-    { label: "Overdue", value: stats.overdue, icon: AlertCircle, color: "from-red-500 to-red-600" },
+    { label: "Total", value: globalMetrics.signUpsAllTime, icon: User, accent: "text-primary" },
+    { label: "Verified", value: users.filter(u => u.kycStatus === "verified").length, icon: CheckCircle2, accent: "text-emerald-600" },
+    { label: "Active Loans", value: globalPortfolio.loansActive, icon: DollarSign, accent: "text-warning" },
+    { label: "Overdue", value: globalPortfolio.loansOverdue, icon: AlertCircle, accent: "text-destructive" },
   ];
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-6"
-    >
-      {/* Header */}
-      <motion.div variants={itemVariants}>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Portfolio</h1>
-        <p className="text-muted-foreground mt-1">Track all customers you've onboarded</p>
-      </motion.div>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-xl font-bold text-foreground">My Portfolio</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Track all onboarded customers</p>
+      </div>
 
-      {/* Stats Grid */}
-      <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-2 sm:gap-3">
         {statCards.map((stat) => (
-          <Card key={stat.label} className="border-0 shadow-md overflow-hidden">
-            <div className={cn("h-1 bg-gradient-to-r", stat.color)} />
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-xl sm:text-2xl font-bold text-foreground mt-1">{stat.value}</p>
-                </div>
-                <div className={cn("p-2 sm:p-2.5 rounded-xl bg-gradient-to-br text-white", stat.color)}>
-                  <stat.icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                </div>
-              </div>
+          <Card key={stat.label} className="border shadow-sm">
+            <CardContent className="p-3 text-center">
+              <stat.icon className={cn("h-4 w-4 mx-auto mb-1", stat.accent)} />
+              <p className="text-lg font-bold text-foreground">{stat.value}</p>
+              <p className="text-[10px] text-muted-foreground">{stat.label}</p>
             </CardContent>
           </Card>
         ))}
-      </motion.div>
+      </div>
 
-      {/* Search & Filters */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg">Customer Directory</CardTitle>
-                <CardDescription>All customers under your agent code</CardDescription>
+      {/* Directory */}
+      <Card>
+        <CardHeader className="pb-3 px-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">Customer Directory</CardTitle>
+              <CardDescription className="text-xs">All customers under your code</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 sm:w-[220px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search..." className="pl-8 h-9 bg-muted/50 border-0 text-sm" />
               </div>
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1 sm:w-[280px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name or phone..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-muted/50 border-0"
-                  />
-                </div>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-[130px] bg-muted/50 border-0">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="verified">Verified</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="mismatch">Mismatch</SelectItem>
-                  </SelectContent>
-                </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-[110px] h-9 bg-muted/50 border-0 text-xs">
+                  <Filter className="h-3 w-3 mr-1" /><SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="verified">Verified</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="mismatch">Mismatch</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="px-4">
+          {isError ? (
+            <div className="p-6 text-center text-destructive bg-destructive/5 rounded-xl">
+              <p className="font-semibold text-sm">Failed to load</p>
+              <p className="text-xs mt-1">{(error as Error)?.message}</p>
+            </div>
+          ) : isLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-10">
+              <User className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">{searchTerm ? "No results" : "No customers yet"}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredUsers.map((customer, index) => (
+                <motion.div
+                  key={customer.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  className="bg-muted/30 hover:bg-muted/50 rounded-xl p-3 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-xs shrink-0">
+                        {customer.fullName.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm text-foreground truncate">{customer.fullName}</p>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-0.5"><Phone className="h-2.5 w-2.5" />{customer.phoneNumber}</span>
+                          <span className="hidden sm:flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{customer.region}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {getKycBadge(customer.kycStatus)}
+                      <div className="hidden sm:block">{getLoanBadge(customer.loanStatus, customer.loanAmount)}</div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {pagination.pages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t mt-4">
+              <span className="text-xs text-muted-foreground">Page {pagination.page}/{pagination.pages}</span>
+              <div className="flex gap-1.5">
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={pagination.page <= 1} className="h-8">
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(pagination.pages, p + 1))} disabled={pagination.page >= pagination.pages} className="h-8">
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            {isError ? (
-              <div className="p-8 text-center text-red-500 bg-red-50 rounded-xl border border-red-100">
-                <p className="font-semibold">Failed to load portfolio</p>
-                <p className="text-sm mt-1 text-red-400">{(error as Error)?.message || "Something went wrong"}</p>
-              </div>
-            ) : isLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />
-                ))}
-              </div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="text-center py-12">
-                <User className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-                <p className="text-muted-foreground">
-                  {searchTerm ? "No customers found matching your search" : "No onboarded customers yet"}
-                </p>
-              </div>
-            ) : (
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="space-y-3"
-              >
-                {/* Desktop Table Header */}
-                <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  <div className="col-span-3">Customer</div>
-                  <div className="col-span-2">Phone</div>
-                  <div className="col-span-2">Region</div>
-                  <div className="col-span-2">KYC Status</div>
-                  <div className="col-span-2 text-right">Loan</div>
-                  <div className="col-span-1 text-right">Date</div>
-                </div>
-
-                {/* Customer Cards/Rows */}
-                {filteredUsers.map((customer, index) => (
-                  <motion.div
-                    key={customer.id}
-                    variants={itemVariants}
-                    custom={index}
-                    whileHover={{ scale: 1.01 }}
-                    className="bg-muted/30 hover:bg-muted/50 rounded-xl p-4 transition-all cursor-pointer"
-                  >
-                    {/* Mobile Layout */}
-                    <div className="md:hidden space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-sm">
-                            {customer.fullName.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-foreground">{customer.fullName}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{customer.ghanaCardNumber}</p>
-                          </div>
-                        </div>
-                        {getKycBadge(customer.kycStatus)}
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-4 text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" />
-                            {customer.phoneNumber}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {customer.region}
-                          </span>
-                        </div>
-                        {getLoanStatusBadge(customer.loanStatus, customer.loanAmount)}
-                      </div>
-                    </div>
-
-                    {/* Desktop Layout */}
-                    <div className="hidden md:grid grid-cols-12 gap-4 items-center">
-                      <div className="col-span-3 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
-                          {customer.fullName.charAt(0)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-foreground truncate">{customer.fullName}</p>
-                          <p className="text-xs text-muted-foreground font-mono truncate">{customer.ghanaCardNumber}</p>
-                        </div>
-                      </div>
-                      <div className="col-span-2 text-sm text-muted-foreground">
-                        {customer.phoneNumber}
-                      </div>
-                      <div className="col-span-2 text-sm text-muted-foreground">
-                        {customer.region}
-                      </div>
-                      <div className="col-span-2">
-                        {getKycBadge(customer.kycStatus)}
-                      </div>
-                      <div className="col-span-2">
-                        {getLoanStatusBadge(customer.loanStatus, customer.loanAmount)}
-                      </div>
-                      <div className="col-span-1 text-right text-xs text-muted-foreground">
-                        {new Date(customer.onboardedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-
-            {/* Pagination Controls */}
-            {pagination.pages > 1 && (
-              <div className="flex items-center justify-between pt-6 border-t mt-6">
-                <div className="text-sm text-muted-foreground">
-                  Page <span className="font-medium text-foreground">{pagination.page}</span> of{" "}
-                  <span className="font-medium text-foreground">{pagination.pages}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={pagination.page <= 1}
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
-                    disabled={pagination.page >= pagination.pages}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-          </CardContent>
-        </Card>
-      </motion.div>
-    </motion.div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
