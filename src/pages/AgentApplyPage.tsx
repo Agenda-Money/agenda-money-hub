@@ -615,7 +615,7 @@ export default function AgentApplyPage() {
                             if (val.length > 9) val = val.slice(0, 9);
                             setMsisdnInput(val);
                           }}
-                          placeholder="50 XXX XXXX"
+                          placeholder="24 XXX XXXX"
                           className="flex-1 bg-transparent border-0 h-full text-xl font-mono font-medium tracking-wider text-gray-800 focus:ring-0 focus:outline-none placeholder:text-gray-400 ml-2"
                         />
                       </div>
