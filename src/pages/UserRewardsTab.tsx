@@ -10,6 +10,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useSocket } from "@/hooks/useSocket";
 import { formatDistanceToNow } from "date-fns";
 
+import { cn } from "@/lib/utils";
+
+const toNumber = (value: unknown) => {
+  let normalized = 0;
+  if (typeof value === "number") {
+    normalized = value;
+  } else if (typeof value === "string") {
+    normalized = Number.parseFloat(value);
+  }
+  return Number.isFinite(normalized) ? normalized : 0;
+};
+
 interface UserRewardsTabProps {
   onBack: () => void;
   userMsisdn?: string;
@@ -19,6 +31,7 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
+  const [showPendingPayoutErrorModal, setShowPendingPayoutErrorModal] = useState(false);
   const [showFullHistory, setShowFullHistory] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
   const [allHistory, setAllHistory] = useState<any[]>([]);
@@ -59,6 +72,14 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
     }
   }, [historyData, historyPage]);
 
+  const hasPendingPayout = allHistory.some((item: any) => {
+    const type = (item.type || item.action || "").toUpperCase();
+    const status = (item.status || "").toUpperCase();
+    const isPayoutType = ["PAYOUT", "CASH_OUT", "REWARD"].includes(type);
+    const isPendingStatus = ["REQUESTED", "PENDING", "APPROVED", "PROCESSING"].includes(status);
+    return isPayoutType && isPendingStatus;
+  });
+
   const requestPayoutMutation = useMutation({
     mutationFn: async () => {
       const res = await requestRewardPayout();
@@ -73,11 +94,17 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
       queryClient.invalidateQueries({ queryKey: ["userRewards"] });
     },
     onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: "Request Failed",
-        description: error?.response?.data?.message || "Could not process payout request.",
-      });
+      const errorMessage = error?.response?.data?.message || "";
+      if (errorMessage.toLowerCase().includes("pending")) {
+        setShowPendingPayoutErrorModal(true);
+        setIsPayoutModalOpen(false);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Request Failed",
+          description: errorMessage || "Could not process payout request.",
+        });
+      }
     }
   });
 
@@ -93,38 +120,54 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
   };
 
   const statusColors = {
-     PENDING: "text-amber-600 bg-amber-50",
-     ACCUMULATED: "text-blue-600 bg-blue-50",
-     APPROVED_FOR_PAYOUT: "text-orange-600 bg-orange-50",
-     PAID: "text-green-600 bg-green-50"
+     REQUESTED: "text-amber-600 bg-amber-50",
+     APPROVED: "text-blue-600 bg-blue-50",
+     PAID: "text-green-600 bg-green-50",
+     REJECTED: "text-red-600 bg-red-50",
+     PENDING: "text-gray-400 bg-gray-50",
+     PROCESSING: "text-blue-600 bg-blue-50"
   };
 
-  const renderRewardItem = (reward: any, i: number) => (
-    <div key={reward.id || i} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-       <div className="flex items-center gap-3">
-          <div className={"w-10 h-10 rounded-full flex items-center justify-center " + (
-             (reward.event === 'signed up' || reward.action === 'signed up') ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
-          )}>
-             {(reward.event === 'signed up' || reward.action === 'signed up') ? <Gift className="w-5 h-5" /> : <Download className="w-5 h-5" />}
-          </div>
-          <div>
-             <p className="text-sm font-bold text-gray-900">
-                {reward.referralName || "Someone"} {reward.event || reward.action}
-             </p>
-             <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs font-semibold text-green-600">+GHS {reward.amount?.toFixed(2)}</span>
-                <span className="text-gray-300">•</span>
-                <span className="text-xs font-medium text-gray-400">
-                   {formatDistanceToNow(new Date(reward.date), { addSuffix: true })}
-                </span>
-             </div>
-          </div>
-       </div>
-       <div className={"px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider " + (statusColors[reward.status as keyof typeof statusColors] || statusColors.PENDING)}>
-          {reward.status === "ACCUMULATED" ? "ACCUM" : reward.status.replace(/_/g, " ")}
-       </div>
-    </div>
-  );
+  const renderRewardItem = (reward: any, i: number) => {
+    const isSignup = reward.event === 'signed up' || reward.action === 'signed up' || reward.type === 'SIGNUP';
+    const amount = toNumber(reward.amount);
+    
+    return (
+      <div key={reward.id || i} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+         <div className="flex items-center gap-3">
+            <div className={cn(
+               "w-10 h-10 rounded-full flex items-center justify-center",
+               isSignup ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"
+            )}>
+               {isSignup ? <Gift className="w-5 h-5" /> : <Download className="w-5 h-5" />}
+            </div>
+            <div>
+               <p className="text-sm font-bold text-gray-900">
+                  {reward.userName || reward.clientName || reward.referralName || "Someone"} {isSignup ? "signed up" : "repaid loan"}
+               </p>
+               <div className="flex items-center gap-2 mt-0.5">
+                  <span className={cn(
+                    "text-xs font-semibold",
+                    amount > 0 ? "text-green-600" : "text-gray-400"
+                  )}>
+                    {amount > 0 ? `+GHS ${amount.toFixed(2)}` : "Pending Disbursement"}
+                  </span>
+                  <span className="text-gray-300">•</span>
+                  <span className="text-xs font-medium text-gray-400">
+                     {formatDistanceToNow(new Date(reward.date || reward.createdAt), { addSuffix: true })}
+                  </span>
+               </div>
+            </div>
+         </div>
+         <div className={cn(
+            "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider",
+            statusColors[reward.status as keyof typeof statusColors] || statusColors.PENDING
+         )}>
+            {reward.status?.replace(/_/g, " ") || "PENDING"}
+         </div>
+      </div>
+    );
+  };
 
   if (isSummaryLoading && !showFullHistory) {
     return (
@@ -178,14 +221,31 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
                    </div>
                 </div>
 
-                <Button 
-                   onClick={() => setIsPayoutModalOpen(true)}
-                   disabled={!rewardsData?.availableNow || rewardsData.availableNow <= 0 || requestPayoutMutation.isPending}
-                   className="w-full h-14 rounded-2xl bg-[#EC1B84] text-white hover:bg-[#D01773] font-bold shadow-lg shadow-pink-200/50"
-                >
-                   <Wallet className="w-5 h-5 mr-2" />
-                   {requestPayoutMutation.isPending ? "Processing..." : "Request Payout"}
-                </Button>
+                <div className="space-y-4 mb-6">
+                    {hasPendingPayout && (
+                      <div className="bg-pink-50 border border-pink-100 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in zoom-in duration-500 shadow-sm shadow-pink-100/30">
+                         <Clock className="w-5 h-5 text-[#EC1B84] shrink-0 mt-0.5" />
+                         <div className="text-[11px] text-pink-900 leading-relaxed">
+                            <p className="font-bold text-sm text-pink-950 mb-1">Wait, we're on it!</p>
+                            Your previous payout request is still pending. We're working as fast as we can to get your cash to you!
+                         </div>
+                      </div>
+                    )}
+
+                    <Button 
+                       onClick={() => setIsPayoutModalOpen(true)}
+                       disabled={hasPendingPayout || !rewardsData?.availableNow || rewardsData.availableNow <= 0 || requestPayoutMutation.isPending}
+                       className={cn(
+                          "w-full h-16 rounded-2xl font-black transition-all duration-300 shadow-lg",
+                          hasPendingPayout 
+                            ? "bg-gray-50 text-gray-400 border border-gray-100 shadow-none cursor-not-allowed" 
+                            : "bg-[#EC1B84] text-white hover:bg-[#D01773] shadow-pink-200/50 hover:scale-[1.01]"
+                       )}
+                    >
+                       <Wallet className="w-5 h-5 mr-2" />
+                       {requestPayoutMutation.isPending ? "Processing..." : hasPendingPayout ? "Processing Payout" : "Request Payout"}
+                    </Button>
+                 </div>
                 
 
              </div>
@@ -304,6 +364,33 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
               {requestPayoutMutation.isPending ? "Processing..." : "Confirm Request"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pending Payout Error Modal */}
+      <Dialog open={showPendingPayoutErrorModal} onOpenChange={setShowPendingPayoutErrorModal}>
+        <DialogContent className="sm:max-w-md bg-white rounded-[32px] p-8 border-none shadow-2xl overflow-hidden">
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-blue-50 rounded-full blur-3xl opacity-50"></div>
+          
+          <div className="flex flex-col items-center text-center space-y-6 relative z-10 pt-4">
+            <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center animate-pulse">
+               <Clock className="w-10 h-10 text-blue-500" />
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-gray-900">Verification in progress</h3>
+              <p className="text-gray-500 text-base leading-relaxed max-w-xs mx-auto">
+                We've already received your payout request and our finance team is currently reviewing it.
+              </p>
+            </div>
+
+            <Button 
+              onClick={() => setShowPendingPayoutErrorModal(false)}
+              className="w-full bg-gray-900 hover:bg-black text-white rounded-2xl h-14 font-black transition-all"
+            >
+              Got it, thanks!
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

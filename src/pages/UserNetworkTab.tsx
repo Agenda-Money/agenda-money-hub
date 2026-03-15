@@ -50,12 +50,8 @@ export const UserNetworkTab: React.FC<UserNetworkTabProps> = ({ onBack, userMsis
   };
 
   const calculateProgress = () => {
-    if (!networkData) return 0;
-    // Assuming capacity is returned as a number or string like "2/3"
-    if (typeof networkData.capacity === 'number') {
-       return (networkData.activeReferrals / networkData.capacity) * 100;
-    }
-    const [current, max] = (networkData.capacity || "0/3").split("/").map(Number);
+    if (!networkData?.networkCapacity) return 0;
+    const { current, max } = networkData.networkCapacity;
     if (!max || max === 0) return 0;
     return (current / max) * 100;
   };
@@ -73,9 +69,9 @@ export const UserNetworkTab: React.FC<UserNetworkTabProps> = ({ onBack, userMsis
   }
 
   const progressPercent = calculateProgress();
-  const activeReferralsCount = networkData?.activeReferrals || 0;
-  const capacityValue = networkData?.capacityLimit || 3;
-  const availableSlots = Math.max(0, capacityValue - activeReferralsCount);
+  const activeReferralsCount = networkData?.networkCapacity?.current || 0;
+  const capacityValue = networkData?.networkCapacity?.max || 3;
+  const availableSlots = networkData?.networkCapacity?.available ?? Math.max(0, capacityValue - activeReferralsCount);
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] pb-24 animate-in fade-in slide-in-from-right-8 duration-500">
@@ -136,19 +132,19 @@ export const UserNetworkTab: React.FC<UserNetworkTabProps> = ({ onBack, userMsis
             <h3 className="text-sm font-bold text-gray-900 mb-4 px-1 flex items-center justify-between">
                Your Referrals
                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
-                  {networkData?.referredUsers?.length || 0} Total
+                  {networkData?.referrals?.length || 0} Total
                </span>
             </h3>
 
             <div className="space-y-3">
-               {networkData?.referredUsers?.length === 0 ? (
+               {!networkData?.referrals || networkData.referrals.length === 0 ? (
                   <div className="bg-white rounded-[24px] p-8 text-center text-gray-400 text-sm border border-gray-100 border-dashed">
                      <Users className="w-12 h-12 text-gray-200 mx-auto mb-3" />
                      <p className="font-medium text-gray-500 mb-1">Your network is empty</p>
                      <p className="text-xs">Share your code to earn up to GHS 15 per referral!</p>
                   </div>
                ) : (
-                  networkData?.referredUsers?.map((user: any, idx: number) => {
+                  networkData.referrals.map((user: any, idx: number) => {
                      const isRepaid = user.status === "REPAID" || user.loanStatus === "REPAID";
                      return (
                         <div key={user.id || idx} className={`bg-white rounded-2xl p-4 border transition-all ${isRepaid ? 'border-gray-100 opacity-80' : 'border-pink-50 shadow-sm relative overflow-hidden'}`}>

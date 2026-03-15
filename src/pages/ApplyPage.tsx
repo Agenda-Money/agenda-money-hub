@@ -73,7 +73,7 @@ const GHANA_REGIONS = [
 ];
 
 const GENDERS = ["Male", "Female"];
-const ACCOMMODATION_TYPES = ["Owned", "Rented", "Living with family", "Other"];
+const ACCOMMODATION_TYPES = ["Owned", "Rented", "Family", "Other"];
 const EDUCATION_LEVELS = ["Basic", "Secondary", "Tertiary", "Advanced"];
 const EMPLOYMENT_OPTIONS = ["Self Employed", "Full-time Employee", "Part-time Employee", "Contract"];
 const INCOME_BRACKETS = ["Below GHS 1000", "GHS 1000-2000", "GHS 2000-5000", "Above GHS 5000"];
@@ -522,12 +522,44 @@ export default function ApplyPage() {
         }
     };
 
+    const handleLoanStatusUpdated = async (data: any) => {
+        try {
+            console.log("Real-time loan status update:", data);
+            
+            if (data.title && data.message) {
+                toast.success(`${data.title}: ${data.message}`, { duration: 5000 });
+            } else if (data.message) {
+                toast.success(data.message);
+            }
+
+            const token = globalThis.sessionStorage.getItem("agenda_token");
+            if (!token) return;
+            
+            // Re-fetch user profile
+            const r = await fetch(`${baseApiUrl}/api/auth/me`, { 
+                headers: { Accept: "application/json", Authorization: `Bearer ${token}` } 
+            });
+            const p = await r.json();
+            if (r.ok && (p?.user || p?.msisdn)) {
+                handleAuthResponse(p);
+            }
+
+            // RE-FETCH Active Loan & Activity to avoid 0.00 amount or stale state
+            fetchActiveLoan();
+            fetchRecentActivity();
+        } catch (e) {
+            console.error("Failed to refresh user on real-time update", e);
+        }
+    };
+
     socket.on('repayment_processed', handleRepaymentProcessed);
     socket.on('loan_endorsed', handleLoanEndorsed);
+    socket.on('loan_status_updated', handleLoanStatusUpdated);
     
     return () => {
        socket.off('repayment_processed', handleRepaymentProcessed);
        socket.off('loan_endorsed', handleLoanEndorsed);
+       socket.off('loan_status_updated', handleLoanStatusUpdated);
     };
   }, [socket, handleAuthResponse]);
 
@@ -571,88 +603,86 @@ export default function ApplyPage() {
     return () => globalThis.clearInterval(timer);
   }, [resendSeconds]);
 
+  // ─── Shared Fetching Logic ───
+  const fetchActiveLoan = useCallback(async () => {
+    const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
+    if (!token) return;
+
+    try {
+      const r = await fetch(`${baseApiUrl}/api/loans/active`, {
+          headers: { 
+              Accept: "application/json", 
+              Authorization: `Bearer ${token}` 
+          }
+      });
+      if (r.ok) {
+          const data = await r.json();
+          if (data.hasActiveLoan) {
+              setActiveLoanDetails(data.loanDetails);
+          } else {
+              setActiveLoanDetails(null);
+          }
+      }
+    } catch (error) {
+      console.error("Failed to fetch active loan:", error);
+    }
+  }, [authToken, baseApiUrl]);
+
+  const fetchRecentActivity = useCallback(async () => {
+    const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
+    if (!token) return;
+
+    setIsFetchingActivity(true);
+    try {
+      const [loansRes, repaymentsRes] = await Promise.all([
+         getUserLoansHistory().catch(() => ({ data: [] })),
+         getUserRepaymentsHistory().catch(() => ({ data: [] }))
+      ]);
+      
+      const loans = Array.isArray(loansRes?.data) ? loansRes.data : [];
+      const repayments = Array.isArray(repaymentsRes?.data) ? repaymentsRes.data : [];
+
+      const combined = [
+         ...loans.map((l: any) => ({
+            id: `loan-${l.loanId || l._id}`,
+            type: 'loan',
+            title: 'Loan Disbursed',
+            amount: l.disbursementAmount || l.principal || 0,
+            date: l.disbursedAt || l.createdAt,
+         })),
+         ...repayments.map((r: any) => ({
+            id: `rep-${r.repaymentId || r._id}`,
+            type: 'payment',
+            title: 'Loan Repayment',
+            amount: r.amount || 0,
+            date: r.paidAt || r.createdAt,
+         }))
+      ];
+
+      combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setRecentActivity(combined);
+    } catch (err) {
+       console.error("Failed to load recent activity:", err);
+    } finally {
+       setIsFetchingActivity(false);
+    }
+  }, [authToken]);
+
   // ─── Active Loan Fetching ───
   const [activeLoanDetails, setActiveLoanDetails] = useState<any>(null);
 
   useEffect(() => {
-    const fetchActiveLoan = async () => {
-      // Auth-First: No longer need msisdn in URL
-      const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
-      if (!token) return;
-
-      try {
-        const r = await fetch(`${baseApiUrl}/api/loans/active`, {
-            headers: { 
-                Accept: "application/json", 
-                Authorization: `Bearer ${token}` 
-            }
-        });
-        if (r.ok) {
-            const data = await r.json();
-            if (data.hasActiveLoan) {
-                setActiveLoanDetails(data.loanDetails);
-            } else {
-                setActiveLoanDetails(null);
-            }
-        }
-      } catch (error) {
-        console.error("Failed to fetch active loan:", error);
-      }
-    };
-
     if (view === "loan-dashboard") {
         fetchActiveLoan();
     }
-  }, [view, baseApiUrl, authToken]);
+  }, [view, fetchActiveLoan]);
 
   // ─── Recent Activity Fetching ───
   useEffect(() => {
-    const fetchRecentActivity = async () => {
-      const token = authToken || globalThis.sessionStorage.getItem("agenda_token");
-      if (!token) return;
-
-      setIsFetchingActivity(true);
-      try {
-        const [loansRes, repaymentsRes] = await Promise.all([
-           getUserLoansHistory().catch(() => ({ data: [] })),
-           getUserRepaymentsHistory().catch(() => ({ data: [] }))
-        ]);
-        
-        const loans = Array.isArray(loansRes?.data) ? loansRes.data : [];
-        const repayments = Array.isArray(repaymentsRes?.data) ? repaymentsRes.data : [];
-
-        // Normalize and combine
-        const combined = [
-           ...loans.map((l: any) => ({
-              id: `loan-${l.loanId || l._id}`,
-              type: 'loan',
-              title: 'Loan Disbursed',
-              amount: l.disbursementAmount || l.principal || 0,
-              date: l.disbursedAt || l.createdAt,
-           })),
-           ...repayments.map((r: any) => ({
-              id: `rep-${r.repaymentId || r._id}`,
-              type: 'payment',
-              title: 'Loan Repayment',
-              amount: r.amount || 0,
-              date: r.paidAt || r.createdAt,
-           }))
-        ];
-
-        // Sort completely descending by closest date
-        combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setRecentActivity(combined);
-      } catch (err) {
-         console.error("Failed to load recent activity:", err);
-      } finally {
-         setIsFetchingActivity(false);
-      }
-    };
-
     if (view === "loan-dashboard") {
        fetchRecentActivity();
     }
-  }, [view, authToken]);
+  }, [view, fetchRecentActivity]);
 
   // ─── Network Data Fetching ───
   useEffect(() => {
@@ -988,7 +1018,9 @@ export default function ApplyPage() {
           ghanaCardFrontUrl: finalFrontUrl, 
           ghanaCardBackUrl: finalBackUrl, 
           selfieUrl: finalSelfieUrl,
-          loanAmount: Number(loanAmount), loanTenure: Number(loanTenure), loanPurpose: loanPurpose,
+          initialLoanAmount: Number(loanAmount), 
+          initialLoanTenure: Number(loanTenure), 
+          initialLoanPurpose: loanPurpose,
           nodeCode: nodeCode.trim(), // Include referral code
         }),
       });
@@ -2227,7 +2259,7 @@ export default function ApplyPage() {
                             {[
                                 { val: "Owned", icon: Home, label: "Owned" },
                                 { val: "Rented", icon: Wallet, label: "Rented" },
-                                { val: "Living with family", icon: Users, label: "Family" },
+                                { val: "Family", icon: Users, label: "Family" },
                                 { val: "Other", icon: Shield, label: "Other" }
                             ].map((opt) => (
                                 <button

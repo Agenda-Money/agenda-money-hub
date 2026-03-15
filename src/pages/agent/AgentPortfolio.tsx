@@ -117,6 +117,19 @@ const getLoanStatusBadge = (status: string, amount?: number) => {
   }
 };
 
+const maskGhanaCard = (number: string) => {
+  if (!number) return "";
+  const parts = number.split("-");
+  if (parts.length === 3) {
+    const middle = parts[1];
+    if (middle.length > 5) {
+      return `${parts[0]}-${middle.slice(0, 3)}****${middle.slice(-2)}-${parts[2]}`;
+    }
+    return `${parts[0]}-****-${parts[2]}`;
+  }
+  return number;
+};
+
 export default function AgentPortfolio() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
@@ -343,7 +356,7 @@ export default function AgentPortfolio() {
                           </div>
                           <div>
                             <p className="font-semibold text-foreground">{customer.fullName}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{customer.ghanaCardNumber}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{maskGhanaCard(customer.ghanaCardNumber)}</p>
                           </div>
                         </div>
                         {getKycBadge(customer.kycStatus)}
@@ -371,7 +384,7 @@ export default function AgentPortfolio() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-foreground truncate">{customer.fullName}</p>
-                          <p className="text-xs text-muted-foreground font-mono truncate">{customer.ghanaCardNumber}</p>
+                          <p className="text-xs text-muted-foreground font-mono truncate">{maskGhanaCard(customer.ghanaCardNumber)}</p>
                         </div>
                       </div>
                       <div className="col-span-2 text-sm text-muted-foreground">
