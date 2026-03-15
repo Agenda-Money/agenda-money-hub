@@ -10,7 +10,6 @@ import {
   CheckCircle2, 
   XCircle, 
   Clock, 
-  Search, 
   Filter, 
   MoreVertical,
   ChevronLeft,
@@ -19,7 +18,6 @@ import {
   DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -49,7 +47,6 @@ import { format } from "date-fns";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export default function AdminPayoutsPage() {
@@ -67,7 +64,7 @@ export default function AdminPayoutsPage() {
       if (requesterType !== "all") params.requesterType = requesterType;
       if (source !== "all") params.source = source;
       const res = await getAdminPayoutRequests(params);
-      return res.data;
+      return res;
     }
   });
 

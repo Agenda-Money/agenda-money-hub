@@ -12,7 +12,6 @@ import {
   Copy,
   Calendar,
   Clock,
-  AlertCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
@@ -30,7 +29,6 @@ import { useSocket } from "@/hooks/useSocket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
-import api from "@/lib/api";
 
 const asArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 

@@ -524,7 +524,9 @@ export default function ApplyPage() {
 
     const handleLoanStatusUpdated = async (data: any) => {
         try {
-            console.log("Real-time loan status update:", data);
+            if (import.meta.env.DEV) {
+                console.log("Real-time loan status update:", data);
+            }
             
             if (data.title && data.message) {
                 toast.success(`${data.title}: ${data.message}`, { duration: 5000 });
@@ -561,7 +563,7 @@ export default function ApplyPage() {
        socket.off('loan_endorsed', handleLoanEndorsed);
        socket.off('loan_status_updated', handleLoanStatusUpdated);
     };
-  }, [socket, handleAuthResponse]);
+  }, [socket, handleAuthResponse, fetchActiveLoan, fetchRecentActivity]);
 
   // ─── Effects ───
   useEffect(() => {

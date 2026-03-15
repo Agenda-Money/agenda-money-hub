@@ -60,7 +60,7 @@ export default function AgentDashboard() {
   });
 
   const { data: commissionsData } = useQuery({
-    queryKey: ["agent-commissions-summary"],
+    queryKey: ["agent-commissions-summary", user?.email],
     queryFn: async () => {
       const res = await api.get("/api/agents/commissions/summary");
       return res.data?.data || res.data;

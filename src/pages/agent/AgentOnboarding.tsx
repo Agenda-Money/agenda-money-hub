@@ -419,7 +419,7 @@ export default function AgentOnboarding() {
 
       const awaitingConsent = responseBody.status === "AWAITING_CONSENT" || response.data?.status === "AWAITING_CONSENT";
       const nodeCode = responseBody.nodeCode || response.data?.nodeCode || null;
-      const customerName = `${payload.fullName} ${payload.surname}`.trim();
+      const customerName = payload.fullName;
 
       setSubmissionResult({
         customerName,
