@@ -10,6 +10,7 @@ export const socket: Socket = io(API_URL, {
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,
+  query: {},
 });
 
 // Helper to join rooms

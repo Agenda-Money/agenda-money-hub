@@ -12,6 +12,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 type LoanReviewUser = {
   fullName?: string;
@@ -232,8 +233,11 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
               </Badge>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                {loan.userStatus || "Node"} User
+              <Badge variant="secondary" className={cn(
+                "text-xs",
+                (userDetails?.role === 'NODE' || userDetails?.isGraduatedNode) ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+              )}>
+                {(userDetails?.role === 'NODE' || userDetails?.isGraduatedNode) ? "Node User" : "Edge User"}
               </Badge>
               <span className="text-xs text-muted-foreground">Code: {displayNodeCode}</span>
               {userId ? (
@@ -271,8 +275,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Endorsed On</p>
                     <p className="font-medium">
-                      {loan.guaranteedAt
-                        ? new Date(loan.guaranteedAt).toLocaleDateString("en-GB", {
+                      {(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt)
+                        ? new Date(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt).toLocaleDateString("en-GB", {
                             day: "numeric",
                             month: "short",
                             year: "numeric"

@@ -198,7 +198,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-50 h-full w-[280px] bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-300 lg:translate-x-0 lg:static",
+          "fixed top-0 left-0 z-50 h-full w-[280px] bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-300 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -224,14 +224,14 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         </div>
 
         {/* Navigation - Scrollable */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
           {navItems.map((item) => (
             <NavItem key={item.to} {...item} />
           ))}
         </nav>
 
         {/* Logout - Fixed at bottom */}
-        <div className="border-t border-sidebar-border p-4 flex-shrink-0">
+        <div className="border-t border-sidebar-border p-4 pb-8 flex-shrink-0 bg-sidebar/50 backdrop-blur-sm">
           <button 
             onClick={() => logout()}
             className="flex items-center justify-start text-left gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-all duration-200"

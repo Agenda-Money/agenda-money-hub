@@ -87,10 +87,12 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
     }
   };
 
+  const isNodeUser = isGraduatedNode && !!personalNodeCode;
+
   const menuItems = [
-    { icon: Gift, label: "My Rewards", action: onRewards },
-    ...(isGraduatedNode ? [{ icon: Users, label: "My Network", action: onNetwork }] : []),
-    ...(isGraduatedNode ? [{ icon: Clock, label: "Pending Endorsements", action: onEndorsements }] : []),
+    ...(isNodeUser ? [{ icon: Gift, label: "My Rewards", action: onRewards }] : []),
+    ...(isNodeUser ? [{ icon: Users, label: "My Network", action: onNetwork }] : []),
+    ...(isNodeUser ? [{ icon: Clock, label: "Pending Endorsements", action: onEndorsements }] : []),
     { icon: FileText, label: "Terms & Conditions", action: onShowTerms },
     { icon: Lock, label: "Privacy Policy", action: onShowPrivacy },
     { icon: HelpCircle, label: "Help", action: onHelp },

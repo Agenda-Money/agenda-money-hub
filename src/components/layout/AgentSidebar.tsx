@@ -58,7 +58,7 @@ export function AgentSidebar({ isOpen, onToggle }: AgentSidebarProps) {
         animate={isOpen ? "open" : "closed"}
         variants={sidebarVariants}
         className={cn(
-          "fixed top-0 left-0 z-50 h-full w-[280px] bg-card border-r border-border flex flex-col lg:static",
+          "fixed top-0 left-0 z-50 h-full w-[280px] bg-card border-r border-border flex flex-col lg:sticky lg:top-0 lg:h-screen",
           "lg:!translate-x-0"
         )}
         style={{ willChange: "transform" }}
@@ -88,7 +88,7 @@ export function AgentSidebar({ isOpen, onToggle }: AgentSidebarProps) {
         </div>
 
         {/* Navigation - Scrollable */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1.5">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1.5 custom-scrollbar">
           {navItems.map((item, index) => {
             const isActive = item.to === "/agent" 
               ? location.pathname === "/agent" 
@@ -109,10 +109,10 @@ export function AgentSidebar({ isOpen, onToggle }: AgentSidebarProps) {
                     if (window.innerWidth < 1024) onToggle();
                   }}
                   className={cn(
-                    "group flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 relative overflow-hidden",
+                    "group flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-300 relative overflow-hidden",
                     isActive
-                      ? "bg-primary text-primary-foreground shadow-pink"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-primary text-primary-foreground shadow-pink translate-x-1"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground hover:translate-x-1"
                   )}
                 >
                   {/* Active indicator glow */}
@@ -125,16 +125,16 @@ export function AgentSidebar({ isOpen, onToggle }: AgentSidebarProps) {
                   )}
                   
                   <div className={cn(
-                    "relative z-10 p-2 rounded-lg transition-colors",
-                    isActive ? "bg-primary-foreground/20" : "bg-muted group-hover:bg-background"
+                    "relative z-10 p-2 rounded-lg transition-all duration-300 group-hover:scale-110",
+                    isActive ? "bg-primary-foreground/20" : "bg-muted group-hover:bg-background shadow-sm"
                   )}>
                     <item.icon className="h-4 w-4" />
                   </div>
                   
                   <div className="relative z-10 flex-1 min-w-0">
-                    <span className="block truncate">{item.label}</span>
+                    <span className="block truncate font-bold">{item.label}</span>
                     <span className={cn(
-                      "text-xs truncate block",
+                      "text-[10px] truncate block font-medium uppercase tracking-tight opacity-70",
                       isActive ? "text-primary-foreground/70" : "text-muted-foreground"
                     )}>
                       {item.description}
@@ -142,8 +142,8 @@ export function AgentSidebar({ isOpen, onToggle }: AgentSidebarProps) {
                   </div>
                   
                   <ChevronRight className={cn(
-                    "relative z-10 h-4 w-4 transition-transform",
-                    isActive ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-50"
+                    "relative z-10 h-4 w-4 transition-all duration-300",
+                    isActive ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
                   )} />
                 </NavLink>
               </motion.div>
@@ -152,7 +152,7 @@ export function AgentSidebar({ isOpen, onToggle }: AgentSidebarProps) {
         </nav>
 
         {/* User Info & Logout */}
-        <div className="border-t border-border p-4 flex-shrink-0 space-y-3">
+        <div className="border-t border-border p-4 pb-8 flex-shrink-0 space-y-3 bg-card/50 backdrop-blur-sm">
           {/* User Info Card */}
           <div className="bg-muted/50 rounded-xl p-3 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-sm">
