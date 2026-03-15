@@ -11,9 +11,11 @@ import {
   CheckCircle2,
   Copy,
   Calendar,
+  Clock,
+  AlertCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { 
   getAgentCommissionSummary,
   getAgentCommissions,
@@ -27,6 +29,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useSocket } from "@/hooks/useSocket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, isValid } from "date-fns";
+import { cn } from "@/lib/utils";
+import api from "@/lib/api";
 
 const asArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 
@@ -51,9 +55,10 @@ const toNumber = (value: unknown) => {
 };
 
 export default function AgentCommissionsPage() {
-  const [mainTab, setMainTab] = useState<"commissions" | "network">("commissions");
+  const [mainTab, setMainTab] = useState<"commissions" | "network" >("commissions");
   const [historyTab, setHistoryTab] = useState<"all" | "earnings" | "deductions">("all");
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
+  const [showPendingPayoutErrorModal, setShowPendingPayoutErrorModal] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -73,11 +78,42 @@ export default function AgentCommissionsPage() {
     queryFn: () => getAgentCommissionSummary(),
   });
 
-  // Commissions History
-  const { data: historyResponse, isLoading: isHistoryLoading } = useQuery({
+  // Commissions History with Pagination
+  const { 
+    data: infiniteHistoryData, 
+    fetchNextPage, 
+    hasNextPage, 
+    isFetchingNextPage, 
+    isLoading: isHistoryLoading 
+  } = useInfiniteQuery({
     queryKey: ["agent-commissions-history"],
-    queryFn: () => getAgentCommissions({ limit: 200 }),
+    queryFn: ({ pageParam = 1 }) => getAgentCommissions({ page: pageParam, limit: 10 }),
+    getNextPageParam: (lastPage) => {
+      const items = lastPage?.commissions?.items || lastPage?.data?.commissions?.items || lastPage?.items || lastPage?.commissions || lastPage?.data?.items || [];
+      const pagination = lastPage?.pagination || lastPage?.commissions?.pagination || {};
+      const total = pagination.total || lastPage?.commissions?.total || lastPage?.total || 0;
+      const currentPage = pagination.page || lastPage?.commissions?.page || lastPage?.page || 1;
+      const totalPages = pagination.pages || Math.ceil(total / 10);
+      
+      if (currentPage < totalPages) return currentPage + 1;
+      // Fallback: if we got exactly 10 items, assume there might be more
+      if (items.length === 10) return currentPage + 1;
+      return undefined;
+    },
+    initialPageParam: 1,
   });
+
+  const allHistory = asArray<any>(
+    infiniteHistoryData?.pages?.flatMap(page => 
+      asArray<any>(
+        page?.commissions?.items || 
+        page?.data?.commissions?.items || 
+        page?.items || 
+        page?.commissions || 
+        page?.data?.items
+      )
+    ) || []
+  );
 
   // Network Overview
   const { data: networkResponse, isLoading: isNetworkLoading } = useQuery({
@@ -106,11 +142,17 @@ export default function AgentCommissionsPage() {
       queryClient.invalidateQueries({ queryKey: ["agent-commissions-history"] });
     },
     onError: (error: any) => {
-      toast({ 
-        variant: "destructive", 
-        title: "Request Failed", 
-        description: error?.response?.data?.message || "Could not process payout request." 
-      });
+      const errorMessage = error?.response?.data?.message || "";
+      if (errorMessage.toLowerCase().includes("pending")) {
+        setShowPendingPayoutErrorModal(true);
+        setIsPayoutModalOpen(false);
+      } else {
+        toast({ 
+          variant: "destructive", 
+          title: "Request Failed", 
+          description: errorMessage || "Could not process payout request." 
+        });
+      }
     }
   });
 
@@ -129,15 +171,32 @@ export default function AgentCommissionsPage() {
   const summary = summaryResponse?.summary || summaryResponse?.data?.summary || summaryResponse?.data || {};
   const network = networkResponse || {};
   const referredUsers = asArray<any>(referralsResponse?.users || referralsResponse?.data?.users || referralsResponse?.items);
-  const allHistory = asArray<any>(
-    historyResponse?.commissions?.items ||
-    historyResponse?.data?.commissions?.items ||
-    historyResponse?.items ||
-    historyResponse?.commissions ||
-    historyResponse?.data?.items
-  );
   
-  const filteredHistory = allHistory.filter((item: any) => {
+  const recentActivities = asArray<any>(summaryResponse?.recentActivity || summary?.recentActivity || []);
+  
+  // Create a merged history that prioritizes recentActivities (which have personName)
+  const mergedHistory = [...recentActivities];
+  
+  // Add items from allHistory that aren't already in recentActivities (based on reference or id)
+  allHistory.forEach(historyItem => {
+    const isAlreadyIncluded = mergedHistory.some(recentItem => 
+      (recentItem.reference && recentItem.reference === historyItem.reference) ||
+      (recentItem._id && recentItem._id === historyItem._id)
+    );
+    if (!isAlreadyIncluded) {
+      mergedHistory.push(historyItem);
+    }
+  });
+
+  const hasPendingPayout = mergedHistory.some((item: any) => {
+    const type = (item.type || item.action || "").toUpperCase();
+    const status = (item.status || "").toUpperCase();
+    const isPayoutType = ["PAYOUT", "CASH_OUT", "REWARD"].includes(type);
+    const isPendingStatus = ["REQUESTED", "PENDING", "APPROVED", "PROCESSING"].includes(status);
+    return isPayoutType && isPendingStatus;
+  });
+  
+  const filteredHistory = mergedHistory.filter((item: any) => {
     if (historyTab === "earnings") return item.amount > 0;
     if (historyTab === "deductions") return item.amount < 0;
     return true;
@@ -158,16 +217,29 @@ export default function AgentCommissionsPage() {
     return <ArrowDownRight className="w-5 h-5" />;
   };
 
-  const getHistoryLabel = (entryType: string) => {
+  const getHistoryLabel = (entryType: string, personName?: string) => {
+    const name = personName || "";
     if (entryType === "SIGNUP") {
-      return "Registration Bonus";
+      return (
+        <>
+          Bonus <span className="text-emerald-500 font-black">earned</span> from <span className="text-foreground">{name}</span>
+        </>
+      );
     }
 
     if (entryType === "REPAYMENT") {
-      return "Repayment Bonus";
+      return (
+        <>
+          Commission from <span className="text-foreground">{name}</span> repayment
+        </>
+      );
     }
 
-    return "Deduction";
+    if (entryType === "CASH_OUT" || entryType === "PAYOUT") {
+      return "Commission Payout";
+    }
+
+    return "System Deduction";
   };
 
   let historyContent;
@@ -178,8 +250,12 @@ export default function AgentCommissionsPage() {
     historyContent = (
       <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-2xl border border-gray-100 border-dashed">
         <Banknote className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-        <p className="font-medium">No activity found yet.</p>
-        <p className="text-xs pt-1">Onboard users to start earning commission!</p>
+        <p className="font-bold text-gray-900">No commissions yet</p>
+        <p className="text-xs pt-1 max-w-[200px] mx-auto">
+          {historyTab === "earnings" 
+            ? "Sign-up bonuses are credited after the first disbursement." 
+            : "Onboard users to start earning commissions!"}
+        </p>
       </div>
     );
   } else {
@@ -187,6 +263,7 @@ export default function AgentCommissionsPage() {
       <div className="space-y-3">
         {filteredHistory.map((item: any, index: number) => {
           const entryType = item.type || item.action || "DEDUCTION";
+          const amount = toNumber(item.amount);
 
           return (
             <motion.div
@@ -197,19 +274,31 @@ export default function AgentCommissionsPage() {
               className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-white hover:shadow-sm transition-all"
             >
               <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.amount > 0 ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${amount > 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>
                   {renderHistoryIcon(entryType)}
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-gray-900">{getHistoryLabel(entryType)}</p>
+                  <p className="text-sm font-bold text-gray-500 leading-tight">
+                    {getHistoryLabel(entryType, item.personName || item.userName || item.name)}
+                  </p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs text-gray-500">{safeFormatDate(item.createdAt || item.date, "MMM d, yyyy")}</span>
                     <span className="text-gray-300">&bull;</span>
-                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-sm bg-gray-100 text-gray-600">{item.status || 'PAID'}</span>
+                    <span className={cn(
+                      "text-[9px] uppercase font-black px-1.5 py-0.5 rounded-sm",
+                      item.status === "PAID" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                    )}>
+                      {item.status || 'REQUESTED'}
+                    </span>
                   </div>
                 </div>
               </div>
-              <div className={`text-sm font-bold ${item.amount > 0 ? "text-green-600" : "text-red-600"}`}>{item.amount > 0 ? "+" : ""}GHS {Math.abs(item.amount).toFixed(2)}</div>
+              <div className={cn(
+                "text-sm font-black",
+                amount > 0 ? "text-emerald-600" : "text-red-600"
+              )}>
+                {amount > 0 ? "+" : "-"}GHS {Math.abs(amount).toFixed(2)}
+              </div>
             </motion.div>
           );
         })}
@@ -330,21 +419,38 @@ export default function AgentCommissionsPage() {
                   Available for Payout
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 z-10 relative">
+              <CardContent className="flex flex-col md:flex-row md:items-center justify-between gap-6 z-10 relative">
                 {isSummaryLoading ? (
                   <Skeleton className="h-12 w-48" />
                 ) : (
                   <>
-                    <div>
-                      <div className="text-4xl font-black text-pink-900">GHS {toNumber(summary?.netEarnings).toFixed(2)}</div>
-                      <p className="text-sm text-pink-600 mt-1 font-medium">Available for payout (pending admin approval)</p>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <div className="text-4xl font-black text-pink-900">GHS {toNumber(summary?.netEarnings).toFixed(2)}</div>
+                        <p className="text-sm text-pink-600 font-medium">Available for payout (pending admin approval)</p>
+                      </div>
+                      
+                      {hasPendingPayout && (
+                        <div className="bg-white/60 backdrop-blur-sm border border-pink-200/50 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-left-4 duration-500 shadow-sm">
+                           <Clock className="w-5 h-5 text-pink-500 shrink-0 mt-0.5" />
+                           <div className="text-[11px] text-pink-800 leading-relaxed font-medium">
+                             <strong className="text-pink-900">Request under review</strong><br/>
+                             Our finance team is currently processing your previous request. Please wait for it to be completed.
+                           </div>
+                        </div>
+                      )}
                     </div>
                     <Button 
                       onClick={() => setIsPayoutModalOpen(true)}
-                      disabled={toNumber(summary?.netEarnings) <= 0}
-                      className="bg-[#EC1B84] hover:bg-[#D01773] text-white font-bold h-12 px-8 rounded-xl shadow-lg shadow-pink-200"
+                      disabled={hasPendingPayout || toNumber(summary?.netEarnings) <= 0}
+                      className={cn(
+                        "h-16 px-10 rounded-2xl shadow-xl transition-all duration-300 min-w-[200px] font-black tracking-tight",
+                        hasPendingPayout 
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none border border-gray-200" 
+                          : "bg-[#EC1B84] hover:bg-[#D01773] text-white shadow-pink-200/50 hover:scale-[1.02] active:scale-[0.98]"
+                      )}
                     >
-                      Request Payout
+                      {hasPendingPayout ? "Processing Payout" : "Request Payout"}
                     </Button>
                   </>
                 )}
@@ -355,17 +461,21 @@ export default function AgentCommissionsPage() {
             <Card className="flex flex-col justify-center">
               <CardContent className="pt-6 space-y-4">
                 <div>
-                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Earned</p>
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Commission Summary</p>
                    {isSummaryLoading ? <Skeleton className="h-6 w-24" /> : <p className="text-xl font-bold text-gray-900">GHS {toNumber(summary?.netEarnings).toFixed(2)}</p>}
                 </div>
-                <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-4">
-                   <div>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight mb-0.5">Signups</p>
-                    <p className="text-sm font-bold text-green-600">GHS {toNumber(summary?.signupCommission).toFixed(0)}</p>
+                <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+                   <div className="space-y-1">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Signups (+10)</p>
+                      <p className="text-sm font-bold text-emerald-600">+GHS {toNumber(summary?.signupCommission).toFixed(2) || "0.00"}</p>
                    </div>
-                   <div>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight mb-0.5">Repayments</p>
-                    <p className="text-sm font-bold text-blue-600">GHS {toNumber(summary?.repaymentCommission).toFixed(0)}</p>
+                   <div className="space-y-1">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Repayments (5%)</p>
+                      <p className="text-sm font-bold text-blue-600">+GHS {toNumber(summary?.repaymentCommission).toFixed(2) || "0.00"}</p>
+                   </div>
+                   <div className="space-y-1 col-span-2 pt-2 border-t border-gray-50">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Default Deductions (-10)</p>
+                      <p className="text-sm font-bold text-red-600">-GHS {toNumber(summary?.defaultDeduction).toFixed(2) || "0.00"}</p>
                    </div>
                 </div>
               </CardContent>
@@ -388,7 +498,30 @@ export default function AgentCommissionsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">{historyContent}</div>
+              <div className="space-y-3">
+                {historyContent}
+                
+                {hasNextPage && (
+                  <div className="pt-4 flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fetchNextPage()}
+                      disabled={isFetchingNextPage}
+                      className="text-xs font-bold rounded-lg border-gray-200 h-9 px-6 bg-white hover:bg-gray-50 text-gray-600"
+                    >
+                      {isFetchingNextPage ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        "Load More History"
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -409,10 +542,10 @@ export default function AgentCommissionsPage() {
                     </div>
                     <Button 
                        onClick={() => {
-                            if (network?.yourCode) {
-                              navigator.clipboard.writeText(network.yourCode);
-                             toast({ title: "Copied!", description: "Agent code copied to clipboard." });
-                          }
+                             if (network?.yourCode) {
+                               navigator.clipboard.writeText(network.yourCode);
+                               toast({ title: "Copied!", description: "Agent code copied to clipboard." });
+                           }
                        }}
                         className="w-full bg-white/20 hover:bg-white/30 text-white border-none font-bold backdrop-blur-md h-12 rounded-xl"
                     >
@@ -529,6 +662,33 @@ export default function AgentCommissionsPage() {
               {requestPayoutMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm Payout"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pending Payout Error Modal */}
+      <Dialog open={showPendingPayoutErrorModal} onOpenChange={setShowPendingPayoutErrorModal}>
+        <DialogContent className="sm:max-w-md bg-white rounded-[32px] p-8 border-none shadow-2xl overflow-hidden">
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-blue-50 rounded-full blur-3xl opacity-50"></div>
+          
+          <div className="flex flex-col items-center text-center space-y-6 relative z-10 pt-4">
+            <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center animate-pulse">
+               <Clock className="w-10 h-10 text-blue-500" />
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-gray-900">Verification in progress</h3>
+              <p className="text-gray-500 text-base leading-relaxed max-w-xs mx-auto">
+                We've already received your payout request and our finance team is currently reviewing it.
+              </p>
+            </div>
+
+            <Button 
+              onClick={() => setShowPendingPayoutErrorModal(false)}
+              className="w-full bg-gray-900 hover:bg-black text-white rounded-2xl h-14 font-black transition-all"
+            >
+              Got it, thanks!
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

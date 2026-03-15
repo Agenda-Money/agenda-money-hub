@@ -23,10 +23,10 @@ export default function AgentLayout() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex w-full">
+    <div className="h-screen bg-background flex w-full overflow-hidden">
       <AgentSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full">
         <AgentHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         
         <motion.main 
