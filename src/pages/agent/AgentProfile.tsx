@@ -289,15 +289,6 @@ export default function AgentProfile() {
             </Card>
           </motion.div>
 
-          {/* Security Notice */}
-          <motion.div variants={itemVariants}>
-            <Alert className="bg-amber-500/10 border-amber-500/30">
-              <Shield className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800 dark:text-amber-200">
-                For security reasons, you will be automatically logged out after 15 minutes of inactivity.
-              </AlertDescription>
-            </Alert>
-          </motion.div>
         </TabsContent>
 
         {/* Appearance Tab */}

@@ -29,10 +29,10 @@ const GHANA_REGIONS = [
   "Bono East", "Ahafo", "Western North", "Savannah", "North East", "Oti"
 ];
 
-const ACCOMMODATION_TYPES = ["Own House", "Rented", "Family House", "Company Quarters"];
+const ACCOMMODATION_TYPES = ["Owned", "Rented", "Family", "Other"];
 const EDUCATION_LEVELS = ["Basic", "Secondary", "Tertiary", "Advanced"];
-const EMPLOYMENT_STATUS = ["Employed", "Self-Employed", "Contract"];
-const INCOME_BRACKETS = ["Below GHS 500", "GHS 500-1000", "GHS 1000-2000", "GHS 2000-5000", "Above GHS 5000"];
+const EMPLOYMENT_STATUS = ["Self Employed", "Full-time Employee", "Part-time Employee", "Contract"];
+const INCOME_BRACKETS = ["Below GHS 1000", "GHS 1000-2000", "GHS 2000-5000", "Above GHS 5000"];
 
 const YEARS_AT_ADDRESS = [
   { label: "Less than 1 Year", value: "0" },
@@ -42,7 +42,7 @@ const YEARS_AT_ADDRESS = [
 ];
 
 interface FormData {
-  fullName: string;
+  firstName: string;
   surname: string;
   msisdn: string;
   dob: string;
@@ -64,7 +64,7 @@ interface FormData {
 }
 
 const INITIAL_FORM_DATA: FormData = {
-  fullName: "",
+  firstName: "",
   surname: "",
   msisdn: "",
   dob: "",
@@ -387,15 +387,16 @@ export default function AgentOnboarding() {
       const formattedMsisdn = parsed ? parsed.number.replace("+", "") : formData.msisdn.replace(/\D/g, "");
 
       const payload = {
-        fullName: formData.fullName,
+        firstName: formData.firstName,
         surname: formData.surname,
+        fullName: `${formData.firstName} ${formData.surname}`.trim(),
         msisdn: formattedMsisdn,
         dob: formData.dob,
         gender: formData.gender,
         region: formData.region,
         address: formData.address,
         accommodationType: formData.accommodationType,
-        yearsAtAddress: Number.parseInt(formData.yearsAtAddress, 10) || 0,
+        yearsAtAddress: formData.yearsAtAddress,
         educationLevel: formData.educationLevel,
         employmentStatus: formData.employmentStatus,
         monthlyIncome: formData.monthlyIncome,
@@ -403,9 +404,9 @@ export default function AgentOnboarding() {
         ghanaCardFrontUrl: formData.ghanaCardFrontUrl,
         ghanaCardBackUrl: formData.ghanaCardBackUrl,
         selfieUrl: formData.selfieUrl,
-        loanAmount: Number.parseInt(formData.loanAmount, 10) || 0,
-        loanTenure: Number.parseInt(formData.loanTenure, 10) || 0,
-        loanPurpose: formData.loanPurpose,
+        initialLoanAmount: Number(formData.loanAmount),
+        initialLoanTenure: Number(formData.loanTenure),
+        initialLoanPurpose: formData.loanPurpose,
       };
 
       const response = await api.post("/api/agents/onboard", payload);
@@ -531,7 +532,7 @@ export default function AgentOnboarding() {
           purpose: formData.loanPurpose
         }}
         applicant={{
-          firstName: formData.fullName,
+          firstName: formData.firstName,
           lastName: formData.surname,
           msisdn: formData.msisdn
         }}
@@ -638,11 +639,11 @@ export default function AgentOnboarding() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="fullName">First Name *</Label>
+                      <Label htmlFor="firstName">First Name *</Label>
                       <Input
-                        id="fullName"
-                        value={formData.fullName}
-                        onChange={(e) => updateField("fullName", e.target.value)}
+                        id="firstName"
+                        value={formData.firstName}
+                        onChange={(e) => updateField("firstName", e.target.value)}
                         placeholder="Kwame"
                         className="h-12 bg-muted/50 border-0 focus-visible:ring-primary"
                       />
@@ -755,7 +756,9 @@ export default function AgentOnboarding() {
                         </SelectTrigger>
                         <SelectContent>
                           {ACCOMMODATION_TYPES.map((type) => (
-                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

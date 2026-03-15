@@ -34,6 +34,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Connect to the socket server using the singleton
     if (!socket.connected) {
+        (socket as any).io.opts.query = { msisdn };
         socket.connect();
     }
 
