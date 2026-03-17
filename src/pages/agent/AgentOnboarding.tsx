@@ -394,10 +394,11 @@ export default function AgentOnboarding() {
       const parsed = parsePhoneNumberFromString(formData.msisdn, "GH");
       const formattedMsisdn = parsed ? parsed.number.replace("+", "") : formData.msisdn.replace(/\D/g, "");
 
+      // Both firstName and surname are required. fullName is optional and should match the combination.
       const payload = {
         firstName: formData.firstName,
         surname: formData.surname,
-        fullName: `${formData.firstName} ${formData.surname}`.trim(),
+        fullName: `${formData.firstName} ${formData.surname}`.trim(), // optional, backend may construct if not provided
         msisdn: formattedMsisdn,
         dob: formData.dob,
         gender: formData.gender,
