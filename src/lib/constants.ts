@@ -21,6 +21,15 @@ export const TIERS: TierConfig[] = [
   { level: 8, minAmount: 50, maxAmount: 800, maxTenure: 14 },
   { level: 9, minAmount: 50, maxAmount: 900, maxTenure: 14 },
   { level: 10, minAmount: 50, maxAmount: 1100, maxTenure: 14 },
+  { level: 11, minAmount: 50, maxAmount: 1200, maxTenure: 14 },
+  { level: 12, minAmount: 50, maxAmount: 1300, maxTenure: 14 },
+  { level: 13, minAmount: 50, maxAmount: 1400, maxTenure: 14 },
+  { level: 14, minAmount: 50, maxAmount: 1450, maxTenure: 14 },
+  { level: 15, minAmount: 50, maxAmount: 1500, maxTenure: 14 },
+  { level: 16, minAmount: 50, maxAmount: 1600, maxTenure: 14 },
+  { level: 17, minAmount: 50, maxAmount: 1700, maxTenure: 14 },
+  { level: 18, minAmount: 50, maxAmount: 1800, maxTenure: 14 },
+  { level: 19, minAmount: 50, maxAmount: 2000, maxTenure: 14 },
 ];
 
 // Helper to get tier by level

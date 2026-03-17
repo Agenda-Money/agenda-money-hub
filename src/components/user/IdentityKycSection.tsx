@@ -11,7 +11,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+import { SecureKycImage } from "@/components/common/SecureKycImage";
+
 interface IdentityKycSectionProps {
+  userId: string;
   userData: {
     selfieUrl?: string;
     ghanaCardFrontUrl?: string;
@@ -74,7 +77,7 @@ const ImagePlaceholder = ({ icon: Icon, label }: { icon: React.ElementType; labe
   </div>
 );
 
-export function IdentityKycSection({ userData }: IdentityKycSectionProps) {
+export function IdentityKycSection({ userId, userData }: IdentityKycSectionProps) {
   const [selectedImage, setSelectedImage] = useState<{ url: string; title: string } | null>(null);
 
   return (
@@ -108,7 +111,7 @@ export function IdentityKycSection({ userData }: IdentityKycSectionProps) {
                 <Camera className="h-4 w-4" />
                 Live Selfie
               </div>
-              {userData.selfieUrl ? (
+               {userData.selfieUrl ? (
                 <div 
                   className="relative cursor-zoom-in overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md hover:border-primary/50"
                   onClick={() => setSelectedImage({ url: userData.selfieUrl!, title: "Live Selfie" })}
@@ -133,7 +136,7 @@ export function IdentityKycSection({ userData }: IdentityKycSectionProps) {
                 <IdCard className="h-4 w-4" />
                 Ghana Card (Front)
               </div>
-              {userData.ghanaCardFrontUrl ? (
+               {userData.ghanaCardFrontUrl ? (
                 <div 
                   className="relative cursor-zoom-in overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md hover:border-primary/50"
                   onClick={() => setSelectedImage({ url: userData.ghanaCardFrontUrl!, title: "Ghana Card (Front)" })}
@@ -158,7 +161,7 @@ export function IdentityKycSection({ userData }: IdentityKycSectionProps) {
                 <IdCard className="h-4 w-4" />
                 Ghana Card (Back)
               </div>
-              {userData.ghanaCardBackUrl ? (
+               {userData.ghanaCardBackUrl ? (
                 <div 
                   className="relative cursor-zoom-in overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md hover:border-primary/50"
                   onClick={() => setSelectedImage({ url: userData.ghanaCardBackUrl!, title: "Ghana Card (Back)" })}

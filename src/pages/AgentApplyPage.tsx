@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
 import { uploadToSupabase } from "@/lib/supabase";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
 type View = "landing" | "auth" | "otp" | "onboarding" | "success";
 
@@ -162,8 +163,8 @@ export default function AgentApplyPage() {
 
     setUploadProgress((prev) => ({ ...prev, [type]: false }));
 
-    if (result.success && result.url) {
-      updateField(fieldMap[type], result.url);
+    if (result.success && result.path) {
+      updateField(fieldMap[type], result.path);
       toast.success("Image uploaded successfully!", { duration: 1500 });
     } else {
       toast.error("Upload failed", {
@@ -213,7 +214,7 @@ export default function AgentApplyPage() {
       setResendSeconds(60);
       setView("otp");
     } catch (e: any) {
-      setErrorMessage(e?.message || "An error occurred.");
+      setErrorMessage(getFriendlyErrorMessage(e));
     } finally {
       setIsRequesting(false);
     }
@@ -258,17 +259,10 @@ export default function AgentApplyPage() {
         }
       }
       
-      // Verification Successful & User is NEW.
-      // Move to onboarding.
       toast.success("Phone verified successfully!");
       setView("onboarding");
-      
     } catch (e: any) {
-      let msg = e?.message || "OTP verification failed.";
-      if (msg.toLowerCase().includes("exist") || msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("wrong")) {
-        msg = "The OTP is invalid or has expired. Please try again.";
-      }
-      setErrorMessage(msg);
+      setErrorMessage(getFriendlyErrorMessage(e));
     } finally {
       setIsVerifying(false);
     }
@@ -343,7 +337,7 @@ export default function AgentApplyPage() {
       setView("success");
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "An unexpected error occurred");
+      toast.error(getFriendlyErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -807,7 +801,7 @@ export default function AgentApplyPage() {
                     {formData.address.length > 0 && formData.address.trim().split(/\s+/).length < 3 && (
                       <p className="text-xs text-destructive flex items-center gap-1 mt-1">
                         <AlertCircle className="h-3 w-3" />
-                        Address requires at least 3 relevant words
+                        Please provide a complete address for verification
                       </p>
                     )}
                   </div>

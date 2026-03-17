@@ -26,7 +26,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import { io } from "socket.io-client";
+import { SecureKycImage } from "@/components/common/SecureKycImage";
 
 interface Agent {
   id: string;
@@ -128,7 +130,7 @@ export default function AgentsPage() {
       queryClient.invalidateQueries({ queryKey: ["agents", searchTerm] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to approve agent application.");
+      toast.error(getFriendlyErrorMessage(error));
     },
   });
 
@@ -146,7 +148,7 @@ export default function AgentsPage() {
       queryClient.invalidateQueries({ queryKey: ["agents", "pending"] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to reject agent application.");
+      toast.error(getFriendlyErrorMessage(error));
     },
   });
 
@@ -356,7 +358,12 @@ export default function AgentsPage() {
                         >
                            <div className="flex items-center gap-4">
                              <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-background shadow-sm shrink-0">
-                                <img src={agent.selfieUrl} alt="Selfie" className="h-full w-full object-cover" />
+                                <SecureKycImage 
+                                  userId={agent._id} 
+                                  imageType="selfie" 
+                                  label={`${agent.firstName} Selfie`} 
+                                  className="h-full w-full" 
+                                />
                              </div>
                              <div>
                                <h4 className="font-bold text-base text-foreground">
@@ -418,17 +425,12 @@ export default function AgentsPage() {
                                         </div>
                                       </div>
                                       {agent.selfieUrl ? (
-                                        <a
-                                          href={agent.selfieUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                        >
-                                          <img 
-                                            src={agent.selfieUrl} 
-                                            alt="Agent selfie" 
-                                            className="w-full aspect-[3/2] object-cover rounded-xl border-2 border-muted hover:border-primary shadow-sm cursor-zoom-in transition-all"
-                                          />
-                                        </a>
+                                        <SecureKycImage 
+                                          userId={agent._id} 
+                                          imageType="selfie" 
+                                          label="Agent selfie" 
+                                          className="w-full aspect-[3/2]" 
+                                        />
                                       ) : (
                                         <ImagePlaceholder icon={Camera} label="No selfie uploaded" />
                                       )}
@@ -441,17 +443,12 @@ export default function AgentsPage() {
                                          Ghana Card (Front)
                                        </div>
                                       {agent.ghanaCardFrontUrl ? (
-                                        <a
-                                          href={agent.ghanaCardFrontUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                        >
-                                          <img 
-                                            src={agent.ghanaCardFrontUrl} 
-                                            alt="Ghana Card front" 
-                                            className="w-full aspect-[1.586] object-cover rounded-xl border-2 border-muted hover:border-primary shadow-sm cursor-zoom-in transition-all"
-                                          />
-                                        </a>
+                                        <SecureKycImage 
+                                          userId={agent._id} 
+                                          imageType="front" 
+                                          label="Ghana Card front" 
+                                          className="w-full aspect-[1.586]" 
+                                        />
                                       ) : (
                                         <ImagePlaceholder icon={IdCard} label="No ID uploaded" />
                                       )}
@@ -464,17 +461,12 @@ export default function AgentsPage() {
                                         Ghana Card (Back)
                                       </div>
                                       {agent.ghanaCardBackUrl ? (
-                                        <a
-                                          href={agent.ghanaCardBackUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                        >
-                                          <img 
-                                            src={agent.ghanaCardBackUrl} 
-                                            alt="Ghana Card back" 
-                                            className="w-full aspect-[1.586] object-cover rounded-xl border-2 border-muted hover:border-primary shadow-sm cursor-zoom-in transition-all"
-                                          />
-                                        </a>
+                                        <SecureKycImage 
+                                          userId={agent._id} 
+                                          imageType="back" 
+                                          label="Ghana Card back" 
+                                          className="w-full aspect-[1.586]" 
+                                        />
                                       ) : (
                                         <ImagePlaceholder icon={IdCard} label="No ID uploaded" />
                                       )}

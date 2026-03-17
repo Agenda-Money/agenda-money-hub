@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, Lock, CircleAlert, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
 const ResetPasswordPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -72,7 +73,7 @@ const ResetPasswordPage = () => {
       }, 2000);
       
     } catch (err: any) {
-      setError(err.message || "Failed to reset password");
+      setError(getFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }

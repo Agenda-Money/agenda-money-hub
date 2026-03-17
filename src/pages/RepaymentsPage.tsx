@@ -29,6 +29,7 @@ interface LoanInfo {
 import { useQuery, useMutation } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
 export default function RepaymentsPage() {
   const [phone, setPhone] = useState("");
@@ -75,7 +76,7 @@ export default function RepaymentsPage() {
       }
     } catch (e) {
       console.error("Search failed", e);
-      toast.error("Failed to search for loan");
+      toast.error(getFriendlyErrorMessage(e));
     } finally {
       setIsSearching(false);
     }
@@ -92,7 +93,7 @@ export default function RepaymentsPage() {
       toast.success(data.message || "Payment recorded successfully");
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to record payment");
+      toast.error(getFriendlyErrorMessage(error));
     }
   });
 

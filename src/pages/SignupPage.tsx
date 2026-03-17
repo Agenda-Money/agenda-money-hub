@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { tokenRefreshService } from "@/services/tokenRefreshService";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
 const SignupPage = () => {
   const [searchParams] = useSearchParams();
@@ -48,7 +49,7 @@ const SignupPage = () => {
           }));
         }
       } catch (err: any) {
-        setError(err.response?.data?.message || err.message || "Failed to load invitation details. The link may be expired.");
+        setError(getFriendlyErrorMessage(err));
       } finally {
         setIsFetchingInfo(false);
       }
@@ -114,7 +115,7 @@ const SignupPage = () => {
         setError(data.message || "Signup failed");
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || "Signup failed. Please try again.");
+      setError(getFriendlyErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

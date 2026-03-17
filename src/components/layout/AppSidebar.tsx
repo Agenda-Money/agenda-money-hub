@@ -1,3 +1,4 @@
+import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -122,6 +123,28 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
   const [pendingCount, setPendingCount] = useState(0);
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
 
+
+  // Support both camelCase and snake_case or fallback for KYC paths, using type assertions to avoid TS errors
+  const ghanaCardFrontPath = (user && (
+    (user as any).ghanaCardFrontPath ||
+    (user as any).ghana_card_front_path ||
+    (user as any).kycFrontPath
+  )) || undefined;
+  const ghanaCardBackPath = (user && (
+    (user as any).ghanaCardBackPath ||
+    (user as any).ghana_card_back_path ||
+    (user as any).kycBackPath
+  )) || undefined;
+  const selfiePath = (user && (
+    (user as any).selfiePath ||
+    (user as any).selfie_path ||
+    (user as any).kycSelfiePath
+  )) || undefined;
+
+  const ghanaCardFrontUrl = useSignedUrl(ghanaCardFrontPath);
+  const ghanaCardBackUrl = useSignedUrl(ghanaCardBackPath);
+  const selfieUrl = useSignedUrl(selfiePath);
+
   // Query for pending users count
   const { data: pendingData, refetch: refetchPending } = useQuery({
     queryKey: ["pending-users-count"],
@@ -230,6 +253,23 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
           ))}
         </nav>
 
+        {/* KYC Images Preview (Admin only, for demonstration) */}
+        {user?.role === "admin" && (ghanaCardFrontUrl || ghanaCardBackUrl || selfieUrl) && (
+          <div className="border-t border-sidebar-border p-4 pb-4 flex-shrink-0 bg-sidebar/50 backdrop-blur-sm">
+            <div className="mb-2 text-xs font-semibold text-muted-foreground">KYC Images Preview</div>
+            <div className="flex gap-2">
+              {ghanaCardFrontUrl && (
+                <img src={ghanaCardFrontUrl} alt="Ghana Card Front" className="w-16 h-12 rounded border" />
+              )}
+              {ghanaCardBackUrl && (
+                <img src={ghanaCardBackUrl} alt="Ghana Card Back" className="w-16 h-12 rounded border" />
+              )}
+              {selfieUrl && (
+                <img src={selfieUrl} alt="Selfie" className="w-12 h-12 rounded-full border" />
+              )}
+            </div>
+          </div>
+        )}
         {/* Logout - Fixed at bottom */}
         <div className="border-t border-sidebar-border p-4 pb-8 flex-shrink-0 bg-sidebar/50 backdrop-blur-sm">
           <button 
