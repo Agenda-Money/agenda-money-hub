@@ -102,6 +102,13 @@ const slideVariants = {
 
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export default function AgentOnboarding() {
+    // Scroll to top when moving to the terms and conditions step (step 4 or 5)
+    useEffect(() => {
+      // Adjust the step number if your terms step is different
+      if (currentStep === 4 || currentStep === 5) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, [currentStep]);
   const { user } = useAuth();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
