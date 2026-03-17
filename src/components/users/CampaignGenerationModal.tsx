@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import { Loader2, Copy, Check } from "lucide-react";
 
 interface CampaignGenerationModalProps {
@@ -88,7 +89,7 @@ export const CampaignGenerationModal: React.FC<CampaignGenerationModalProps> = (
           toast.error("Campaign created but Node Code missing in response.");
         }
       } else {
-        toast.error(response.data.message || "Failed to generate campaign");
+        toast.error(getFriendlyErrorMessage({ response: { data: response.data, status: response.status } }));
       }
     } catch (error: any) {
       console.error("Campaign generation error:", error);
@@ -101,9 +102,7 @@ export const CampaignGenerationModal: React.FC<CampaignGenerationModalProps> = (
           return; // Don't show generic error
         }
       }
-      toast.error(
-        error.response?.data?.message || "Failed to generate campaign. Please try again."
-      );
+      toast.error(getFriendlyErrorMessage(error));
     } finally {
       setLoading(false);
       submittingRef.current = false;

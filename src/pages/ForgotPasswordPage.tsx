@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, KeyRound, CircleAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
@@ -30,7 +31,7 @@ const ForgotPasswordPage = () => {
       
       setSuccess(true);
     } catch (err: any) {
-      setError(err.message || "Failed to send reset link");
+      setError(getFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }

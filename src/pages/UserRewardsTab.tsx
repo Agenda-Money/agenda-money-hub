@@ -11,6 +11,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { formatDistanceToNow } from "date-fns";
 
 import { cn } from "@/lib/utils";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
 const toNumber = (value: unknown) => {
   let normalized = 0;
@@ -87,22 +88,29 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
     },
     onSuccess: () => {
       toast({
-        title: "Payout Requested",
-        description: "Your payout request has been successfully submitted.",
+        title: "Success",
+        description: "Your payout request has been submitted!",
       });
       setIsPayoutModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ["userRewards"] });
     },
     onError: (error: any) => {
-      const errorMessage = error?.response?.data?.message || "";
-      if (errorMessage.toLowerCase().includes("pending")) {
+      const status = error?.response?.status;
+      
+      if (status === 429) {
+        toast({
+          variant: "destructive",
+          title: "Cooldown Period",
+          description: "You can only request a payout every 2 weeks. Please try again after your cooldown period has ended.",
+        });
+      } else if (status === 409) {
         setShowPendingPayoutErrorModal(true);
         setIsPayoutModalOpen(false);
       } else {
         toast({
           variant: "destructive",
           title: "Request Failed",
-          description: errorMessage || "Could not process payout request.",
+          description: getFriendlyErrorMessage(error),
         });
       }
     }
@@ -380,7 +388,7 @@ export function UserRewardsTab({ onBack, userMsisdn }: UserRewardsTabProps) {
             <div className="space-y-2">
               <h3 className="text-2xl font-black text-gray-900">Verification in progress</h3>
               <p className="text-gray-500 text-base leading-relaxed max-w-xs mx-auto">
-                We've already received your payout request and our finance team is currently reviewing it.
+                You already have a pending payout request.
               </p>
             </div>
 

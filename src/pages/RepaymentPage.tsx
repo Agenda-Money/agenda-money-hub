@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { getNetwork, getNetworkStyles } from "@/lib/momo";
 import { motion } from "framer-motion";
 import { initiateRepayment, getMe } from "@/lib/api";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
 interface RepaymentPageProps {
   amountDue: number;
@@ -96,7 +97,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
     } catch (error: any) {
         setIsButtonLoading(false);
         console.error("Repayment initiation failed", error);
-        setErrorMessage(error.response?.data?.message || "Failed to initiate payment. Please try again.");
+        setErrorMessage(getFriendlyErrorMessage(error));
         // Optional: fail immediately or show error toast. For now, let's keep it on input screen with error? 
         // Or transition to failed screen? The prompt implies moving to Failed screen is standard.
         // Let's transition to Failed screen for clear feedback.
