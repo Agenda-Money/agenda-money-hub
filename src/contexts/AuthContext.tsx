@@ -16,6 +16,7 @@ interface AdminUser {
   alternatePhone?: string;
   createdAt?: string;
   created_at?: string;
+  canShareNodeFeatures?: boolean;
 }
 
 
@@ -108,7 +109,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         logout(false);
       }
     } catch (error) {
-      console.error("Auth check failed", error);
+      console.error("Auth check failed:", error.message || error);
     } finally {
       setLoading(false);
     }
@@ -221,12 +222,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       return { success: true, user: normalizedAdmin };
     } catch (error: any) {
-      const errorMessage = 
-        error.response?.data?.message || 
-        error.response?.data?.error || 
-        "Invalid credentials. Please try again.";
-        
-      return { success: false, message: errorMessage };
+      return { success: false, message: error.friendlyMessage || "Invalid credentials. Please try again." };
     }
   };
 
@@ -239,7 +235,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       return { success: false, message: response.data.message };
     } catch (error: any) {
-      return { success: false, message: error.response?.data?.message || "Failed to send reset link" };
+      return { success: false, message: error.friendlyMessage || "Failed to send reset link" };
     }
   };
 
@@ -256,7 +252,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       return { success: false, message: response.data.message };
     } catch (error: any) {
-      return { success: false, message: error.response?.data?.message || "Failed to reset password" };
+      return { success: false, message: error.friendlyMessage || "Failed to reset password" };
     }
   };
 
@@ -270,7 +266,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       return { success: false, message: response.data.message };
     } catch (error: any) {
-      return { success: false, message: error.response?.data?.message || "Failed to update profile" };
+      return { success: false, message: error.friendlyMessage || "Failed to update profile" };
     }
   };
 
@@ -282,7 +278,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await api.post("/api/admin/auth/logout");
       }
     } catch (e) {
-      console.error("Logout API call failed", e);
+      console.error("Logout API call failed:", e.message || e);
     }
 
     localStorage.removeItem("accessToken");

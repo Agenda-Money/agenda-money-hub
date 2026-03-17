@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import { Loader2, Check } from "lucide-react";
 
 interface AuthorizeAgentModalProps {
@@ -75,13 +76,11 @@ export const AuthorizeAgentModal: React.FC<AuthorizeAgentModalProps> = ({
             onSuccess();
         }
       } else {
-        toast.error(response.data.message || "Failed to authorize admin");
+        toast.error(getFriendlyErrorMessage({ response: { status: response.status, data: response.data } }));
       }
     } catch (error: any) {
       console.error("Authorize admin error:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to authorize admin. Please try again."
-      );
+      toast.error(getFriendlyErrorMessage(error));
     } finally {
       setLoading(false);
       submittingRef.current = false;

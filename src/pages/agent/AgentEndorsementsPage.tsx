@@ -5,6 +5,7 @@ import { Clock, Check, Loader2, AlertCircle, X } from "lucide-react";
 import { Info } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import { useAuth } from "@/contexts/AuthContext";
 
 import {
@@ -80,7 +81,7 @@ export default function AgentEndorsementsPage() {
       queryClient.invalidateQueries({ queryKey: ["agent-endorsements"] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to endorse loan.");
+      toast.error(getFriendlyErrorMessage(error));
     },
     onSettled: () => {
       setProcessingId(null);
@@ -106,7 +107,7 @@ export default function AgentEndorsementsPage() {
       queryClient.invalidateQueries({ queryKey: ["agent-endorsements"] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to reject loan.");
+      toast.error(getFriendlyErrorMessage(error));
     },
     onSettled: () => {
       setProcessingId(null);
@@ -240,7 +241,7 @@ export default function AgentEndorsementsPage() {
         <div className="space-y-1">
           <p className="font-semibold">Why do I need to endorse these?</p>
           <p className="text-sm opacity-90 max-w-3xl leading-relaxed">
-            As an Agent, you are vouching for the trustworthiness of your network. First-time borrowers must be endorsed by you before the admin will review their application. Once you endorse their first loan, future loans will be automatically sent to the admin. Note that you are taking partial responsibility for guiding their repayment.
+            As an Agent, you are vouching for the trustworthiness of your network. First-time borrowers must be endorsed by you before the admin will review their application. Once you endorse their first loan, future loans will be automatically sent to the admin.
           </p>
         </div>
       </div>

@@ -9,6 +9,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import {
   Select,
   SelectContent,
@@ -306,7 +307,7 @@ export default function AgentPortfolio() {
             {isError ? (
               <div className="p-8 text-center text-red-500 bg-red-50 rounded-xl border border-red-100">
                 <p className="font-semibold">Failed to load portfolio</p>
-                <p className="text-sm mt-1 text-red-400">{(error as Error)?.message || "Something went wrong"}</p>
+                <p className="text-sm mt-1 text-red-400">{getFriendlyErrorMessage(error)}</p>
               </div>
             ) : isLoading ? (
               <div className="space-y-3">

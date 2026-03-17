@@ -1,7 +1,9 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -40,7 +42,31 @@ import { SessionManager } from "./components/auth/SessionManager";
 
 import { getSubdomain } from "@/lib/domain";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error: any, query) => {
+      // Only show toast if the query doesn't have its own meta error handling
+      // or if we want a global fallback. For now, let's provide a global fallback.
+      if (query.meta?.errorMessage === false) return;
+      toast.error(getFriendlyErrorMessage(error));
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error: any, _variables, _context, mutation) => {
+      // Only show toast if the mutation doesn't have its own onError handler
+      // This avoids double toasts for components I've already updated.
+      if (mutation.options.onError) return;
+      toast.error(getFriendlyErrorMessage(error));
+    },
+  }),
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5000,
+    },
+  },
+});
 
 // AdminRoute wrapper to guard admin-only pages
 function AdminRoute({ children }: { readonly children: React.ReactNode }) {

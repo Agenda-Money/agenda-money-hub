@@ -112,7 +112,7 @@ export class TokenRefreshService {
 
       return token;
     } catch (error) {
-      console.error('❌ [TokenRefreshService] Token refresh failed:', error);
+      console.error('❌ [TokenRefreshService] Token refresh failed');
       this.handleSessionExpired();
       return null;
     } finally {
