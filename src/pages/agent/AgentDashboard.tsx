@@ -122,7 +122,7 @@ export default function AgentDashboard() {
     },
     {
       title: "Earnings This Week",
-      value: `₵${commissionsData?.netEarnings || "450"}`,
+      value: `₵${commissionsData?.netEarnings ?? 0}`,
       icon: TrendingUp,
       trend: "Calculated",
       trendUp: true,
