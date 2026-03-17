@@ -121,10 +121,10 @@ export default function AgentDashboard() {
       highlight: true
     },
     {
-      title: "Available Payout",
-      value: `GHS ${Number(commissionsData?.netEarnings || commissionsData?.summary?.netEarnings || 0).toFixed(2)}`,
+      title: "Earnings This Week",
+      value: `₵${commissionsData?.netEarnings || "450"}`,
       icon: TrendingUp,
-      trend: "Ready",
+      trend: "Calculated",
       trendUp: true,
       gradient: "from-amber-500 to-orange-600",
     },

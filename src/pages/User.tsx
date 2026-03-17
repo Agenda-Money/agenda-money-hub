@@ -232,7 +232,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
          />
       </motion.div>
 
-      {/* 3. PERMANENT: NODE CODE */}
+      {/* 3. PERMANENT: NODE CODE (Hidden for now) */}
+      {/*
       {isGraduatedNode && (
          <motion.div variants={item}>
             <LoanStatusCard
@@ -244,6 +245,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
             />
          </motion.div>
       )}
+      */}
 
       {/* 4. RECENT ACTIVITY (New) */}
       <motion.div variants={item} className="space-y-3 pt-2">
@@ -262,50 +264,62 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
          </div>
          
          <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm overflow-hidden min-h-[100px]">
-             {isLoading ? (
-                 <div className="p-4 space-y-4">
-                     {[1, 2].map((i) => (
-                         <div key={i} className="flex items-center justify-between">
-                             <div className="flex items-center gap-3">
-                                 <div className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
-                                 <div className="space-y-2">
-                                     <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
-                                     <div className="h-2 w-16 bg-gray-50 rounded animate-pulse" />
-                                 </div>
-                             </div>
-                             <div className="h-3 w-12 bg-gray-100 rounded animate-pulse" />
+                   {isLoading ? (
+                         <div className="p-4 space-y-4">
+                               {[1, 2].map((i) => (
+                                     <div key={i} className="flex items-center justify-between">
+                                           <div className="flex items-center gap-3">
+                                                 <div className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
+                                                 <div className="space-y-2">
+                                                       <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+                                                       <div className="h-2 w-16 bg-gray-50 rounded animate-pulse" />
+                                                 </div>
+                                           </div>
+                                           <div className="h-3 w-12 bg-gray-100 rounded animate-pulse" />
+                                     </div>
+                               ))}
                          </div>
-                     ))}
-                 </div>
-             ) : recentActivity.length === 0 ? (
-                 <div className="p-8 text-center text-gray-400 text-sm">
-                     No recent activity
-                 </div>
-             ) : (
-                 recentActivity.slice(0, 5).map((activity, index) => {
-                    const isPayment = activity.type?.toLowerCase() === 'payment';
-                    const displayDate = activity.date 
-                        ? format(new Date(activity.date), "dd MMM yyyy, h:mm a")
-                        : "Unknown Date";
-                        
-                    return (
-                        <div key={activity.id || index} className={cn("p-4 flex items-center justify-between", index !== recentActivity.slice(0, 5).length - 1 && "border-b border-gray-50")}>
-                            <div className="flex items-center gap-3">
-                               <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", isPayment ? "bg-[#EC1B84]/10 text-[#EC1B84]" : "bg-green-50 text-green-600")}>
-                                  {isPayment ? <Wallet className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
-                               </div>
-                               <div>
-                                  <p className="text-sm font-bold text-gray-900">{activity.title}</p>
-                                  <p className="text-xs text-gray-500">{displayDate}</p>
-                               </div>
-                            </div>
-                            <span className={cn("text-sm font-bold", isPayment ? "text-[#EC1B84]" : "text-green-600")}>
-                                {isPayment ? '-' : '+'}GHS {Math.abs(activity.amount).toFixed(2)}
-                            </span>
-                        </div>
-                    );
-                 })
-             )}
+                   ) : recentActivity.length === 0 ? (
+                         <div className="p-8 text-center text-gray-400 text-sm">
+                               No recent activity
+                         </div>
+                   ) : (
+                         recentActivity
+                            .filter((activity) => {
+                               // Hide 'Loan Disbursed' if loan is pending (not active)
+                               if (
+                                  activity.type === 'loan' &&
+                                  (activity.title === 'Loan Disbursed' || activity.title === 'Disbursed') &&
+                                  (activeLoanDetails?.status === 'PENDING' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT' || activeLoanDetails?.status === 'PENDING_VERIFICATION')
+                               ) {
+                                  return false;
+                               }
+                               return true;
+                            })
+                            .slice(0, 5)
+                            .map((activity, index) => {
+                               const isPayment = activity.type?.toLowerCase() === 'payment';
+                               const displayDate = activity.date
+                                  ? format(new Date(activity.date), "dd MMM yyyy, h:mm a")
+                                  : "Unknown Date";
+                               return (
+                                  <div key={activity.id || index} className={cn("p-4 flex items-center justify-between", index !== recentActivity.slice(0, 5).length - 1 && "border-b border-gray-50")}> 
+                                     <div className="flex items-center gap-3">
+                                        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", isPayment ? "bg-[#EC1B84]/10 text-[#EC1B84]" : "bg-green-50 text-green-600")}> 
+                                           {isPayment ? <Wallet className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />} 
+                                        </div>
+                                        <div>
+                                           <p className="text-sm font-bold text-gray-900">{activity.title}</p>
+                                           <p className="text-xs text-gray-500">{displayDate}</p>
+                                        </div>
+                                     </div>
+                                     <span className={cn("text-sm font-bold", isPayment ? "text-[#EC1B84]" : "text-green-600")}> 
+                                        {isPayment ? '-' : '+'}GHS {Math.abs(activity.amount).toFixed(2)}
+                                     </span>
+                                  </div>
+                               );
+                            })
+                   )}
          </div>
       </motion.div>
 

@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { Clock, Check, Loader2, AlertCircle, ArrowLeft, Info, X } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 
 import {
@@ -82,7 +83,7 @@ export const UserEndorsementsTab: React.FC<UserEndorsementsTabProps> = ({ onBack
             }
          });
       } else {
-         toast.error(error.response?.data?.message || "Failed to endorse loan.");
+         toast.error(getFriendlyErrorMessage(error));
       }
     },
     onSettled: () => {
@@ -109,7 +110,7 @@ export const UserEndorsementsTab: React.FC<UserEndorsementsTabProps> = ({ onBack
       queryClient.invalidateQueries({ queryKey: ["user-endorsements"] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to reject loan.");
+      toast.error(getFriendlyErrorMessage(error));
     },
     onSettled: () => {
       setProcessingId(null);

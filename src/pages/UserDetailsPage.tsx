@@ -15,6 +15,7 @@ import { ActionCenter } from "@/components/user/ActionCenter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
 // Robust date parser for mixed backend date formats (e.g. DD/MM/YYYY)
 function parseDateRobust(dateStr: string | undefined | null): Date {
@@ -244,8 +245,8 @@ export default function UserDetailsPage() {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
       toast.success(`User ${user.status === "active" ? "blocked" : "unblocked"} successfully`);
     },
-    onError: () => {
-      toast.error("Failed to update user status");
+    onError: (error: any) => {
+      toast.error(getFriendlyErrorMessage(error));
     },
   });
 
@@ -257,8 +258,8 @@ export default function UserDetailsPage() {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
       toast.success("KYC approved successfully");
     },
-    onError: () => {
-      toast.error("Failed to approve KYC");
+    onError: (error: any) => {
+      toast.error(getFriendlyErrorMessage(error));
     },
   });
 
@@ -270,8 +271,8 @@ export default function UserDetailsPage() {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
       toast.success("KYC rejected");
     },
-    onError: () => {
-      toast.error("Failed to reject KYC");
+    onError: (error: any) => {
+      toast.error(getFriendlyErrorMessage(error));
     },
   });
 
@@ -396,6 +397,7 @@ export default function UserDetailsPage() {
 
         {/* Identity & KYC Section */}
         <IdentityKycSection 
+          userId={user.id}
           userData={{
             selfieUrl: user.selfieUrl,
             ghanaCardFrontUrl: user.ghanaCardFrontUrl,

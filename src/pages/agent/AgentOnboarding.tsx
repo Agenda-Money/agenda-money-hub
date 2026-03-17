@@ -320,7 +320,7 @@ export default function AgentOnboarding() {
     switch (currentStep) {
       case 1:
         return (
-          formData.fullName.trim() &&
+          formData.firstName.trim() &&
           formData.surname.trim() &&
           Boolean(parsePhoneNumberFromString(formData.msisdn, "GH")?.isValid()) &&
           formData.dob &&
@@ -401,9 +401,9 @@ export default function AgentOnboarding() {
         employmentStatus: formData.employmentStatus,
         monthlyIncome: formData.monthlyIncome,
         ghanaCardNumber: formData.ghanaCardNumber,
-        ghanaCardFrontUrl: formData.ghanaCardFrontUrl,
-        ghanaCardBackUrl: formData.ghanaCardBackUrl,
-        selfieUrl: formData.selfieUrl,
+        ghanaCardFrontUrl: formData.ghanaCardFrontUrl, // Use public URL
+        ghanaCardBackUrl: formData.ghanaCardBackUrl,   // Use public URL
+        selfieUrl: formData.selfieUrl,                 // Use public URL
         initialLoanAmount: Number(formData.loanAmount),
         initialLoanTenure: Number(formData.loanTenure),
         initialLoanPurpose: formData.loanPurpose,

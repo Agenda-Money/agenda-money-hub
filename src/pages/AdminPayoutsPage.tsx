@@ -51,6 +51,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
 export default function AdminPayoutsPage() {
   const { toast } = useToast();
@@ -83,6 +84,9 @@ export default function AdminPayoutsPage() {
     onSuccess: () => {
       toast({ title: "Approved", description: "Payout request approved." });
       queryClient.invalidateQueries({ queryKey: ["adminPayouts"] });
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Approval Failed", description: getFriendlyErrorMessage(error) });
     }
   });
 
@@ -91,6 +95,9 @@ export default function AdminPayoutsPage() {
     onSuccess: () => {
       toast({ title: "Rejected", description: "Payout request rejected." });
       queryClient.invalidateQueries({ queryKey: ["adminPayouts"] });
+    },
+    onError: (error: any) => {
+       toast({ variant: "destructive", title: "Rejection Failed", description: getFriendlyErrorMessage(error) });
     }
   });
 
@@ -99,6 +106,9 @@ export default function AdminPayoutsPage() {
     onSuccess: () => {
       toast({ title: "Paid", description: "Payout marked as paid." });
       queryClient.invalidateQueries({ queryKey: ["adminPayouts"] });
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Action Failed", description: getFriendlyErrorMessage(error) });
     }
   });
 
