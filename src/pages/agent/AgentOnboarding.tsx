@@ -108,11 +108,18 @@ export default function AgentOnboarding() {
   const [direction, setDirection] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
-  const [submissionResult, setSubmissionResult] = useState<{
-    customerName: string;
-    nodeCode: string | null;
-    awaitingConsent: boolean;
-  } | null>(null);
+  const [submissionResult, setSubmissionResult] = useState<
+    | {
+        customerName: string;
+        nodeCode: string | null;
+        awaitingConsent: boolean;
+        error?: undefined;
+      }
+    | {
+        error: string;
+      }
+    | null
+  >(null);
 
   // Scroll to top when moving to the terms and conditions step (step 4 or 5)
   useEffect(() => {
@@ -235,10 +242,20 @@ export default function AgentOnboarding() {
     }
     if (hasUrl) {
       return (
-        <>
+        <div className="flex flex-col items-center justify-center space-y-3 p-2">
           <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
           <p className="text-sm text-emerald-700 font-medium mt-2">{label} ✓</p>
-        </>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="mt-2 border-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold flex items-center gap-2 shadow-sm"
+            onClick={onUpload}
+          >
+            <Upload className="h-4 w-4 mr-1 text-emerald-600" />
+            Re-upload
+          </Button>
+        </div>
       );
     }
     return (
@@ -288,10 +305,20 @@ export default function AgentOnboarding() {
     }
     if (hasUrl) {
       return (
-        <>
+        <div className="flex flex-col items-center justify-center space-y-3 p-2">
           <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
           <p className="text-sm text-emerald-700 font-medium mt-2">{label} ✓</p>
-        </>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="mt-2 border-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold flex items-center gap-2 shadow-sm"
+            onClick={onCapture}
+          >
+            <Camera className="h-4 w-4 mr-1 text-emerald-600" />
+            Retake Selfie
+          </Button>
+        </div>
       );
     }
     return (
@@ -447,8 +474,10 @@ export default function AgentOnboarding() {
           : "Customer successfully registered.",
       });
     } catch (error: any) {
+      const errorMsg = error.response?.data?.message || error.message || "Please try again";
+      setSubmissionResult({ error: errorMsg });
       toast.error("Submission Failed", {
-        description: error.response?.data?.message || "Please try again",
+        description: errorMsg,
       });
     } finally {
       setIsSubmitting(false);
@@ -462,10 +491,63 @@ export default function AgentOnboarding() {
     { number: 4, title: "Loan Request", icon: CreditCard, description: "Initial loan" },
   ];
 
-  // Success Screen
+  // Result Screen (Success or Error)
   if (submissionResult) {
+    if ('error' in submissionResult) {
+      // Error result
+      return (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex items-center justify-center min-h-[70vh]"
+        >
+          <Card className="w-full max-w-md border-0 shadow-2xl overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-red-500 to-rose-600" />
+            <CardContent className="pt-10 pb-8 text-center space-y-6">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring" as const, stiffness: 300, delay: 0.2 }}
+              >
+                <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto">
+                  <AlertCircle className="h-10 w-10 text-red-600" />
+                </div>
+              </motion.div>
+              <div className="space-y-2">
+                <h1 className="text-2xl font-bold text-foreground">Onboarding Failed</h1>
+                <p className="text-muted-foreground">
+                  {submissionResult.error}
+                </p>
+              </div>
+              <div className="space-y-3 pt-2">
+                <Button
+                  onClick={() => {
+                    setSubmissionResult(null);
+                    setFormData({ ...INITIAL_FORM_DATA, ghanaCardNumber: "GHA-" });
+                    localStorage.removeItem(STORAGE_KEY);
+                    setCurrentStep(1);
+                  }}
+                  className="w-full h-12 bg-gradient-pink hover:opacity-90"
+                >
+                  Try Again
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate("/agent/portfolio")}
+                  className="w-full h-12"
+                >
+                  View My Portfolio
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      );
+    }
+    // Success result (existing UI)
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="flex items-center justify-center min-h-[70vh]"
@@ -482,27 +564,24 @@ export default function AgentOnboarding() {
                 <CheckCircle2 className="h-10 w-10 text-emerald-600" />
               </div>
             </motion.div>
-            
             <div className="space-y-2">
-               <h1 className="text-2xl font-bold text-foreground">Onboarding Complete!</h1>
-             
-               {submissionResult.awaitingConsent ? (
-                 <div className="space-y-3">
-                   <p className="text-muted-foreground">
-                     A request has been sent to the Node owner for authorization.
-                   </p>
-                   <div className="bg-amber-500/10 p-4 rounded-lg border border-amber-500/20 text-amber-700 dark:text-amber-200 text-sm">
-                     <strong>Request sent to your Node for authorization.</strong>
-                     <p className="mt-1 opacity-80">The customer will receive an SMS once authorized.</p>
-                   </div>
-                 </div>
-               ) : (
-                 <p className="text-muted-foreground">
-                   Customer <strong>{submissionResult.customerName}</strong> has been successfully registered.
-                 </p>
-               )}
+              <h1 className="text-2xl font-bold text-foreground">Onboarding Complete!</h1>
+              {submissionResult.awaitingConsent ? (
+                <div className="space-y-3">
+                  <p className="text-muted-foreground">
+                    A request has been sent to the Node owner for authorization.
+                  </p>
+                  <div className="bg-amber-500/10 p-4 rounded-lg border border-amber-500/20 text-amber-700 dark:text-amber-200 text-sm">
+                    <strong>Request sent to your Node for authorization.</strong>
+                    <p className="mt-1 opacity-80">The customer will receive an SMS once authorized.</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">
+                  Customer <strong>{submissionResult.customerName}</strong> has been successfully registered.
+                </p>
+              )}
             </div>
-
             <div className="space-y-3 pt-2">
               <Button
                 onClick={() => {
@@ -516,7 +595,6 @@ export default function AgentOnboarding() {
                 Onboard Another Customer
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
-
               <Button
                 variant="outline"
                 onClick={() => navigate("/agent/portfolio")}

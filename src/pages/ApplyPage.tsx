@@ -280,6 +280,16 @@ function normalizeMsisdn(msisdn: string | undefined): string {
 
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export default function ApplyPage() {
+    // Prefill node code from URL path (e.g., /BLE232)
+    useEffect(() => {
+      const path = window.location.pathname;
+      // Remove leading slash and split by /, take first segment
+      const code = path.startsWith("/") ? path.slice(1).split("/")[0] : path.split("/")[0];
+      // Only prefill if code is present and not a known route (e.g., not 'apply')
+      if (code && code.length >= 4 && code.toLowerCase() !== "apply") {
+        setNodeCode(code.toUpperCase());
+      }
+    }, []);
   const { setApplicant, applicant } = useApplicant();
   const { socket } = useSocketContext();
 

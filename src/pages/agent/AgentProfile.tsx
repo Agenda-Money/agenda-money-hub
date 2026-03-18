@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { User, Mail, Phone, Shield, Loader2, Moon, Sun, Monitor, Bell, Copy, Check, Sparkles } from "lucide-react";
+import { User, Mail, Phone, Loader2, Moon, Sun, Monitor, Bell, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -143,20 +143,32 @@ export default function AgentProfile() {
                         <p className="text-2xl sm:text-3xl font-bold font-mono tracking-wider text-foreground">
                           {dashboardStats?.agentCode || user?.agentCode || "N/A"}
                         </p>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8" 
-                          onClick={copyAgentCode}
-                        >
-                          {copied ? (
-                            <Check className="h-4 w-4 text-emerald-600" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">Share this with customers during onboarding</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-lg font-medium border-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 flex items-center gap-1"
+                          onClick={() => {
+                            const nodeCode = dashboardStats?.agentCode || user?.agentCode || "";
+                            const url = nodeCode ? `https://apply.agendamoney.com/${nodeCode}` : "https://apply.agendamoney.com/";
+                            const text = `Join Agenda Money with my referral link: ${url}`;
+                            if (globalThis.navigator.share) {
+                              globalThis.navigator.share({ title: 'Agenda Money Referral', text, url });
+                            } else {
+                              const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                              globalThis.open(whatsappUrl, '_blank');
+                            }
+                          }}
+                          title="Share via WhatsApp or other apps"
+                        >
+                          <span className="flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className="h-4 w-4 text-emerald-600" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.031-.967-.273-.099-.472-.148-.67.15-.198.297-.767.966-.94 1.164-.173.198-.347.223-.644.075-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.372-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.007-.372-.009-.571-.009-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.099 3.205 5.077 4.372.71.306 1.263.489 1.695.626.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.288.173-1.413-.074-.124-.272-.198-.57-.347z" fill="currentColor"/><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/></svg>
+                            Share Referral Link
+                          </span>
+                        </Button>
+                        <span className="text-xs text-muted-foreground">Share this with customers during onboarding</span>
+                      </div>
                     </div>
                   </div>
                 </div>
