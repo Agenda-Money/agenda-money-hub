@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, CreditCard, TrendingUp, UserPlus, ArrowUpRight, Activity, Clock, ChevronRight } from "lucide-react";
+import { Users, CreditCard, TrendingUp, UserPlus, Activity, Clock, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
@@ -47,10 +47,28 @@ const itemVariants = {
 
 export default function AgentDashboard() {
   const { user } = useAuth();
+  // Fetch full customer directory for accurate customer count and active loans
+  const { data: portfolioStats } = useQuery({
+    queryKey: ["agent-portfolio", user?.email],
+    queryFn: async () => {
+      const res = await api.get("/api/agents/portfolio", { params: { page: 1, limit: 1000 } });
+      let directory = [];
+      if (res.data?.data?.directory) directory = res.data.data.directory;
+      else if (res.data?.directory) directory = res.data.directory;
+      else if (Array.isArray(res.data?.data)) directory = res.data.data;
+      else if (Array.isArray(res.data)) directory = res.data;
+      // Total signups = directory length
+      const total = directory.length;
+      // Active loans = count of users with loanStatus === 'active'
+      const activeLoans = directory.filter((u) => (u.loanStatus || '').toLowerCase() === 'active').length;
+      return { total, activeLoans };
+    },
+    enabled: !!user?.email,
+  });
   const navigate = useNavigate();
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
 
-  const { data: dashboardData, refetch: refetchDashboard } = useQuery({
+  const { data: dashboardDataRaw, refetch: refetchDashboard } = useQuery<AgentDashboardData>({
     queryKey: ["agent-dashboard-stats", user?.email],
     queryFn: async () => {
       const res = await api.get("/api/agents/my-stats");
@@ -58,6 +76,9 @@ export default function AgentDashboard() {
     },
     enabled: !!user?.email,
   });
+  const dashboardData = dashboardDataRaw;
+
+
 
   const { data: commissionsData } = useQuery({
     queryKey: ["agent-commissions-summary"],
@@ -74,23 +95,13 @@ export default function AgentDashboard() {
     }
   });
 
-  const metrics = dashboardData?.metrics || { signUpsAllTime: 0, signUpsThisMonth: 0 };
-  const portfolio = dashboardData?.portfolio || { loansActive: 0, loansClosed: 0, loansOverdue: 0 };
-  const pendingEndorsements = dashboardData?.pendingEndorsements || 0; // Assuming this field exists or we derive it
-  
-  const totalRelevantLoans = portfolio.loansActive + portfolio.loansClosed;
-  const healthPercentage = totalRelevantLoans > 0 
-    ? Math.max(0, Math.round((1 - (portfolio.loansOverdue / totalRelevantLoans)) * 100))
-    : 100;
-
   const stats = {
-    totalSignups: metrics.signUpsAllTime,
-    signupsThisMonth: metrics.signUpsThisMonth,
-    activeLoans: portfolio.loansActive,
-    pendingEndorsements: pendingEndorsements || 0, // Fallback to 0 if not in API
-    portfolioHealth: healthPercentage,
+    totalSignups: typeof portfolioStats?.total === 'number' ? portfolioStats.total : (dashboardData?.stats?.totalSignups ?? 0),
+    signupsThisMonth: dashboardData?.stats?.signupsThisMonth ?? 0,
+    activeLoans: typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : (dashboardData?.stats?.activeLoans ?? 0),
+    pendingEndorsements: 0, // Not present in AgentDashboardData, set to 0 or add if needed
+    portfolioHealth: dashboardData?.stats?.portfolioHealth ?? 100,
   };
-  
   const recentSignups = dashboardData?.recentSignups ?? [];
 
   const statCards = [
@@ -162,6 +173,7 @@ export default function AgentDashboard() {
             <UserPlus className="h-5 w-5 mr-2" />
             Onboard Client
           </Button>
+
         </div>
       </motion.div>
 

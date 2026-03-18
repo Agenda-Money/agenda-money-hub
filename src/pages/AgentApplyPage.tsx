@@ -257,6 +257,12 @@ export default function AgentApplyPage() {
           setOtp("");
           return;
         }
+      } else if (checkData.status === 'PENDING') {
+        setErrorMessage(checkData.message || "Your agent application is currently under review. We will notify you once approved.");
+        // Show backend error directly, do not force generic message
+        setView("auth");
+        setOtp("");
+        return;
       }
       
       toast.success("Phone verified successfully!");
@@ -361,7 +367,6 @@ export default function AgentApplyPage() {
         </div>
       );
     }
-
     if (url) {
       return (
         <div className="flex flex-col items-center justify-center space-y-3 p-2">
@@ -370,12 +375,19 @@ export default function AgentApplyPage() {
           </div>
           <div>
             <p className="text-sm font-bold text-emerald-700">{label} Uploaded</p>
-            <p className="text-xs text-muted-foreground mt-1">Tap to re-upload</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="mt-2"
+              onClick={onUploadClick}
+            >
+              Re-upload
+            </Button>
           </div>
         </div>
       );
     }
-
     return (
       <div className="space-y-4">
         <div className="bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
@@ -386,20 +398,20 @@ export default function AgentApplyPage() {
           <p className="text-xs text-muted-foreground">Ensure edges are visible</p>
         </div>
         <div className="flex gap-2 justify-center pt-2">
-          <Button 
-            type="button" 
-            variant="outline" 
-            size="sm" 
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             className="flex-1 max-w-[120px]"
             onClick={(e) => { e.stopPropagation(); onCameraClick(); }}
           >
             <Camera className="h-4 w-4 mr-2" />
             Camera
           </Button>
-          <Button 
-            type="button" 
-            variant="outline" 
-            size="sm" 
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             className="flex-1 max-w-[120px]"
             onClick={(e) => { e.stopPropagation(); onUploadClick(); }}
           >
