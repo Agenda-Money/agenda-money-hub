@@ -146,8 +146,10 @@ export default function AgentProfile() {
                       const url = nodeCode ? `https://apply.agendamoney.com/${nodeCode}` : "https://apply.agendamoney.com/";
                       const text = `Join Agenda Money with my referral link: ${url}`;
                       if (globalThis.navigator.share) {
-                        globalThis.navigator.share({ title: 'Agenda Money Referral', text, url });
+                        // Only use text to avoid duplication on platforms like WhatsApp/Telegram
+                        globalThis.navigator.share({ title: 'Agenda Money Referral', text });
                       } else {
+                        // Only include the message with the link once
                         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
                         globalThis.open(whatsappUrl, '_blank');
                       }
