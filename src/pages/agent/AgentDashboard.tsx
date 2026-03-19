@@ -3,12 +3,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, CreditCard, TrendingUp, UserPlus, Activity, Clock, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useSocket } from "@/hooks/useSocket";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { useRecentAgentPages } from "@/hooks/useRecentAgentPages";
 
 interface AgentDashboardData {
   agentName: string;
@@ -77,8 +78,17 @@ export default function AgentDashboard() {
     enabled: !!user?.email,
   });
   const dashboardData = dashboardDataRaw;
+  const queryClient = useQueryClient();
 
-
+  const { data: pendingEndorsementsResponse } = useQuery({
+    queryKey: ["agent-endorsements", user?.email],
+    queryFn: async () => {
+      const res = await api.get("/api/agents/pending-endorsements");
+      return res.data;
+    },
+    enabled: !!user?.email,
+  });
+  const pendingEndorsementsCount = (pendingEndorsementsResponse?.endorsements || pendingEndorsementsResponse?.data || pendingEndorsementsResponse?.loans || []).length;
 
   const { data: commissionsData } = useQuery({
     queryKey: ["agent-commissions-summary"],
@@ -89,9 +99,14 @@ export default function AgentDashboard() {
     enabled: !!user?.email,
   });
 
+  const recentPages = useRecentAgentPages();
+
   useSocket(wsUrl, (message) => {
     if (message?.type === "KYC_VERIFIED_SUCCESS" || message?.type === "LOAN_ENDORSED") {
       refetchDashboard();
+    }
+    if (message?.type === "COMMISSION_PAYOUT_APPROVED") {
+      queryClient.invalidateQueries({ queryKey: ["agent-commissions-summary"] });
     }
   });
 
@@ -99,7 +114,7 @@ export default function AgentDashboard() {
     totalSignups: typeof portfolioStats?.total === 'number' ? portfolioStats.total : (dashboardData?.stats?.totalSignups ?? 0),
     signupsThisMonth: dashboardData?.stats?.signupsThisMonth ?? 0,
     activeLoans: typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : (dashboardData?.stats?.activeLoans ?? 0),
-    pendingEndorsements: 0, // Not present in AgentDashboardData, set to 0 or add if needed
+    pendingEndorsements: pendingEndorsementsCount,
     portfolioHealth: dashboardData?.stats?.portfolioHealth ?? 100,
   };
   const recentSignups = dashboardData?.recentSignups ?? [];
@@ -133,7 +148,7 @@ export default function AgentDashboard() {
     },
     {
       title: "Earnings This Week",
-      value: `₵${commissionsData?.netEarnings ?? 0}`,
+      value: `₵${Number(commissionsData?.summary?.netEarnings ?? commissionsData?.netEarnings ?? 0).toFixed(2)}`,
       icon: TrendingUp,
       trend: "Calculated",
       trendUp: true,
@@ -287,6 +302,46 @@ export default function AgentDashboard() {
               </CardContent>
             </Card>
           </motion.div>
+
+           {/* Recent Activity (Pages Visited) */}
+           <motion.div variants={itemVariants}>
+             <div className="flex items-center justify-between mb-4 px-1">
+               <h3 className="text-lg font-black tracking-tight flex items-center gap-2">
+                 Recently Visited
+               </h3>
+             </div>
+             
+             <Card className="border-none shadow-xl shadow-black/5 bg-card/50 backdrop-blur-xl overflow-hidden border border-white/20">
+               <CardContent className="p-0 divide-y divide-border/50">
+                 {recentPages.length > 0 ? (
+                   recentPages.map((page, index) => (
+                     <Link to={page.path} key={index} className="block p-4 sm:p-5 hover:bg-muted/30 transition-all group">
+                       <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-4">
+                           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                             <Clock className="w-5 h-5" />
+                           </div>
+                           <div>
+                             <p className="font-bold text-base text-foreground group-hover:text-primary transition-colors">
+                               {page.name}
+                             </p>
+                             <p className="text-xs font-medium text-muted-foreground opacity-70">
+                               {new Date(page.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                             </p>
+                           </div>
+                         </div>
+                         <ChevronRight className="h-4 w-4 text-muted-foreground opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                       </div>
+                     </Link>
+                   ))
+                 ) : (
+                   <div className="p-8 text-center">
+                     <p className="text-sm text-muted-foreground">No recent pages visited yet.</p>
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
+           </motion.div>
         </div>
 
         {/* RIGHT SIDEBAR: Health & Commissions */}

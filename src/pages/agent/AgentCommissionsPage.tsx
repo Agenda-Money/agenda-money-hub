@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useSocket } from "@/hooks/useSocket";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, isValid } from "date-fns";
+import { format, isValid, isFuture, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
@@ -149,7 +149,7 @@ export default function AgentCommissionsPage() {
         toast({
           variant: "destructive",
           title: "Cooldown Period",
-          description: "You can only request a payout every 2 weeks. Please try again after your cooldown period has ended."
+          description: error?.response?.data?.error || error?.response?.data?.message || "You can only request a payout every 2 weeks. Please try again after your cooldown period has ended."
         });
       } else if (status === 409) {
         setShowPendingPayoutErrorModal(true);
@@ -165,7 +165,7 @@ export default function AgentCommissionsPage() {
   });
 
   const handleRequestPayout = () => {
-    if (toNumber(summary?.netEarnings) > 0) {
+    if (availableToPayout > 0) {
        requestPayoutMutation.mutate();
     } else {
        toast({
@@ -196,13 +196,27 @@ export default function AgentCommissionsPage() {
     }
   });
 
-  const hasPendingPayout = mergedHistory.some((item: any) => {
-    const type = (item.type || item.action || "").toUpperCase();
+  // Check for any pending items (whether they are explicit payout records, or earnings that have been marked as REQUESTED/PENDING)
+  const pendingEarningsAmount = mergedHistory.reduce((sum: number, item: any) => {
     const status = (item.status || "").toUpperCase();
-    const isPayoutType = ["PAYOUT", "CASH_OUT", "REWARD"].includes(type);
-    const isPendingStatus = ["REQUESTED", "PENDING", "APPROVED", "PROCESSING"].includes(status);
-    return isPayoutType && isPendingStatus;
-  });
+    // Exclude PAID items, check if it is some sort of pending status
+    const isPendingStatus = ["REQUESTED", "PENDING", "APPROVED", "APPROVED_FOR_PAYOUT", "PROCESSING"].includes(status);
+    
+    if (isPendingStatus) {
+       return sum + Math.abs(toNumber(item.amount));
+    }
+    return sum;
+  }, 0);
+
+  const hasPendingPayout = pendingEarningsAmount > 0;
+  
+  // Calculate the truly available amount (backend might include requested amounts in netEarnings)
+  const availableToPayout = Math.max(0, toNumber(summary?.availableForPayout ?? summary?.netEarnings) - pendingEarningsAmount);
+  
+  const nextEligibleDateRaw = summary?.nextEligiblePayoutDate;
+  const nextEligibleDate = nextEligibleDateRaw ? new Date(nextEligibleDateRaw) : null;
+  const isEligible = !nextEligibleDate || !isFuture(nextEligibleDate);
+  const daysUntilEligible = nextEligibleDate && isFuture(nextEligibleDate) ? differenceInDays(nextEligibleDate, new Date()) : 0;
   
   const filteredHistory = mergedHistory.filter((item: any) => {
     if (historyTab === "earnings") return item.amount > 0;
@@ -296,7 +310,7 @@ export default function AgentCommissionsPage() {
                       "text-[9px] uppercase font-black px-1.5 py-0.5 rounded-sm",
                       item.status === "PAID" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
                     )}>
-                      {item.status || 'REQUESTED'}
+                      {item.status || 'EARNED'}
                     </span>
                   </div>
                 </div>
@@ -417,62 +431,89 @@ export default function AgentCommissionsPage() {
 
       {mainTab === "commissions" && (
         <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-2">
             {/* Available to Payout */}
-            <Card className="bg-gradient-to-br from-pink-50 to-pink-100/50 border-pink-200 shadow-sm relative overflow-hidden md:col-span-2">
-              <div className="absolute right-0 top-0 w-64 h-64 bg-pink-400/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-pink-700 flex items-center gap-2 z-10">
-                  <Wallet className="w-5 h-5" />
-                  Available for Payout
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col md:flex-row md:items-center justify-between gap-6 z-10 relative">
+            <Card className="bg-white border-2 border-pink-50 shadow-sm relative overflow-hidden flex flex-col h-full rounded-[32px] p-2">
+              <CardContent className="flex flex-col justify-between flex-1 gap-6 p-6">
                 {isSummaryLoading ? (
                   <Skeleton className="h-12 w-48" />
                 ) : (
                   <>
-                    <div className="space-y-4">
-                      <div className="space-y-1">
-                        <div className="text-4xl font-black text-pink-900">GHS {toNumber(summary?.netEarnings).toFixed(2)}</div>
-                        <p className="text-sm text-pink-600 font-medium">Available for payout (pending admin approval)</p>
+                    <div className="space-y-6">
+                      <div className="bg-pink-50 text-pink-500 text-[10px] font-black tracking-widest uppercase px-3 py-1.5 rounded-full inline-flex items-center gap-1.5 w-fit">
+                         <Wallet className="w-3.5 h-3.5" />
+                         Available for payout
+                      </div>
+                      
+                      <div className="space-y-1 mt-6">
+                        <div className="flex items-baseline gap-2">
+                           <span className="text-[#d84e7a] font-black text-xl">GHS</span>
+                           <span className="text-6xl font-black text-gray-900 tracking-tighter">{availableToPayout.toFixed(2)}</span>
+                        </div>
+                        <p className="text-sm text-gray-500 font-medium">
+                          {availableToPayout > 0 ? "Your balance is ready to withdraw" : "You have no available balance"}
+                        </p>
                       </div>
                       
                       {hasPendingPayout && (
-                        <div className="bg-white/60 backdrop-blur-sm border border-pink-200/50 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-left-4 duration-500 shadow-sm">
-                           <Clock className="w-5 h-5 text-pink-500 shrink-0 mt-0.5" />
-                           <div className="text-[11px] text-pink-800 leading-relaxed font-medium">
-                             <strong className="text-pink-900">Request under review</strong><br/>
-                             Our finance team is currently processing your previous request. Please wait for it to be completed.
+                        <div className="bg-orange-50/50 border border-orange-100 rounded-2xl p-4 flex items-start gap-3 mt-4">
+                           <Clock className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                           <div className="text-[11px] text-orange-800 leading-relaxed font-medium">
+                             <strong className="text-orange-900 font-bold tracking-wide text-xs">Request under review (GHS {pendingEarningsAmount.toFixed(2)})</strong><br/>
+                             Our finance team is currently processing your request. Please wait for it to be completed.
+                           </div>
+                        </div>
+                      )}
+
+                      {!isEligible && (
+                        <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3 mt-3">
+                           <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                           <div className="text-[11px] text-blue-800 leading-relaxed font-medium">
+                             <strong className="text-blue-900 font-bold tracking-wide text-xs">Next payout available on {format(nextEligibleDate!, "MMM d, yyyy")}</strong><br/>
+                             You can request your next payout in {daysUntilEligible} {daysUntilEligible === 1 ? 'day' : 'days'}.
                            </div>
                         </div>
                       )}
                     </div>
-                    <Button 
-                      onClick={() => setIsPayoutModalOpen(true)}
-                      disabled={hasPendingPayout || toNumber(summary?.netEarnings) <= 0}
-                      className={cn(
-                        "h-16 px-10 rounded-2xl shadow-xl transition-all duration-300 min-w-[200px] font-black tracking-tight",
-                        hasPendingPayout 
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none border border-gray-200" 
-                          : "bg-[#EC1B84] hover:bg-[#D01773] text-white shadow-pink-200/50 hover:scale-[1.02] active:scale-[0.98]"
-                      )}
-                    >
-                      {hasPendingPayout ? "Processing Payout" : "Request Payout"}
-                    </Button>
+                    
+                    <div className="mt-auto space-y-4 pt-6 border-t border-pink-50">
+                      <Button 
+                        onClick={() => setIsPayoutModalOpen(true)}
+                        disabled={hasPendingPayout || availableToPayout <= 0 || !isEligible}
+                        className={cn(
+                          "w-full h-14 rounded-[16px] shadow-sm transition-all duration-300 font-bold text-base",
+                          hasPendingPayout 
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none border border-gray-200" 
+                            : "bg-[#d84e7a] hover:bg-[#c6446b] text-white shadow-pink-200 hover:scale-[1.02] active:scale-[0.98]"
+                        )}
+                      >
+                        {hasPendingPayout ? "Processing Payout" : "Request payout"}
+                      </Button>
+                      <p className="text-center text-xs font-semibold text-gray-400">
+                        Processed within 1-3 business days
+                      </p>
+                    </div>
                   </>
                 )}
               </CardContent>
             </Card>
 
             {/* Stats Breakdown */}
-            <Card className="flex flex-col justify-center">
-              <CardContent className="pt-6 space-y-4">
+            <Card className="flex flex-col justify-center bg-white border-2 border-gray-50 shadow-sm rounded-[32px] overflow-hidden p-2">
+              <CardContent className="pt-6 space-y-4 px-6">
                 <div>
                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Commission Summary</p>
                    {isSummaryLoading ? <Skeleton className="h-6 w-24" /> : <p className="text-xl font-bold text-gray-900">GHS {toNumber(summary?.netEarnings).toFixed(2)}</p>}
                 </div>
                 <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+                   <div className="space-y-1">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Total Earnings</p>
+                      <p className="text-sm font-bold text-emerald-600">GHS {toNumber(summary?.totalEarnings).toFixed(2)}</p>
+                   </div>
+                   <div className="space-y-1">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Total Payouts</p>
+                      <p className="text-sm font-bold text-blue-600">GHS {toNumber(summary?.totalPayouts).toFixed(2)}</p>
+                   </div>
                    <div className="space-y-1">
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Signups (+10)</p>
                       <p className="text-sm font-bold text-emerald-600">+GHS {toNumber(summary?.signupCommission).toFixed(2) || "0.00"}</p>
@@ -481,9 +522,13 @@ export default function AgentCommissionsPage() {
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Repayments (5%)</p>
                       <p className="text-sm font-bold text-blue-600">+GHS {toNumber(summary?.repaymentCommission).toFixed(2) || "0.00"}</p>
                    </div>
-                   <div className="space-y-1 col-span-2 pt-2 border-t border-gray-50">
+                   <div className="space-y-1 col-span-2">
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Default Deductions (-10)</p>
                       <p className="text-sm font-bold text-red-600">-GHS {toNumber(summary?.defaultDeduction).toFixed(2) || "0.00"}</p>
+                   </div>
+                   <div className="space-y-1 col-span-2 pt-2 border-t border-gray-50 flex items-center justify-between">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Net Earnings</p>
+                      <p className="text-lg font-black text-[#EC1B84]">GHS {toNumber(summary?.netEarnings).toFixed(2)}</p>
                    </div>
                 </div>
               </CardContent>
@@ -637,7 +682,7 @@ export default function AgentCommissionsPage() {
           <div className="space-y-6 relative z-10">
              <div className="bg-gray-50 rounded-[24px] p-6 border border-gray-100">
                 <p className="text-sm font-medium text-gray-500 mb-1">Payout Amount</p>
-               <div className="text-3xl font-black text-[#EC1B84]">GHS {toNumber(summary?.netEarnings).toFixed(2)}</div>
+               <div className="text-3xl font-black text-[#EC1B84]">GHS {availableToPayout.toFixed(2)}</div>
              </div>
 
              <div className="space-y-4">

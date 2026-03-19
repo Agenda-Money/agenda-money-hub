@@ -4,12 +4,15 @@ import { AgentSidebar } from "./AgentSidebar";
 import { AgentHeader } from "./AgentHeader";
 import { useSocket } from "@/hooks/useSocket";
 import { motion } from "framer-motion";
+import { useRecentAgentPagesTracker } from "@/hooks/useRecentAgentPages";
 
 export default function AgentLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
   const { isConnected } = useSocket(wsUrl);
+
+  useRecentAgentPagesTracker();
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
