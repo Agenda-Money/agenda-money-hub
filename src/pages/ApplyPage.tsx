@@ -607,6 +607,11 @@ export default function ApplyPage() {
     checkAuth();
   }, [setApplicant, handleAuthResponse]);
 
+  // ─── Scroll Reset on View/Step Change ───
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [view, onboardingStep, onboardingData.hasAcceptedTerms]);
+
   useEffect(() => {
     if (resendSeconds <= 0) return;
     const timer = globalThis.setInterval(() => setResendSeconds((p) => Math.max(0, p - 1)), 1000);
@@ -921,15 +926,13 @@ export default function ApplyPage() {
         }
         setIdentityStep('upload');
         setErrorMessage(null);
-        window.scrollTo({ top: 0, behavior: "smooth" });
         return;
     }
 
     const err = validateOnboardingStep(onboardingStep);
-    if (err) { setErrorMessage(err); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    if (err) { setErrorMessage(err); return; }
     
     setErrorMessage(null); setOnboardingDirection(1); setOnboardingStep((p) => p + 1);
-    window.scrollTo({ top: 0, behavior: "smooth" });
     
     // If moving TO step 3 from step 2, ensure we start at 'intro'
     if (onboardingStep === 2) {
@@ -2129,7 +2132,6 @@ export default function ApplyPage() {
                      handleOnboardingChange("hasAcceptedTerms", "true");
                      // We actually set boolean in state, the generic handler converts string back if needed, but let's just set the object directly to be safe
                      setOnboardingData(p => ({ ...p, hasAcceptedTerms: true }));
-                     window.scrollTo({ top: 0, behavior: "smooth" });
                    }}
                    className="w-full h-14 rounded-full font-bold bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200 mt-6"
                 >
