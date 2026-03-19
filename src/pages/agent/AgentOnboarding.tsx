@@ -121,12 +121,9 @@ export default function AgentOnboarding() {
     | null
   >(null);
 
-  // Scroll to top when moving to the terms and conditions step (step 4 or 5)
+  // Scroll to top when moving between steps
   useEffect(() => {
-    // Adjust the step number if your terms step is different
-    if (currentStep === 4 || currentStep === 5) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentStep]);
 
   const frontInputRef = useRef<HTMLInputElement>(null);
