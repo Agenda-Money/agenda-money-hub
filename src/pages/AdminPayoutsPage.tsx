@@ -160,7 +160,7 @@ export default function AdminPayoutsPage() {
         </div>
 
         {/* Filters Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 bg-white/40 backdrop-blur-md p-4 sm:p-6 rounded-[24px] sm:rounded-[28px] border border-white/40 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 lg:gap-6 bg-white/40 backdrop-blur-md p-3 sm:p-4 lg:p-6 rounded-[20px] sm:rounded-[28px] border border-white/40 shadow-sm">
           <div className="space-y-1.5 flex-1">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Status</label>
             <Select value={status} onValueChange={setStatus}>

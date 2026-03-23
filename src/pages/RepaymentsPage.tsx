@@ -12,6 +12,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,6 +33,12 @@ interface LoanInfo {
   remaining: number;
   dueDate: string;
 }
+
+const MoMoAvatar = () => (
+  <div className="h-10 w-10 rounded-full bg-[#fce4ec] flex items-center justify-center text-[#c2185b] font-bold text-[10px] tracking-tight shrink-0">
+    MoMo
+  </div>
+);
 
 import { useQuery, useMutation } from "@tanstack/react-query";
 import api from "@/lib/api";
@@ -41,15 +55,24 @@ export default function RepaymentsPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [resultData, setResultData] = useState<any>(null);
-  const [period, setPeriod] = useState("24h");
+  const [period, setPeriod] = useState("monthly");
+  const [limit, setLimit] = useState(10);
 
-  const { data: recentRepayments, isLoading: isLoadingRecent } = useQuery({
-    queryKey: ["recent-repayments", period],
+  const { data: recentRepayments, isLoading: isLoadingRecent, isFetching: isFetchingMore } = useQuery({
+    queryKey: ["recent-repayments", period, limit],
     queryFn: async () => {
-      const res = await api.get(`/api/admin/repayments/recent?period=${period}`);
+      const res = await api.get(`/api/admin/repayments/recent?period=${period}&limit=${limit}`);
       return res.data?.data || [];
     },
   });
+
+  const groupedRepayments = recentRepayments?.reduce((acc: any, rep: any) => {
+    if (!rep.paidAt) return acc;
+    const dateStr = format(new Date(rep.paidAt), "MMM d, yyyy");
+    if (!acc[dateStr]) acc[dateStr] = [];
+    acc[dateStr].push(rep);
+    return acc;
+  }, {} as Record<string, any[]>);
 
   const handleSearch = async () => {
     if (!phone) return;
@@ -176,7 +199,7 @@ export default function RepaymentsPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-[480px] md:max-w-6xl mx-auto pb-12 transition-all duration-300">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">
@@ -194,7 +217,8 @@ export default function RepaymentsPage() {
           </TabsList>
 
           <TabsContent value="record">
-            <Card>
+            <div className="max-w-xl mx-auto lg:mx-0">
+              <Card>
               <CardHeader>
                 <CardTitle>Repayment Details</CardTitle>
           </CardHeader>
@@ -271,88 +295,164 @@ export default function RepaymentsPage() {
             </form>
           </CardContent>
         </Card>
-      </TabsContent>
+      </div>
+    </TabsContent>
 
-      <TabsContent value="history">
-         <Card>
-           <CardHeader className="flex flex-row items-center justify-between">
-             <CardTitle>Recent Repayments</CardTitle>
+      <TabsContent value="history" className="mt-0">
+         <div className="space-y-6">
+           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 px-1">
+             <h2 className="text-[22px] font-semibold text-foreground leading-tight">
+               Recent<span className="md:hidden"><br /></span> repayments
+             </h2>
              <Select value={period} onValueChange={setPeriod}>
-               <SelectTrigger className="w-[180px]">
+               <SelectTrigger className="w-[140px] h-9 rounded-lg bg-card border-border text-[13px]">
                  <SelectValue placeholder="Select period" />
                </SelectTrigger>
-               <SelectContent>
-                 <SelectItem value="24h">Last 24 Hours</SelectItem>
-                 <SelectItem value="weekly">Last 7 Days</SelectItem>
-                 <SelectItem value="monthly">Last 30 Days</SelectItem>
+               <SelectContent className="rounded-lg">
+                 <SelectItem value="monthly">Last 30 days</SelectItem>
+                 <SelectItem value="weekly">Last 7 days</SelectItem>
+                 <SelectItem value="24h">Last 24 hours</SelectItem>
                </SelectContent>
              </Select>
-           </CardHeader>
-           <CardContent>
-             {isLoadingRecent ? (
-                <div className="text-center p-6 text-muted-foreground">Loading...</div>
-             ) : !recentRepayments || recentRepayments.length === 0 ? (
-                <div className="text-center p-6 text-muted-foreground">No recent repayments found.</div>
-             ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border text-left">
-                        <th className="pb-3 font-medium text-muted-foreground pl-2">Transaction</th>
-                        <th className="pb-3 font-medium text-muted-foreground">Customer</th>
-                        <th className="pb-3 font-medium text-muted-foreground">Amount Paid</th>
-                        <th className="pb-3 font-medium text-right text-muted-foreground pr-2">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {recentRepayments.map((rep: any) => (
-                         <tr key={rep.repaymentId} className="border-b border-border/50 py-3 hover:bg-muted/50 transition-colors">
-                            {/* Transaction Ref & Date */}
-                            <td className="py-4 pl-2">
-                              <div className="flex items-center gap-2">
-                                {/* Simple icon to denote payment method, could expand later to real SVG icons */}
-                                <div className="h-8 px-2 min-w-[32px] rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold shrink-0">
-                                   {rep.method === 'MOMO' ? 'MoMo' : rep.method === 'BANK' ? 'Bank' : 'Pay'}
-                                </div>
-                                <div>
-                                   <div className="font-medium text-foreground">{rep.loanReference}</div>
-                                   <div className="text-xs text-muted-foreground">{rep.paidAt ? format(new Date(rep.paidAt), "MMM d, h:mm a") : "N/A"}</div>
-                                </div>
-                              </div>
-                            </td>
+           </div>
 
-                            {/* Customer Identity */}
-                            <td className="py-4">
-                              <div className="font-bold text-foreground">
-                                 {rep.userName || "Unknown Customer"}
-                                 {/* Example Badge placeholder if we eventually have node status in this endpoint */}
-                                 {rep.isNode && <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1 py-0 border-blue-200 text-blue-600 bg-blue-50">Node</Badge>}
-                              </div>
-                              <div className="text-xs text-muted-foreground">{rep.userMsisdn}</div>
-                            </td>
+           {isLoadingRecent ? (
+             <div className="space-y-4 animate-pulse">
+               {[1, 2, 3].map((i) => (
+                 <div key={i} className="h-24 bg-muted/20 rounded-2xl border border-border" />
+               ))}
+             </div>
+           ) : !recentRepayments || recentRepayments.length === 0 ? (
+             <div className="text-center py-12 px-6 bg-card rounded-2xl border border-border">
+               <p className="text-muted-foreground">No recent repayments found.</p>
+             </div>
+           ) : (
+             <div className="space-y-8">
+               {/* Mobile Cards View */}
+               <div className="md:hidden space-y-8">
+                 {Object.entries(groupedRepayments || {}).map(([date, items]: [string, any[]]) => (
+                   <div key={date}>
+                     <div className="text-[11px] font-medium text-[#a0a09a] uppercase tracking-[0.08em] mb-4 ml-0.5">
+                       {date}
+                     </div>
+                     <div className="space-y-2">
+                       {items.map((rep: any) => (
+                          <div 
+                            key={rep.repaymentId} 
+                            className="bg-card border border-border rounded-2xl p-3 sm:p-3.5 grid grid-cols-[40px_1fr_auto] gap-3 items-center hover:border-[#d0d0ca] hover:-translate-y-[1px] transition-all duration-150 cursor-pointer active:translate-y-0"
+                          >
+                            <MoMoAvatar />
+                            <div className="min-w-0">
+                              <div className="text-[11px] font-mono text-[#a0a09a] mb-0.5 truncate uppercase">{rep.loanReference}</div>
+                              <div className="text-sm font-semibold text-foreground mb-0.5 truncate">{rep.userName || "Unknown"}</div>
+                              <div className="text-[12px] text-[#6b6b66] mb-0.5">{rep.userMsisdn}</div>
+                              <div className="text-[11px] text-[#a0a09a] uppercase">{rep.paidAt ? format(new Date(rep.paidAt), "h:mm a") : "N/A"}</div>
+                            </div>
+                            <div className="text-right flex flex-col items-end shrink-0 self-start pt-0.5">
+                              <span className="text-[10px] font-medium text-[#0f6e56] tracking-[0.04em]">GHS</span>
+                              <span className="text-[18px] font-semibold text-[#0f6e56] leading-none mb-1">{Number(rep.amountPaid ?? 0).toFixed(2)}</span>
+                              <div className="text-[11px] text-[#6b6b66]">Bal: GHS {Number(rep.remainingBalance ?? 0).toFixed(2)}</div>
+                              <Badge 
+                                variant="outline" 
+                                className={cn(
+                                  "h-5 px-2 text-[10px] font-medium border-none rounded-full mt-1.5",
+                                  rep.isFullPayment 
+                                    ? "bg-[#e1f5ee] text-[#0f6e56]" 
+                                    : "bg-[#faeeda] text-[#854f0b]"
+                                )}
+                              >
+                                {rep.isFullPayment ? "Full" : "Partial"}
+                              </Badge>
+                            </div>
+                          </div>
+                       ))}
+                     </div>
+                   </div>
+                 ))}
+               </div>
 
-                            {/* Money Visual Hierarchy */}
-                            <td className="py-4">
-                              <div className="font-bold text-success text-base">GHS {Number(rep.amountPaid ?? 0).toFixed(2)}</div>
-                              <div className="text-xs text-muted-foreground">Bal: GHS {Number(rep.remainingBalance ?? 0).toFixed(2)}</div>
-                            </td>
-
-                            {/* Status */}
-                            <td className="py-4 pr-2">
-                              <div className="flex justify-end h-full items-center">
-                                <Badge variant="outline" className={rep.isFullPayment ? "bg-success/10 text-success border-success/20" : "bg-warning/10 text-warning border-warning/20"}>
-                                  {rep.isFullPayment ? "Fully Paid" : "Partial"}
-                                </Badge>
-                              </div>
-                            </td>
-                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-             )}
-           </CardContent>
-         </Card>
+               {/* Desktop Table View */}
+               <div className="hidden md:block bg-card rounded-2xl border border-border overflow-hidden">
+                 <Table>
+                   <TableHeader>
+                     <TableRow className="hover:bg-transparent border-border">
+                       <TableHead className="pl-6 w-[140px]">Date</TableHead>
+                       <TableHead>Reference</TableHead>
+                       <TableHead>Customer</TableHead>
+                       <TableHead className="text-right">Amount Paid</TableHead>
+                       <TableHead className="text-right">Remaining Bal</TableHead>
+                       <TableHead className="text-center pr-6 w-[100px]">Status</TableHead>
+                     </TableRow>
+                   </TableHeader>
+                   <TableBody>
+                     {recentRepayments.map((rep: any) => (
+                       <TableRow key={rep.repaymentId} className="hover:bg-muted/30 border-border group">
+                         <TableCell className="pl-6 py-4">
+                           <div className="flex flex-col">
+                             <span className="text-sm font-medium text-foreground">
+                               {rep.paidAt ? format(new Date(rep.paidAt), "MMM d, yyyy") : "N/A"}
+                             </span>
+                             <span className="text-[11px] text-muted-foreground uppercase">
+                               {rep.paidAt ? format(new Date(rep.paidAt), "h:mm a") : "—"}
+                             </span>
+                           </div>
+                         </TableCell>
+                         <TableCell>
+                           <span className="font-mono text-xs text-muted-foreground uppercase bg-muted/50 px-2 py-1 rounded">
+                             {rep.loanReference}
+                           </span>
+                         </TableCell>
+                         <TableCell>
+                           <div className="flex items-center gap-3">
+                             <MoMoAvatar />
+                             <div className="flex flex-col">
+                               <span className="text-sm font-semibold">{rep.userName || "Unknown"}</span>
+                               <span className="text-xs text-muted-foreground">{rep.userMsisdn}</span>
+                             </div>
+                           </div>
+                         </TableCell>
+                         <TableCell className="text-right">
+                           <div className="flex flex-col items-end">
+                             <span className="text-xs font-medium text-[#0f6e56] tracking-tight">GHS</span>
+                             <span className="text-base font-bold text-[#0f6e56]">
+                               {Number(rep.amountPaid ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                             </span>
+                           </div>
+                         </TableCell>
+                         <TableCell className="text-right">
+                           <span className="text-sm font-medium text-foreground/80">
+                             GHS {Number(rep.remainingBalance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                           </span>
+                         </TableCell>
+                         <TableCell className="text-center pr-6">
+                           <Badge 
+                             variant="outline" 
+                             className={cn(
+                               "h-6 px-3 text-[10px] font-semibold border-none rounded-full",
+                               rep.isFullPayment 
+                                 ? "bg-[#e1f5ee] text-[#0f6e56]" 
+                                 : "bg-[#faeeda] text-[#854f0b]"
+                             )}
+                           >
+                             {rep.isFullPayment ? "FULL" : "PARTIAL"}
+                           </Badge>
+                         </TableCell>
+                       </TableRow>
+                     ))}
+                   </TableBody>
+                 </Table>
+               </div>
+               <Button 
+                variant="outline" 
+                className="w-full h-11 rounded-xl text-[13px] text-[#6b6b66] border-border bg-card hover:border-[#d0d0ca] hover:text-foreground"
+                onClick={() => setLimit(prev => prev + 10)}
+                disabled={isFetchingMore}
+               >
+                 {isFetchingMore ? "Loading..." : "Load more"}
+               </Button>
+             </div>
+           )}
+         </div>
       </TabsContent>
     </Tabs>
       </div>

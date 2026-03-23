@@ -19,6 +19,7 @@ export default function AgentDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [customersPage, setCustomersPage] = useState(1);
 
   // Fetch Agent Profile
   const { data: agentDataResponse, isLoading: isAgentLoading, error: agentError } = useQuery({
@@ -32,6 +33,27 @@ export default function AgentDetailsPage() {
 
   const agentDataRaw = agentDataResponse?.data?.agent || agentDataResponse?.data || agentDataResponse || {};
   const portfolioRaw = agentDataResponse?.data?.portfolio || null;
+
+  const nodeCode = agentDataRaw.agentCode || agentDataRaw.nodeCode || "—";
+
+  // Fetch Agent Customers (Paginated)
+  const { data: customersResponse, isLoading: isCustomersLoading } = useQuery({
+    queryKey: ["agent-customers", nodeCode, customersPage, searchTerm],
+    queryFn: async () => {
+      if (!nodeCode || nodeCode === "—") return { data: { directory: [], pagination: { pages: 1, total: 0 } } };
+      const params: any = { 
+        page: customersPage, 
+        limit: 10
+      };
+      if (searchTerm) params.search = searchTerm;
+      const res = await api.get(`/api/admin/agents/${nodeCode}/portfolio`, { params });
+      return res.data;
+    },
+    enabled: !!nodeCode && nodeCode !== "—",
+  });
+
+  const rawCustomers = customersResponse?.data?.directory || [];
+  const customersPagination = customersResponse?.data?.pagination || { pages: 1, total: 0 };
 
   // Map API data to UI structure
   const agent = {
@@ -55,14 +77,14 @@ export default function AgentDetailsPage() {
     ghanaCardFrontUrl: agentDataRaw.ghanaCardFrontUrl,
     ghanaCardBackUrl: agentDataRaw.ghanaCardBackUrl,
     ghanaCardNumber: agentDataRaw.ghanaCardNumber || "—",
-    customers: (portfolioRaw?.customers || agentDataRaw.customers || []).map((c: any) => ({
-      id: c._id || c.id,
+    customers: rawCustomers.map((c: any) => ({
+      id: c.id || c._id,
       fullName: c.fullName || "—",
-      phone: c.phone || c.msisdn || "—",
+      phone: c.phoneNumber || c.phone || c.msisdn || "—",
       kycStatus: c.kycStatus || "pending",
       loanStatus: c.loanStatus || "none",
       loanAmount: c.loanAmount || 0,
-      joinedAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-GB') : "—"
+      joinedAt: c.onboardedDate ? new Date(c.onboardedDate).toLocaleDateString('en-GB') : "—"
     }))
   };
 
@@ -107,12 +129,6 @@ export default function AgentDetailsPage() {
     );
   }
 
-  const filteredCustomers = (agent.customers ?? []).filter((c: any) => {
-    const fullName = (c.fullName ?? "").toLowerCase();
-    const phone = c.phone ?? "";
-    const term = searchTerm.toLowerCase();
-    return fullName.includes(term) || phone.toLowerCase().includes(term);
-  });
 
   return (
     <DashboardLayout>
@@ -245,15 +261,22 @@ export default function AgentDetailsPage() {
                       placeholder="Search customers..."
                       className="pl-9 h-9"
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCustomersPage(1); // Reset to page 1 on search
+                      }}
                     />
                   </div>
                  </div>
                </CardHeader>
                <CardContent>
                  <div className="space-y-3">
-                   {filteredCustomers.length > 0 ? filteredCustomers.map((c: any) => (
-                      <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50 gap-4 sm:gap-2">
+                   {agent.customers.length > 0 ? agent.customers.map((c: any) => (
+                      <div 
+                        key={c.id} 
+                        onClick={() => navigate(`/users/${c.id}`)}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50 gap-4 sm:gap-2 cursor-pointer active:translate-y-[1px]"
+                      >
                          <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                               <User className="h-5 w-5 text-primary" />
@@ -290,17 +313,49 @@ export default function AgentDetailsPage() {
                             </div>
                          </div>
                       </div>
-                   )) : (
-                     <div className="text-center py-12 text-muted-foreground">
-                       <UserPlus className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                       <p>No customers found.</p>
-                     </div>
-                   )}
-                 </div>
-               </CardContent>
-             </Card>
+                    )) : isCustomersLoading ? (
+                      <div className="space-y-3">
+                         {[1,2,3].map(i => <div key={i} className="h-16 w-full bg-muted animate-pulse rounded-xl" />)}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-xl bg-muted/10">
+                        <UserPlus className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                        <p className="font-medium">No customers found</p>
+                        <p className="text-xs max-w-[200px] mx-auto mt-1 opacity-70">There are no users tied to node code {agent.nodeCode} yet.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Customer Pagination */}
+                  {customersPagination.pages > 1 && (
+                    <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
+                      <p className="text-sm text-muted-foreground">
+                        Page {customersPage} of {customersPagination.pages}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCustomersPage(p => Math.max(1, p - 1))}
+                          disabled={customersPage === 1 || isCustomersLoading}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCustomersPage(p => Math.min(customersPagination.pages, p + 1))}
+                          disabled={customersPage === customersPagination.pages || isCustomersLoading}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
           </TabsContent>
-          
+
           <TabsContent value="profile" className="space-y-6 m-0">
             <Card>
               <CardHeader>
@@ -383,7 +438,7 @@ export default function AgentDetailsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-pink-900 dark:text-pink-100">GHS {(agent.signUpsThisMonth * 5).toFixed(2)}</div>
+                  <div className="text-3xl font-bold text-pink-900 dark:text-pink-100">GHS {(agent.signUpsThisMonth * 10).toFixed(2)}</div>
                   <p className="text-xs text-pink-600 dark:text-pink-400 mt-1 font-medium">Based on signups this month</p>
                 </CardContent>
               </Card>
@@ -396,7 +451,7 @@ export default function AgentDetailsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  <div className="text-3xl font-bold text-foreground">GHS {(agent.signUpsAllTime * 5).toFixed(2)}</div>
+                  <div className="text-3xl font-bold text-foreground">GHS {(agent.signUpsAllTime * 10).toFixed(2)}</div>
                   <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
                     <ArrowUpRight className="w-3 h-3" /> Historical tracking
                   </p>

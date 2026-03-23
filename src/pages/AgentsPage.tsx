@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
@@ -155,10 +155,31 @@ export default function AgentsPage() {
   const rawAgents = responseData?.data ?? [];
   const pendingAgents: PendingAgent[] = pendingData?.data ?? [];
 
-  const agents: Agent[] = rawAgents.map((a: any) => {
-    // If the backend sends an array of combined items: { agent: {...}, portfolio: {...} } OR flat agent objects
-    const agentData = a.agent || a;
-    const portfolioData = a.portfolio || null;
+  // Parallel queries to fetch individual agent details/portfolios for the list view
+  const agentDetailsQueries = useQueries({
+    queries: rawAgents.map((a: any) => {
+      const id = a.agent?.id || a.agent?._id || a.id || a._id;
+      return {
+        queryKey: ["agent", id],
+        queryFn: async () => {
+          const res = await api.get(`/api/admin/agents/${id}`);
+          return res.data;
+        },
+        enabled: !!id,
+        staleTime: 1000 * 60 * 5, // Cache for 5 mins
+      };
+    }),
+  });
+
+  const agents: Agent[] = rawAgents.map((a: any, index: number) => {
+    // Basic data from list view
+    const agentBase = a.agent || a;
+    const portfolioBase = a.portfolio || null;
+    
+    // Enriched data from individual detail query
+    const detailData = agentDetailsQueries[index]?.data?.data;
+    const agentData = detailData?.agent || agentBase;
+    const portfolioData = detailData?.portfolio || portfolioBase;
     
     return {
       id: agentData.id ?? agentData._id,
@@ -184,20 +205,20 @@ export default function AgentsPage() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Agents</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Agents</h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Manage your network and review new agent applications
             </p>
           </div>
         </div>
 
         <Tabs defaultValue="all" className="space-y-4">
-          <TabsList className="bg-muted/50 border shadow-sm">
-            <TabsTrigger value="all" className="min-w-[120px]">All Agents</TabsTrigger>
-            <TabsTrigger value="pending" className="min-w-[120px]">
+          <TabsList className="bg-muted/50 border shadow-sm flex overflow-x-auto no-scrollbar w-fit">
+            <TabsTrigger value="all" className="whitespace-nowrap px-6">All Agents</TabsTrigger>
+            <TabsTrigger value="pending" className="whitespace-nowrap px-6">
               Pending Approvals
               {pendingAgents.length > 0 && (
-                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-pink-500 text-xs text-white">
+                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-pink-500 text-xs text-white shrink-0">
                   {pendingAgents.length}
                 </span>
               )}
@@ -235,6 +256,9 @@ export default function AgentsPage() {
                         <TableHead>Node Code</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Location</TableHead>
+                        <TableHead className="text-right">Loans Active</TableHead>
+                        <TableHead className="text-right">Loans Pending</TableHead>
+                        <TableHead className="text-right">Loans Overdue</TableHead>
                         <TableHead className="text-right">Total Signups</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -246,11 +270,11 @@ export default function AgentsPage() {
                           onClick={() => navigate(`/agents/${agent.id}`)}
                         >
                           <TableCell className="font-medium">
-                            <div>
-                              {agent.name}
-                              <div className="text-xs text-muted-foreground">
+                            <div className="flex flex-col">
+                              <span>{agent.name}</span>
+                              <span className="text-xs text-muted-foreground font-normal">
                                 {agent.email}
-                              </div>
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -271,7 +295,16 @@ export default function AgentsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>{agent.location}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right font-medium text-blue-600">
+                             {agent.loansActive}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-amber-600">
+                             {agent.loansPending}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-destructive">
+                             {agent.loansOverdue}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
                             {agent.signUpsAllTime.toLocaleString()}
                           </TableCell>
                         </TableRow>
@@ -313,8 +346,9 @@ export default function AgentsPage() {
                             <span className="text-muted-foreground text-xs">{agent.location}</span>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Total Signups</p>
-                          <p className="font-semibold">{agent.signUpsAllTime.toLocaleString()}</p>
+                          <Button variant="ghost" size="sm" className="h-8 px-2 text-primary text-xs font-bold">
+                             Details
+                          </Button>
                         </div>
                       </div>
                     </div>

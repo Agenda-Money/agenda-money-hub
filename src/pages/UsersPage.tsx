@@ -104,20 +104,20 @@ export default function UsersPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Users</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Users</h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Manage your platform users and their accounts
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button 
-              className="bg-primary hover:bg-primary/90"
+              className="bg-primary hover:bg-primary/90 flex-1 sm:flex-none"
               onClick={() => setIsCampaignModalOpen(true)}
             >
               <UserPlus className="h-4 w-4 mr-2" />
-              Marketing Campaign
+              Campaign
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" className="flex-1 sm:flex-none">
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -125,19 +125,19 @@ export default function UsersPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-card rounded-xl p-4 shadow-sm">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="bg-card rounded-xl p-3 sm:p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name or phone..."
+                placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 h-10"
               />
             </div>
             <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px] h-10">
                 <SelectValue placeholder="Filter by" />
               </SelectTrigger>
               <SelectContent className="bg-popover">

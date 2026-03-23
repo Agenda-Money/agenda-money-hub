@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useSocket } from "@/hooks/useSocket";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { startOfWeek, endOfWeek } from "date-fns";
 
 interface AgentDashboardData {
   agentName: string;
@@ -84,10 +85,44 @@ export default function AgentDashboard() {
     queryKey: ["agent-commissions-summary"],
     queryFn: async () => {
       const res = await api.get("/api/agents/commissions/summary");
-      return res.data?.data || res.data;
+      const data = res.data?.data || res.data || {};
+      return data.summary || data;
     },
     enabled: !!user?.email,
   });
+
+  const { data: pendingEndorsementsCount } = useQuery({
+    queryKey: ["agent-pending-endorsements-count"],
+    queryFn: async () => {
+      const res = await api.get("/api/agents/pending-endorsements");
+      const data = res.data?.data || res.data || {};
+      const list = data.endorsements || data.loans || (Array.isArray(data) ? data : []);
+      return Array.isArray(list) ? list.length : 0;
+    },
+    enabled: !!user?.email,
+  });
+
+  const { data: weeklyCommissions } = useQuery({
+    queryKey: ["agent-commissions-weekly", user?.email],
+    queryFn: async () => {
+      const now = new Date();
+      const start = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+      const end = endOfWeek(now, { weekStartsOn: 1 });
+      const res = await api.get("/api/agents/commissions", { 
+        params: { 
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+          limit: 1000 
+        } 
+      });
+      const data = res.data;
+      const items = data?.commissions?.items || data?.data?.commissions?.items || data?.items || data?.commissions || data?.data?.items || [];
+      return Array.isArray(items) ? items : [];
+    },
+    enabled: !!user?.email,
+  });
+
+  const earningsThisWeek = (weeklyCommissions || []).reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
 
   useSocket(wsUrl, (message) => {
     if (message?.type === "KYC_VERIFIED_SUCCESS" || message?.type === "LOAN_ENDORSED") {
@@ -99,7 +134,7 @@ export default function AgentDashboard() {
     totalSignups: typeof portfolioStats?.total === 'number' ? portfolioStats.total : (dashboardData?.stats?.totalSignups ?? 0),
     signupsThisMonth: dashboardData?.stats?.signupsThisMonth ?? 0,
     activeLoans: typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : (dashboardData?.stats?.activeLoans ?? 0),
-    pendingEndorsements: 0, // Not present in AgentDashboardData, set to 0 or add if needed
+    pendingEndorsements: pendingEndorsementsCount ?? 0,
     portfolioHealth: dashboardData?.stats?.portfolioHealth ?? 100,
   };
   const recentSignups = dashboardData?.recentSignups ?? [];
@@ -133,7 +168,7 @@ export default function AgentDashboard() {
     },
     {
       title: "Earnings This Week",
-      value: `₵${commissionsData?.netEarnings ?? 0}`,
+      value: `GHS ${earningsThisWeek.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       icon: TrendingUp,
       trend: "Calculated",
       trendUp: true,

@@ -119,7 +119,7 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
       </div>
       
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-4">
+      <div className="md:hidden space-y-4 max-w-md pr-4">
         {loans.map((loan, index) => {
           const normalizedStatus = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
           const config = statusConfig[normalizedStatus];
@@ -142,6 +142,7 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
               className="w-full text-left bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in cursor-pointer active:bg-muted/50"
               style={{ animationDelay: `${index * 30}ms` }}
             >
+
               {/* Header with ID and Status */}
               <div className="flex justify-between items-start">
                 <div>
@@ -156,27 +157,35 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
               </div>
 
               {/* Loan Details Grid */}
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div className="flex flex-col gap-1">
-                  <span className="text-muted-foreground text-xs">Amount</span>
-                  <span className="font-semibold text-foreground">₵{loan.amount.toLocaleString()}</span>
+              <div className="grid grid-cols-2 gap-3 pb-1">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-muted-foreground text-[10px] uppercase font-bold opacity-70">Amount</span>
+                  <span className="font-bold text-foreground text-sm">₵{loan.amount.toLocaleString()}</span>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-muted-foreground text-xs">Tenure</span>
-                  <span className="font-medium text-foreground">{loan.tenure}</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-muted-foreground text-xs">Due Date</span>
-                  <span className="font-medium text-foreground">
-                    {new Date(loan.dueDate).toLocaleDateString("en-GB")}
-                  </span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-muted-foreground text-[10px] uppercase font-bold opacity-70">Tenure</span>
+                  <span className="font-bold text-foreground text-sm">{loan.tenure}</span>
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="pt-3 border-t border-border flex justify-end gap-2">
-                <Button variant="outline" size="sm" className="h-8" onClick={(e) => e.stopPropagation()}>
-                  <Eye className="h-4 w-4 mr-1" />
+              {/* Bottom Row: Due Date + View Button */}
+              <div className="pt-2 border-t border-border flex items-center justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-muted-foreground text-[10px] uppercase font-bold opacity-70">Due Date</span>
+                  <span className="font-bold text-foreground text-xs">
+                    {new Date(loan.dueDate).toLocaleDateString("en-GB")}
+                  </span>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 px-2 text-[10px] font-bold text-primary hover:bg-primary/5" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onLoanClick(loan);
+                  }}
+                >
+                  <Eye className="h-3 w-3 mr-1" />
                   View
                 </Button>
               </div>
@@ -394,7 +403,7 @@ export default function LoansPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatusCard title="Pending Approval" count={pendingCount} type="pending" />
           <StatusCard title="Active Loans" count={activeCount} type="active" />
           <StatusCard title="Closed Loans" count={closedCount} type="closed" />
@@ -403,13 +412,13 @@ export default function LoansPage() {
 
         {/* Controls Row (Tabs + Filter) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <Tabs value={currentTab} onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)} className="w-full sm:w-auto">
-            <TabsList className="bg-muted p-1 overflow-x-auto flex flex-nowrap shrink-0 snap-x">
-              <TabsTrigger value="all" className="data-[state=active]:bg-card whitespace-nowrap snap-start shrink-0">All Loans</TabsTrigger>
-              <TabsTrigger value="pending" className="data-[state=active]:bg-card whitespace-nowrap snap-start shrink-0">Pending</TabsTrigger>
-              <TabsTrigger value="active" className="data-[state=active]:bg-card whitespace-nowrap snap-start shrink-0">Active</TabsTrigger>
-              <TabsTrigger value="closed" className="data-[state=active]:bg-card whitespace-nowrap snap-start shrink-0">Closed</TabsTrigger>
-              <TabsTrigger value="overdue" className="data-[state=active]:bg-card whitespace-nowrap snap-start shrink-0">Overdue</TabsTrigger>
+          <Tabs value={currentTab} onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)} className="w-full sm:w-auto overflow-hidden">
+            <TabsList className="bg-muted p-1 flex overflow-x-auto no-scrollbar w-full sm:w-auto">
+              <TabsTrigger value="all" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">All Loans</TabsTrigger>
+              <TabsTrigger value="pending" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Pending</TabsTrigger>
+              <TabsTrigger value="active" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Active</TabsTrigger>
+              <TabsTrigger value="closed" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Closed</TabsTrigger>
+              <TabsTrigger value="overdue" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Overdue</TabsTrigger>
             </TabsList>
             <div className="mt-4 hidden sm:block"> {/* Hidden div to structure tabs better */} </div> 
           </Tabs>

@@ -32,9 +32,9 @@ const AnalyticsPage = () => {
   const skeletonKeys = useMemo(() => ["one", "two", "three", "four", "five", "six"], []);
 
   const { data: analyticsResponse, isLoading } = useQuery({
-    queryKey: ["admin-analytics"],
+    queryKey: ["admin-analytics", timeRange],
     queryFn: async () => {
-      const res = await api.get("/api/admin/analytics");
+      const res = await api.get("/api/admin/analytics", { params: { range: timeRange } });
       return res.data?.data;
     },
   });
@@ -116,8 +116,7 @@ const AnalyticsPage = () => {
   }, [analyticsResponse, regionPalette]);
 
   const totalSignups = analyticsResponse?.distribution?.totalSignups ?? 0;
-
-  const disbursedWeek = liquidityData.reduce((sum, item) => sum + item.disbursed, 0);
+  const disbursedWeek = analyticsResponse?.summary?.disbursedWeek ?? 0;
 
   const kpiData = {
     disbursedToday: {
