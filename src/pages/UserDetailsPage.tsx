@@ -346,25 +346,25 @@ export default function UserDetailsPage() {
           )}
 
         {/* Header with Tier Visualizer */}
-        <div className="bg-white rounded-[2rem] shadow-sm border border-border/50 overflow-hidden">
-          <div className="bg-gradient-to-r from-primary/5 via-transparent to-transparent p-6">
-            <div className="flex flex-col lg:flex-row justify-between gap-8">
-              <div className="flex items-center gap-6">
-                <div className="h-24 w-24 rounded-[2rem] bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary text-4xl font-black shadow-inner">
+        <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] shadow-sm border border-border/50 overflow-hidden">
+          <div className="bg-gradient-to-r from-primary/5 via-transparent to-transparent p-4 sm:p-6">
+            <div className="flex flex-col lg:flex-row justify-between gap-6 sm:gap-8">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
+                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-[1.5rem] sm:rounded-[2rem] bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary text-3xl sm:text-4xl font-black shadow-inner shrink-0">
                   {user.name.charAt(0)}
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <h1 className="text-3xl font-black tracking-tight text-foreground">{user.name}</h1>
+                <div className="space-y-2 w-full">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3">
+                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground break-words">{user.name}</h1>
                     <Badge className={cn("px-4 py-1 text-xs font-bold rounded-full", tierColors[user.tier] ?? tierColors.L1)}>{user.tier}</Badge>
                   </div>
-                  <div className="flex items-center gap-4 text-muted-foreground">
-                    <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-full text-xs font-medium">
-                      <Phone className="h-3.5 w-3.5" />
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 sm:gap-4 text-muted-foreground">
+                    <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium">
+                      <Phone className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       {user.phone}
                     </div>
-                    <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-full text-xs font-medium">
-                      <Calendar className="h-3.5 w-3.5" />
+                    <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium">
+                      <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       Joined {user.joinedAt}
                     </div>
                   </div>
@@ -425,10 +425,10 @@ export default function UserDetailsPage() {
 
         {/* Tabs for History */}
         <Tabs defaultValue={isFirstTimeUser ? "details" : "loans"} className="space-y-4 w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="transactions">Wallet History</TabsTrigger>
-            <TabsTrigger value="loans">Loan History</TabsTrigger>
-            <TabsTrigger value="details">Profile</TabsTrigger>
+          <TabsList className="bg-muted p-1 flex overflow-x-auto no-scrollbar w-full lg:w-auto lg:inline-flex">
+            <TabsTrigger value="transactions" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Wallet History</TabsTrigger>
+            <TabsTrigger value="loans" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Loan History</TabsTrigger>
+            <TabsTrigger value="details" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Profile</TabsTrigger>
           </TabsList>
           
           <TabsContent value="transactions">

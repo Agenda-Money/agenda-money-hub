@@ -296,7 +296,7 @@ export default function AgentCommissionsPage() {
                       "text-[9px] uppercase font-black px-1.5 py-0.5 rounded-sm",
                       item.status === "PAID" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
                     )}>
-                      {item.status || 'REQUESTED'}
+                      {(item.status || "").toUpperCase() === 'REQUESTED' || !item.status ? 'EARNED' : item.status}
                     </span>
                   </div>
                 </div>

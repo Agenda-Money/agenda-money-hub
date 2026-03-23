@@ -145,33 +145,33 @@ export default function PendingKycPage() {
 
                 <CardContent className="space-y-4">
                   {/* User Details */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                       <p className="text-xs text-muted-foreground">Region</p>
-                      <p className="font-medium">{user.region || "N/A"}</p>
+                      <p className="font-medium text-sm">{user.region || "N/A"}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Tier</p>
-                      <p className="font-medium">L{user.currentTier || 1}</p>
+                      <p className="font-medium text-sm">L{user.currentTier || 1}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Agent Code</p>
-                      <p className="font-mono text-sm font-medium">{user.referredByNodeCode}</p>
+                      <p className="font-mono text-xs font-medium">{user.referredByNodeCode}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Employment</p>
-                      <p className="font-medium">{user.employmentStatus || "N/A"}</p>
+                      <p className="font-medium text-sm">{user.employmentStatus || "N/A"}</p>
                     </div>
                   </div>
 
                   {/* Image Preview */}
                   <div className="pt-2 border-t border-border">
                     <p className="text-xs text-muted-foreground mb-3 font-medium">Documents</p>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-2">
                       {user.selfieUrl && (
                         <button
                           type="button"
-                          className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
                           onClick={(e) => {
                             e.stopPropagation();
                             setZoomedImage(user.selfieUrl);
@@ -190,7 +190,7 @@ export default function PendingKycPage() {
                       {user.ghanaCardFrontUrl && (
                         <button
                           type="button"
-                          className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
                           onClick={(e) => {
                             e.stopPropagation();
                             setZoomedImage(user.ghanaCardFrontUrl);
@@ -209,7 +209,7 @@ export default function PendingKycPage() {
                       {user.ghanaCardBackUrl && (
                         <button
                           type="button"
-                          className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
                           onClick={(e) => {
                             e.stopPropagation();
                             setZoomedImage(user.ghanaCardBackUrl);
@@ -236,7 +236,7 @@ export default function PendingKycPage() {
         {/* KYC Review Details Modal */}
         {selectedUser && (
           <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
               <DialogHeader>
                 <DialogTitle className="text-2xl">KYC Verification Review</DialogTitle>
                 <DialogDescription>
