@@ -275,8 +275,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Endorsed On</p>
                     <p className="font-medium">
-                      {(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt)
-                        ? new Date(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt).toLocaleDateString("en-GB", {
+                      {(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt || (loan as any).createdAt || (loan as any).updatedAt)
+                        ? new Date(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt || (loan as any).createdAt || (loan as any).updatedAt).toLocaleDateString("en-GB", {
                             day: "numeric",
                             month: "short",
                             year: "numeric"
@@ -300,7 +300,9 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                   <p className="text-xl font-bold">{loan.tenure || loan.tenor || loan.tenureDays || "N/A"}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Repayment Date</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(status === "PENDING" || status === "AWAITING_ENDORSEMENT" || status === "DISBURSING") ? "Requested Date" : "Repayment Date"}
+                  </p>
                   <p className="text-lg font-medium">
                     {(loan.dueDate || loan.repaymentDate)
                       ? new Date(loan.dueDate || loan.repaymentDate).toLocaleDateString("en-GB", {

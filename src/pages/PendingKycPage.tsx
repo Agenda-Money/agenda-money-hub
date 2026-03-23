@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ import {
 
 export default function PendingKycPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -47,10 +49,31 @@ export default function PendingKycPage() {
       queryClient.invalidateQueries({ queryKey: ["pending-users-count"] });
       setSelectedUser(null);
       refetch();
+      navigate("/loans/pending");
     },
     onError: (error: any) => {
       toast.error("Approval Failed", {
         description: error.response?.data?.message || "Could not approve user",
+      });
+    },
+  });
+
+  // Reject mutation
+  const { mutate: rejectUser, isPending: isRejecting } = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await api.patch(`/api/admin/users/reject/${userId}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("KYC Rejected");
+      queryClient.invalidateQueries({ queryKey: ["pending-kyc-users"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-users-count"] });
+      setSelectedUser(null);
+      refetch();
+    },
+    onError: (error: any) => {
+      toast.error("Rejection Failed", {
+        description: error.response?.data?.message || "Could not reject user",
       });
     },
   });
@@ -371,11 +394,14 @@ export default function PendingKycPage() {
                 <div className="flex gap-3 pt-4 border-t border-border">
                   <Button
                     variant="outline"
-                    onClick={() => setSelectedUser(null)}
-                    className="flex-1"
+                    onClick={() => {
+                      rejectUser(selectedUser._id);
+                    }}
+                    disabled={isRejecting}
+                    className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
                   >
                     <X className="h-4 w-4 mr-2" />
-                    Reject
+                    {isRejecting ? "Rejecting..." : "Reject"}
                   </Button>
                   <Button
                     onClick={() => approveUser(selectedUser._id)}
