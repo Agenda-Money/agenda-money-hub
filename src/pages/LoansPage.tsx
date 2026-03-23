@@ -119,7 +119,7 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
       </div>
       
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-4 max-w-md pr-4">
+      <div className="md:hidden space-y-4 w-full pl-2 pr-6 overflow-x-hidden">
         {loans.map((loan, index) => {
           const normalizedStatus = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
           const config = statusConfig[normalizedStatus];
@@ -131,33 +131,26 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
               role="button"
               tabIndex={0}
               onClick={() => onLoanClick(loan)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  if (e.key === ' ') {
-                    e.preventDefault();
-                  }
-                  onLoanClick(loan);
-                }
-              }}
               className="w-full text-left bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in cursor-pointer active:bg-muted/50"
               style={{ animationDelay: `${index * 30}ms` }}
             >
-
               {/* Header with ID and Status */}
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs text-muted-foreground">{loan.reference}</p>
-                  <h3 className="font-semibold text-foreground">{loan.user}</h3>
-                  <p className="text-sm text-muted-foreground">{loan.phone}</p>
+              <div className="flex justify-between items-center flex-wrap gap-2">
+                <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2 w-full">
+                    <p className="text-[10px] text-muted-foreground truncate font-mono">{loan.reference}</p>
+                    <Badge variant="outline" className={cn("font-medium flex items-center gap-1 shrink-0 text-[10px] px-1.5 py-0", displayConfig.color)}>
+                      <StatusIcon className={cn("h-3 w-3", loan.status === "DISBURSING" && "animate-spin")} />
+                      {loan.status ?? "Unknown"}
+                    </Badge>
+                  </div>
+                  <h3 className="font-semibold text-foreground truncate mt-0.5">{loan.user}</h3>
+                  <p className="text-xs text-muted-foreground truncate">{loan.phone}</p>
                 </div>
-                <Badge variant="outline" className={cn("font-medium flex items-center gap-1", displayConfig.color)}>
-                  <StatusIcon className={cn("h-3 w-3", loan.status === "DISBURSING" && "animate-spin")} />
-                  {loan.status ?? "Unknown"}
-                </Badge>
               </div>
 
               {/* Loan Details Grid */}
-              <div className="grid grid-cols-2 gap-3 pb-1">
+              <div className="grid grid-cols-2 gap-3 pb-1 border-b border-border/50">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-muted-foreground text-[10px] uppercase font-bold opacity-70">Amount</span>
                   <span className="font-bold text-foreground text-sm">₵{loan.amount.toLocaleString()}</span>
@@ -169,23 +162,23 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
               </div>
 
               {/* Bottom Row: Due Date + View Button */}
-              <div className="pt-2 border-t border-border flex items-center justify-between">
-                <div className="flex flex-col gap-0.5">
+              <div className="pt-1 flex items-center justify-between gap-2">
+                <div className="flex flex-col min-w-0">
                   <span className="text-muted-foreground text-[10px] uppercase font-bold opacity-70">Due Date</span>
-                  <span className="font-bold text-foreground text-xs">
+                  <span className="font-bold text-foreground text-[11px] truncate">
                     {new Date(loan.dueDate).toLocaleDateString("en-GB")}
                   </span>
                 </div>
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="h-7 px-2 text-[10px] font-bold text-primary hover:bg-primary/5" 
+                  className="h-8 px-3 text-xs font-bold text-primary hover:bg-primary/5 flex items-center gap-1.5 shrink-0" 
                   onClick={(e) => {
                     e.stopPropagation();
                     onLoanClick(loan);
                   }}
                 >
-                  <Eye className="h-3 w-3 mr-1" />
+                  <Eye className="h-3.5 w-3.5" />
                   View
                 </Button>
               </div>
@@ -206,8 +199,8 @@ const StatusCard = ({ title, count, type }: { title: string, count: number | str
   };
 
   return (
-    <div className={cn("bg-card rounded-xl p-4 shadow-sm border-l-4", styles[type])}>
-      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+    <div className={cn("bg-card rounded-xl p-4 shadow-sm border-l-4 w-full min-w-0", styles[type])}>
+      <p className="text-sm font-medium text-muted-foreground truncate">{title}</p>
       <p className="text-2xl font-bold text-foreground mt-1">{count}</p>
     </div>
   );
@@ -395,15 +388,15 @@ export default function LoansPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-[390px] md:max-w-none mx-auto w-full px-0 md:px-0 overflow-x-hidden pb-20 md:pb-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Loans</h1>
-          <p className="text-muted-foreground mt-1">Manage and monitor all loan applications</p>
+        <div className="pl-2 pr-6 md:px-0">
+          <h1 className="text-3xl font-bold text-foreground font-heading">Loans</h1>
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">Manage and monitor all loan applications</p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pl-2 pr-6 md:px-0">
           <StatusCard title="Pending Approval" count={pendingCount} type="pending" />
           <StatusCard title="Active Loans" count={activeCount} type="active" />
           <StatusCard title="Closed Loans" count={closedCount} type="closed" />
@@ -412,23 +405,32 @@ export default function LoansPage() {
 
         {/* Controls Row (Tabs + Filter) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <Tabs value={currentTab} onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)} className="w-full sm:w-auto overflow-hidden">
-            <TabsList className="bg-muted p-1 flex overflow-x-auto no-scrollbar w-full sm:w-auto">
-              <TabsTrigger value="all" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">All Loans</TabsTrigger>
-              <TabsTrigger value="pending" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Pending</TabsTrigger>
-              <TabsTrigger value="active" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Active</TabsTrigger>
-              <TabsTrigger value="closed" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Closed</TabsTrigger>
-              <TabsTrigger value="overdue" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Overdue</TabsTrigger>
+          <Tabs 
+            value={currentTab} 
+            onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)} 
+            className="w-full"
+          >
+            <TabsList 
+              className="bg-transparent p-0 flex overflow-x-auto no-scrollbar w-full justify-start border-none ml-[-4px] pl-1 pr-8 md:ml-0 md:px-1 gap-2"
+              style={{ 
+                WebkitOverflowScrolling: 'touch',
+                scrollbarWidth: 'none',
+              }}
+            >
+              <TabsTrigger value="all" className="whitespace-nowrap px-3 py-1.5 text-xs md:text-sm shrink-0 rounded-lg data-[state=active]:bg-muted data-[state=active]:shadow-none">All Loans</TabsTrigger>
+              <TabsTrigger value="pending" className="whitespace-nowrap px-3 py-1.5 text-xs md:text-sm shrink-0 rounded-lg data-[state=active]:bg-muted data-[state=active]:shadow-none">Pending</TabsTrigger>
+              <TabsTrigger value="active" className="whitespace-nowrap px-3 py-1.5 text-xs md:text-sm shrink-0 rounded-lg data-[state=active]:bg-muted data-[state=active]:shadow-none">Active</TabsTrigger>
+              <TabsTrigger value="closed" className="whitespace-nowrap px-3 py-1.5 text-xs md:text-sm shrink-0 rounded-lg data-[state=active]:bg-muted data-[state=active]:shadow-none">Closed</TabsTrigger>
+              <TabsTrigger value="overdue" className="whitespace-nowrap px-3 py-1.5 text-xs md:text-sm shrink-0 rounded-lg data-[state=active]:bg-muted data-[state=active]:shadow-none">Overdue</TabsTrigger>
             </TabsList>
-            <div className="mt-4 hidden sm:block"> {/* Hidden div to structure tabs better */} </div> 
           </Tabs>
 
           {/* Detailed Status Filter (Only visible on All Loans tab) */}
           {currentTab === "all" && (
-            <div className="flex items-center gap-2 w-full sm:w-[220px]">
+            <div className="flex items-center gap-2 w-full sm:w-[220px] pl-2 pr-6 md:px-0">
               <Filter className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full rounded-xl bg-card border-border">
+                <SelectTrigger className="w-full rounded-xl bg-card border-border h-11 text-sm font-medium">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-border">
@@ -457,7 +459,7 @@ export default function LoansPage() {
               
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-border pt-4">
+                <div className="flex flex-col gap-4 items-center sm:flex-row sm:justify-between border-t border-border pt-4 px-4 sm:px-0">
                   <p className="text-sm text-muted-foreground">
                     Showing {loans.length} of {totalLoans} loans
                   </p>

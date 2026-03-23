@@ -239,7 +239,7 @@ export default function UserDetailsPage() {
   const { mutate: toggleBlock, isPending: isBlocking } = useMutation({
     mutationFn: async () => {
       const action = user.status === "active" ? "block" : "unblock";
-      await api.post(`/api/admin/users/${id}/${action}`);
+      await api.patch(`/api/admin/users/${action}/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
@@ -252,11 +252,12 @@ export default function UserDetailsPage() {
 
   const { mutate: approveKyc, isPending: isApprovingKyc } = useMutation({
     mutationFn: async () => {
-      await api.post(`/api/admin/users/${id}/kyc/approve`);
+      await api.patch(`/api/admin/users/approve/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
       toast.success("KYC approved successfully");
+      navigate("/loans/pending");
     },
     onError: (error: any) => {
       toast.error(getFriendlyErrorMessage(error));
@@ -265,7 +266,7 @@ export default function UserDetailsPage() {
 
   const { mutate: rejectKyc, isPending: isRejectingKyc } = useMutation({
     mutationFn: async () => {
-      await api.post(`/api/admin/users/${id}/kyc/reject`);
+      await api.patch(`/api/admin/users/reject/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
@@ -425,10 +426,10 @@ export default function UserDetailsPage() {
 
         {/* Tabs for History */}
         <Tabs defaultValue={isFirstTimeUser ? "details" : "loans"} className="space-y-4 w-full">
-          <TabsList className="bg-muted p-1 flex overflow-x-auto no-scrollbar w-full lg:w-auto lg:inline-flex">
-            <TabsTrigger value="transactions" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Wallet History</TabsTrigger>
-            <TabsTrigger value="loans" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Loan History</TabsTrigger>
-            <TabsTrigger value="details" className="flex-1 sm:flex-none whitespace-nowrap px-4 py-2">Profile</TabsTrigger>
+          <TabsList className="bg-muted p-1 grid grid-cols-3 w-full lg:w-fit lg:flex lg:flex-nowrap lg:inline-flex">
+            <TabsTrigger value="transactions" className="px-4 py-2">History</TabsTrigger>
+            <TabsTrigger value="loans" className="px-4 py-2">Loans</TabsTrigger>
+            <TabsTrigger value="details" className="px-4 py-2">Profile</TabsTrigger>
           </TabsList>
           
           <TabsContent value="transactions">
