@@ -4,7 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Users, CreditCard, TrendingUp, UserPlus, Activity, Clock, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { 
+  getAgentPortfolio, 
+  getAgentMyStats, 
+  getAgentCommissionSummary, 
+  getAgentPendingEndorsements, 
+  getAgentCommissions 
+} from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useSocket } from "@/hooks/useSocket";
 import { motion } from "framer-motion";
@@ -52,12 +58,12 @@ export default function AgentDashboard() {
   const { data: portfolioStats } = useQuery({
     queryKey: ["agent-portfolio", user?.email],
     queryFn: async () => {
-      const res = await api.get("/api/agents/portfolio", { params: { page: 1, limit: 1000 } });
+      const res = await getAgentPortfolio({ page: 1, limit: 1000 });
       let directory = [];
-      if (res.data?.data?.directory) directory = res.data.data.directory;
-      else if (res.data?.directory) directory = res.data.directory;
-      else if (Array.isArray(res.data?.data)) directory = res.data.data;
-      else if (Array.isArray(res.data)) directory = res.data;
+      const data = res.data || res;
+      if (data?.directory) directory = data.directory;
+      else if (Array.isArray(data?.data)) directory = data.data;
+      else if (Array.isArray(data)) directory = data;
       // Total signups = directory length
       const total = directory.length;
       // Active loans = count of users with loanStatus === 'active'
@@ -72,8 +78,8 @@ export default function AgentDashboard() {
   const { data: dashboardDataRaw, refetch: refetchDashboard } = useQuery<AgentDashboardData>({
     queryKey: ["agent-dashboard-stats", user?.email],
     queryFn: async () => {
-      const res = await api.get("/api/agents/my-stats");
-      return res.data?.data || res.data;
+      const res = await getAgentMyStats();
+      return res.data || res;
     },
     enabled: !!user?.email,
   });
@@ -84,8 +90,8 @@ export default function AgentDashboard() {
   const { data: commissionsData } = useQuery({
     queryKey: ["agent-commissions-summary"],
     queryFn: async () => {
-      const res = await api.get("/api/agents/commissions/summary");
-      const data = res.data?.data || res.data || {};
+      const res = await getAgentCommissionSummary();
+      const data = res.data || res || {};
       return data.summary || data;
     },
     enabled: !!user?.email,
@@ -94,8 +100,8 @@ export default function AgentDashboard() {
   const { data: pendingEndorsementsCount } = useQuery({
     queryKey: ["agent-pending-endorsements-count"],
     queryFn: async () => {
-      const res = await api.get("/api/agents/pending-endorsements");
-      const data = res.data?.data || res.data || {};
+      const res = await getAgentPendingEndorsements();
+      const data = res.data || res || {};
       const list = data.endorsements || data.loans || (Array.isArray(data) ? data : []);
       return Array.isArray(list) ? list.length : 0;
     },
@@ -108,14 +114,12 @@ export default function AgentDashboard() {
       const now = new Date();
       const start = startOfWeek(now, { weekStartsOn: 1 }); // Monday
       const end = endOfWeek(now, { weekStartsOn: 1 });
-      const res = await api.get("/api/agents/commissions", { 
-        params: { 
-          startDate: start.toISOString(),
-          endDate: end.toISOString(),
-          limit: 1000 
-        } 
+      const res = await getAgentCommissions({ 
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+        limit: 1000 
       });
-      const data = res.data;
+      const data = res;
       const items = data?.commissions?.items || data?.data?.commissions?.items || data?.items || data?.commissions || data?.data?.items || [];
       return Array.isArray(items) ? items : [];
     },

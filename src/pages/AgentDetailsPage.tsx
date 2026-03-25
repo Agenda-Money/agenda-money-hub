@@ -12,48 +12,35 @@ import { Input } from "@/components/ui/input";
 import { SecureKycImage } from "@/components/common/SecureKycImage";
 
 import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { getAdminAgentDetails, getAdminAgentCommissions } from "@/lib/api";
+import { formatAmount, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function AgentDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [customersPage, setCustomersPage] = useState(1);
 
   // Fetch Agent Profile
   const { data: agentDataResponse, isLoading: isAgentLoading, error: agentError } = useQuery({
     queryKey: ["agent", id],
     queryFn: async () => {
-      const res = await api.get(`/api/admin/agents/${id}`);
-      return res.data;
+      const res = await getAdminAgentDetails(id!);
+      return res;
     },
+    enabled: !!id,
+  });
+
+  // Fetch Agent Commissions
+  const { data: commissionResponse, isLoading: isCommissionLoading } = useQuery({
+    queryKey: ["agent-commissions", id],
+    queryFn: () => getAdminAgentCommissions(id!),
     enabled: !!id,
   });
 
   const agentDataRaw = agentDataResponse?.data?.agent || agentDataResponse?.data || agentDataResponse || {};
   const portfolioRaw = agentDataResponse?.data?.portfolio || null;
-
-  const nodeCode = agentDataRaw.agentCode || agentDataRaw.nodeCode || "—";
-
-  // Fetch Agent Customers (Paginated)
-  const { data: customersResponse, isLoading: isCustomersLoading } = useQuery({
-    queryKey: ["agent-customers", nodeCode, customersPage, searchTerm],
-    queryFn: async () => {
-      if (!nodeCode || nodeCode === "—") return { data: { directory: [], pagination: { pages: 1, total: 0 } } };
-      const params: any = { 
-        page: customersPage, 
-        limit: 10
-      };
-      if (searchTerm) params.search = searchTerm;
-      const res = await api.get(`/api/admin/agents/${nodeCode}/portfolio`, { params });
-      return res.data;
-    },
-    enabled: !!nodeCode && nodeCode !== "—",
-  });
-
-  const rawCustomers = customersResponse?.data?.directory || [];
-  const customersPagination = customersResponse?.data?.pagination || { pages: 1, total: 0 };
+  const statsRaw = agentDataRaw.stats || {};
 
   // Map API data to UI structure
   const agent = {
@@ -67,24 +54,24 @@ export default function AgentDetailsPage() {
     address: agentDataRaw.address || "—",
     location: agentDataRaw.location || agentDataRaw.region || "—",
     totalTransactions: portfolioRaw?.totalTransactions || agentDataRaw.totalTransactions || 0,
-    signUpsAllTime: portfolioRaw?.metrics?.signUpsAllTime ?? agentDataRaw.totalSignUps ?? agentDataRaw.signUpsAllTime ?? agentDataRaw.activeUsers ?? 0,
-    signUpsThisMonth: portfolioRaw?.metrics?.signUpsThisMonth ?? agentDataRaw.signUpsThisMonth ?? 0,
-    loansActive: portfolioRaw?.portfolio?.loansActive ?? portfolioRaw?.loansActive ?? agentDataRaw.loansActive ?? 0,
-    loansPending: portfolioRaw?.portfolio?.loansPending ?? portfolioRaw?.loansPending ?? agentDataRaw.loansPending ?? 0,
-    loansClosed: portfolioRaw?.portfolio?.loansClosed ?? portfolioRaw?.loansClosed ?? agentDataRaw.loansClosed ?? 0,
-    loansOverdue: portfolioRaw?.portfolio?.loansOverdue ?? portfolioRaw?.loansOverdue ?? agentDataRaw.loansOverdue ?? 0,
+    signUpsAllTime: statsRaw.totalSignups ?? portfolioRaw?.metrics?.signUpsAllTime ?? agentDataRaw.totalSignups ?? agentDataRaw.signUpsAllTime ?? 0,
+    signUpsThisMonth: statsRaw.signupsThisMonth ?? portfolioRaw?.metrics?.signUpsThisMonth ?? agentDataRaw.signupsThisMonth ?? agentDataRaw.signUpsThisMonth ?? 0,
+    loansActive: statsRaw.activeLoans ?? portfolioRaw?.portfolio?.loansActive ?? agentDataRaw.activeLoans ?? 0,
+    loansPending: statsRaw.pendingLoans ?? portfolioRaw?.portfolio?.loansPending ?? agentDataRaw.loansPending ?? 0,
+    loansClosed: statsRaw.closedLoans ?? portfolioRaw?.portfolio?.loansClosed ?? agentDataRaw.loansClosed ?? 0,
+    loansOverdue: statsRaw.overdueLoans ?? portfolioRaw?.portfolio?.loansOverdue ?? agentDataRaw.loansOverdue ?? 0,
     selfieUrl: agentDataRaw.selfieUrl,
     ghanaCardFrontUrl: agentDataRaw.ghanaCardFrontUrl,
     ghanaCardBackUrl: agentDataRaw.ghanaCardBackUrl,
     ghanaCardNumber: agentDataRaw.ghanaCardNumber || "—",
-    customers: rawCustomers.map((c: any) => ({
-      id: c.id || c._id,
+    customers: (portfolioRaw?.customers || agentDataRaw.customers || []).map((c: any) => ({
+      id: c._id || c.id,
       fullName: c.fullName || "—",
-      phone: c.phoneNumber || c.phone || c.msisdn || "—",
+      phone: c.phone || c.msisdn || c.phoneNumber || "—",
       kycStatus: c.kycStatus || "pending",
       loanStatus: c.loanStatus || "none",
       loanAmount: c.loanAmount || 0,
-      joinedAt: c.onboardedDate ? new Date(c.onboardedDate).toLocaleDateString('en-GB') : "—"
+      joinedAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-GB') : "—"
     }))
   };
 
@@ -129,6 +116,12 @@ export default function AgentDetailsPage() {
     );
   }
 
+  const filteredCustomers = (agent.customers ?? []).filter((c: any) => {
+    const fullName = (c.fullName ?? "").toLowerCase();
+    const phone = c.phone ?? "";
+    const term = searchTerm.toLowerCase();
+    return fullName.includes(term) || phone.toLowerCase().includes(term);
+  });
 
   return (
     <DashboardLayout>
@@ -188,14 +181,14 @@ export default function AgentDetailsPage() {
                         <UserPlus className="h-4 w-4" />
                         <span className="text-xs font-medium uppercase tracking-wider">Total Signups</span>
                       </div>
-                      <p className="text-2xl sm:text-xl font-bold text-foreground">{agent.signUpsAllTime}</p>
+                       <p className="text-2xl sm:text-xl font-bold text-foreground">{formatNumber(agent.signUpsAllTime)}</p>
                    </div>
                    <div className="p-4 sm:p-3 rounded-xl sm:rounded-lg border bg-muted/20 flex flex-col justify-center">
                       <div className="flex items-center gap-2 text-muted-foreground mb-1.5 sm:mb-1">
                         <Clock className="h-4 w-4" />
                         <span className="text-xs font-medium uppercase tracking-wider">This Month</span>
                       </div>
-                      <p className="text-2xl sm:text-xl font-bold text-foreground">{agent.signUpsThisMonth}</p>
+                       <p className="text-2xl sm:text-xl font-bold text-foreground">{formatNumber(agent.signUpsThisMonth)}</p>
                    </div>
                </div>
             </div>
@@ -223,25 +216,25 @@ export default function AgentDetailsPage() {
                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                        <div className="p-4 rounded-xl border bg-blue-50/50 dark:bg-blue-950/10 border-blue-100 dark:border-blue-900 flex flex-col">
                           <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-1">Active Loans</p>
-                          <p className="text-3xl font-bold text-blue-700 dark:text-blue-300 mt-auto">{agent.loansActive}</p>
+                           <p className="text-3xl font-bold text-blue-700 dark:text-blue-300 mt-auto">{formatNumber(agent.loansActive)}</p>
                        </div>
                        <div className="p-4 rounded-xl border bg-amber-50/50 dark:bg-amber-950/10 border-amber-100 dark:border-amber-900 flex flex-col">
                           <p className="text-sm text-amber-600 dark:text-amber-400 font-medium mb-1">Pending Loans</p>
-                          <p className="text-3xl font-bold text-amber-700 dark:text-amber-300 mt-auto">{agent.loansPending}</p>
+                           <p className="text-3xl font-bold text-amber-700 dark:text-amber-300 mt-auto">{formatNumber(agent.loansPending)}</p>
                        </div>
                        <div className="p-4 rounded-xl border bg-green-50/50 dark:bg-green-950/10 border-green-100 dark:border-green-900 flex flex-col">
                            <div className="flex items-center gap-1.5 mb-1">
                              <CheckCircle2 className="h-4 w-4 text-green-600" />
                              <p className="text-sm text-green-600 dark:text-green-400 font-medium">Closed / Repaid</p>
                            </div>
-                          <p className="text-3xl font-bold text-green-700 dark:text-green-300 mt-auto">{agent.loansClosed}</p>
+                           <p className="text-3xl font-bold text-green-700 dark:text-green-300 mt-auto">{formatNumber(agent.loansClosed)}</p>
                        </div>
                        <div className="p-4 rounded-xl border bg-red-50/50 dark:bg-red-950/10 border-red-100 dark:border-red-900 flex flex-col">
                            <div className="flex items-center gap-1.5 mb-1">
                              <AlertCircle className="h-4 w-4 text-red-600" />
                              <p className="text-sm text-red-600 dark:text-red-400 font-medium">Overdue Loans</p>
                            </div>
-                          <p className="text-3xl font-bold text-red-700 dark:text-red-300 mt-auto">{agent.loansOverdue}</p>
+                           <p className="text-3xl font-bold text-red-700 dark:text-red-300 mt-auto">{formatNumber(agent.loansOverdue)}</p>
                        </div>
                     </div>
                 </CardContent>
@@ -261,21 +254,18 @@ export default function AgentDetailsPage() {
                       placeholder="Search customers..."
                       className="pl-9 h-9"
                       value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setCustomersPage(1); // Reset to page 1 on search
-                      }}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                  </div>
                </CardHeader>
                <CardContent>
                  <div className="space-y-3">
-                   {agent.customers.length > 0 ? agent.customers.map((c: any) => (
+                   {filteredCustomers.length > 0 ? filteredCustomers.map((c: any) => (
                       <div 
                         key={c.id} 
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50 gap-4 sm:gap-2 cursor-pointer group"
                         onClick={() => navigate(`/users/${c.id}`)}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50 gap-4 sm:gap-2 cursor-pointer active:translate-y-[1px]"
                       >
                          <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -313,49 +303,17 @@ export default function AgentDetailsPage() {
                             </div>
                          </div>
                       </div>
-                    )) : isCustomersLoading ? (
-                      <div className="space-y-3">
-                         {[1,2,3].map(i => <div key={i} className="h-16 w-full bg-muted animate-pulse rounded-xl" />)}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-xl bg-muted/10">
-                        <UserPlus className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                        <p className="font-medium">No customers found</p>
-                        <p className="text-xs max-w-[200px] mx-auto mt-1 opacity-70">There are no users tied to node code {agent.nodeCode} yet.</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Customer Pagination */}
-                  {customersPagination.pages > 1 && (
-                    <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
-                      <p className="text-sm text-muted-foreground">
-                        Page {customersPage} of {customersPagination.pages}
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCustomersPage(p => Math.max(1, p - 1))}
-                          disabled={customersPage === 1 || isCustomersLoading}
-                        >
-                          Previous
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCustomersPage(p => Math.min(customersPagination.pages, p + 1))}
-                          disabled={customersPage === customersPagination.pages || isCustomersLoading}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                   )) : (
+                     <div className="text-center py-12 text-muted-foreground">
+                       <UserPlus className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                       <p>No customers found.</p>
+                     </div>
+                   )}
+                 </div>
+               </CardContent>
+             </Card>
           </TabsContent>
-
+          
           <TabsContent value="profile" className="space-y-6 m-0">
             <Card>
               <CardHeader>
@@ -438,7 +396,7 @@ export default function AgentDetailsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-pink-900 dark:text-pink-100">GHS {(agent.signUpsThisMonth * 10).toFixed(2)}</div>
+                   <div className="text-3xl font-bold text-pink-900 dark:text-pink-100">GHS {formatAmount(agent.signUpsThisMonth * 10)}</div>
                   <p className="text-xs text-pink-600 dark:text-pink-400 mt-1 font-medium">Based on signups this month</p>
                 </CardContent>
               </Card>
@@ -451,7 +409,7 @@ export default function AgentDetailsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  <div className="text-3xl font-bold text-foreground">GHS {(agent.signUpsAllTime * 10).toFixed(2)}</div>
+                   <div className="text-3xl font-bold text-foreground">GHS {formatAmount(agent.signUpsAllTime * 10)}</div>
                   <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
                     <ArrowUpRight className="w-3 h-3" /> Historical tracking
                   </p>
@@ -466,7 +424,7 @@ export default function AgentDetailsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  <div className="text-3xl font-bold text-foreground">GHS {(agent.loansOverdue * 10).toFixed(2)}</div>
+                   <div className="text-3xl font-bold text-foreground">GHS {formatAmount(agent.loansOverdue * 10)}</div>
                   <p className="text-xs text-destructive font-medium mt-1 flex items-center gap-1">
                     <ArrowDownRight className="w-3 h-3" /> From defaults (-10 GHS each)
                   </p>
@@ -480,13 +438,58 @@ export default function AgentDetailsPage() {
                 <CardDescription>Recent earnings and deductions for {agent.name}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-xl bg-muted/20">
-                  <Banknote className="h-10 w-10 text-muted-foreground mb-3 opacity-40" />
-                  <p className="text-sm font-medium text-foreground">Awaiting Detailed Ledger</p>
-                  <p className="text-xs text-muted-foreground max-w-[250px] mt-1">
-                    Specific commission line items will appear here once the new endpoint is connected.
-                  </p>
-                </div>
+                {isCommissionLoading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  </div>
+                ) : commissionResponse?.data?.ledger?.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-muted-foreground uppercase bg-muted/30">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Date</th>
+                          <th className="px-4 py-3 font-medium">Type</th>
+                          <th className="px-4 py-3 font-medium">Related To</th>
+                          <th className="px-4 py-3 font-medium text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y border-t">
+                        {(commissionResponse?.data?.ledger || []).map((item: any) => (
+                          <tr key={item._id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {new Date(item.createdAt).toLocaleDateString("en-GB")}
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge variant="outline" className={cn(
+                                "capitalize text-[10px] px-1.5 py-0",
+                                item.type === 'SIGNUP' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                item.type === 'REPAYMENT' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                "bg-red-50 text-red-700 border-red-200"
+                              )}>
+                                {item.type.replace('_', ' ')}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 font-medium">{item.relatedName || "—"}</td>
+                            <td className={cn(
+                              "px-4 py-3 text-right font-bold",
+                              item.amount >= 0 ? "text-emerald-600" : "text-destructive"
+                            )}>
+                              {item.amount >= 0 ? "+" : ""}{item.amount.toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-xl bg-muted/20">
+                    <Banknote className="h-10 w-10 text-muted-foreground mb-3 opacity-40" />
+                    <p className="text-sm font-medium text-foreground">No commission history</p>
+                    <p className="text-xs text-muted-foreground max-w-[250px] mt-1">
+                      Earnings and deductions will appear here once transactions are recorded.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

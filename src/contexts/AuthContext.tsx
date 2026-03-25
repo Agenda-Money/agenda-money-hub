@@ -305,11 +305,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Explicit redirection to login page or home
     const sub = getSubdomain();
-    if (sub === "admin" || sub === "agent") {
+    const isLoginPage = window.location.pathname === "/login";
+
+    if ((sub === "admin" || sub === "agent") && !isLoginPage) {
       window.location.href = "/login";
-    } else if (window.location.pathname !== "/") {
+    } else if (window.location.pathname !== "/" && !isLoginPage) {
       window.location.href = "/";
-    } else if (showToast) {
+    } else if (showToast && !isLoginPage) {
        // Only reload if it was a manual logout to clear any memory states
        window.location.reload();
     }

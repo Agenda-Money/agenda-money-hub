@@ -64,3 +64,17 @@ export function normalizeStatsResponse(responseData: unknown): DashboardStats | 
 
   return responseData as DashboardStats;
 }
+
+export function formatAmount(amount: string | number | undefined): string {
+  if (amount === undefined || amount === "N/A") return "N/A";
+  const num = typeof amount === "string" ? parseFloat(amount.replace(/,/g, '')) : amount;
+  if (isNaN(num)) return amount.toString();
+  return num.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+export function formatNumber(value: string | number | undefined): string {
+  if (value === undefined || value === "N/A") return "N/A";
+  const num = typeof value === "string" ? parseInt(value.replace(/,/g, ''), 10) : value;
+  if (isNaN(num)) return value.toString();
+  return num.toLocaleString('en-GH');
+}

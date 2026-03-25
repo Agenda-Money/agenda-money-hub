@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2, AlertCircle, Maximize2 } from "lucide-react";
-import api from "@/lib/api";
+import { getKycSignedUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface SecureKycImageProps {
@@ -32,9 +32,7 @@ export function SecureKycImage({
       setError(null);
       
       try {
-        const res = await api.get(`/api/admin/kyc/signed-url`, {
-          params: { userId, type: imageType }
-        });
+        const res = await getKycSignedUrl(userId, imageType);
         
         if (isMounted) {
           if (res.data?.success && res.data?.url) {

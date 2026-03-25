@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, User, Phone, MapPin, DollarSign, AlertCircle, CheckCircle2, Clock, Filter, ChevronLeft, ChevronRight } from "lucide-react";
-import api from "@/lib/api";
+import api, { getAgentPortfolio, getAgentMyStats } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -134,9 +134,7 @@ export default function AgentPortfolio() {
     queryKey: ["agent-portfolio", user?.email, page],
     queryFn: async () => {
       try {
-        const res = await api.get("/api/agents/portfolio", {
-          params: { page, limit: 10 }
-        });
+        const res = await getAgentPortfolio({ page, limit: 10 });
         
 
 
@@ -187,8 +185,8 @@ export default function AgentPortfolio() {
   const { data: myStatsData } = useQuery({
     queryKey: ["agent-my-stats", user?.email],
     queryFn: async () => {
-      const res = await api.get("/api/agents/my-stats");
-      return res.data?.data || res.data;
+      const res = await getAgentMyStats();
+      return res.data || res;
     },
     enabled: !!user?.email,
   });
