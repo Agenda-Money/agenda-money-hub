@@ -257,14 +257,7 @@ export default function AgentApplyPage() {
           setOtp("");
           return;
         }
-      } else if (checkData.status === 'PENDING') {
-        setErrorMessage(checkData.message || "Your agent application is currently under review. We will notify you once approved.");
-        // Show backend error directly, do not force generic message
-        setView("auth");
-        setOtp("");
-        return;
       }
-      
       toast.success("Phone verified successfully!");
       setView("onboarding");
     } catch (e: any) {

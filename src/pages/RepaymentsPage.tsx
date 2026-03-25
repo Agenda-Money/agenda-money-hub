@@ -41,7 +41,11 @@ const MoMoAvatar = () => (
 );
 
 import { useQuery, useMutation } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { 
+  getRecentRepayments, 
+  getAdminLoans, 
+  recordManualRepayment 
+} from "@/lib/api";
 import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
@@ -61,8 +65,8 @@ export default function RepaymentsPage() {
   const { data: recentRepayments, isLoading: isLoadingRecent, isFetching: isFetchingMore } = useQuery({
     queryKey: ["recent-repayments", period, limit],
     queryFn: async () => {
-      const res = await api.get(`/api/admin/repayments/recent?period=${period}&limit=${limit}`);
-      return res.data?.data || [];
+      const res = await getRecentRepayments({ period, limit });
+      return res.data || [];
     },
   });
 
@@ -81,8 +85,8 @@ export default function RepaymentsPage() {
     // Attempt to find loan by user phone (mock logic for now as endpoint wasn't specified for search)
     // In a real scenario we might hit /api/admin/loans?search={phone}
     try {
-      const res = await api.get("/api/admin/loans", { params: { search: phone, status: "active" } });
-      const loans = res.data?.data || res.data?.loans || [];
+      const res = await getAdminLoans({ search: phone, status: "active" });
+      const loans = res.data || res.loans || [];
       const userLoan = loans.find((l: any) => l.userMsisdn === phone || l.phone === phone);
 
       if (userLoan) {
@@ -106,10 +110,7 @@ export default function RepaymentsPage() {
   };
 
   const mutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await api.post("/api/admin/repayments/record", data);
-      return res.data;
-    },
+    mutationFn: (data: any) => recordManualRepayment(data),
     onSuccess: (data) => {
       setSubmitted(true);
       setResultData(data.data || data); // Store result for receipt

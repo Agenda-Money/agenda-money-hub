@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { getAgentMyStats } from "@/lib/api";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -38,8 +38,8 @@ export default function AgentProfile() {
   const { data: dashboardStats } = useQuery({
     queryKey: ["agent-dashboard-stats", user?.email],
     queryFn: async () => {
-      const res = await api.get("/api/agents/my-stats");
-      return res.data?.data || res.data;
+      const res = await getAgentMyStats();
+      return res.data || res;
     },
     enabled: !!user?.email,
   });

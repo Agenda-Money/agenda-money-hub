@@ -200,7 +200,7 @@ export function KpiCards({ data }: Readonly<KpiCardsProps>) {
       />
       <KpiCard
         title="Overdue Loans"
-        value={data.overdueLoans.toString()}
+        value={data.overdueLoans.toLocaleString()}
         subtitle="Requiring attention"
         icon={AlertTriangle}
         variant={data.overdueLoans > 10 ? "danger" : "warning"}

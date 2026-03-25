@@ -25,7 +25,13 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import { toast } from "sonner";
-import api from "@/lib/api";
+import { 
+  getAdminAgents, 
+  getPendingAgentApplications, 
+  approveAgentApplication, 
+  rejectAgentApplication, 
+  getAdminAgentPortfolio 
+} from "@/lib/api";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import { io } from "socket.io-client";
 import { SecureKycImage } from "@/components/common/SecureKycImage";
@@ -104,8 +110,8 @@ export default function AgentsPage() {
     queryFn: async () => {
       const params: any = { limit: 100 }; 
       if (searchTerm) params.search = searchTerm;
-      const res = await api.get("/api/admin/agents", { params });
-      return res.data;
+      const res = await getAdminAgents(params);
+      return res;
     },
   });
 
@@ -113,17 +119,14 @@ export default function AgentsPage() {
   const { data: pendingData, isLoading: isPendingLoading } = useQuery({
     queryKey: ["agents", "pending"],
     queryFn: async () => {
-      const res = await api.get("/api/admin/agents/pending");
-      return res.data;
+      const res = await getPendingAgentApplications();
+      return res;
     },
   });
 
   // Approve Mutation
-  const approveMutation = useMutation({
-    mutationFn: async (agentId: string) => {
-      const res = await api.patch(`/api/admin/agents/${agentId}/approve`);
-      return res.data;
-    },
+  const { mutate: approveAgent } = useMutation({
+    mutationFn: (agentId: string) => approveAgentApplication(agentId),
     onSuccess: () => {
       toast.success("Agent application successfully approved!");
       queryClient.invalidateQueries({ queryKey: ["agents", "pending"] });
@@ -135,11 +138,8 @@ export default function AgentsPage() {
   });
 
   // Reject Mutation
-  const rejectMutation = useMutation({
-    mutationFn: async ({ agentId, reason }: { agentId: string; reason: string }) => {
-      const res = await api.patch(`/api/admin/agents/${agentId}/reject`, { reason });
-      return res.data;
-    },
+  const { mutate: rejectAgent } = useMutation({
+    mutationFn: ({ agentId, reason }: { agentId: string; reason: string }) => rejectAgentApplication(agentId, reason),
     onSuccess: (data) => {
       toast.success(data.message || "Agent application successfully rejected.");
       setIsRejectModalOpen(false);
@@ -159,13 +159,17 @@ export default function AgentsPage() {
   const agentDetailsQueries = useQueries({
     queries: rawAgents.map((a: any) => {
       const id = a.agent?.id || a.agent?._id || a.id || a._id;
+      const nodeCode = a.agent?.agentCode || a.agent?.nodeCode || a.agentCode || a.nodeCode;
+      
       return {
-        queryKey: ["agent", id],
+        queryKey: ["agent-portfolio-minimal", nodeCode || id],
         queryFn: async () => {
-          const res = await api.get(`/api/admin/agents/${id}`);
-          return res.data;
+          if (!nodeCode) return null;
+          // Fetch only the portfolio/metrics for the list view
+          const res = await getAdminAgentPortfolio(nodeCode, { limit: 1 });
+          return res;
         },
-        enabled: !!id,
+        enabled: !!nodeCode,
         staleTime: 1000 * 60 * 5, // Cache for 5 mins
       };
     }),
@@ -174,12 +178,12 @@ export default function AgentsPage() {
   const agents: Agent[] = rawAgents.map((a: any, index: number) => {
     // Basic data from list view
     const agentBase = a.agent || a;
-    const portfolioBase = a.portfolio || null;
     
-    // Enriched data from individual detail query
-    const detailData = agentDetailsQueries[index]?.data?.data;
+    // Enriched data from individual portfolio query
+    const detailData = agentDetailsQueries[index]?.data?.data || agentDetailsQueries[index]?.data;
     const agentData = detailData?.agent || agentBase;
-    const portfolioData = detailData?.portfolio || portfolioBase;
+    const portfolioData = detailData?.portfolio || null;
+    const metricsData = detailData?.metrics || portfolioData?.metrics || null;
     
     return {
       id: agentData.id ?? agentData._id,
@@ -188,13 +192,13 @@ export default function AgentsPage() {
       nodeCode: agentData.agentCode ?? agentData.nodeCode ?? "—",
       status: agentData.isActive === false || agentData.status === "inactive" ? "inactive" : "active",
       location: agentData.region ?? agentData.location ?? "—",
-      totalTransactions: portfolioData?.totalTransactions ?? agentData.totalTransactions ?? 0,
-      signUpsAllTime: portfolioData?.metrics?.signUpsAllTime ?? agentData.totalSignUps ?? agentData.signUpsAllTime ?? agentData.activeUsers ?? 0,
-      signUpsThisMonth: portfolioData?.metrics?.signUpsThisMonth ?? agentData.signUpsThisMonth ?? 0,
-      loansActive: portfolioData?.portfolio?.loansActive ?? portfolioData?.loansActive ?? agentData.loansActive ?? 0,
-      loansPending: portfolioData?.portfolio?.loansPending ?? portfolioData?.loansPending ?? agentData.loansPending ?? 0,
-      loansClosed: portfolioData?.portfolio?.loansClosed ?? portfolioData?.loansClosed ?? agentData.loansClosed ?? 0,
-      loansOverdue: portfolioData?.portfolio?.loansOverdue ?? portfolioData?.loansOverdue ?? agentData.loansOverdue ?? 0,
+      totalTransactions: metricsData?.totalTransactions ?? portfolioData?.totalTransactions ?? agentData.totalTransactions ?? 0,
+      signUpsAllTime: metricsData?.signUpsAllTime ?? portfolioData?.metrics?.signUpsAllTime ?? agentData.totalSignUps ?? agentData.signUpsAllTime ?? agentData.activeUsers ?? 0,
+      signUpsThisMonth: metricsData?.signUpsThisMonth ?? portfolioData?.metrics?.signUpsThisMonth ?? agentData.signUpsThisMonth ?? 0,
+      loansActive: metricsData?.loansActive ?? portfolioData?.portfolio?.loansActive ?? portfolioData?.loansActive ?? agentData.loansActive ?? 0,
+      loansPending: metricsData?.loansPending ?? portfolioData?.portfolio?.loansPending ?? portfolioData?.loansPending ?? agentData.loansPending ?? 0,
+      loansClosed: metricsData?.loansClosed ?? portfolioData?.portfolio?.loansClosed ?? portfolioData?.loansClosed ?? agentData.loansClosed ?? 0,
+      loansOverdue: metricsData?.loansOverdue ?? portfolioData?.portfolio?.loansOverdue ?? portfolioData?.loansOverdue ?? agentData.loansOverdue ?? 0,
     };
   });
 
@@ -524,18 +528,18 @@ export default function AgentsPage() {
                                            setSelectedAgentIdForReject(agent._id);
                                            setIsRejectModalOpen(true);
                                         }}
-                                        disabled={rejectMutation.isPending || approveMutation.isPending}
+                                        disabled={rejectAgent.isPending || approveAgent.isPending}
                                       >
                                         <XCircle className="w-4 h-4 mr-2" />
                                         Reject
                                       </Button>
                                       <Button 
                                         className="flex-1 sm:flex-none bg-success hover:bg-success/90 text-success-foreground shadow-sm px-8"
-                                        onClick={() => approveMutation.mutate(agent._id)}
-                                        disabled={approveMutation.isPending || rejectMutation.isPending}
+                                        onClick={() => approveAgent(agent._id)}
+                                        disabled={approveAgent.isPending || rejectAgent.isPending}
                                       >
                                         <CheckCircle2 className="w-4 h-4 mr-2" />
-                                        {approveMutation.isPending ? "Approving..." : "Approve Agent"}
+                                        {approveAgent.isPending ? "Approving..." : "Approve Agent"}
                                       </Button>
                                     </div>
                                   </div>
@@ -580,11 +584,11 @@ export default function AgentsPage() {
                 onClick={() => {
                    if (!selectedAgentIdForReject) return;
                    if (!rejectReason.trim()) { toast.error("Reason is required"); return; }
-                   rejectMutation.mutate({ agentId: selectedAgentIdForReject, reason: rejectReason.trim() });
+                   rejectAgent({ agentId: selectedAgentIdForReject, reason: rejectReason.trim() });
                 }}
-                disabled={rejectMutation.isPending || !rejectReason.trim()}
+                disabled={rejectAgent.isPending || !rejectReason.trim()}
               >
-                {rejectMutation.isPending ? "Rejecting..." : "Confirm Rejection"}
+                {rejectAgent.isPending ? "Rejecting..." : "Confirm Rejection"}
               </Button>
             </div>
           </DialogContent>

@@ -15,7 +15,7 @@ interface Loan {
 }
 
 import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { getAdminRecentLoans } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 
 const statusConfig = {
@@ -63,8 +63,8 @@ export function RecentLoansTable() {
   const { data: responseData, isLoading } = useQuery({
     queryKey: ["recent-loans"],
     queryFn: async () => {
-      const res = await api.get("/api/admin/dashboard/recent-loans");
-      return res.data;
+      const res = await getAdminRecentLoans();
+      return res.data || res;
     },
   });
 
@@ -103,14 +103,22 @@ export function RecentLoansTable() {
         {loans.slice(0, 6).map((loan: Loan) => {
           const config = getStatusConfig(loan.status);
           return (
-            <button 
+            <div 
               key={loan.id}
               onClick={() => loan.userId ? navigate(`/users/${loan.userId}`) : navigate('/loans')}
               className={cn(
-                "w-full px-5 py-3.5 text-left transition-all duration-150 group",
+                "w-full px-5 py-3.5 text-left transition-all duration-150 group cursor-pointer",
                 config.row
               )}
-              type="button"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  if (loan.userId) navigate(`/users/${loan.userId}`);
+                  else navigate('/loans');
+                }
+              }}
             >
               {/* Primary row: Amount + Status + User info */}
               <div className="flex items-center justify-between gap-3 mb-2">
@@ -135,7 +143,7 @@ export function RecentLoansTable() {
                 <span className="text-xs text-muted-foreground font-medium">{formatTenure(loan.tenure)}</span>
                 <Eye className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors opacity-0 group-hover:opacity-100" />
               </div>
-            </button>
+            </div>
           );
         })}
       </div>

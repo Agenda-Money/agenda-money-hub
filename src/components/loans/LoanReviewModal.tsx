@@ -9,7 +9,12 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { 
+  getAdminUserProfile, 
+  approveLoan, 
+  rejectLoan, 
+  syncLoanTransfer 
+} from "@/lib/api";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -82,8 +87,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
     queryKey: ["loan-user-details", userId],
     queryFn: async () => {
       if (!userId) return null;
-      const res = await api.get(`/api/admin/users/profile/${userId}`);
-      return res.data;
+      const res = await getAdminUserProfile(userId);
+      return res;
     },
     enabled: !!userId && isOpen,
   });
@@ -118,10 +123,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   })();
 
   const approveMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await api.post(`/api/admin/loans/${id}/approve`);
-      return res.data;
-    },
+    mutationFn: (id: string) => approveLoan(id),
     onSuccess: () => {
       toast.success("Loan approved successfully");
       queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
@@ -136,10 +138,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   });
 
   const rejectMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await api.post(`/api/admin/loans/${id}/reject`);
-      return res.data;
-    },
+    mutationFn: (id: string) => rejectLoan(id),
     onSuccess: () => {
       toast.success("Loan rejected");
       queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
@@ -154,10 +153,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   });
 
   const syncMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await api.post(`/api/payments/paystack/sync-transfer`, { loanId: id });
-      return res.data;
-    },
+    mutationFn: (id: string) => syncLoanTransfer(id),
     onSuccess: (data) => {
       const responseCode = data?.responseCode || data?.data?.responseCode;
       const responseMessage = data?.responseMessage || data?.data?.responseMessage || "";
@@ -275,8 +271,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Endorsed On</p>
                     <p className="font-medium">
-                      {(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt || (loan as any).createdAt || (loan as any).updatedAt)
-                        ? new Date(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt || (loan as any).createdAt || (loan as any).updatedAt).toLocaleDateString("en-GB", {
+                      {(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt)
+                        ? new Date(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt).toLocaleDateString("en-GB", {
                             day: "numeric",
                             month: "short",
                             year: "numeric"
@@ -300,9 +296,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                   <p className="text-xl font-bold">{loan.tenure || loan.tenor || loan.tenureDays || "N/A"}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">
-                    {(status === "PENDING" || status === "AWAITING_ENDORSEMENT" || status === "DISBURSING") ? "Requested Date" : "Repayment Date"}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Repayment Date</p>
                   <p className="text-lg font-medium">
                     {(loan.dueDate || loan.repaymentDate)
                       ? new Date(loan.dueDate || loan.repaymentDate).toLocaleDateString("en-GB", {
