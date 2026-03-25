@@ -1,0 +1,23 @@
+{
+    "name": "Agenda Money",
+    "short_name": "Agenda",
+    "description": "Premium Financial Services",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#0f172a",
+    "icons": [
+        {
+            "src": "/logo.jpg?v=3",
+            "sizes": "192x192",
+            "type": "image/jpeg",
+            "purpose": "any"
+        },
+        {
+            "src": "/logo.jpg?v=3",
+            "sizes": "512x512",
+            "type": "image/jpeg",
+            "purpose": "any"
+        }
+    ]
+}

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Clock, Check, Loader2, AlertCircle, ArrowLeft, Info, X } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/lib/api";
+import { getPendingEndorsements, approveEndorsement, rejectEndorsement } from "@/lib/api";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import { useApplicant } from "@/contexts/ApplicantContext";
 
@@ -56,8 +56,8 @@ export const UserEndorsementsTab: React.FC<UserEndorsementsTabProps> = ({ onBack
   const { data: response, isLoading, isError } = useQuery({
     queryKey: ["user-endorsements", applicantId],
     queryFn: async () => {
-      const res = await api.get("/api/users/pending-endorsements");
-      return res.data;
+      const res = await getPendingEndorsements();
+      return res;
     },
     enabled: !!applicantId,
   });
@@ -67,8 +67,8 @@ export const UserEndorsementsTab: React.FC<UserEndorsementsTabProps> = ({ onBack
   // Approve Endorsement Mutation
   const approveMutation = useMutation({
     mutationFn: async (loanId: string) => {
-      const res = await api.post(`/api/users/endorsements/${loanId}/approve`);
-      return res.data;
+      const res = await approveEndorsement(loanId);
+      return res;
     },
     onSuccess: () => {
       toast.success("Loan endorsed successfully! Sent to Admin for review.");
@@ -99,9 +99,8 @@ export const UserEndorsementsTab: React.FC<UserEndorsementsTabProps> = ({ onBack
   // Reject Endorsement Mutation
   const rejectMutation = useMutation({
     mutationFn: async ({ loanId, reason }: { loanId: string; reason?: string }) => {
-      const payload = reason ? { reason } : {};
-      const res = await api.post(`/api/users/endorsements/${loanId}/reject`, payload);
-      return res.data;
+      const res = await rejectEndorsement(loanId, reason);
+      return res;
     },
     onSuccess: () => {
       toast.success("Loan endorsement rejected.");

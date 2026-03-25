@@ -74,7 +74,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             <DropdownMenuItem>Profile</DropdownMenuItem>
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive" onClick={logout}>
+            <DropdownMenuItem className="text-destructive" onClick={() => logout()}>
               Logout
             </DropdownMenuItem>
           </DropdownMenuContent>

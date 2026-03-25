@@ -37,7 +37,7 @@ const tierColors: Record<string, string> = {
 };
 
 import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { getAdminUsers } from "@/lib/api";
 
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,8 +55,8 @@ export default function UsersPage() {
         if (filter.startsWith("L")) params.tier = filter;
         else params.status = filter;
       }
-      const res = await api.get("/api/admin/users", { params });
-      return res.data;
+      const res = await getAdminUsers(params);
+      return res;
     },
     // Keep previous data while fetching new page for smoother transition
     placeholderData: (previousData) => previousData,

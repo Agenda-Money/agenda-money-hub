@@ -1,0 +1,366 @@
+
+> vite_react_shadcn_ts@0.0.0 lint
+> eslint .
+
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\App.tsx
+  48:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  56:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\InstallPWA.tsx
+  15:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  20:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  34:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\agents\AuthorizeAgentModal.tsx
+  81:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\analytics\RepaymentChannelStats.tsx
+  34:4  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\auth\KycReviewModal.tsx
+  18:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  41:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\common\SecureKycImage.tsx
+  46:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\dashboard\LoanStatusCard.tsx
+   59:36  error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  497:29  error  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\dashboard\LoanTrendsChart.tsx
+  26:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\dashboard\PendingApprovals.tsx
+   75:75  error    Unexpected any. Specify a different type                                                              @typescript-eslint/no-explicit-any
+   99:37  error    Unexpected any. Specify a different type                                                              @typescript-eslint/no-explicit-any
+  104:20  error    Unexpected any. Specify a different type                                                              @typescript-eslint/no-explicit-any
+  105:15  error    Unexpected any. Specify a different type                                                              @typescript-eslint/no-explicit-any
+  105:23  error    Unexpected any. Specify a different type                                                              @typescript-eslint/no-explicit-any
+  111:5   warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-vars')
+  119:5   warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-vars')
+  144:48  error    Unexpected any. Specify a different type                                                              @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\dashboard\RecentLoansTable.tsx
+  74:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\layout\AppSidebar.tsx
+  129:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  131:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  135:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  136:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  140:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  141:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\loans\LoanReviewModal.tsx
+  133:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  151:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  192:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  278:55   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  278:83   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  278:115  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  278:143  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  279:66   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  279:94   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  279:126  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  279:154  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\ui\badge.tsx
+  29:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\ui\button.tsx
+  47:18  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\ui\command.tsx
+  24:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\ui\form.tsx
+  129:10  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\ui\navigation-menu.tsx
+  111:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\ui\sidebar.tsx
+  636:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\ui\sonner.tsx
+  27:19  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\ui\textarea.tsx
+  5:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\ui\toggle.tsx
+  37:18  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\components\users\CampaignGenerationModal.tsx
+  94:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\contexts\ApplicantContext.tsx
+  44:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\contexts\AuthContext.tsx
+   26:18  error    Unexpected any. Specify a different type                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+   38:32  error    Unexpected any. Specify a different type                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+   50:6   warning  React Hook useEffect has a missing dependency: 'checkAuth'. Either include it or remove the dependency array                                                                                                                          react-hooks/exhaustive-deps
+   58:9   error    'token' is never reassigned. Use 'const' instead                                                                                                                                                                                      prefer-const
+  118:9   warning  The 'signup' function makes the dependencies of useMemo Hook (at line 330) change on every render. Move it inside the useMemo callback. Alternatively, wrap the definition of 'signup' in its own useCallback() Hook                  react-hooks/exhaustive-deps
+  118:31  error    Unexpected any. Specify a different type                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  129:21  error    Unexpected any. Specify a different type                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  138:9   warning  The 'login' function makes the dependencies of useMemo Hook (at line 330) change on every render. Move it inside the useMemo callback. Alternatively, wrap the definition of 'login' in its own useCallback() Hook                    react-hooks/exhaustive-deps
+  224:21  error    Unexpected any. Specify a different type                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  229:9   warning  The 'forgotPassword' function makes the dependencies of useMemo Hook (at line 330) change on every render. Move it inside the useMemo callback. Alternatively, wrap the definition of 'forgotPassword' in its own useCallback() Hook  react-hooks/exhaustive-deps
+  237:21  error    Unexpected any. Specify a different type                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  242:9   warning  The 'resetPassword' function makes the dependencies of useMemo Hook (at line 330) change on every render. Move it inside the useMemo callback. Alternatively, wrap the definition of 'resetPassword' in its own useCallback() Hook    react-hooks/exhaustive-deps
+  254:21  error    Unexpected any. Specify a different type                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  259:9   warning  The 'updateProfile' function makes the dependencies of useMemo Hook (at line 330) change on every render. Move it inside the useMemo callback. Alternatively, wrap the definition of 'updateProfile' in its own useCallback() Hook    react-hooks/exhaustive-deps
+  268:21  error    Unexpected any. Specify a different type                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  274:9   warning  The 'logout' function makes the dependencies of useMemo Hook (at line 330) change on every render. To fix this, wrap the definition of 'logout' in its own useCallback() Hook                                                         react-hooks/exhaustive-deps
+  349:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                        react-refresh/only-export-components
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\contexts\SocketContext.tsx
+   8:11  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+   9:18  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  15:54  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  23:42  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  37:20  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  45:41  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  82:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\hooks\useSocket.ts
+   7:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  32:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\hooks\useWebSocketListener.ts
+  20:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:62  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  30:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  51:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  57:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\lib\errorUtils.ts
+  6:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\lib\supabase.ts
+  65:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  76:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\AdminPayoutsPage.tsx
+   67:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   80:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   88:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   99:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  110:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  145:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  146:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  147:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  244:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  305:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  387:69  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\AgentApplyPage.tsx
+  216:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  270:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  344:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\AgentDetailsPage.tsx
+   58:82  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  110:64  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  255:78  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\AgentsPage.tsx
+   99:6   warning  React Hook useEffect has an unnecessary dependency: 'baseApiUrl'. Either exclude it or remove the dependency array. Outer scope values like 'baseApiUrl' aren't valid dependencies because mutating them doesn't re-render the component  react-hooks/exhaustive-deps
+  105:21  error    Unexpected any. Specify a different type                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+  132:22  error    Unexpected any. Specify a different type                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+  150:22  error    Unexpected any. Specify a different type                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+  160:32  error    Unexpected any. Specify a different type                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+  178:45  error    Unexpected any. Specify a different type                                                                                                                                                                                                  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\ApplyPage.tsx
+   143:117  error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+   281:1    error    Definition for rule 'sonarjs/cognitive-complexity' was not found                                                                                                                                                                            sonarjs/cognitive-complexity
+   319:56   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+   379:95   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+   422:49   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+   518:45   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+   535:50   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+   574:6    warning  React Hook useEffect has missing dependencies: 'fetchActiveLoan' and 'fetchRecentActivity'. Either include them or remove the dependency array                                                                                              react-hooks/exhaustive-deps
+   644:6    warning  React Hook useCallback has an unnecessary dependency: 'baseApiUrl'. Either exclude it or remove the dependency array. Outer scope values like 'baseApiUrl' aren't valid dependencies because mutating them doesn't re-render the component  react-hooks/exhaustive-deps
+   661:27   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+   668:32   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+   687:62   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+   722:36   error    Empty block statement                                                                                                                                                                                                                       no-empty
+   743:6    warning  React Hook useEffect has an unnecessary dependency: 'baseApiUrl'. Either exclude it or remove the dependency array. Outer scope values like 'baseApiUrl' aren't valid dependencies because mutating them doesn't re-render the component    react-hooks/exhaustive-deps
+   816:17   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+   863:17   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+   870:6    warning  React Hook useCallback has an unnecessary dependency: 'setApplicant'. Either exclude it or remove the dependency array                                                                                                                      react-hooks/exhaustive-deps
+   886:17   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1079:17   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1461:78   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1462:63   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1484:38   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1536:42   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1536:76   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1536:139  error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1556:59   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1557:62   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1558:43   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1558:184  error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1558:239  error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1558:287  error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1575:32   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1577:71   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1599:48   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1599:88   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1605:77   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1687:108  error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1746:47   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  1766:102  error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  2048:67   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  2049:64   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  2049:95   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+  2050:67   error    Unexpected any. Specify a different type                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\ForgotPasswordPage.tsx
+  33:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\LoanSummaryPage.tsx
+   24:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   90:56  error  Empty block statement                     no-empty
+  113:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\LoansPage.tsx
+  216:29  error  Unnecessary escape character: \/          no-useless-escape
+  216:31  error  Unnecessary escape character: \-          no-useless-escape
+  216:44  error  Unnecessary escape character: \/          no-useless-escape
+  216:46  error  Unnecessary escape character: \-          no-useless-escape
+  270:71  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  270:79  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  289:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  327:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  334:30  error  Empty block statement                     no-empty
+  346:32  error  Empty block statement                     no-empty
+  357:32  error  Empty block statement                     no-empty
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\LoansTab.tsx
+    9:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   10:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  190:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\PendingKycPage.tsx
+   22:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   51:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   65:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  120:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\ProfileTab.tsx
+   22:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   23:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:71  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  224:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\RepaymentPage.tsx
+  97:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\RepaymentsPage.tsx
+   57:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:70  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   75:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   86:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  118:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  333:88  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  339:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  388:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\ResetPasswordPage.tsx
+  75:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\SignupPage.tsx
+   51:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  117:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\User.tsx
+   12:14   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   15:19   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   16:20   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   18:23   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   87:115  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   97:19   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  212:130  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\UserDetailsPage.tsx
+   29:29  error  Unnecessary escape character: \/          no-useless-escape
+   29:31  error  Unnecessary escape character: \-          no-useless-escape
+   29:44  error  Unnecessary escape character: \/          no-useless-escape
+   29:46  error  Unnecessary escape character: \-          no-useless-escape
+   51:32  error  Empty block statement                     no-empty
+  122:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  171:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  179:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  248:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  262:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  275:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\UserEndorsementsTab.tsx
+   77:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  149:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  149:69  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\UserNetworkTab.tsx
+  147:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\UserRewardsTab.tsx
+   38:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   41:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   76:51  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   97:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  273:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  297:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\UsersPage.tsx
+  52:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  69:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\agent\AgentCommissionsPage.tsx
+   68:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  145:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  181:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  183:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  199:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  207:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  272:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  345:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\agent\AgentDashboard.tsx
+  125:81  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\agent\AgentEndorsementsPage.tsx
+   83:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\agent\AgentOnboarding.tsx
+    1:1   error    Definition for rule 'unicorn/prefer-string-replace-all' was not found                                                                                                                                                                                                              unicorn/prefer-string-replace-all
+  103:1   error    Definition for rule 'sonarjs/cognitive-complexity' was not found                                                                                                                                                                                                                   sonarjs/cognitive-complexity
+  346:41  warning  The ref value 'selfieIntervalRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'selfieIntervalRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+  473:21  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\src\pages\agent\AgentPortfolio.tsx
+  177:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\bennydan7\Documents\work\agenda-money-hub\tailwind.config.ts
+  110:13  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  110:45  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+✖ 246 problems (221 errors, 25 warnings)
+  1 error and 2 warnings potentially fixable with the `--fix` option.
+

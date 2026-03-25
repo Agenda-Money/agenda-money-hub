@@ -4,11 +4,11 @@ import { RecentLoansTable } from "@/components/dashboard/RecentLoansTable";
 import { PendingApprovals } from "@/components/dashboard/PendingApprovals";
 import { LoanTrendsChart } from "@/components/dashboard/LoanTrendsChart";
 import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
-import { normalizeStatsResponse } from "@/lib/utils";
+import { normalizeStatsResponse, formatAmount, formatNumber } from "@/lib/utils";
 import { useSocket } from "@/hooks/useSocket";
 
 import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { getAdminDashboardStats } from "@/lib/api";
 
 export default function Dashboard() {
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
@@ -16,8 +16,8 @@ export default function Dashboard() {
   const { data: responseData, isLoading, refetch } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
-      const res = await api.get("/api/admin/dashboard/stats");
-      return res.data;
+      const res = await getAdminDashboardStats();
+      return res;
     },
   });
 
@@ -68,13 +68,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Loan Book"
-          value={data.loanBook === "N/A" ? "N/A" : `₵${data.loanBook}`}
+          value={data.loanBook === "N/A" ? "N/A" : `₵${formatAmount(data.loanBook)}`}
           icon={BookOpen}
           trend={{ value: 12.5, isPositive: true }}
         />
         <StatsCard
           title="Active Loans"
-          value={data.activeLoans}
+          value={formatNumber(data.activeLoans)}
           icon={Users}
           trend={{ value: 8.2, isPositive: true }}
         />
@@ -86,7 +86,7 @@ export default function Dashboard() {
         />
         <StatsCard
           title="Overdue Loans"
-          value={overdueCount?.toString() ?? "0"}
+          value={formatNumber(overdueCount)}
           icon={AlertTriangle}
           trend={{ value: 0.5, isPositive: false }}
         />

@@ -39,6 +39,7 @@ import AgentEndorsementsPage from "./pages/agent/AgentEndorsementsPage";
 import AdminPayoutsPage from './pages/AdminPayoutsPage';
 import PendingKycPage from "./pages/PendingKycPage";
 import { SessionManager } from "./components/auth/SessionManager";
+import InstallPWA from "./components/InstallPWA";
 
 import { getSubdomain } from "@/lib/domain";
 
@@ -98,6 +99,7 @@ const App = () => {
         <ApplicantProvider>
           <SocketProvider>
             <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+              <InstallPWA />
               <TooltipProvider>
               <Toaster />
               <Sonner />

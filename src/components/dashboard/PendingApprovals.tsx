@@ -23,7 +23,7 @@ interface PendingLoan {
 
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import api from "@/lib/api";
+import { getAdminPendingApprovals } from "@/lib/api";
 
 const tierConfig: Record<string, { badge: string; emphasis: string; order: number }> = {
   L1: {
@@ -68,8 +68,8 @@ export function PendingApprovals() {
   const { data: responseData } = useQuery({
     queryKey: ["pending-approvals"],
     queryFn: async () => {
-      const res = await api.get("/api/admin/dashboard/pending-approvals");
-      const rawData = res.data?.data || res.data || [];
+      const res = await getAdminPendingApprovals();
+      const rawData = res.data || res || [];
       
       // Map API fields strictly
       const mappedLoans = (Array.isArray(rawData) ? rawData : []).map((l: any) => {
@@ -144,7 +144,7 @@ export function PendingApprovals() {
           {pendingLoans.slice(0, 5).map((loan: any, index: number) => {
             const tierInfo = getTierConfig(loan.tier);
             return (
-              <button
+              <div
                 key={loan.id}
                 onClick={() => setSelectedLoan(loan)}
                 onKeyDown={(e) => {
@@ -157,7 +157,8 @@ export function PendingApprovals() {
                   "w-full px-5 py-3.5 transition-all duration-150 cursor-pointer group hover:bg-muted/30 text-left",
                   tierInfo.emphasis
                 )}
-                type="button"
+                role="button"
+                tabIndex={0}
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 {/* Primary row: Amount + Tier + User */}
@@ -207,7 +208,7 @@ export function PendingApprovals() {
                     </Button>
                   </div>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
