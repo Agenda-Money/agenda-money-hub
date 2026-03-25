@@ -13,7 +13,14 @@ import { FinancialHealthSection } from "@/components/user/FinancialHealthSection
 import { ActionCenter } from "@/components/user/ActionCenter";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
+import api, { 
+  getAdminUserProfile, 
+  getUserActiveLoan, 
+  blockUser, 
+  unblockUser, 
+  approveUserKyc, 
+  rejectUserKyc
+} from "@/lib/api";
 import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
@@ -47,11 +54,8 @@ export default function UserDetailsPage() {
   const { data: userDataResponse, isLoading: isUserLoading, error: userError } = useQuery({
     queryKey: ["user", id],
     queryFn: async () => {
-      const res = await api.get(`/api/admin/users/profile/${id}`);
-      if (import.meta.env.DEV) {
-
-      }
-      return res.data;
+      const res = await getAdminUserProfile(id!);
+      return res;
     },
     enabled: !!id,
   });
@@ -103,8 +107,8 @@ export default function UserDetailsPage() {
     queryFn: async () => {
       if (!userPhone) return null;
       try {
-        const res = await api.get(`/api/loans/active/${userPhone}`);
-        return res.data;
+        const res = await getUserActiveLoan(userPhone);
+        return res;
       } catch {
         return null;
       }
@@ -237,9 +241,9 @@ export default function UserDetailsPage() {
 
   // Mutations
   const { mutate: toggleBlock, isPending: isBlocking } = useMutation({
-    mutationFn: async () => {
-      const action = user.status === "active" ? "block" : "unblock";
-      await api.patch(`/api/admin/users/${action}/${id}`);
+    mutationFn: () => {
+      const action = user.status === "active" ? blockUser : unblockUser;
+      return action(id!);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
@@ -251,9 +255,7 @@ export default function UserDetailsPage() {
   });
 
   const { mutate: approveKyc, isPending: isApprovingKyc } = useMutation({
-    mutationFn: async () => {
-      await api.patch(`/api/admin/users/approve/${id}`);
-    },
+    mutationFn: () => approveUserKyc(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
       toast.success("KYC approved successfully");
@@ -265,9 +267,7 @@ export default function UserDetailsPage() {
   });
 
   const { mutate: rejectKyc, isPending: isRejectingKyc } = useMutation({
-    mutationFn: async () => {
-      await api.patch(`/api/admin/users/reject/${id}`);
-    },
+    mutationFn: () => rejectUserKyc(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
       toast.success("KYC rejected");

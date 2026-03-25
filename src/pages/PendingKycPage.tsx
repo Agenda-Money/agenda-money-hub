@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +8,7 @@ import { Search, CheckCircle, Clock, X, ZoomIn } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "@/hooks/useSocket";
 import { toast } from "sonner";
-import api from "@/lib/api";
+import { getPendingKycUsers, approveUserKyc } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +19,6 @@ import {
 
 export default function PendingKycPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const navigate = useNavigate();
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -29,18 +27,15 @@ export default function PendingKycPage() {
   const { data: pendingUsers, refetch, isLoading: isPendingUsersLoading } = useQuery({
     queryKey: ["pending-kyc-users"],
     queryFn: async () => {
-      const res = await api.get("/api/admin/users/pending?limit=1000");
-      const users = res.data?.data || res.data || [];
+      const res = await getPendingKycUsers(1000);
+      const users = res.data || res || [];
       return Array.isArray(users) ? users : [];
     },
   });
 
   // Approve mutation
   const { mutate: approveUser, isPending: isApproving } = useMutation({
-    mutationFn: async (userId: string) => {
-      const res = await api.patch(`/api/admin/users/approve/${userId}`);
-      return res.data;
-    },
+    mutationFn: (userId: string) => approveUserKyc(userId),
     onSuccess: () => {
       toast.success("User Verified! 🎉", {
         description: "User can now apply for loans.",
@@ -49,31 +44,10 @@ export default function PendingKycPage() {
       queryClient.invalidateQueries({ queryKey: ["pending-users-count"] });
       setSelectedUser(null);
       refetch();
-      navigate("/loans/pending");
     },
     onError: (error: any) => {
       toast.error("Approval Failed", {
         description: error.response?.data?.message || "Could not approve user",
-      });
-    },
-  });
-
-  // Reject mutation
-  const { mutate: rejectUser, isPending: isRejecting } = useMutation({
-    mutationFn: async (userId: string) => {
-      const res = await api.patch(`/api/admin/users/reject/${userId}`);
-      return res.data;
-    },
-    onSuccess: () => {
-      toast.success("KYC Rejected");
-      queryClient.invalidateQueries({ queryKey: ["pending-kyc-users"] });
-      queryClient.invalidateQueries({ queryKey: ["pending-users-count"] });
-      setSelectedUser(null);
-      refetch();
-    },
-    onError: (error: any) => {
-      toast.error("Rejection Failed", {
-        description: error.response?.data?.message || "Could not reject user",
       });
     },
   });
@@ -168,33 +142,33 @@ export default function PendingKycPage() {
 
                 <CardContent className="space-y-4">
                   {/* User Details */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <p className="text-xs text-muted-foreground">Region</p>
-                      <p className="font-medium text-sm">{user.region || "N/A"}</p>
+                      <p className="font-medium">{user.region || "N/A"}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Tier</p>
-                      <p className="font-medium text-sm">L{user.currentTier || 1}</p>
+                      <p className="font-medium">L{user.currentTier || 1}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Agent Code</p>
-                      <p className="font-mono text-xs font-medium">{user.referredByNodeCode}</p>
+                      <p className="font-mono text-sm font-medium">{user.referredByNodeCode}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Employment</p>
-                      <p className="font-medium text-sm">{user.employmentStatus || "N/A"}</p>
+                      <p className="font-medium">{user.employmentStatus || "N/A"}</p>
                     </div>
                   </div>
 
                   {/* Image Preview */}
                   <div className="pt-2 border-t border-border">
                     <p className="text-xs text-muted-foreground mb-3 font-medium">Documents</p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex gap-3">
                       {user.selfieUrl && (
                         <button
                           type="button"
-                          className="w-16 h-16 sm:w-20 sm:h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
+                          className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
                           onClick={(e) => {
                             e.stopPropagation();
                             setZoomedImage(user.selfieUrl);
@@ -213,7 +187,7 @@ export default function PendingKycPage() {
                       {user.ghanaCardFrontUrl && (
                         <button
                           type="button"
-                          className="w-16 h-16 sm:w-20 sm:h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
+                          className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
                           onClick={(e) => {
                             e.stopPropagation();
                             setZoomedImage(user.ghanaCardFrontUrl);
@@ -232,7 +206,7 @@ export default function PendingKycPage() {
                       {user.ghanaCardBackUrl && (
                         <button
                           type="button"
-                          className="w-16 h-16 sm:w-20 sm:h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
+                          className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
                           onClick={(e) => {
                             e.stopPropagation();
                             setZoomedImage(user.ghanaCardBackUrl);
@@ -259,7 +233,7 @@ export default function PendingKycPage() {
         {/* KYC Review Details Modal */}
         {selectedUser && (
           <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-2xl">KYC Verification Review</DialogTitle>
                 <DialogDescription>
@@ -394,14 +368,11 @@ export default function PendingKycPage() {
                 <div className="flex gap-3 pt-4 border-t border-border">
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      rejectUser(selectedUser._id);
-                    }}
-                    disabled={isRejecting}
-                    className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={() => setSelectedUser(null)}
+                    className="flex-1"
                   >
                     <X className="h-4 w-4 mr-2" />
-                    {isRejecting ? "Rejecting..." : "Reject"}
+                    Reject
                   </Button>
                   <Button
                     onClick={() => approveUser(selectedUser._id)}

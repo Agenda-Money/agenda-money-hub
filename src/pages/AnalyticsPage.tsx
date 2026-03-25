@@ -2,19 +2,21 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Activity, TrendingUp } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 
 import { KpiCards } from "@/components/analytics/KpiCards";
 import { SignupGrowthChart } from "@/components/analytics/SignupGrowthChart";
 import { GeographicMap } from "@/components/analytics/GeographicMap";
 import { TierDistributionPie } from "@/components/analytics/TierDistributionPie";
+import { RepaymentChannelStats } from "@/components/analytics/RepaymentChannelStats";
 
 import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { getAdminDashboardStats, getAdminAnalytics, getAdminRepaymentChannels } from "@/lib/api";
 import {
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,121 +24,111 @@ import {
   ResponsiveContainer,
   Legend,
   BarChart,
-  Bar,
-  LineChart,
-  Line
+  Bar
 } from "recharts";
+
+const ANALYTICS_COLORS = [
+  "hsl(330, 86%, 52%)", // Pink
+  "hsl(175, 100%, 36%)", // Green/Teal
+  "hsl(38, 92%, 50%)",  // Yellow
+  "hsl(160, 84%, 39%)", // Sage
+  "hsl(217, 91%, 60%)", // Blue
+  "hsl(280, 65%, 60%)", // Purple
+  "hsl(10, 80%, 60%)",  // Red
+  "hsl(190, 90%, 50%)", // Sky
+];
 
 const AnalyticsPage = () => {
   const [timeRange, setTimeRange] = useState("6m");
-  const skeletonKeys = useMemo(() => ["one", "two", "three", "four", "five", "six"], []);
 
-  const { data: analyticsResponse, isLoading } = useQuery({
-    queryKey: ["admin-analytics", timeRange],
+  // Fetch full analytics data
+  const { data: analyticsResponse } = useQuery({
+    queryKey: ["admin-analytics"],
     queryFn: async () => {
-      const res = await api.get("/api/admin/analytics", { params: { range: timeRange } });
-      return res.data?.data;
+      const res = await getAdminAnalytics();
+      return res.data || res;
     },
   });
 
-  const growthData = useMemo(() => {
-    const entries = analyticsResponse?.growth ?? [];
-    const merged = new Map<string, { month: string; l1: number; graduated: number; sort: number }>();
+  // Fetch dashboard stats (legacy fallback/supplement)
+  const { data: responseData } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: async () => {
+      const res = await getAdminDashboardStats();
+      return res;
+    },
+  });
 
-    entries.forEach((item: any) => {
-      const month = item?._id?.month ?? "Unknown";
-      const sort = item?._id?.sortOrder ?? 0;
-      const existing = merged.get(month) ?? { month, l1: 0, graduated: 0, sort };
+  const summary = analyticsResponse?.summary;
+  const growth = analyticsResponse?.growth || [];
+  const distribution = analyticsResponse?.distribution || {};
+  const liquidity = analyticsResponse?.liquidity || [];
 
-      if (item?._id?.isGraduated) {
-        existing.graduated += item?.count ?? 0;
-      } else {
-        existing.l1 += item?.count ?? 0;
-      }
+  // Fetch Repayment Channel Analytics
+  const { data: repaymentChannelResponse } = useQuery({
+    queryKey: ["admin", "repayment-analytics"],
+    queryFn: getAdminRepaymentChannels,
+  });
 
-      existing.sort = sort ?? existing.sort;
-      merged.set(month, existing);
-    });
+  const repaymentDataRaw = repaymentChannelResponse?.data || { ussd: { count: 0, percent: 0 }, app: { count: 0, percent: 0 }, total: 0 };
 
-    return Array.from(merged.values()).sort((a, b) => a.sort - b.sort);
-  }, [analyticsResponse]);
+  // Map Growth Data
+  const signupGrowthData = growth.length > 0 ? Array.from(
+    growth.reduce((acc: any, curr: any) => {
+      const month = curr._id.month;
+      if (!acc.has(month)) acc.set(month, { month, l1: 0, graduated: 0, sort: curr._id.sortOrder });
+      const entry = acc.get(month);
+      if (curr._id.isGraduated) entry.graduated += curr.count;
+      else entry.l1 += curr.count;
+      return acc;
+    }, new Map()).values()
+  ) as any[] : [];
 
-  const liquidityData = useMemo(() => {
-    const items = analyticsResponse?.liquidity ?? [];
-    return items
-      .map((item: any) => ({
-        month: item?._id?.month ?? "",
-        disbursed: item?.disbursed ?? 0,
-        repaid: item?.repaid ?? 0,
-        sort: item?._id?.sort ?? 0,
-      }))
-      .sort((a: any, b: any) => a.sort - b.sort);
-  }, [analyticsResponse]);
+  // Map Liquidity Data
+  const revenueData = liquidity.map((l: any) => ({
+    month: l._id.month,
+    revenue: (l.repaid || 0) * 0.1, // Heuristic for revenue if not explicit
+    disbursed: l.disbursed || 0,
+    repaid: l.repaid || 0,
+  }));
 
-  const totalL1 = useMemo(() => {
-    if (typeof analyticsResponse?.distribution?.totalSignups === "number") {
-      return analyticsResponse.distribution.totalSignups;
-    }
+  // Map Tiers Data
+  const tierData = (distribution.tiers || []).map((t: any, idx: number) => ({
+    name: t._id || "Unknown",
+    value: t.count || 0,
+    color: ANALYTICS_COLORS[idx % ANALYTICS_COLORS.length]
+  }));
 
-    const lastPoint = growthData.at(-1);
-    return lastPoint ? lastPoint.l1 : 0;
-  }, [analyticsResponse, growthData]);
+  // Map Geographic Data
+  const geographicData = (distribution.regions || []).map((r: any, idx: number) => ({
+    name: r.region || "Unknown",
+    signups: r.count || 0,
+    percentage: r.percentage || 0,
+    color: ANALYTICS_COLORS[idx % ANALYTICS_COLORS.length]
+  }));
 
-  const totalGraduated = useMemo(() => {
-    const lastPoint = growthData.at(-1);
-    return lastPoint ? lastPoint.graduated : 0;
-  }, [growthData]);
-
-  const regionPalette = useMemo(() => [
-    "#e91e63",
-    "#00e676",
-    "#ffb300",
-    "#42a5f5",
-    "#ab47bc",
-    "#26c6da",
-  ], []);
-
-  const geographicData = useMemo(() => {
-    const regions = analyticsResponse?.distribution?.regions ?? [];
-    return regions.map((region: any, index: number) => ({
-      name: region?.region ?? "Unknown",
-      signups: region?.count ?? 0,
-      percentage: Number(region?.percentage ?? 0),
-      color: regionPalette[index % regionPalette.length],
-    }));
-  }, [analyticsResponse, regionPalette]);
-
-  const tierData = useMemo(() => {
-    const tiers = analyticsResponse?.distribution?.tiers ?? [];
-    return tiers.map((tier: any, index: number) => ({
-      name: `L${tier?._id ?? index + 1}`,
-      value: tier?.count ?? 0,
-      color: regionPalette[index % regionPalette.length],
-    }));
-  }, [analyticsResponse, regionPalette]);
-
-  const totalSignups = analyticsResponse?.distribution?.totalSignups ?? 0;
-  const disbursedWeek = analyticsResponse?.summary?.disbursedWeek ?? 0;
-
+  // Real KPI data from summary
   const kpiData = {
     disbursedToday: {
-      amount: analyticsResponse?.summary?.disbursedToday?.amount ?? 0,
-      change: analyticsResponse?.summary?.disbursedToday?.change ?? 0,
+      amount: summary?.disbursedToday?.amount || responseData?.disbursementToday || 0,
+      change: summary?.disbursedToday?.change || responseData?.disbursementTodayChange || 0,
     },
-    disbursedWeek,
-    activeDebt: analyticsResponse?.summary?.activeDebt ?? 0,
+    disbursedWeek: responseData?.disbursementWeek || 0,
+    activeDebt: summary?.activeDebt || responseData?.totalActiveDebt || 0,
     collectionRate: {
-      percentage: analyticsResponse?.summary?.collectionRate?.percentage ?? 0,
-      status: analyticsResponse?.summary?.collectionRate?.status,
+      percentage: summary?.collectionRate?.percentage || responseData?.collectionRate || 0,
+      status: summary?.collectionRate?.status || responseData?.collectionRateStatus,
     },
     portfolioAtRisk: {
-      percentage: analyticsResponse?.summary?.portfolioAtRisk?.percentage ?? 0,
-      status: analyticsResponse?.summary?.portfolioAtRisk?.status,
+      percentage: summary?.portfolioAtRisk?.percentage || responseData?.portfolioAtRisk || 0,
+      status: summary?.portfolioAtRisk?.status || responseData?.portfolioAtRiskStatus,
     },
-    overdueLoans: analyticsResponse?.summary?.overdueLoans ?? 0,
+    overdueLoans: summary?.overdueLoans || responseData?.overdueLoans || 0,
   };
 
-  const repaymentMethodData = analyticsResponse?.repaymentMethods ?? [];
+  const totalSignups = distribution.totalSignups || 0;
+  const totalL1 = signupGrowthData.reduce((sum: number, d: any) => sum + d.l1, 0);
+  const totalGraduated = signupGrowthData.reduce((sum: number, d: any) => sum + d.graduated, 0);
 
   return (
     <DashboardLayout>
@@ -170,47 +162,32 @@ const AnalyticsPage = () => {
         </motion.div>
 
         {/* KPI Cards */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            {skeletonKeys.map((key) => (
-              <Skeleton key={key} className="h-[110px] w-full" />
-            ))}
-          </div>
-        ) : (
-          <KpiCards data={kpiData} />
-        )}
+        <KpiCards data={kpiData} />
 
         {/* Visual Trends Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Signup Growth Chart */}
-          {isLoading ? (
-            <Skeleton className="h-[420px] w-full" />
-          ) : (
-            <SignupGrowthChart 
-              data={growthData}
-              totalL1={totalL1}
-              totalGraduated={totalGraduated}
-            />
-          )}
+          <SignupGrowthChart 
+            data={signupGrowthData}
+            totalL1={totalL1}
+            totalGraduated={totalGraduated}
+          />
 
           {/* Geographic Map */}
-          {isLoading ? (
-            <Skeleton className="h-[420px] w-full" />
-          ) : (
-            <GeographicMap 
-              data={geographicData}
-              totalSignups={totalSignups}
-            />
-          )}
+          <GeographicMap 
+            data={geographicData}
+            totalSignups={totalSignups}
+          />
+        </div>
+
+        {/* Repayment Channels (Moved above Tier Distribution) */}
+        <div className="w-full">
+           <RepaymentChannelStats data={repaymentDataRaw} />
         </div>
 
         {/* Tier Distribution */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {isLoading ? (
-            <Skeleton className="h-[420px] w-full" />
-          ) : (
-            <TierDistributionPie data={tierData} />
-          )}
+          <TierDistributionPie data={tierData} />
 
           {/* Revenue & Disbursement Chart */}
           <motion.div
@@ -232,52 +209,21 @@ const AnalyticsPage = () => {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="h-[280px]">
-                  {isLoading ? (
-                    <Skeleton className="h-full w-full" />
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={liquidityData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#2d314d" />
-                        <XAxis dataKey="month" className="text-xs fill-muted-foreground" axisLine={false} tickLine={false} />
-                        <YAxis className="text-xs fill-muted-foreground" axisLine={false} tickLine={false} />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--background))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px",
-                          }}
-                        />
-                        <Legend />
-                        <Line type="monotone" dataKey="disbursed" name="Disbursed" stroke="#e91e63" strokeWidth={2} dot={false} />
-                        <Line type="monotone" dataKey="repaid" name="Closed" stroke="#00e676" strokeWidth={2} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-
-        {/* Detailed Charts Tabs */}
-        <Tabs defaultValue="repayments" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="repayments">Repayment Methods</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="repayments">
-            <Card>
-              <CardHeader>
-                <CardTitle>Repayment Methods</CardTitle>
-                <CardDescription>How users are making repayments</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={repaymentMethodData} layout="vertical">
+                    <AreaChart data={revenueData}>
+                      <defs>
+                        <linearGradient id="colorDisbursed" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="colorRepaid" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
-                      <XAxis type="number" className="text-xs fill-muted-foreground" />
-                      <YAxis dataKey="method" type="category" className="text-xs fill-muted-foreground" width={100} />
+                      <XAxis dataKey="month" className="text-xs fill-muted-foreground" />
+                      <YAxis className="text-xs fill-muted-foreground" />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "hsl(var(--background))",
@@ -285,13 +231,47 @@ const AnalyticsPage = () => {
                           borderRadius: "8px",
                         }}
                       />
-                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Transactions" />
-                    </BarChart>
+                      <Legend />
+                      <Area
+                        type="monotone"
+                        dataKey="disbursed"
+                        stroke="hsl(var(--primary))"
+                        fill="url(#colorDisbursed)"
+                        strokeWidth={2}
+                        name="Disbursed (₵)"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="repaid"
+                        stroke="hsl(var(--success))"
+                        fill="url(#colorRepaid)"
+                        strokeWidth={2}
+                        name="Collection (₵)"
+                      />
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
+          </motion.div>
+        </div>
+
+        {/* Detailed Charts Tabs */}
+        <Tabs defaultValue="performance" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="performance">
+             <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border rounded-2xl bg-muted/20">
+                <Activity className="h-10 w-10 text-muted-foreground mb-3 opacity-20" />
+                <p className="text-sm font-medium text-foreground">Advanced Performance Metrics</p>
+                <p className="text-xs text-muted-foreground max-w-[250px] mt-1">
+                  Additional deep-dive performance charts will appear here as more data is collected.
+                </p>
+             </div>
           </TabsContent>
+
         </Tabs>
       </div>
     </DashboardLayout>
