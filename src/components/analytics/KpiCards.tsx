@@ -1,3 +1,4 @@
+import React from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Banknote, Target, CreditCard, AlertTriangle } from "lucide-react";
