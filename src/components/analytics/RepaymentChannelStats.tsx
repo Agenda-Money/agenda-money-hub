@@ -11,9 +11,15 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 
+interface ChannelStat {
+  count: number;
+  volume: number;
+  percentage: number;
+}
+
 interface ChannelData {
-  ussd: { count: number; percent: number };
-  app: { count: number; percent: number };
+  ussd: ChannelStat;
+  app: ChannelStat;
   total: number;
 }
 
@@ -24,6 +30,13 @@ interface RepaymentChannelStatsProps {
 
 const RADIAN = Math.PI / 180;
 
+const formatCurrency = (value: number) => {
+  const formatted = new Intl.NumberFormat('en-GH', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+  return `GHS ${formatted}`;
+};
 
 export function RepaymentChannelStats({ data, isLoading }: Readonly<RepaymentChannelStatsProps>) {
   if (isLoading) {
@@ -38,157 +51,131 @@ export function RepaymentChannelStats({ data, isLoading }: Readonly<RepaymentCha
   if (!data) return null;
 
   const chartData = [
-    { name: "USSD Channel", value: data.ussd.count, percent: data.ussd.percent, color: "#EC1B84" },
-    { name: "App Channel", value: data.app.count, percent: data.app.percent, color: "#00e676" },
+    { name: "USSD", value: data.ussd.count, color: "#1abc9c" }, // Note: Spec shows USSD as pink in cards but teal in donut? 
+    { name: "App", value: data.app.count, color: "#1abc9c" }     // Re-checking spec: stroke="#1abc9c" for donut.
   ];
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.5 }}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.4 }}
+      className="space-y-4"
     >
-      <Card className="h-full overflow-hidden border-none shadow-xl bg-card/50 backdrop-blur-xl border border-white/10">
-        <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-transparent pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <PieChartIcon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-lg font-black tracking-tight uppercase">Repayment Channels</CardTitle>
-                <CardDescription className="text-xs font-medium">Split between USSD and Mobile App</CardDescription>
-              </div>
+      <div className="bg-white border border-[#efefef] rounded-[24px] p-6 shadow-sm">
+        <div className="flex items-start justify-between mb-1">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-[10px] flex items-center justify-center bg-[#fce8f3] shrink-0">
+              <Activity className="w-4 h-4 text-[#e91e8c]" strokeWidth={2.2} />
             </div>
-            <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">
-              Live Data
+            <div className="text-[17px] font-black text-[#1a1a2e] leading-tight">
+              Repayment<br />Channels
             </div>
           </div>
-        </CardHeader>
+          <div className="bg-[#fce8f3] color-[#b5185a] text-[11px] font-black tracking-[0.06em] uppercase px-2.5 py-1 rounded-full text-[#b5185a]">
+            Live data
+          </div>
+        </div>
+        <div className="text-[12px] text-[#999] mb-6 font-medium">Split between USSD and Mobile App</div>
 
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            {/* Chart Area */}
-            <div className="h-[240px] relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={false}
-                    innerRadius={65}
-                    outerRadius={95}
-                    paddingAngle={5}
-                    dataKey="value"
-                    animationBegin={0}
-                    animationDuration={1200}
-                  >
-                    {chartData.map((entry) => (
-                      <Cell 
-                        key={entry.name} 
-                        fill={entry.color}
-                        className="hover:opacity-80 transition-opacity cursor-pointer stroke-background"
-                        strokeWidth={2}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--background))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "12px",
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.12)"
-                    }}
-                    itemStyle={{ color: "hsl(var(--foreground))", fontWeight: "bold" }}
-                    formatter={(value: number, name: string) => [
-                      `${value.toLocaleString()} payments`,
-                      name
-                    ]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              
-              {/* Center Info */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-3xl font-black text-foreground">{data.total}</span>
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Total</span>
+        <div className="flex items-center gap-5 mb-6">
+          <div className="relative w-20 h-20 shrink-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%" cy="50%"
+                  innerRadius={28} outerRadius={36}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  <Cell fill="#1abc9c" />
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-base font-black text-[#1a1a2e] font-mono leading-none">{data.total}</span>
+              <span className="text-[9px] text-[#aaa] font-black uppercase tracking-[0.06em]">Total</span>
+            </div>
+          </div>
+          <div className="flex-grow">
+            <div className="text-[11px] text-[#999] font-black uppercase mb-2">Channel breakdown</div>
+            <div className="flex justify-between items-center text-[12px] font-medium mb-1.5">
+              <span className="text-[#c2185b]">USSD Gateway</span>
+              <span className="font-black text-[#1a1a2e]">{Math.round(data.ussd.percentage)}%</span>
+            </div>
+            <div className="flex justify-between items-center text-[12px] font-medium">
+              <span className="text-[#0f7a50]">Mobile App</span>
+              <span className="font-black text-[#1a1a2e]">{Math.round(data.app.percentage)}%</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2.5">
+          {/* USSD Card */}
+          <div className="bg-[#fdf4fb] border border-[#f5d9ef] rounded-[16px] p-4 group hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-2 text-[13px] font-black text-[#1a1a2e]">
+                <span className="bg-[#fce8f3] rounded-[8px] p-1.5 flex transition-transform group-hover:scale-110">
+                  <Hash className="w-3.5 h-3.5 text-[#c2185b]" strokeWidth={2.5} />
+                </span>
+                USSD Gateway
+              </div>
+              <div className="text-[20px] font-black text-[#c2185b] font-mono tracking-tighter">
+                {Math.round(data.ussd.percentage)}%
               </div>
             </div>
-
-            {/* Stats Cards */}
-            <div className="space-y-4">
-              {/* USSD Card */}
-              <motion.div 
-                whileHover={{ x: 4 }}
-                className="p-4 rounded-2xl bg-gradient-to-br from-[#EC1B84]/10 to-transparent border border-[#EC1B84]/20 group"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-[#EC1B84] flex items-center justify-center text-white shadow-lg">
-                      <Hash className="h-4 w-4" />
-                    </div>
-                    <span className="font-bold text-sm">USSD Gateway</span>
-                  </div>
-                  <span className="text-xl font-black text-[#EC1B84]">{data.ussd.percent}%</span>
-                </div>
-                <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-                  <span>Processed via Shortcode</span>
-                  <span className="group-hover:text-foreground transition-colors">{data.ussd.count.toLocaleString()} transactions</span>
-                </div>
-                <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${data.ussd.percent}%` }}
-                    transition={{ duration: 1, delay: 0.5 }}
-                    className="h-full bg-[#EC1B84]"
-                  />
-                </div>
-              </motion.div>
-
-              {/* App Card */}
-              <motion.div 
-                whileHover={{ x: 4 }}
-                className="p-4 rounded-2xl bg-gradient-to-br from-[#00e676]/10 to-transparent border border-[#00e676]/20 group"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-[#00e676] flex items-center justify-center text-white shadow-lg">
-                      <Smartphone className="h-4 w-4" />
-                    </div>
-                    <span className="font-bold text-sm">Mobile Application</span>
-                  </div>
-                  <span className="text-xl font-black text-[#00e676]">{data.app.percent}%</span>
-                </div>
-                <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
-                  <span>Direct App Payments</span>
-                  <span className="group-hover:text-foreground transition-colors">{data.app.count.toLocaleString()} transactions</span>
-                </div>
-                <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${data.app.percent}%` }}
-                    transition={{ duration: 1, delay: 0.7 }}
-                    className="h-full bg-[#00e676]"
-                  />
-                </div>
-              </motion.div>
+            <div className="flex justify-between items-center text-[11px] font-bold mb-1">
+              <span className="text-[#999]">Processed via shortcode</span>
+              <span className="text-[#c2185b] font-black">{data.ussd.count.toLocaleString()} transactions</span>
+            </div>
+            <div className="flex justify-between items-center text-[11px] font-bold">
+              <span className="text-[#999]">Transaction volume</span>
+              <span className="text-[#c2185b] font-black">{formatCurrency(data.ussd.volume)}</span>
             </div>
           </div>
-          
-          <div className="mt-6 pt-6 border-t border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground opacity-60">
-              <Activity className="h-3 w-3" />
-              Calculated from all repayment transactions
+
+          {/* Mobile Card */}
+          <div className="bg-[#f0fdf7] border border-[#c3f0de] rounded-[16px] p-4 group hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-2 text-[13px] font-black text-[#1a1a2e]">
+                <span className="bg-[#e3faf1] rounded-[8px] p-1.5 flex transition-transform group-hover:scale-110">
+                  <Smartphone className="w-3.5 h-3.5 text-[#0f7a50]" strokeWidth={2.5} />
+                </span>
+                Mobile Application
+              </div>
+              <div className="text-[20px] font-black text-[#0f7a50] font-mono tracking-tighter">
+                {Math.round(data.app.percentage)}%
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-black uppercase text-emerald-500">System Healthy</span>
+            <div className="flex justify-between items-center text-[11px] font-bold mb-1">
+              <span className="text-[#999]">Direct app payments</span>
+              <span className="text-[#0f7a50] font-black">{data.app.count.toLocaleString()} transactions</span>
             </div>
+            <div className="flex justify-between items-center text-[11px] font-bold">
+              <span className="text-[#999]">Transaction volume</span>
+              <span className="text-[#0f7a50] font-black">{formatCurrency(data.app.volume)}</span>
+            </div>
+            {data.app.percentage > 0 && (
+              <div className="mt-3 h-[5px] bg-[#1abc9c]/20 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${data.app.percentage}%` }}
+                  className="h-full bg-[#1abc9c] rounded-full" 
+                />
+              </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      <div className="bg-[#f5fff9] border border-[#c3f0de] rounded-[16px] px-5 py-3 flex items-center justify-between">
+        <span className="text-[11px] text-[#999] font-bold uppercase tracking-tight">Calculated from all repayment transactions</span>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-[#1abc9c] animate-pulse" />
+          <span className="text-[12px] font-black text-[#0f7a50] uppercase tracking-tighter">System healthy</span>
+        </div>
+      </div>
     </motion.div>
   );
 }

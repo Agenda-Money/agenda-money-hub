@@ -180,21 +180,21 @@ export function FinancialHealthSection({
               <MetricCard
                 icon={Wallet}
                 label="Wallet Balance"
-                value={`₵${walletBalance.toLocaleString()}`}
+                value={`GHS ${walletBalance.toLocaleString()}`}
                 subValue="Temporary wallet"
                 variant="success"
               />
               <MetricCard
                 icon={DollarSign}
                 label="Total Borrowed"
-                value={`₵${totalBorrowed.toLocaleString()}`}
+                value={`GHS ${totalBorrowed.toLocaleString()}`}
                 subValue="Lifetime amount"
                 variant="info"
               />
               <MetricCard
                 icon={Percent}
                 label="Interest Paid"
-                value={`₵${totalInterestPaid.toLocaleString()}`}
+                value={`GHS ${totalInterestPaid.toLocaleString()}`}
                 subValue="Total fees & interest"
                 variant="default"
               />
@@ -231,11 +231,11 @@ export function FinancialHealthSection({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Principal</p>
-                  <p className="font-bold">₵{currentLoan.amount.toLocaleString()}</p>
+                  <p className="font-bold">GHS {currentLoan.amount.toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Balance</p>
-                  <p className="font-bold">₵{currentLoan.balance.toLocaleString()}</p>
+                  <p className="font-bold">GHS {currentLoan.balance.toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Due Date</p>
