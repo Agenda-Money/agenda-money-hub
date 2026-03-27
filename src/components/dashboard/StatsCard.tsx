@@ -32,7 +32,14 @@ export function StatsCard({ title, value, icon: Icon, trend, className }: Readon
       
       {trend && (
         <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50">
-          {trend.isPositive ? (
+          {trend.value === 0 ? (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-muted flex items-center justify-center text-[10px] text-muted-foreground font-black">→</div>
+              <span className="text-sm font-semibold text-muted-foreground">
+                No change
+              </span>
+            </div>
+          ) : trend.isPositive ? (
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-success" />
               <span className="text-sm font-semibold text-success">

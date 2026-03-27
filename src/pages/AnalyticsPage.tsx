@@ -1,19 +1,21 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, TrendingUp } from "lucide-react";
+import { Activity, TrendingUp, BarChart3, PieChart as PieChartIcon, Target, Layers } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 import { KpiCards } from "@/components/analytics/KpiCards";
 import { SignupGrowthChart } from "@/components/analytics/SignupGrowthChart";
 import { GeographicMap } from "@/components/analytics/GeographicMap";
 import { TierDistributionPie } from "@/components/analytics/TierDistributionPie";
 import { RepaymentChannelStats } from "@/components/analytics/RepaymentChannelStats";
+import { LoanBookWidget } from "@/components/analytics/LoanBookWidget";
+import { TierBreakdownWidget } from "@/components/analytics/TierBreakdownWidget";
+import { DistributionCharts } from "@/components/analytics/DistributionCharts";
 
-import { useQuery } from "@tanstack/react-query";
-import { getAdminDashboardStats, getAdminAnalytics, getAdminRepaymentChannels } from "@/lib/api";
+import { useAnalyticsDashboard } from "@/hooks/useAnalyticsDashboard";
+import { useRepaymentChannelAnalytics } from "@/hooks/useRepaymentChannelAnalytics";
 import {
   AreaChart,
   Area,
@@ -23,15 +25,13 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  BarChart,
-  Bar
 } from "recharts";
 
 const ANALYTICS_COLORS = [
-  "hsl(330, 86%, 52%)", // Pink
+  "hsl(var(--primary))",
   "hsl(175, 100%, 36%)", // Green/Teal
+  "hsl(330, 86%, 52%)", // Pink
   "hsl(38, 92%, 50%)",  // Yellow
-  "hsl(160, 84%, 39%)", // Sage
   "hsl(217, 91%, 60%)", // Blue
   "hsl(280, 65%, 60%)", // Purple
   "hsl(10, 80%, 60%)",  // Red
@@ -41,36 +41,15 @@ const ANALYTICS_COLORS = [
 const AnalyticsPage = () => {
   const [timeRange, setTimeRange] = useState("6m");
 
-  // Fetch full analytics data
-  const { data: analyticsResponse } = useQuery({
-    queryKey: ["admin-analytics"],
-    queryFn: async () => {
-      const res = await getAdminAnalytics();
-      return res.data || res;
-    },
-  });
+  // Fetch full analytics data using the new hook
+  const { data: analyticsResponse, isLoading: isAnalyticsLoading } = useAnalyticsDashboard();
 
-  // Fetch dashboard stats (legacy fallback/supplement)
-  const { data: responseData } = useQuery({
-    queryKey: ["dashboard-stats"],
-    queryFn: async () => {
-      const res = await getAdminDashboardStats();
-      return res;
-    },
-  });
+  // Fetch Repayment Channel Analytics
+  const { data: repaymentDataRaw, isLoading: isRepaymentLoading } = useRepaymentChannelAnalytics();
 
   const summary = analyticsResponse?.summary;
   const growth = analyticsResponse?.growth || [];
-  const distribution = analyticsResponse?.distribution || {};
   const liquidity = analyticsResponse?.liquidity || [];
-
-  // Fetch Repayment Channel Analytics
-  const { data: repaymentChannelResponse } = useQuery({
-    queryKey: ["admin", "repayment-analytics"],
-    queryFn: getAdminRepaymentChannels,
-  });
-
-  const repaymentDataRaw = repaymentChannelResponse?.data || { ussd: { count: 0, percent: 0 }, app: { count: 0, percent: 0 }, total: 0 };
 
   // Map Growth Data
   const signupGrowthData = growth.length > 0 ? Array.from(
@@ -84,195 +63,284 @@ const AnalyticsPage = () => {
     }, new Map()).values()
   ) as any[] : [];
 
-  // Map Liquidity Data
-  const revenueData = liquidity.map((l: any) => ({
+  // Map Liquidity Data (Disbursement vs Collection)
+  const revenueData = liquidity.length > 0 ? liquidity.map((l: any) => ({
     month: l._id.month,
-    revenue: (l.repaid || 0) * 0.1, // Heuristic for revenue if not explicit
     disbursed: l.disbursed || 0,
     repaid: l.repaid || 0,
-  }));
+  })) : [];
 
-  // Map Tiers Data
-  const tierData = (distribution.tiers || []).map((t: any, idx: number) => ({
-    name: t._id || "Unknown",
+  // Map Tiers Data for Pie
+  const tierPieData = (analyticsResponse?.distribution?.tiers || []).map((t: any, idx: number) => ({
+    name: t._id || `Tier ${idx + 1}`,
     value: t.count || 0,
     color: ANALYTICS_COLORS[idx % ANALYTICS_COLORS.length]
   }));
 
+  // Map Tier Metrics for Breakdown - Using top-level tierBreakdowns and retentionRate
+  const retentionByTier = analyticsResponse?.retentionRate?.byTier || [];
+  const tierMetricsData = (analyticsResponse?.tierBreakdowns || []).map((t: any) => {
+    const retention = retentionByTier.find((r: any) => r.tier === t.tier);
+    return {
+      tier: t.tier || "Unknown",
+      repaymentRate: Number((t.repaymentRate || 0).toFixed(1)),
+      defaultRate: Number((t.defaultRate || 0).toFixed(1)),
+      retentionRate: Number((retention?.percentage || 0).toFixed(1)),
+    };
+  });
+
+  // Map Network/Gender/Purpose - Calculating percentages for the charts and labels
+  const totalNetworkVolume = (analyticsResponse?.disbursementPerNetwork || []).reduce((sum: number, n: any) => sum + (n.volume || 0), 0) || 1;
+  const networkData = (analyticsResponse?.disbursementPerNetwork || []).map((n: any) => ({ 
+    name: n.network === "VODAFONE" ? "Telecel" : (n.network || "Other"), 
+    value: Number(((n.volume || 0) / totalNetworkVolume * 100).toFixed(1)),
+    rawVolume: n.volume || 0
+  }));
+
+  const totalGenderCount = (analyticsResponse?.genderDistribution || []).reduce((sum: number, g: any) => sum + (g.count || 0), 0) || 1;
+  const genderData = (analyticsResponse?.genderDistribution || []).map((g: any) => ({ 
+    name: g.gender || "Other", 
+    value: g.percentage || Number(((g.count || 0) / totalGenderCount * 100).toFixed(1))
+  }));
+
+  const totalPurposeCount = (analyticsResponse?.loanPurposeDistribution || []).reduce((sum: number, p: any) => sum + (p.count || 0), 0) || 1;
+  const purposeData = (analyticsResponse?.loanPurposeDistribution || []).map((p: any) => ({ 
+    name: p.purpose || "Other", 
+    value: p.percentage || Number(((p.count || 0) / totalPurposeCount * 100).toFixed(1))
+  }));
+
   // Map Geographic Data
-  const geographicData = (distribution.regions || []).map((r: any, idx: number) => ({
-    name: r.region || "Unknown",
+  const geographicData = (analyticsResponse?.distribution?.regions || []).map((r: any, idx: number) => ({
+    name: r.region || "Other / Pending",
     signups: r.count || 0,
     percentage: r.percentage || 0,
     color: ANALYTICS_COLORS[idx % ANALYTICS_COLORS.length]
   }));
 
-  // Real KPI data from summary
+  // KPI data - Mapping from production JSON structure
   const kpiData = {
     disbursedToday: {
-      amount: summary?.disbursedToday?.amount || responseData?.disbursementToday || 0,
-      change: summary?.disbursedToday?.change || responseData?.disbursementTodayChange || 0,
+      amount: summary?.disbursedToday?.amount || 0,
+      change: summary?.disbursedToday?.change || 0,
     },
-    disbursedWeek: responseData?.disbursementWeek || 0,
-    activeDebt: summary?.activeDebt || responseData?.totalActiveDebt || 0,
+    disbursedWeek: summary?.disbursedWeek?.amount || 0,
+    activeDebt: {
+      volume: summary?.loanBook?.volume || 0,
+      change: summary?.loanBook?.change || 0,
+      status: summary?.loanBook?.status || "Healthy",
+    },
     collectionRate: {
-      percentage: summary?.collectionRate?.percentage || responseData?.collectionRate || 0,
-      status: summary?.collectionRate?.status || responseData?.collectionRateStatus,
+      percentage: summary?.collectionRate?.percentage || analyticsResponse?.defaultRate?.percentage || 0,
+      change: summary?.collectionRate?.change || 0,
+      status: summary?.collectionRate?.status || summary?.systemStatus || "Healthy",
     },
     portfolioAtRisk: {
-      percentage: summary?.portfolioAtRisk?.percentage || responseData?.portfolioAtRisk || 0,
-      status: summary?.portfolioAtRisk?.status || responseData?.portfolioAtRiskStatus,
+      percentage: summary?.portfolioAtRisk?.percentage || analyticsResponse?.collectionRate?.percentage || 0,
+      change: summary?.portfolioAtRisk?.change || 0,
+      status: summary?.portfolioAtRisk?.status || "Healthy",
     },
-    overdueLoans: summary?.overdueLoans || responseData?.overdueLoans || 0,
+    overdueLoans: {
+      count: summary?.overdueLoans?.count || 0,
+      change: summary?.overdueLoans?.change || 0,
+      status: summary?.overdueLoans?.status || "Monitor",
+    },
   };
 
-  const totalSignups = distribution.totalSignups || 0;
+  const totalSignups = analyticsResponse?.distribution?.totalSignups || 0;
   const totalL1 = signupGrowthData.reduce((sum: number, d: any) => sum + d.l1, 0);
   const totalGraduated = signupGrowthData.reduce((sum: number, d: any) => sum + d.graduated, 0);
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
+      <div className="space-y-10 pb-20">
+        {/* Header Section */}
         <motion.div 
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+          className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b pb-8"
         >
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
-              <Activity className="h-6 w-6 text-primary-foreground" />
+          <div>
+            <div className="flex items-center gap-2 text-primary mb-2">
+              <Activity className="h-5 w-5" />
+              <span className="text-xs font-black uppercase tracking-widest">Business Intelligence</span>
             </div>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Analytics Dashboard</h1>
-              <p className="text-sm text-muted-foreground">Ecosystem pulse & business intelligence</p>
-            </div>
+            <h1 className="text-4xl font-black tracking-tight text-foreground">Analytics Hub</h1>
+            <p className="text-muted-foreground mt-1 font-medium">Monitoring ecosystem health and portfolio performance</p>
           </div>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Select range" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1m">Last Month</SelectItem>
-              <SelectItem value="3m">Last 3 Months</SelectItem>
-              <SelectItem value="6m">Last 6 Months</SelectItem>
-              <SelectItem value="1y">Last Year</SelectItem>
-            </SelectContent>
-          </Select>
+          
+          <div className="flex items-center gap-3 bg-muted/30 p-1.5 rounded-2xl border backdrop-blur-sm">
+            {["1m", "3m", "6m", "1y"].map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-black uppercase transition-all",
+                  timeRange === range 
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105" 
+                    : "text-muted-foreground hover:bg-muted/50"
+                )}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
         </motion.div>
 
-        {/* KPI Cards */}
-        <KpiCards data={kpiData} />
-
-        {/* Visual Trends Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Signup Growth Chart */}
-          <SignupGrowthChart 
-            data={signupGrowthData}
-            totalL1={totalL1}
-            totalGraduated={totalGraduated}
-          />
-
-          {/* Geographic Map */}
-          <GeographicMap 
-            data={geographicData}
-            totalSignups={totalSignups}
-          />
+        {/* Top Tier Metrics: KPI Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
+           <div className="xl:col-span-8">
+              <KpiCards data={kpiData} />
+           </div>
+           <div className="xl:col-span-4 h-full">
+              <LoanBookWidget 
+                activeDebt={kpiData.activeDebt.volume} 
+                activeLoansCount={summary?.totalActiveLoans || 0} 
+                trendData={summary?.principalTrend || []}
+                graduationRate={summary?.graduationRate || 0}
+                activeAgents={summary?.activeAgents || 0}
+                isLoading={isAnalyticsLoading}
+              />
+           </div>
         </div>
 
-        {/* Repayment Channels (Moved above Tier Distribution) */}
-        <div className="w-full">
-           <RepaymentChannelStats data={repaymentDataRaw} />
-        </div>
-
-        {/* Tier Distribution */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TierDistributionPie data={tierData} />
-
-          {/* Revenue & Disbursement Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.4 }}
-          >
-            <Card className="h-full">
-              <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-transparent">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-primary" />
+        {/* Liquidity & Repayment Channels Section */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+           {/* Liquidity Velocity Chart */}
+           <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="xl:col-span-8 h-full"
+           >
+              <div className="bg-white border border-[#efefef] rounded-[24px] p-6 shadow-sm overflow-hidden h-full">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-[10px] flex items-center justify-center bg-[#fce8f3]">
+                      <TrendingUp className="w-5 h-5 text-[#e91e8c]" strokeWidth={2.2} />
+                    </div>
+                    <div>
+                      <div className="text-[15px] font-black text-[#1a1a2e]">Liquidity Velocity</div>
+                      <div className="text-[11px] text-[#aaa] font-bold uppercase tracking-tight">Disbursement vs Collection Flow</div>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg">Disbursement vs Collection</CardTitle>
-                    <CardDescription>Liquidity tracker over time</CardDescription>
+                  <div className="text-right">
+                    <div className="text-[10px] font-black tracking-[0.08em] uppercase text-[#b0a8c0]">Repaid (6M)</div>
+                    <div className="text-[22px] font-black text-[#1a1a2e] font-mono tracking-tighter">
+                      GHS {(revenueData.reduce((s, r) => s + r.repaid, 0) / 1000).toFixed(1)}K
+                    </div>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="h-[280px]">
+
+                <div className="flex gap-4 mb-6 mt-2 ml-1">
+                  <div className="flex items-center gap-2 text-[12px] font-bold text-[#666]">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#e91e8c]" />
+                    Disbursed
+                  </div>
+                  <div className="flex items-center gap-2 text-[12px] font-bold text-[#666]">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#1abc9c]" />
+                    Collected
+                  </div>
+                </div>
+
+                <div className="h-[280px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={revenueData}>
+                    <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
-                        <linearGradient id="colorDisbursed" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        <linearGradient id="colorDis" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#e91e8c" stopOpacity={0.08} />
+                          <stop offset="95%" stopColor="#e91e8c" stopOpacity={0} />
                         </linearGradient>
-                        <linearGradient id="colorRepaid" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
+                        <linearGradient id="colorRep" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#1abc9c" stopOpacity={0.07} />
+                          <stop offset="95%" stopColor="#1abc9c" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
-                      <XAxis dataKey="month" className="text-xs fill-muted-foreground" />
-                      <YAxis className="text-xs fill-muted-foreground" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f4" />
+                      <XAxis 
+                        dataKey="month" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#aaa', fontSize: 11, fontWeight: 'bold' }} 
+                        dy={10}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#aaa', fontSize: 11, fontWeight: 'bold' }} 
+                        tickFormatter={(v) => v === 0 ? "0" : `${(v / 1000).toFixed(1)}k`}
+                      />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "hsl(var(--background))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
+                          backgroundColor: "#fff",
+                          border: "1px solid #efefef",
+                          borderRadius: "12px",
+                          padding: "10px",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
                         }}
+                        itemStyle={{ fontWeight: 'bold', fontSize: '12px' }}
+                        formatter={(v: number) => [`GHS ${v.toLocaleString()}`, ""]}
                       />
-                      <Legend />
-                      <Area
-                        type="monotone"
-                        dataKey="disbursed"
-                        stroke="hsl(var(--primary))"
-                        fill="url(#colorDisbursed)"
-                        strokeWidth={2}
-                        name="Disbursed (₵)"
+                      <Area 
+                        type="monotone" 
+                        dataKey="disbursed" 
+                        stroke="#e91e8c" 
+                        strokeWidth={2.5} 
+                        fill="url(#colorDis)" 
+                        dot={false}
+                        activeDot={{ r: 4, strokeWidth: 0 }}
                       />
-                      <Area
-                        type="monotone"
-                        dataKey="repaid"
-                        stroke="hsl(var(--success))"
-                        fill="url(#colorRepaid)"
-                        strokeWidth={2}
-                        name="Collection (₵)"
+                      <Area 
+                        type="monotone" 
+                        dataKey="repaid" 
+                        stroke="#1abc9c" 
+                        strokeWidth={2.5} 
+                        fill="url(#colorRep)" 
+                        dot={false}
+                        activeDot={{ r: 4, strokeWidth: 0 }}
                       />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+              </div>
+           </motion.div>
+
+           {/* Repayment Channels Card */}
+           <div className="xl:col-span-4 h-full">
+              <RepaymentChannelStats data={repaymentDataRaw} isLoading={isRepaymentLoading} />
+           </div>
         </div>
 
-        {/* Detailed Charts Tabs */}
-        <Tabs defaultValue="performance" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-          </TabsList>
+        {/* Secondary Insights: Map & Distribution */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+           <SignupGrowthChart data={signupGrowthData} totalL1={totalL1} totalGraduated={totalGraduated} />
+           <GeographicMap data={geographicData} totalSignups={totalSignups} />
+        </div>
 
-          <TabsContent value="performance">
-             <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border rounded-2xl bg-muted/20">
-                <Activity className="h-10 w-10 text-muted-foreground mb-3 opacity-20" />
-                <p className="text-sm font-medium text-foreground">Advanced Performance Metrics</p>
-                <p className="text-xs text-muted-foreground max-w-[250px] mt-1">
-                  Additional deep-dive performance charts will appear here as more data is collected.
-                </p>
-             </div>
-          </TabsContent>
+        {/* Demographics Segment */}
+        <div className="rounded-3xl bg-white/5 border border-white/10 p-1">
+           <DistributionCharts 
+              networkData={networkData}
+              genderData={genderData}
+              purposeData={purposeData}
+              totalDisbursements={(analyticsResponse?.disbursementPerNetwork || []).reduce((sum: number, n: any) => sum + (n.volume || 0), 0)}
+              writeOffs={analyticsResponse?.writeOffs || { count: 0, volume: 0 }}
+              isLoading={isAnalyticsLoading}
+           />
+        </div>
 
-        </Tabs>
+        {/* Detailed Performance: Tier Matrix */}
+        <div className="pt-4">
+           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-8">
+                 <TierBreakdownWidget 
+                    data={tierMetricsData} 
+                    isLoading={isAnalyticsLoading}
+                 />
+              </div>
+              <div className="lg:col-span-4">
+                 <TierDistributionPie data={tierPieData} />
+              </div>
+           </div>
+        </div>
       </div>
     </DashboardLayout>
   );
