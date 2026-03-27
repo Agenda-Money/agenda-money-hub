@@ -75,7 +75,8 @@ export function TierDistributionPie({ data }: Readonly<TierDistributionPieProps>
               <Layers className="h-5 w-5 text-secondary" />
             </div>
             <div>
-              <CardTitle className="text-lg">Users Across Loan Tiers</CardTitle>
+              <CardTitle className="text-lg">Tier Distribution</CardTitle>
+              <CardDescription>Users across L1, L2, L3, L4, L5</CardDescription>
             </div>
           </div>
         </CardHeader>

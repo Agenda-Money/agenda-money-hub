@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
+import { TrendingUp, TrendingDown, Banknote, Target, CreditCard, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { METRIC_CONFIGS, STATE_COLORS, MetricState } from "@/lib/analytics-config";
 
 interface KpiData {
   disbursedToday: {
@@ -9,198 +9,201 @@ interface KpiData {
     change: number;
   };
   disbursedWeek: number;
-  activeDebt: {
-    volume: number;
-    change: number;
-    status: string;
-  };
+  activeDebt: number;
   collectionRate: {
     percentage: number;
-    change: number;
-    status: string;
+    status?: string;
   };
   portfolioAtRisk: {
     percentage: number;
-    change: number;
-    status: string;
+    status?: string;
   };
-  overdueLoans: {
-    count: number;
-    change: number;
-    status: string;
-  };
+  overdueLoans: number;
 }
 
 interface KpiCardsProps {
   data: KpiData;
 }
 
-const getFontSize = (formatted: string) => {
-  const len = formatted.length;
-  if (len <= 6) return "text-[32px]";
-  if (len <= 10) return "text-[22px]";
-  if (len <= 14) return "text-[18px]";
-  return "text-[15px]";
+const buildDisbursedTrend = (change: number) => {
+  if (change === 0) {
+    return { trend: undefined, label: undefined, className: "text-muted-foreground" } as const;
+  }
+
+  const trend = change > 0 ? "up" : "down";
+  const label = `${change > 0 ? "+" : ""}${change}% vs yesterday`;
+  const className = change > 0 ? "text-[#00e676]" : "text-[#f44336]";
+
+  return { trend, label, className } as const;
 };
 
-const PortfolioCard = ({ 
-  id, 
-  value, 
-  trend, 
-  delay = 0 
-}: { 
-  id: string; 
-  value: number; 
-  trend: number; 
+const KpiCard = ({
+  title,
+  value,
+  subtitle,
+  subtitleClassName,
+  icon: Icon,
+  trend,
+  trendValue,
+  trendClassName,
+  variant = "default",
+  delay = 0
+}: {
+  title: string;
+  value: string;
+  subtitle?: React.ReactNode;
+  subtitleClassName?: string;
+  icon: React.ElementType;
+  trend?: "up" | "down";
+  trendValue?: string;
+  trendClassName?: string;
+  variant?: "default" | "success" | "warning" | "danger" | "primary";
   delay?: number;
 }) => {
-  const config = METRIC_CONFIGS[id];
-  const state = config.state(value);
-  const colors = STATE_COLORS[state];
-  const formatted = config.format(value);
-  const statusText = config.status(value);
-  
-  const getTrendIcon = (t: number) => {
-    if (t > 0) return { icon: "↑", label: `+${t}%`, color: "text-[#0f6e56]" };
-    if (t < 0) return { icon: "↓", label: `${t}%`, color: "text-[#a32d2d]" };
-    return { icon: "→", label: "No change", color: "text-[#888780]" };
+  const variants = {
+    default: {
+      bg: "bg-card",
+      iconBg: "bg-muted",
+      iconColor: "text-foreground"
+    },
+    success: {
+      bg: "bg-gradient-to-br from-success/10 to-success/5",
+      iconBg: "bg-success/20",
+      iconColor: "text-success"
+    },
+    warning: {
+      bg: "bg-gradient-to-br from-warning/10 to-warning/5",
+      iconBg: "bg-warning/20",
+      iconColor: "text-warning"
+    },
+    danger: {
+      bg: "bg-gradient-to-br from-destructive/10 to-destructive/5",
+      iconBg: "bg-destructive/20",
+      iconColor: "text-destructive"
+    },
+    primary: {
+      bg: "bg-gradient-to-br from-primary/10 to-primary/5",
+      iconBg: "bg-primary/20",
+      iconColor: "text-primary"
+    }
   };
-  
-  const tr = getTrendIcon(trend);
 
-  const icons: Record<string, React.ReactNode> = {
-    disbursed: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/>
-      </svg>
-    ),
-    weekly: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/>
-      </svg>
-    ),
-    collection: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
-      </svg>
-    ),
-    par: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
-    ),
-    activedebt: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/>
-      </svg>
-    ),
-    overdue: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-      </svg>
-    )
-  };
+  const config = variants[variant];
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className={cn(
-        "rounded-[14px] p-[16px_18px] border-[1.5px] transition-all group",
-        "flex flex-col justify-between h-full"
-      )}
-      style={{ 
-        backgroundColor: colors.bg, 
-        borderColor: colors.border
-      }}
     >
-      <div className="flex items-start justify-between mb-2">
-        <span 
-          className="text-[10px] font-black uppercase tracking-[0.08em]"
-          style={{ color: colors.label }}
-        >
-          {config.label}
-        </span>
-        <div 
-          className="w-7 h-7 rounded-[8px] flex items-center justify-center shrink-0 transition-transform group-hover:scale-110"
-          style={{ backgroundColor: colors.iconBg, color: colors.val }}
-        >
-          {icons[id]}
-        </div>
-      </div>
-
-      <div>
-        <div 
-          className={cn("font-mono font-black border-none leading-[1.1] mb-1.5 transition-all whitespace-nowrap overflow-hidden text-ellipsis", getFontSize(formatted))}
-          style={{ color: colors.val }}
-          title={formatted}
-        >
-          {formatted}
-        </div>
-        <div 
-          className="text-[11px] font-bold"
-          style={{ color: colors.label }}
-        >
-          {config.sub}
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <div className={cn("text-[11px] font-black flex items-center gap-1 mb-2.5", tr.color)}>
-          <span className="text-[14px] leading-none">{tr.icon}</span> 
-          {tr.label} <span className="opacity-60 text-[10px]">vs yesterday</span>
-        </div>
-        
-        <span 
-          className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.05em] px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: colors.badgeBg, color: colors.val }}
-        >
-          {statusText}
-        </span>
-      </div>
+      <Card className={cn("overflow-hidden border-0 shadow-sm hover:shadow-md transition-shadow", config.bg)}>
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {title}
+              </p>
+              <p className="text-2xl font-bold">{value}</p>
+              {subtitle && (
+                <p className={cn("text-xs", subtitleClassName ?? "text-muted-foreground")}>{subtitle}</p>
+              )}
+              {trend && trendValue && (
+                <div className={cn(
+                  "flex items-center gap-1 text-xs font-medium mt-2",
+                  trend === "up" ? "text-success" : "text-destructive",
+                  trendClassName
+                )}>
+                  {trend === "up" ? (
+                    <TrendingUp className="h-3 w-3" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3" />
+                  )}
+                  {trendValue}
+                </div>
+              )}
+            </div>
+            <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center shrink-0", config.iconBg)}>
+              <Icon className={cn("h-6 w-6", config.iconColor)} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };
 
 export function KpiCards({ data }: Readonly<KpiCardsProps>) {
+  const disbursedTrend = buildDisbursedTrend(data.disbursedToday.change);
+
+  const collectionStatus = (data.collectionRate.status || "").toLowerCase();
+  const collectionStatusClass = collectionStatus.includes("target") || collectionStatus.includes("healthy")
+    ? "text-emerald-400"
+    : "text-rose-400";
+
+  const portfolioStatus = (data.portfolioAtRisk.status || "").toLowerCase();
+  const portfolioStatusClass = portfolioStatus.includes("healthy")
+    ? "text-emerald-400"
+    : "text-rose-400";
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
-      <PortfolioCard
-        id="disbursed"
-        value={data.disbursedToday.amount}
-        trend={data.disbursedToday.change}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <KpiCard
+        title="Disbursed Today"
+        value={`₵${data.disbursedToday.amount.toLocaleString()}`}
+        subtitle="24hr volume"
+        icon={Banknote}
+        trend={disbursedTrend.trend}
+        trendValue={disbursedTrend.label}
+        trendClassName={disbursedTrend.className}
+        variant="primary"
         delay={0}
       />
-      <PortfolioCard
-        id="weekly"
-        value={data.disbursedWeek}
-        trend={12} // Mock trend if not found in data
+      <KpiCard
+        title="Weekly Disbursement"
+        value={`₵${data.disbursedWeek.toLocaleString()}`}
+        subtitle="Last 7 days"
+        icon={Banknote}
+        variant="primary"
         delay={0.05}
       />
-      <PortfolioCard
-        id="collection"
-        value={data.collectionRate.percentage}
-        trend={data.collectionRate.change}
+      <KpiCard
+        title="Collection Rate"
+        value={`${data.collectionRate.percentage}%`}
+        subtitle={data.collectionRate.status || "Repaid vs due"}
+        subtitleClassName={collectionStatusClass}
+        icon={Target}
+        trend={data.collectionRate.percentage >= 90 ? "up" : "down"}
+        trendValue={data.collectionRate.percentage >= 90 ? "On target" : "Underperforming"}
+        trendClassName={data.collectionRate.percentage >= 90 ? "text-[#00e676]" : "text-[#f44336]"}
+        variant={data.collectionRate.percentage >= 90 ? "success" : "warning"}
         delay={0.1}
       />
-      <PortfolioCard
-        id="par"
-        value={data.portfolioAtRisk.percentage}
-        trend={data.portfolioAtRisk.change}
+      <KpiCard
+        title="Portfolio at Risk"
+        value={`${data.portfolioAtRisk.percentage}%`}
+        subtitle={data.portfolioAtRisk.status || "30+ days overdue"}
+        subtitleClassName={portfolioStatusClass}
+        icon={AlertTriangle}
+        trend={data.portfolioAtRisk.percentage <= 5 ? "up" : "down"}
+        trendValue={data.portfolioAtRisk.percentage <= 5 ? "Healthy" : "Needs attention"}
+        trendClassName={data.portfolioAtRisk.percentage <= 5 ? "text-[#00e676]" : "text-[#f44336]"}
+        variant={data.portfolioAtRisk.percentage <= 5 ? "success" : "danger"}
         delay={0.15}
       />
-      <PortfolioCard
-        id="activedebt"
-        value={data.activeDebt.volume}
-        trend={data.activeDebt.change}
+      <KpiCard
+        title="Active Debt"
+        value={`₵${data.activeDebt.toLocaleString()}`}
+        subtitle="Outstanding principal"
+        icon={CreditCard}
+        variant="primary"
         delay={0.2}
       />
-      <PortfolioCard
-        id="overdue"
-        value={data.overdueLoans.count}
-        trend={data.overdueLoans.change}
+      <KpiCard
+        title="Overdue Loans"
+        value={data.overdueLoans.toLocaleString()}
+        subtitle="Requiring attention"
+        icon={AlertTriangle}
+        variant={data.overdueLoans > 10 ? "danger" : "warning"}
         delay={0.25}
       />
     </div>

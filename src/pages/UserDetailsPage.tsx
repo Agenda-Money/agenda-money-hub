@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, User, MapPin, Briefcase, Calendar, Phone, Mail, Hash, UserPlus } from "lucide-react";
+import { ChevronLeft, User, MapPin, Briefcase, Calendar, Phone, Mail, Hash } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -61,8 +61,8 @@ export default function UserDetailsPage() {
   });
 
   const userDataRaw = userDataResponse?.data || userDataResponse || {};
-  const userData = userDataRaw.user || userDataRaw.data?.user || (userDataRaw.data && typeof userDataRaw.data === 'object' ? userDataRaw.data : userDataRaw);
-  const userPhone = userData.msisdn || userData.phone || userData.phoneNumber;
+  const userData = userDataRaw.user || userDataRaw;
+  const userPhone = userData.msisdn || userData.phone;
 
   // Fetch Wallet History
   const { data: walletHistoryResponse, isLoading: isWalletLoading } = useQuery({
@@ -188,20 +188,7 @@ export default function UserDetailsPage() {
       term: l.tenure || "14 days",
       dueDate: l.dueDate || l.repaymentDate,
       paidDate: l.paidAt || (l.status === 'closed' ? l.updatedAt : null)
-    })),
-    referredBy: (typeof userData.referredByAgent === 'object' ? userData.referredByAgent?.fullName || userData.referredByAgent?.agentCode : null) || 
-                (typeof userData.referredBy === 'object' ? userData.referredBy?.fullName : (typeof userData.referredBy === 'string' ? userData.referredBy : null)) ||
-                userData.referredByNodeCode ||
-                userData.referredByAgentName ||
-                userData.referredByAgentCode ||
-                userData.onboardingData?.agentCode ||
-                userData.onboardingData?.agentName ||
-                (typeof listUser.referredByAgent === 'object' ? listUser.referredByAgent?.fullName : null) ||
-                listUser.referredByNodeCode ||
-                listUser.referredByAgentCode ||
-                (typeof listUser.referredBy === 'string' ? listUser.referredBy : null) ||
-                (typeof listUser.onboardingAgent === 'string' ? listUser.onboardingAgent : null) || 
-                listUser.agentCode || userData.referralCode || null
+    }))
   };
 
   const currentLoan = activeLoanData ? (() => {
@@ -370,15 +357,7 @@ export default function UserDetailsPage() {
                 <div className="space-y-2 w-full">
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3">
                     <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground break-words">{user.name}</h1>
-                    <div className="flex items-center gap-2">
-                       <Badge className={cn("px-4 py-1 text-xs font-bold rounded-full", tierColors[user.tier] ?? tierColors.L1)}>{user.tier}</Badge>
-                       {user.referredBy && (
-                          <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black border border-blue-100 shadow-sm animate-in fade-in slide-in-from-left-2 transition-all">
-                            <UserPlus className="h-3 w-3" />
-                            Ref: {user.referredBy}
-                          </div>
-                       )}
-                    </div>
+                    <Badge className={cn("px-4 py-1 text-xs font-bold rounded-full", tierColors[user.tier] ?? tierColors.L1)}>{user.tier}</Badge>
                   </div>
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 sm:gap-4 text-muted-foreground">
                     <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium">
@@ -468,7 +447,7 @@ export default function UserDetailsPage() {
                         <p className="text-xs text-muted-foreground">{tx.date}</p>
                       </div>
                       <div className={`font-bold ${tx.type === "Deposit" || tx.type === "Disbursement" ? "text-success" : ""}`}>
-                        {tx.type === "Repayment" ? "-" : "+"}GHS {tx.amount.toLocaleString()}
+                        {tx.type === "Repayment" ? "-" : "+"}₵{tx.amount.toLocaleString()}
                       </div>
                     </div>
                   )) : (
@@ -496,7 +475,7 @@ export default function UserDetailsPage() {
                         </p>
                       </div>
                       <div className="text-right flex items-center gap-3">
-                        <span className="font-bold">GHS {loan.amount.toLocaleString()}</span>
+                        <span className="font-bold">₵{loan.amount.toLocaleString()}</span>
                         <Badge variant={loan.status === "active" ? "default" : "secondary"} className="capitalize">
                           {loan.status}
                         </Badge>

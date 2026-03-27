@@ -31,5 +31,13 @@ export function getSubdomain(): Subdomain {
   }
 
   // Fallback default for unknown prod structures (e.g. naked domain)
+  // If the app is deployed to a naked domain (no subdomain) but the path indicates
+  // which portal the user is trying to reach (for example `/agent/...`), prefer
+  // that path-based indicator so client-side routing works after redirects.
+  const pathname = window.location.pathname || '/';
+  if (pathname.startsWith('/apply')) return 'apply';
+  if (pathname.startsWith('/agent')) return 'agent';
+  if (pathname.startsWith('/admin')) return 'admin';
+
   return 'admin';
 }

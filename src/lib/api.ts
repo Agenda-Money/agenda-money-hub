@@ -2,8 +2,21 @@ import axios from 'axios';
 import { toast } from 'sonner';
 
 // Create axios instance with base URL
+const baseURL = import.meta.env.VITE_API_URL || '';
+
+if (!baseURL) {
+  // This will help diagnose missing env var in production builds — check browser console/network
+  // Vite inlines `import.meta.env` at build time so this value is baked into the bundle.
+  // Keep the warning; remove in production if you prefer silence.
+  // eslint-disable-next-line no-console
+  console.warn('VITE_API_URL is not set. API requests will be sent to the same origin.');
+} else {
+  // eslint-disable-next-line no-console
+  console.info('Using VITE_API_URL:', baseURL);
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '',
+  baseURL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -105,8 +118,8 @@ export const requestRewardPayout = async () => {
   return response.data;
 };
 
-export const getUserNetwork = async () => {
-  const response = await api.get('/api/users/network');
+export const getUserNetworkSummary = async () => {
+  const response = await api.get('/api/users/network/summary');
   return response.data;
 };
 
@@ -143,8 +156,8 @@ export const getAgentCommissions = async (params?: { page?: number; limit?: numb
   return response.data;
 };
 
-export const getAgentNetwork = async () => {
-  const response = await api.get('/api/agents/network');
+export const getAgentNetworkSummary = async () => {
+  const response = await api.get('/api/agents/network/summary');
   return response.data;
 };
 
