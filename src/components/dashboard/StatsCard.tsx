@@ -22,7 +22,12 @@ export function StatsCard({ title, value, icon: Icon, trend, className }: Readon
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-2 flex-1 min-w-0">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</p>
-          <p className="text-3xl font-bold text-foreground truncate">{value}</p>
+          <p className={cn(
+            "font-bold text-foreground leading-tight transition-all",
+            value.length > 12 ? "text-xl" : value.length > 9 ? "text-2xl" : "text-3xl"
+          )}>
+            {value}
+          </p>
         </div>
         
         <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center group-hover:from-primary/30 group-hover:to-primary/15 transition-all flex-shrink-0">

@@ -19,7 +19,7 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tansta
 import { 
   getAgentCommissionSummary,
   getAgentCommissions,
-  getAgentNetworkSummary, 
+  getAgentNetwork, 
   getAgentReferrals, 
   requestAgentRewardPayout 
 } from "@/lib/api";
@@ -118,9 +118,9 @@ export default function AgentCommissionsPage() {
 
   // Network Overview
   const { data: networkResponse, isLoading: isNetworkLoading } = useQuery({
-    queryKey: ["agent-network-summary"],
+    queryKey: ["agent-network"],
     queryFn: async () => {
-      const res = await getAgentNetworkSummary();
+      const res = await getAgentNetwork();
       return res.data;
     }
   });

@@ -80,7 +80,11 @@ export function LoanBookWidget({
           </div>
           <div className="text-right">
             <div className="text-[10px] font-black uppercase tracking-widest opacity-40">Status</div>
-            <div className="text-[11px] font-black text-[#1abc9c]">STABLE</div>
+            <span className="text-[14px] font-black text-white/40 mr-1.5 uppercase tracking-wider">Total</span>
+            <span className="text-[34px] font-black text-white tracking-tighter font-mono flex items-baseline gap-1.5">
+              <span className="text-[20px] text-[#e91e8c] select-none">GHS</span>
+              {activeDebt.toLocaleString()}
+            </span>
           </div>
         </div>
         

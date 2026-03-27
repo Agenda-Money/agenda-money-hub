@@ -205,8 +205,8 @@ export default function AgentPortfolio() {
     return matchesSearch && matchesFilter;
   });
 
-  const globalMetrics = myStatsData?.metrics || { signUpsAllTime: 0, signUpsThisMonth: 0 };
-  const globalPortfolio = myStatsData?.portfolio || { loansActive: 0, loansClosed: 0, loansOverdue: 0 };
+  const globalMetrics = myStatsData?.portfolio?.metrics || myStatsData?.metrics || { signUpsAllTime: 0, signUpsThisMonth: 0 };
+  const globalPortfolio = myStatsData?.portfolio?.metrics || myStatsData?.portfolio || { loansActive: 0, loansClosed: 0, loansOverdue: 0 };
 
   // Calculate KYC Verified roughly or rely on local array if global isn't provided. 
   // Given only general signup counts, we can fall back to the total signups.

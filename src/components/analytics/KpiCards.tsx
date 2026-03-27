@@ -37,9 +37,9 @@ interface KpiCardsProps {
 
 const getFontSize = (formatted: string) => {
   const len = formatted.length;
-  if (len <= 4) return "text-[28px]";
-  if (len <= 7) return "text-[22px]";
-  if (len <= 10) return "text-[18px]";
+  if (len <= 6) return "text-[32px]";
+  if (len <= 10) return "text-[22px]";
+  if (len <= 14) return "text-[18px]";
   return "text-[15px]";
 };
 
@@ -133,8 +133,9 @@ const PortfolioCard = ({
 
       <div>
         <div 
-          className={cn("font-mono font-black border-none leading-[1.1] mb-1.5 transition-all", getFontSize(formatted))}
+          className={cn("font-mono font-black border-none leading-[1.1] mb-1.5 transition-all whitespace-nowrap overflow-hidden text-ellipsis", getFontSize(formatted))}
           style={{ color: colors.val }}
+          title={formatted}
         >
           {formatted}
         </div>

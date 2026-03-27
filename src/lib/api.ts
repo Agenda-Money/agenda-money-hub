@@ -105,8 +105,8 @@ export const requestRewardPayout = async () => {
   return response.data;
 };
 
-export const getUserNetworkSummary = async () => {
-  const response = await api.get('/api/users/network/summary');
+export const getUserNetwork = async () => {
+  const response = await api.get('/api/users/network');
   return response.data;
 };
 
@@ -143,8 +143,8 @@ export const getAgentCommissions = async (params?: { page?: number; limit?: numb
   return response.data;
 };
 
-export const getAgentNetworkSummary = async () => {
-  const response = await api.get('/api/agents/network/summary');
+export const getAgentNetwork = async () => {
+  const response = await api.get('/api/agents/network');
   return response.data;
 };
 

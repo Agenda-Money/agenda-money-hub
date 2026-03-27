@@ -84,8 +84,8 @@ export default function AgentProfile() {
   };
 
   const stats = {
-    totalSignups: dashboardStats?.metrics?.signUpsAllTime ?? 0,
-    activeLoans: dashboardStats?.portfolio?.loansActive ?? 0,
+    totalSignups: dashboardStats?.portfolio?.metrics?.signUpsAllTime ?? dashboardStats?.metrics?.signUpsAllTime ?? 0,
+    activeLoans: dashboardStats?.portfolio?.metrics?.loansActive ?? dashboardStats?.portfolio?.loansActive ?? 0,
   };
 
   const themes = [
