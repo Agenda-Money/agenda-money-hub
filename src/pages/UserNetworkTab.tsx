@@ -19,8 +19,7 @@ export const UserNetworkTab: React.FC<UserNetworkTabProps> = ({ onBack, userMsis
   const { data: networkResponse, isLoading } = useQuery({
     queryKey: ["userNetwork", userMsisdn],
     queryFn: async () => {
-      const res = await getUserNetworkSummary();
-      return res.data;
+      return await getUserNetworkSummary();
     }
   });
 

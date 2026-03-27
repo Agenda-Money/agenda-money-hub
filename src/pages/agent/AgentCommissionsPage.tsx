@@ -120,8 +120,7 @@ export default function AgentCommissionsPage() {
   const { data: networkResponse, isLoading: isNetworkLoading } = useQuery({
     queryKey: ["agent-network-summary"],
     queryFn: async () => {
-      const res = await getAgentNetworkSummary();
-      return res.data;
+      return await getAgentNetworkSummary();
     }
   });
 
