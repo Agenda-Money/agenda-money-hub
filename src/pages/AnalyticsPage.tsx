@@ -114,16 +114,26 @@ const AnalyticsPage = () => {
       change: summary?.disbursedToday?.change || responseData?.disbursementTodayChange || 0,
     },
     disbursedWeek: responseData?.disbursementWeek || 0,
-    activeDebt: summary?.activeDebt || responseData?.totalActiveDebt || 0,
+    activeDebt: {
+      volume: summary?.activeDebt || responseData?.totalActiveDebt || 0,
+      change: summary?.activeDebtChange || responseData?.totalActiveDebtChange || 0,
+      status: summary?.activeDebtStatus || responseData?.totalActiveDebtStatus || "Stable",
+    },
     collectionRate: {
       percentage: summary?.collectionRate?.percentage || responseData?.collectionRate || 0,
-      status: summary?.collectionRate?.status || responseData?.collectionRateStatus,
+      change: summary?.collectionRate?.change || responseData?.collectionRateChange || 0,
+      status: summary?.collectionRate?.status || responseData?.collectionRateStatus || "Healthy",
     },
     portfolioAtRisk: {
       percentage: summary?.portfolioAtRisk?.percentage || responseData?.portfolioAtRisk || 0,
-      status: summary?.portfolioAtRisk?.status || responseData?.portfolioAtRiskStatus,
+      change: summary?.portfolioAtRisk?.change || responseData?.portfolioAtRiskChange || 0,
+      status: summary?.portfolioAtRisk?.status || responseData?.portfolioAtRiskStatus || "Stable",
     },
-    overdueLoans: summary?.overdueLoans || responseData?.overdueLoans || 0,
+    overdueLoans: {
+      count: summary?.overdueLoans || responseData?.overdueLoans || 0,
+      change: summary?.overdueLoansChange || responseData?.overdueLoansChange || 0,
+      status: summary?.overdueLoansStatus || responseData?.overdueLoansStatus || "Monitor",
+    },
   };
 
   const totalSignups = distribution.totalSignups || 0;

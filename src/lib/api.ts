@@ -167,7 +167,7 @@ export const getAgentReferrals = async () => {
 };
 
 export const requestAgentRewardPayout = async () => {
-  const response = await api.post('/api/agents/commissions/payout');
+  const response = await api.post('/api/agents/rewards/payout');
   return response.data;
 };
 
