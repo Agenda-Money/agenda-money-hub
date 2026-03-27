@@ -9,17 +9,22 @@ import { useSocket } from "@/hooks/useSocket";
 
 import { useQuery } from "@tanstack/react-query";
 import { getAdminDashboardStats } from "@/lib/api";
+import { useAnalyticsDashboard } from "@/hooks/useAnalyticsDashboard";
 
 export default function Dashboard() {
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
 
-  const { data: responseData, isLoading, refetch } = useQuery({
+  const { data: responseData, isLoading: isStatsLoading, refetch } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
       const res = await getAdminDashboardStats();
       return res;
     },
   });
+
+  const { data: analyticsData, isLoading: isAnalyticsLoading } = useAnalyticsDashboard();
+
+  const isLoading = isStatsLoading || isAnalyticsLoading;
 
   // WebSocket integration for real-time updates
   useSocket(wsUrl, (message) => {
@@ -68,27 +73,39 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Loan Book"
-          value={data.loanBook === "N/A" ? "N/A" : `₵${formatAmount(data.loanBook)}`}
+          value={`GHS ${formatAmount(analyticsData?.summary?.loanBook?.volume ?? 0)}`}
           icon={BookOpen}
-          trend={{ value: 12.5, isPositive: true }}
+          trend={{ 
+            value: analyticsData?.summary?.loanBook?.change ?? 0, 
+            isPositive: (analyticsData?.summary?.loanBook?.change ?? 0) >= 0 
+          }}
         />
         <StatsCard
           title="Active Loans"
-          value={formatNumber(data.activeLoans)}
+          value={formatNumber(analyticsData?.summary?.totalActiveLoans ?? 0)}
           icon={Users}
-          trend={{ value: 8.2, isPositive: true }}
+          trend={{ 
+            value: analyticsData?.summary?.activeLoans?.change ?? 0, 
+            isPositive: (analyticsData?.summary?.activeLoans?.change ?? 0) >= 0 
+          }}
         />
         <StatsCard
           title="Repayment Rate"
-          value={repaymentRate === "N/A" ? "N/A" : repaymentRate}
+          value={`${analyticsData?.summary?.collectionRate?.percentage ?? 0}%`}
           icon={TrendingDown}
-          trend={{ value: 2.1, isPositive: true }}
+          trend={{ 
+            value: analyticsData?.summary?.collectionRate?.change ?? 0, 
+            isPositive: (analyticsData?.summary?.collectionRate?.change ?? 0) >= 0 
+          }}
         />
         <StatsCard
-          title="Overdue Loans"
-          value={formatNumber(overdueCount)}
+          title="Overdue"
+          value={formatNumber(analyticsData?.summary?.overdueLoans?.count ?? 0)}
           icon={AlertTriangle}
-          trend={{ value: 0.5, isPositive: false }}
+          trend={{ 
+            value: analyticsData?.summary?.overdueLoans?.change ?? 0, 
+            isPositive: (analyticsData?.summary?.overdueLoans?.change ?? 0) <= 0 
+          }}
         />
       </div>
 
