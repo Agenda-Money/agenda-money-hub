@@ -59,15 +59,15 @@ export default function AgentDashboard() {
     queryKey: ["agent-portfolio", user?.email],
     queryFn: async () => {
       const res = await getAgentPortfolio({ page: 1, limit: 1000 });
-      let directory = [];
       const data = res.data || res;
-      if (data?.directory) directory = data.directory;
+      if (data?.portfolio?.directory) directory = data.portfolio.directory;
+      else if (data?.directory) directory = data.directory;
       else if (Array.isArray(data?.data)) directory = data.data;
       else if (Array.isArray(data)) directory = data;
       // Total signups = directory length
       const total = directory.length;
       // Active loans = count of users with loanStatus === 'active'
-      const activeLoans = directory.filter((u) => (u.loanStatus || '').toLowerCase() === 'active').length;
+      const activeLoans = directory.filter((u: any) => (u.loanStatus || '').toLowerCase() === 'active').length;
       return { total, activeLoans };
     },
     enabled: !!user?.email,
@@ -135,11 +135,11 @@ export default function AgentDashboard() {
   });
 
   const stats = {
-    totalSignups: typeof portfolioStats?.total === 'number' ? portfolioStats.total : (dashboardData?.stats?.totalSignups ?? 0),
-    signupsThisMonth: dashboardData?.stats?.signupsThisMonth ?? 0,
-    activeLoans: typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : (dashboardData?.stats?.activeLoans ?? 0),
+    totalSignups: typeof portfolioStats?.total === 'number' ? portfolioStats.total : (dashboardData?.portfolio?.metrics?.signUpsAllTime ?? dashboardData?.stats?.totalSignups ?? 0),
+    signupsThisMonth: dashboardData?.portfolio?.metrics?.signUpsThisMonth ?? dashboardData?.stats?.signupsThisMonth ?? 0,
+    activeLoans: typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : (dashboardData?.portfolio?.metrics?.loansActive ?? dashboardData?.stats?.activeLoans ?? 0),
     pendingEndorsements: pendingEndorsementsCount ?? 0,
-    portfolioHealth: dashboardData?.stats?.portfolioHealth ?? 100,
+    portfolioHealth: dashboardData?.portfolio?.metrics?.portfolioHealth ?? dashboardData?.stats?.portfolioHealth ?? 100,
   };
   const recentSignups = dashboardData?.recentSignups ?? [];
 

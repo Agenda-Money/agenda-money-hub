@@ -73,7 +73,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Loan Book"
-          value={`GHS ${formatAmount(analyticsData?.summary?.loanBook?.volume ?? 0)}`}
+          value={`₵ ${formatAmount(analyticsData?.summary?.loanBook?.volume ?? 0)}`}
           icon={BookOpen}
           trend={{ 
             value: analyticsData?.summary?.loanBook?.change ?? 0, 
