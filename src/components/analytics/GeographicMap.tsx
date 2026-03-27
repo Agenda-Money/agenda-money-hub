@@ -3,8 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { MapPin } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface RegionData {
   name: string;
@@ -19,15 +17,8 @@ interface GeographicMapProps {
 }
 
 export function GeographicMap({ data, totalSignups }: Readonly<GeographicMapProps>) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  // Filter out 'Unknown' and sort by signups descending
-  const sortedData = [...data]
-    .filter(r => r.name !== "Unknown")
-    .sort((a, b) => b.signups - a.signups);
-
-  const displayData = isExpanded ? sortedData : sortedData.slice(0, 5);
-  const hasMore = sortedData.length > 5;
+  // Sort by signups descending
+  const sortedData = [...data].sort((a, b) => b.signups - a.signups);
 
   return (
     <motion.div
@@ -78,8 +69,8 @@ export function GeographicMap({ data, totalSignups }: Readonly<GeographicMapProp
           </div>
 
           {/* Detailed List */}
-          <div className="space-y-4">
-            {displayData.map((region, index) => (
+          <div className="space-y-3">
+            {sortedData.map((region, index) => (
               <motion.div
                 key={`${region.name}-${index}`}
                 initial={{ opacity: 0, x: -10 }}
@@ -90,50 +81,27 @@ export function GeographicMap({ data, totalSignups }: Readonly<GeographicMapProp
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
                     <div 
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      className="h-3 w-3 rounded-full shrink-0"
                       style={{ backgroundColor: region.color }}
                     />
-                    <span className="text-[13px] font-black uppercase tracking-tight text-[#1a1a2e]">{region.name}</span>
+                    <span className="text-sm font-medium">{region.name}</span>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-[13px] font-mono font-black text-[#999]">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-muted-foreground">
                       {region.signups.toLocaleString()}
                     </span>
-                    <span className="text-[13px] font-mono font-black w-12 text-right text-[#1a1a2e]">
+                    <span className="text-sm font-semibold w-12 text-right">
                       {region.percentage}%
                     </span>
                   </div>
                 </div>
-                <div className="h-[5px] w-full bg-[#f4f4f4] rounded-full overflow-hidden">
-                  <motion.div 
-                   initial={{ width: 0 }}
-                   animate={{ width: `${region.percentage}%` }}
-                   transition={{ duration: 1, delay: index * 0.1 }}
-                   className="h-full rounded-full"
-                   style={{ backgroundColor: region.color }}
-                  />
-                </div>
+                <Progress 
+                  value={region.percentage} 
+                  className="h-2 bg-[#23273d]"
+                  indicatorStyle={{ backgroundColor: region.color }}
+                />
               </motion.div>
             ))}
-
-            {hasMore && (
-              <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full mt-2 py-2.5 flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-widest text-primary bg-primary/5 hover:bg-primary/10 rounded-xl transition-all"
-              >
-                {isExpanded ? (
-                  <>
-                    <ChevronUp className="h-3.5 w-3.5" />
-                    Show Less
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-3.5 w-3.5" />
-                    Show {sortedData.length - 5} More Regions
-                  </>
-                )}
-              </button>
-            )}
           </div>
 
           {/* Total */}

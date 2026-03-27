@@ -7,12 +7,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft, User, MapPin, Briefcase, Calendar, Phone, Mail, Hash, UserPlus, Clock, FileText, AlertCircle, CheckCircle2, Search, Banknote, TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { SecureKycImage } from "@/components/common/SecureKycImage";
 
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getAdminAgentDetails, getAdminAgentCommissions, getAdminAgentPortfolio } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import { getAdminAgentDetails, getAdminAgentCommissions } from "@/lib/api";
 import { formatAmount, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -20,25 +20,6 @@ export default function AgentDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [referralPage, setReferralPage] = useState(1);
-  const [commissionPage, setCommissionPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
-  
-  const portfolioRef = useRef<HTMLDivElement>(null);
-  const commissionsRef = useRef<HTMLDivElement>(null);
-
-  // Smooth scroll to top of list on page change
-  useEffect(() => {
-    if (portfolioRef.current && !isPortfolioLoading) {
-      portfolioRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [referralPage]);
-
-  useEffect(() => {
-    if (commissionsRef.current && !isCommissionLoading) {
-      commissionsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [commissionPage]);
 
   // Fetch Agent Profile
   const { data: agentDataResponse, isLoading: isAgentLoading, error: agentError } = useQuery({
@@ -50,37 +31,16 @@ export default function AgentDetailsPage() {
     enabled: !!id,
   });
 
-  const agentDataRaw = agentDataResponse?.data?.agent || agentDataResponse?.data || agentDataResponse || {};
-  const statsRaw = agentDataRaw.stats || {};
-  const nodeCode = agentDataRaw.agentCode || agentDataRaw.nodeCode;
-
-  const { data: portfolioResponse, isLoading: isPortfolioLoading, isError: isPortfolioError } = useQuery({
-    queryKey: ["agent-portfolio", nodeCode, referralPage, searchTerm],
-    queryFn: () => getAdminAgentPortfolio(nodeCode!, { 
-       page: referralPage, 
-       limit: ITEMS_PER_PAGE,
-       ...(searchTerm.trim() ? { search: searchTerm } : {})
-    }),
-    enabled: !!nodeCode,
-    placeholderData: keepPreviousData,
-    retry: 1
-  });
-
-  // Fetch Paginated Commissions
+  // Fetch Agent Commissions
   const { data: commissionResponse, isLoading: isCommissionLoading } = useQuery({
-    queryKey: ["agent-commissions", id, commissionPage],
-    queryFn: () => getAdminAgentCommissions(id!, { page: commissionPage, limit: ITEMS_PER_PAGE }),
+    queryKey: ["agent-commissions", id],
+    queryFn: () => getAdminAgentCommissions(id!),
     enabled: !!id,
-    placeholderData: keepPreviousData,
   });
 
-  const portfolioRaw = portfolioResponse?.data || portfolioResponse || {};
-  const portfolioCustomers = portfolioRaw?.portfolio?.directory || portfolioResponse?.portfolio?.directory || portfolioRaw?.directory || portfolioResponse?.directory || portfolioResponse?.data?.customers || [];
-  
-  // Robust fallback: if paginated query returns nothing, check if the initial agent load had data
-  const finalCustomers = portfolioCustomers.length > 0 
-    ? portfolioCustomers 
-    : (agentDataRaw.portfolio?.customers || agentDataRaw.customers || []);
+  const agentDataRaw = agentDataResponse?.data?.agent || agentDataResponse?.data || agentDataResponse || {};
+  const portfolioRaw = agentDataResponse?.data?.portfolio || null;
+  const statsRaw = agentDataRaw.stats || {};
 
   // Map API data to UI structure
   const agent = {
@@ -104,20 +64,18 @@ export default function AgentDetailsPage() {
     ghanaCardFrontUrl: agentDataRaw.ghanaCardFrontUrl,
     ghanaCardBackUrl: agentDataRaw.ghanaCardBackUrl,
     ghanaCardNumber: agentDataRaw.ghanaCardNumber || "—",
-    customers: finalCustomers.map((c: any) => ({
+    customers: (portfolioRaw?.customers || agentDataRaw.customers || []).map((c: any) => ({
       id: c._id || c.id,
       fullName: c.fullName || "—",
       phone: c.phone || c.msisdn || c.phoneNumber || "—",
-      kycStatus: c.kycStatus || "verified", 
+      kycStatus: c.kycStatus || "pending",
       loanStatus: c.loanStatus || "none",
       loanAmount: c.loanAmount || 0,
       joinedAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-GB') : "—"
-    })),
-    commissionsTotal: commissionResponse?.data?.total || 0,
-    referralsTotal: portfolioResponse?.data?.portfolio?.pagination?.total || portfolioResponse?.portfolio?.pagination?.total || portfolioResponse?.data?.pagination?.total || portfolioResponse?.total || 0
+    }))
   };
 
-  const isLoading = isAgentLoading || (isPortfolioLoading && !portfolioResponse) || (isCommissionLoading && !commissionResponse);
+  const isLoading = isAgentLoading;
 
   if (isLoading) {
     return (
@@ -157,6 +115,13 @@ export default function AgentDetailsPage() {
       </DashboardLayout>
     );
   }
+
+  const filteredCustomers = (agent.customers ?? []).filter((c: any) => {
+    const fullName = (c.fullName ?? "").toLowerCase();
+    const phone = c.phone ?? "";
+    const term = searchTerm.toLowerCase();
+    return fullName.includes(term) || phone.toLowerCase().includes(term);
+  });
 
   return (
     <DashboardLayout>
@@ -276,7 +241,7 @@ export default function AgentDetailsPage() {
              </Card>
 
              {/* Customers List */}
-             <Card ref={portfolioRef} className="scroll-mt-24 transition-all duration-300">
+             <Card>
                <CardHeader className="pb-4">
                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                    <div>
@@ -295,88 +260,56 @@ export default function AgentDetailsPage() {
                  </div>
                </CardHeader>
                <CardContent>
-                  <div className="space-y-3">
-                    {isPortfolioLoading ? (
-                       <div className="flex justify-center py-12">
-                         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                       </div>
-                    ) : agent.customers.length > 0 ? (
-                      <>
-                        {agent.customers.map((c: any) => (
-                           <div 
-                             key={c.id} 
-                             className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50 gap-4 sm:gap-2 cursor-pointer group"
-                             onClick={() => navigate(`/users/${c.id}`)}
-                           >
-                              <div className="flex items-center gap-3">
-                                 <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                   <User className="h-5 w-5 text-primary" />
-                                 </div>
-                                 <div>
-                                    <p className="font-semibold text-foreground leading-none mb-1.5">{c.fullName}</p>
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                      <Phone className="h-3 w-3" /> {c.phone}
-                                    </p>
-                                 </div>
-                              </div>
-                              <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-1/2">
-                                 <div className="flex items-center gap-2">
-                                    {c.kycStatus === 'verified' ? (
-                                       <Badge className="bg-emerald-500/10 text-emerald-700 border-none shadow-none"><CheckCircle2 className="w-3 h-3 mr-1" /> Verified</Badge>
-                                    ) : (
-                                       <Badge variant="outline" className="text-amber-600 border-amber-200">Pending KYC</Badge>
-                                    )}
-                                 </div>
-                                 <div className="text-right min-w-[80px]">
-                                    {c.loanStatus === 'active' || c.loanStatus === 'overdue' ? (
-                                       <>
-                                        <p className="font-bold text-sm">GHS {c.loanAmount}</p>
-                                        <Badge variant="outline" className={cn("text-[10px] h-4 leading-none mt-1", c.loanStatus === 'overdue' ? "text-red-500 border-red-200" : "text-blue-500 border-blue-200")}>{c.loanStatus.toUpperCase()}</Badge>
-                                       </>
-                                    ) : c.loanStatus === 'repaid' ? (
-                                       <>
-                                        <p className="font-bold text-sm text-muted-foreground">GHS {c.loanAmount}</p>
-                                        <Badge variant="outline" className="text-[10px] h-4 leading-none mt-1 text-emerald-600 border-emerald-200">CLOSED</Badge>
-                                       </>
-                                    ) : (
-                                      <p className="text-xs text-muted-foreground font-medium">No Loan</p>
-                                    )}
-                                 </div>
-                              </div>
-                           </div>
-                        ))}
-                        {/* Pagination for Customers */}
-                        <div className="pt-6 flex items-center justify-between border-t mt-4">
-                          <p className="text-xs text-muted-foreground">
-                            Showing page {referralPage}
-                          </p>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setReferralPage(p => Math.max(1, p - 1))}
-                              disabled={referralPage === 1}
-                            >
-                              Previous
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setReferralPage(p => p + 1)}
-                              disabled={referralPage >= Math.ceil(agent.referralsTotal / ITEMS_PER_PAGE)}
-                            >
-                              Next
-                            </Button>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <UserPlus className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                        <p>No customers found.</p>
+                 <div className="space-y-3">
+                   {filteredCustomers.length > 0 ? filteredCustomers.map((c: any) => (
+                      <div 
+                        key={c.id} 
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50 gap-4 sm:gap-2 cursor-pointer group"
+                        onClick={() => navigate(`/users/${c.id}`)}
+                      >
+                         <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                              <User className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                               <p className="font-semibold text-foreground leading-none mb-1.5">{c.fullName}</p>
+                               <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                 <Phone className="h-3 w-3" /> {c.phone}
+                               </p>
+                            </div>
+                         </div>
+                         <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-1/2">
+                            <div className="flex items-center gap-2">
+                               {c.kycStatus === 'verified' ? (
+                                  <Badge className="bg-emerald-500/10 text-emerald-700 border-none shadow-none"><CheckCircle2 className="w-3 h-3 mr-1" /> Verified</Badge>
+                               ) : (
+                                  <Badge variant="outline" className="text-amber-600 border-amber-200">Pending KYC</Badge>
+                               )}
+                            </div>
+                            <div className="text-right min-w-[80px]">
+                               {c.loanStatus === 'active' || c.loanStatus === 'overdue' ? (
+                                  <>
+                                   <p className="font-bold text-sm">₵{c.loanAmount}</p>
+                                   <Badge variant="outline" className={cn("text-[10px] h-4 leading-none mt-1", c.loanStatus === 'overdue' ? "text-red-500 border-red-200" : "text-blue-500 border-blue-200")}>{c.loanStatus.toUpperCase()}</Badge>
+                                  </>
+                               ) : c.loanStatus === 'repaid' ? (
+                                  <>
+                                   <p className="font-bold text-sm text-muted-foreground">₵{c.loanAmount}</p>
+                                   <Badge variant="outline" className="text-[10px] h-4 leading-none mt-1 text-emerald-600 border-emerald-200">CLOSED</Badge>
+                                  </>
+                               ) : (
+                                 <p className="text-xs text-muted-foreground font-medium">No Loan</p>
+                               )}
+                            </div>
+                         </div>
                       </div>
-                    )}
-                  </div>
+                   )) : (
+                     <div className="text-center py-12 text-muted-foreground">
+                       <UserPlus className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                       <p>No customers found.</p>
+                     </div>
+                   )}
+                 </div>
                </CardContent>
              </Card>
           </TabsContent>
@@ -499,7 +432,7 @@ export default function AgentDetailsPage() {
               </Card>
             </div>
 
-            <Card ref={commissionsRef} className="scroll-mt-24 transition-all duration-300">
+            <Card>
               <CardHeader>
                 <CardTitle>Commission History</CardTitle>
                 <CardDescription>Recent earnings and deductions for {agent.name}</CardDescription>
@@ -517,7 +450,7 @@ export default function AgentDetailsPage() {
                           <th className="px-4 py-3 font-medium">Date</th>
                           <th className="px-4 py-3 font-medium">Type</th>
                           <th className="px-4 py-3 font-medium">Related To</th>
-                          <th className="px-4 py-3 font-medium text-right">Amount (GHS)</th>
+                          <th className="px-4 py-3 font-medium text-right">Amount</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y border-t">
@@ -547,33 +480,6 @@ export default function AgentDetailsPage() {
                         ))}
                       </tbody>
                     </table>
-                    
-                    {/* Pagination for Commissions */}
-                    <div className="mt-8 flex items-center justify-between border-t pt-4">
-                      <p className="text-sm text-muted-foreground font-medium">
-                        Page {commissionPage}
-                      </p>
-                      <div className="flex gap-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="font-bold tracking-tight text-xs uppercase"
-                          onClick={() => setCommissionPage(p => Math.max(1, p - 1))}
-                          disabled={commissionPage === 1}
-                        >
-                          <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="font-bold tracking-tight text-xs uppercase"
-                          onClick={() => setCommissionPage(p => p + 1)}
-                          disabled={commissionPage >= Math.ceil(agent.commissionsTotal / ITEMS_PER_PAGE)}
-                        >
-                          Next <ArrowUpRight className="h-4 w-4 ml-1 rotate-45" />
-                        </Button>
-                      </div>
-                    </div>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-xl bg-muted/20">
