@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Loader2, RefreshCcw, User, X, Clock } from "lucide-react";
+import { Check, Loader2, RefreshCcw, User, X, Clock, AlertTriangle } from "lucide-react";
+import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -13,7 +14,8 @@ import {
   getAdminUserProfile, 
   approveLoan, 
   rejectLoan, 
-  syncLoanTransfer 
+  syncLoanTransfer,
+  resolveMomoName
 } from "@/lib/api";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -26,6 +28,7 @@ type LoanReviewUser = {
   kycStatus?: string;
   selfieUrl?: string;
   currentTier?: string | number;
+  endorsedAt?: string;
 };
 
 type LoanReviewData = {
@@ -57,6 +60,8 @@ type LoanReviewData = {
   guaranteedByName?: string;
   guaranteedByMsisdn?: string;
   guaranteedAt?: string;
+  guarantorApprovedAt?: string;
+  createdAt?: string;
 };
 
 interface LoanReviewModalProps {
@@ -75,6 +80,8 @@ const tierColors: Record<string, string> = {
 
 export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanReviewModalProps>) {
   const queryClient = useQueryClient();
+  const [momoCheck, setMomoCheck] = useState<{ resolvedName: string | null; registeredName: string; match: boolean; score: number; cached?: boolean; error?: string } | null>(null);
+  const [momoCheckLoading, setMomoCheckLoading] = useState(false);
 
   const loanId = loan?.id || loan?._id;
   // Normalize loan.user to avoid type errors when accessing properties
@@ -103,6 +110,29 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   const isPending = status === "PENDING";
   const isDisbursing = status === "DISBURSING";
   const isAwaitingEndorsement = status === "AWAITING_ENDORSEMENT";
+
+  useEffect(() => {
+    if (isOpen && loanId && isPending) {
+      const fetchMomo = async () => {
+        setMomoCheckLoading(true);
+        try {
+          const res = await resolveMomoName(loanId);
+          console.log("MoMo Check Response for loan", loanId, ":", res);
+          setMomoCheck(res.data || res);
+        } catch (err: any) {
+          console.error("MoMo Check Error for loan", loanId, ":", err);
+          const errorMsg = err.response?.data?.message || err.message || "Failed to verify";
+          setMomoCheck({ resolvedName: null, registeredName: "", match: false, score: 0, error: errorMsg });
+        } finally {
+          setMomoCheckLoading(false);
+        }
+      };
+      fetchMomo();
+    } else if (!isOpen) {
+      setMomoCheck(null);
+      setMomoCheckLoading(false);
+    }
+  }, [isOpen, loanId, isPending]);
 
   const kycBadgeClass = (() => {
     const normalized = kycStatus.toLowerCase();
@@ -271,8 +301,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Endorsed On</p>
                     <p className="font-medium">
-                      {(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt)
-                        ? new Date(loan.guaranteedAt || (loan as any).endorsedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt).toLocaleDateString("en-GB", {
+                      {(loan.guaranteedAt || (loan as any).endorsedAt || loan.guarantorApprovedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt)
+                        ? new Date(loan.guaranteedAt || (loan as any).endorsedAt || loan.guarantorApprovedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt).toLocaleDateString("en-GB", {
                             day: "numeric",
                             month: "short",
                             year: "numeric"
@@ -281,6 +311,65 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                     </p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {isPending && (
+              <div className="space-y-4">
+                {momoCheckLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse p-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Verifying MoMo name…
+                  </div>
+                ) : momoCheck ? (
+                  momoCheck.resolvedName === null || momoCheck.error ? (
+                    <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning font-medium flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>Could not verify MoMo name — proceed with caution</span>
+                      </div>
+                      {momoCheck.error && (
+                        <p className="text-xs opacity-80 pl-6 border-l border-warning/30 ml-2 italic">
+                          Error: {momoCheck.error}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className={cn(
+                      "rounded-xl border-l-4 p-4 space-y-3",
+                      momoCheck.match 
+                        ? "border-emerald-500 bg-emerald-500/5 shadow-sm shadow-emerald-500/5" 
+                        : "border-amber-500 bg-amber-500/5 shadow-sm shadow-amber-500/5"
+                    )}>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground font-medium">KYC name</span>
+                          <span className="text-foreground font-bold">{momoCheck.registeredName}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+                            MoMo name
+                            {momoCheck.cached && (
+                              <span className="text-[10px] text-muted-foreground font-normal italic lowercase">(cached)</span>
+                            )}
+                          </span>
+                          <span className="text-foreground font-bold">{momoCheck.resolvedName}</span>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className={cn(
+                         "font-bold py-0.5 px-2 text-[10px] uppercase tracking-wider",
+                         momoCheck.match 
+                           ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
+                           : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                      )}>
+                        {momoCheck.match ? "✓ Names match" : "⚠ Names differ"}
+                      </Badge>
+                      {!momoCheck.match && (
+                        <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider pl-1">Review carefully before approving</p>
+                      )}
+                    </div>
+                  )
+                ) : null}
               </div>
             )}
 
@@ -296,10 +385,12 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                   <p className="text-xl font-bold">{loan.tenure || loan.tenor || loan.tenureDays || "N/A"}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Repayment Date</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(isPending || isAwaitingEndorsement) ? "Requested Date" : "Repayment Date"}
+                  </p>
                   <p className="text-lg font-medium">
-                    {(loan.dueDate || loan.repaymentDate)
-                      ? new Date(loan.dueDate || loan.repaymentDate).toLocaleDateString("en-GB", {
+                    {((isPending || isAwaitingEndorsement) ? loan.createdAt : (loan.dueDate || loan.repaymentDate))
+                      ? new Date((isPending || isAwaitingEndorsement) ? loan.createdAt! : (loan.dueDate || loan.repaymentDate)!).toLocaleDateString("en-GB", {
                           day: "numeric",
                           month: "short",
                           year: "numeric"
@@ -370,16 +461,28 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                       )}
                     </Button>
                     <Button
-                      className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 transition-colors"
+                      className={cn(
+                        "w-full sm:w-auto transition-colors",
+                        (momoCheck && !momoCheck.match) || (momoCheck && (momoCheck.resolvedName === null || momoCheck.error))
+                          ? "bg-background border-2 border-amber-500/50 text-amber-600 hover:bg-amber-50/50"
+                          : "bg-emerald-600 hover:bg-emerald-500"
+                      )}
                       onClick={handleApprove}
-                      disabled={approveMutation.isPending || rejectMutation.isPending}
+                      disabled={approveMutation.isPending || rejectMutation.isPending || momoCheckLoading}
                     >
                       {approveMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : momoCheckLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Verifying...
+                        </>
                       ) : (
                         <>
                           <Check className="mr-2 h-4 w-4" />
-                          Approve Loan
+                          {(momoCheck && !momoCheck.match) || (momoCheck && (momoCheck.resolvedName === null || momoCheck.error))
+                            ? "Approve anyway"
+                            : "Approve Loan"}
                         </>
                       )}
                     </Button>

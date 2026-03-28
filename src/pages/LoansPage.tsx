@@ -376,7 +376,9 @@ export default function LoansPage() {
     guaranteedBy: l.guaranteedBy,
     guaranteedByName: l.guaranteedByName,
     guaranteedByMsisdn: l.guaranteedByMsisdn,
-    guaranteedAt: l.guaranteedAt
+    guaranteedAt: l.guaranteedAt,
+    guarantorApprovedAt: l.guarantorApprovedAt,
+    createdAt: l.createdAt
     };
 
 
