@@ -263,6 +263,11 @@ export const getAdminDashboardStats = async () => {
   return response.data;
 };
 
+export const resolveMomoName = async (id: string) => {
+  const response = await api.get(`/api/admin/loans/${id}/resolve-momo`);
+  return response.data;
+};
+
 export const getAdminLoans = async (params?: any) => {
   const response = await api.get('/api/admin/loans', { params });
   return response.data;
