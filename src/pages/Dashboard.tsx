@@ -40,11 +40,11 @@ export default function Dashboard() {
 
   const stats = normalizeStatsResponse(responseData);
 
-  // Fallback to defaults if stats is undefined (e.g. error) or some fields missing
   const data = stats ?? {
     loanBook: "N/A",
     activeLoans: "N/A",
     repaymentEfficiency: "N/A",
+    repaymentRate: "N/A",
     defaultRate: "N/A",
     totalLoansCumulative: "N/A",
     totalDisbursedCumulative: "N/A",
@@ -53,6 +53,7 @@ export default function Dashboard() {
     interestIncome: "N/A",
     feeIncome: "N/A",
     lossDefaults: "N/A",
+    overdueLoans: "N/A",
   };
 
   // Additional stats from the "War Room" requirements
@@ -73,39 +74,23 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Loan Book"
-          value={`₵ ${formatAmount(analyticsData?.summary?.loanBook?.volume ?? 0)}`}
+          value={`₵ ${formatAmount(data.loanBook ?? 0)}`}
           icon={BookOpen}
-          trend={{ 
-            value: analyticsData?.summary?.loanBook?.change ?? 0, 
-            isPositive: (analyticsData?.summary?.loanBook?.change ?? 0) >= 0 
-          }}
         />
         <StatsCard
           title="Active Loans"
-          value={formatNumber(analyticsData?.summary?.totalActiveLoans ?? 0)}
+          value={formatNumber(data.activeLoans ?? 0)}
           icon={Users}
-          trend={{ 
-            value: analyticsData?.summary?.activeLoans?.change ?? 0, 
-            isPositive: (analyticsData?.summary?.activeLoans?.change ?? 0) >= 0 
-          }}
         />
         <StatsCard
           title="Repayment Rate"
-          value={`${analyticsData?.summary?.collectionRate?.percentage ?? 0}%`}
+          value={`${formatAmount(data.repaymentRate ?? 0)}%`}
           icon={TrendingDown}
-          trend={{ 
-            value: analyticsData?.summary?.collectionRate?.change ?? 0, 
-            isPositive: (analyticsData?.summary?.collectionRate?.change ?? 0) >= 0 
-          }}
         />
         <StatsCard
           title="Overdue"
-          value={formatNumber(analyticsData?.summary?.overdueLoans?.count ?? 0)}
+          value={formatNumber(data.overdueLoans ?? overdueCount ?? 0)}
           icon={AlertTriangle}
-          trend={{ 
-            value: analyticsData?.summary?.overdueLoans?.change ?? 0, 
-            isPositive: (analyticsData?.summary?.overdueLoans?.change ?? 0) <= 0 
-          }}
         />
       </div>
 
