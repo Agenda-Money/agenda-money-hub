@@ -6,17 +6,19 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export interface DashboardStats {
-  loanBook: string;
-  activeLoans: string;
-  repaymentEfficiency: string;
-  defaultRate: string;
-  totalLoansCumulative: string;
-  totalDisbursedCumulative: string;
-  disbursedThisMonth: string;
-  avgLoanSize: string;
-  interestIncome: string;
-  feeIncome: string;
-  lossDefaults: string;
+  loanBook: string | number;
+  activeLoans: string | number;
+  repaymentEfficiency: string | number;
+  repaymentRate: string | number;
+  defaultRate: string | number;
+  totalLoansCumulative: string | number;
+  totalDisbursedCumulative: string | number;
+  disbursedThisMonth: string | number;
+  avgLoanSize: string | number;
+  interestIncome: string | number;
+  feeIncome: string | number;
+  lossDefaults: string | number;
+  overdueLoans?: string | number;
 }
 
 /**
