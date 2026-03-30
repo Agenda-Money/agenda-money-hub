@@ -163,8 +163,8 @@ export default function AgentApplyPage() {
 
     setUploadProgress((prev) => ({ ...prev, [type]: false }));
 
-    if (result.success && result.path) {
-      updateField(fieldMap[type], result.path);
+    if (result.success && result.url) {
+      updateField(fieldMap[type], result.url);
       toast.success("Image uploaded successfully!", { duration: 1500 });
     } else {
       toast.error("Upload failed", {
