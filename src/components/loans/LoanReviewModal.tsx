@@ -17,9 +17,10 @@ import {
   syncLoanTransfer,
   resolveMomoName
 } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { cn, deduplicateWords } from "@/lib/utils";
 
 type LoanReviewUser = {
   fullName?: string;
@@ -80,6 +81,7 @@ const tierColors: Record<string, string> = {
 
 export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanReviewModalProps>) {
   const queryClient = useQueryClient();
+  const { canWrite } = useAuth();
   const [momoCheck, setMomoCheck] = useState<{ resolvedName: string | null; registeredName: string; match: boolean; score: number; cached?: boolean; error?: string } | null>(null);
   const [momoCheckLoading, setMomoCheckLoading] = useState(false);
 
@@ -251,7 +253,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
             </SheetDescription>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-lg font-semibold text-foreground">{loanUser?.fullName || userNameString || "Unknown User"}</p>
+                <p className="text-lg font-semibold text-foreground">{deduplicateWords(loanUser?.fullName || userNameString || "Unknown User")}</p>
                 <p className="text-sm text-muted-foreground">{loan.userMsisdn || loan.phone}</p>
               </div>
               <Badge variant="outline" className={tierColors[`L${displayTier}`] || tierColors.L1}>
@@ -344,7 +346,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                       <div className="flex flex-col gap-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground font-medium">KYC name</span>
-                          <span className="text-foreground font-bold">{momoCheck.registeredName}</span>
+                          <span className="text-foreground font-bold">{deduplicateWords(momoCheck.registeredName)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground font-medium flex items-center gap-1.5">
@@ -417,7 +419,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
             </div>
           </div>
 
-          {(isPending || isDisbursing || isAwaitingEndorsement) && (
+          {(isPending || isDisbursing || isAwaitingEndorsement) && canWrite && (
             <div className="sticky bottom-0 border-t border-border bg-background/95 p-6 backdrop-blur">
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                 {isAwaitingEndorsement ? (
@@ -427,7 +429,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
                    </div>
                 ) : isDisbursing ? (
                   <Button
-                    className="w-full bg-[#3b82f6] hover:bg-[#2563eb] transition-colors animate-pulse"
+                    className="w-full bg-[#3b82f6] hover:bg-[#2563eb] transition-colors"
                     onClick={handleSync}
                     disabled={syncMutation.isPending}
                   >

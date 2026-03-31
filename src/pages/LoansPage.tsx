@@ -34,9 +34,9 @@ interface Loan {
 
 const statusConfig = {
   PENDING: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
-  DISBURSING: { label: "Disbursing", icon: Loader2, color: "bg-info/10 text-info border-info/20" },
-  ACTIVE: { label: "Active", icon: CheckCircle, color: "bg-info/10 text-info border-info/20" },
-  REPAID: { label: "Closed", icon: Check, color: "bg-success/10 text-success border-success/20" },
+  DISBURSING: { label: "Disbursing", icon: Loader2, color: "bg-blue-500/10 text-blue-600 border-blue-200" },
+  ACTIVE: { label: "Active", icon: CheckCircle, color: "bg-green-600/10 text-green-700 border-green-500/20" },
+  REPAID: { label: "Closed", icon: Check, color: "bg-blue-600/10 text-blue-700 border-blue-500/20" },
   OVERDUE: { label: "Overdue", icon: AlertTriangle, color: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20" },
   DEFAULTED: { label: "Defaulted", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
   REJECTED: { label: "Rejected", icon: XCircle, color: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20" },
@@ -191,8 +191,8 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
 const StatusCard = ({ title, count, type }: { title: string, count: number | string, type: "pending" | "active" | "closed" | "overdue" }) => {
   const styles = {
     pending: "border-warning text-warning bg-warning/5",
-    active: "border-info text-info bg-info/5",
-    closed: "border-success text-success bg-success/5",
+    active: "border-green-500 text-green-600 bg-green-50",
+    closed: "border-blue-500 text-blue-600 bg-blue-50",
     overdue: "border-destructive text-destructive bg-destructive/5",
   };
 

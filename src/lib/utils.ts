@@ -5,6 +5,27 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Deduplicates repeated words in a string (e.g., names with repeating surnames).
+ */
+export function deduplicateWords(str: string | null | undefined): string {
+  if (!str) return "";
+  // Split by whitespace, filter out empty strings
+  const words = str.trim().split(/\s+/);
+  const seen = new Set<string>();
+  const result: string[] = [];
+  
+  for (const word of words) {
+    // Normalize for comparison (lowercase and alphanumeric only)
+    const normalized = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (normalized && !seen.has(normalized)) {
+      seen.add(normalized);
+      result.push(word);
+    }
+  }
+  return result.join(" ");
+}
+
 export interface DashboardStats {
   loanBook: string | number;
   activeLoans: string | number;
@@ -41,12 +62,16 @@ export function getApplicantName(
   fallback = "Applicant"
 ): string {
   if (!entity) return fallback;
-  if (entity.fullName) return entity.fullName;
-  if (entity.user?.fullName) return entity.user.fullName;
-  const first = entity.firstName || entity.user?.firstName || "";
-  const last = entity.lastName || entity.surname || entity.user?.lastName || entity.user?.surname || "";
-  const combined = `${first} ${last}`.trim();
-  return combined || fallback;
+  
+  let name = entity.fullName || entity.user?.fullName || "";
+  
+  if (!name) {
+    const first = entity.firstName || entity.user?.firstName || "";
+    const last = entity.lastName || entity.surname || entity.user?.lastName || entity.user?.surname || "";
+    name = `${first} ${last}`.trim();
+  }
+  
+  return deduplicateWords(name) || fallback;
 }
 
 export function normalizeStatsResponse(responseData: unknown): DashboardStats | undefined {

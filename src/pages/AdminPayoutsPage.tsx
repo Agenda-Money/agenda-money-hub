@@ -52,9 +52,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminPayoutsPage() {
   const { toast } = useToast();
+  const { canWrite } = useAuth();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<string>("REQUESTED");
   const [requesterType, setRequesterType] = useState<string>("all");
@@ -280,6 +282,7 @@ export default function AdminPayoutsPage() {
                            onApprove={approveMutation.mutate} 
                            onReject={({ id, reason }) => rejectMutation.mutate({ id, reason })}
                            onMarkPaid={markPaidMutation.mutate}
+                           isViewer={!canWrite}
                         />
                       </TableCell>
                     </TableRow>
@@ -319,6 +322,7 @@ export default function AdminPayoutsPage() {
                            onApprove={approveMutation.mutate} 
                            onReject={({ id, reason }) => rejectMutation.mutate({ id, reason })}
                            onMarkPaid={markPaidMutation.mutate}
+                           isViewer={!canWrite}
                         />
                      </div>
 
@@ -384,7 +388,9 @@ export default function AdminPayoutsPage() {
   );
 }
 
-function PayoutActions({ payout, onApprove, onReject, onMarkPaid }: any) {
+function PayoutActions({ payout, onApprove, onReject, onMarkPaid, isViewer }: any) {
+  if (isViewer) return null;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -396,7 +402,10 @@ function PayoutActions({ payout, onApprove, onReject, onMarkPaid }: any) {
         <DropdownMenuLabel className="text-[10px] font-black uppercase text-gray-400 tracking-widest px-3 py-2">Queue Actions</DropdownMenuLabel>
         {payout.status === "REQUESTED" && (
           <>
-            <DropdownMenuItem className="rounded-xl font-bold py-3 px-4 focus:bg-emerald-50 focus:text-emerald-700" onClick={() => onApprove(payout._id || payout.id)}>
+            <DropdownMenuItem 
+              className="rounded-xl font-bold py-3 px-4 focus:bg-emerald-50 focus:text-emerald-700" 
+              onClick={() => onApprove(payout._id || payout.id)}
+            >
               <CheckCircle2 className="w-4 h-4 mr-2" />
               Approve Request
             </DropdownMenuItem>
@@ -413,7 +422,10 @@ function PayoutActions({ payout, onApprove, onReject, onMarkPaid }: any) {
           </>
         )}
         {payout.status === "APPROVED" && (
-          <DropdownMenuItem className="rounded-xl font-bold py-3 px-4 focus:bg-[#EC1B84] focus:text-white" onClick={() => onMarkPaid({ id: payout._id || payout.id })}>
+          <DropdownMenuItem 
+            className="rounded-xl font-bold py-3 px-4 focus:bg-[#EC1B84] focus:text-white" 
+            onClick={() => onMarkPaid({ id: payout._id || payout.id })}
+          >
             <DollarSign className="w-4 h-4 mr-2" />
             Mark as Paid
           </DropdownMenuItem>
