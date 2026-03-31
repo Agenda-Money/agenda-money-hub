@@ -3,16 +3,16 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, ShieldAlert, CreditCard, Ban, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ActionCenterProps {
   userId: string;
-  kycStatus: "pending" | "verified" | "rejected";
+  kycStatus: "pending" | "verified" | "rejected" | "failed";
   hasActiveLoan: boolean;
   isBlocked: boolean;
-  onApproveKyc: () => void;
-  onRejectKyc: () => void;
   onApproveLoan: () => void;
-  onToggleBlock: () => void;
+  onBlock: () => void;
+  onUnblock: () => void;
   isLoading?: boolean;
 }
 
@@ -20,12 +20,12 @@ export function ActionCenter({
   kycStatus,
   hasActiveLoan,
   isBlocked,
-  onApproveKyc,
-  onRejectKyc,
   onApproveLoan,
-  onToggleBlock,
-  isLoading = false
+  onBlock,
+  onUnblock,
+  isLoading = false,
 }: ActionCenterProps) {
+  const { canWrite } = useAuth();
   const canApproveLoan = kycStatus === "verified" && !hasActiveLoan;
 
   return (
@@ -54,82 +54,58 @@ export function ActionCenter({
               </span>
             </div>
 
-            {/* Right side - Action buttons */}
-            <div className="flex flex-wrap items-center gap-2 justify-end">
-              {/* KYC Actions - only show if pending */}
-              {kycStatus === "pending" && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onRejectKyc}
-                    disabled={isLoading}
-                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                  >
-                    <XCircle className="h-4 w-4 mr-1.5" />
-                    Reject KYC
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={onApproveKyc}
-                    disabled={isLoading}
-                    className="bg-success hover:bg-success/90 text-success-foreground"
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                    Approve KYC
-                  </Button>
-                </>
-              )}
-
-              {/* Loan Approval - only if KYC verified */}
-              <Button
-                size="sm"
-                onClick={() => {
-                  if (!canApproveLoan) {
-                    if (kycStatus !== "verified") {
-                      toast.error("KYC must be verified before approving loans");
-                    } else if (hasActiveLoan) {
-                      toast.error("User already has an active loan");
+            {canWrite && (
+              <div className="flex flex-wrap items-center gap-2 justify-end">
+                {/* Loan Approval - only if KYC verified */}
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (!canApproveLoan) {
+                      if (kycStatus !== "verified") {
+                        toast.error("KYC must be verified before approving loans");
+                      } else if (hasActiveLoan) {
+                        toast.error("User already has an active loan");
+                      }
+                      return;
                     }
-                    return;
-                  }
-                  onApproveLoan();
-                }}
-                disabled={isLoading || !canApproveLoan}
-                className={cn(
-                  "transition-all",
-                  canApproveLoan 
-                    ? "bg-primary hover:bg-primary/90" 
-                    : "bg-muted text-muted-foreground cursor-not-allowed"
-                )}
-              >
-                <CreditCard className="h-4 w-4 mr-1.5" />
-                Approve Loan
-              </Button>
+                    onApproveLoan();
+                  }}
+                  disabled={isLoading || !canApproveLoan}
+                  className={cn(
+                    "transition-all",
+                    canApproveLoan 
+                      ? "bg-primary hover:bg-primary/90" 
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
+                  )}
+                >
+                  <CreditCard className="h-4 w-4 mr-1.5" />
+                  Approve Loan
+                </Button>
 
-              <div className="h-6 w-px bg-border hidden sm:block" />
+                <div className="h-6 w-px bg-border hidden sm:block" />
 
-              {/* Block/Unblock User */}
-              <Button
-                variant={isBlocked ? "default" : "destructive"}
-                size="sm"
-                onClick={onToggleBlock}
-                disabled={isLoading}
-                className={isBlocked ? "bg-success hover:bg-success/90" : ""}
-              >
-                {isBlocked ? (
-                  <>
-                    <Unlock className="h-4 w-4 mr-1.5" />
-                    Unblock User
-                  </>
-                ) : (
-                  <>
-                    <Ban className="h-4 w-4 mr-1.5" />
-                    Block User
-                  </>
-                )}
-              </Button>
-            </div>
+                {/* Block/Unblock User */}
+                <Button
+                  variant={isBlocked ? "default" : "destructive"}
+                  size="sm"
+                  onClick={isBlocked ? onUnblock : onBlock}
+                  disabled={isLoading}
+                  className={isBlocked ? "bg-success hover:bg-success/90" : ""}
+                >
+                  {isBlocked ? (
+                    <>
+                      <Unlock className="h-4 w-4 mr-1.5" />
+                      Unblock User
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="h-4 w-4 mr-1.5" />
+                      Block User
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

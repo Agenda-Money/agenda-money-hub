@@ -38,6 +38,7 @@ import AgentCommissionsPage from "./pages/agent/AgentCommissionsPage";
 import AgentEndorsementsPage from "./pages/agent/AgentEndorsementsPage";
 import AdminPayoutsPage from './pages/AdminPayoutsPage';
 import PendingKycPage from "./pages/PendingKycPage";
+import AuditLogs from "./pages/AuditLogs";
 import { SessionManager } from "./components/auth/SessionManager";
 import InstallPWA from "./components/InstallPWA";
 
@@ -73,7 +74,8 @@ const queryClient = new QueryClient({
 function AdminRoute({ children }: { readonly children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
-  if (user?.role !== "admin") return <Navigate to="/agent" replace />;
+  const isAllowed = user?.role === "admin" || user?.role === "viewer";
+  if (!isAllowed) return <Navigate to="/agent" replace />;
   return <>{children}</>;
 }
 
@@ -84,7 +86,8 @@ function RoleHome() {
   const sub = getSubdomain();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
   
-  if (sub === "admin" && user?.role === "admin") return <Index />;
+  const isAdminOrViewer = user?.role === "admin" || user?.role === "viewer";
+  if (sub === "admin" && isAdminOrViewer) return <Index />;
   if (sub === "agent" && user?.role === "agent") return <Navigate to="/agent" replace />;
   return <Navigate to="/login" replace />;
 }
@@ -161,6 +164,7 @@ const App = () => {
                       <Route path="/repayments" element={<RequireAuth><AdminRoute><RepaymentsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/payouts" element={<RequireAuth><AdminRoute><AdminPayoutsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/analytics" element={<RequireAuth><AdminRoute><AnalyticsPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/audit-logs" element={<RequireAuth><AdminRoute><AuditLogs /></AdminRoute></RequireAuth>} />
                       <Route path="/settings" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents" element={<RequireAuth><AdminRoute><AgentsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents/:id" element={<RequireAuth><AdminRoute><AgentDetailsPage /></AdminRoute></RequireAuth>} />

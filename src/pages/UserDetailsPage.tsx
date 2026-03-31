@@ -4,13 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, User, MapPin, Briefcase, Calendar, Phone, Mail, Hash } from "lucide-react";
+import { ChevronLeft, User, MapPin, Briefcase, Calendar, Phone, Mail, Hash, Edit3 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 import { IdentityKycSection } from "@/components/user/IdentityKycSection";
 import { FinancialHealthSection } from "@/components/user/FinancialHealthSection";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useState } from "react";
 import { ActionCenter } from "@/components/user/ActionCenter";
+import { EditUserSheet } from "@/components/user/EditUserSheet";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api, { 
@@ -18,8 +24,10 @@ import api, {
   getUserActiveLoan, 
   blockUser, 
   unblockUser, 
-  approveUserKyc, 
-  rejectUserKyc
+  verifyUserKyc,
+  softRejectUserKyc,
+  failUserKyc,
+  restoreUserKyc
 } from "@/lib/api";
 import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
@@ -45,10 +53,29 @@ function parseDateRobust(dateStr: string | undefined | null): Date {
   return new Date("Invalid");
 }
 
+// Helper to resolve Supabase storage URLs for KYC images
+const getKycImageUrl = (path: string | undefined | null) => {
+  if (!path) return undefined;
+  if (path.startsWith("http")) return path;
+  
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const bucket = import.meta.env.VITE_SUPABASE_BUCKET || "KYC-BUCKET";
+  
+  if (!supabaseUrl) return path;
+  
+  // Ensure we don't have double slashes
+  const baseUrl = supabaseUrl.endsWith("/") ? supabaseUrl.slice(0, -1) : supabaseUrl;
+  return `${baseUrl}/storage/v1/object/public/${bucket}/${path}`;
+};
+
 export default function UserDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { canWrite } = useAuth();
   const queryClient = useQueryClient();
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+  const [blockReason, setBlockReason] = useState("");
 
   // Fetch User Profile
   const { data: userDataResponse, isLoading: isUserLoading, error: userError } = useQuery({
@@ -130,10 +157,12 @@ export default function UserDetailsPage() {
   const user = {
     id: userData._id || userData.id || id,
     name: userData.fullName || "Unknown User",
+    surname: userData.surname || listUser.surname || "",
     email: userData.email || "N/A",
     phone: userData.msisdn || userData.phone || "N/A",
     tier: `L${userData.currentTier || 1}`,
     nodeCode: userData.personalNodeCode || userData.nodeCode || listUser.personalNodeCode || listUser.nodeCode || "N/A",
+    referredBy: userData.referredByNodeCode || userData.onboardingData?.referredByNodeCode || userData.kyc?.referredByNodeCode || userData.onboardingData?.referredBy || userData.referredByEmail || userData.referredByMsisdn || userData.referredByName || listUser.referredByNodeCode || listUser.onboardingData?.referredByNodeCode || listUser.kyc?.referredByNodeCode || listUser.onboardingData?.referredBy || listUser.referredByEmail || listUser.referredByName || "Direct Signup",
     status: userData.isBlocked || listUser.isBlocked ? "blocked" : "active",
     joinedAt: (userData.createdAt || listUser.createdAt || userData.joinedAt || userData.dateJoined || userData.onboardingData?.createdAt || userDataRaw.createdAt) 
       ? new Date(userData.createdAt || listUser.createdAt || userData.joinedAt || userData.dateJoined || userData.onboardingData?.createdAt || userDataRaw.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) 
@@ -155,12 +184,13 @@ export default function UserDetailsPage() {
     })(),
     accommodation: userData.accommodationType || userData.accommodation || listUser.accommodationType || userData.onboardingData?.accommodationType || "N/A",
     employment: userData.employmentStatus || userData.employment || listUser.employmentStatus || userData.onboardingData?.employmentStatus || "N/A",
+    monthlyIncome: userData.monthlyIncome || listUser.monthlyIncome || userData.onboardingData?.monthlyIncome || "",
     walletBalance: Number(userData.temporaryWallet || listUser.temporaryWallet || 0),
     totalLoansTaken: Number(userData.totalLoansRepaid || listUser.totalLoansRepaid || 0),
     // KYC fields
-    selfieUrl: userData.selfieUrl || listUser.selfieUrl || userData.kyc?.selfieUrl || listUser.kyc?.selfieUrl || userData.kycData?.selfieUrl || userData.onboardingData?.selfieUrl,
-    ghanaCardFrontUrl: userData.ghanaCardFrontUrl || listUser.ghanaCardFrontUrl || userData.kyc?.ghanaCardFrontUrl || listUser.kyc?.ghanaCardFrontUrl || userData.onboardingData?.ghanaCardFrontUrl,
-    ghanaCardBackUrl: userData.ghanaCardBackUrl || listUser.ghanaCardBackUrl || userData.kyc?.ghanaCardBackUrl || listUser.kyc?.ghanaCardBackUrl || userData.onboardingData?.ghanaCardBackUrl,
+    selfieUrl: getKycImageUrl(userData.selfieUrl || listUser.selfieUrl || userData.kyc?.selfieUrl || listUser.kyc?.selfieUrl || userData.kycData?.selfieUrl || userData.onboardingData?.selfieUrl),
+    ghanaCardFrontUrl: getKycImageUrl(userData.ghanaCardFrontUrl || listUser.ghanaCardFrontUrl || userData.kyc?.ghanaCardFrontUrl || listUser.kyc?.ghanaCardFrontUrl || userData.onboardingData?.ghanaCardFrontUrl),
+    ghanaCardBackUrl: getKycImageUrl(userData.ghanaCardBackUrl || listUser.ghanaCardBackUrl || userData.kyc?.ghanaCardBackUrl || listUser.kyc?.ghanaCardBackUrl || userData.onboardingData?.ghanaCardBackUrl),
     momoName: userData.momoName || listUser.momoName || userData.kyc?.momoName || userData.onboardingData?.momoName,
     ghanaCardName: userData.ghanaCardName || listUser.ghanaCardName || userData.kyc?.ghanaCardName || userData.onboardingData?.ghanaCardName || userData.fullName || listUser.fullName,
     ghanaCardNumber: userData.ghanaCardNumber || listUser.ghanaCardNumber || userData.kyc?.ghanaCardNumber || userData.onboardingData?.ghanaCardNumber,
@@ -239,42 +269,60 @@ export default function UserDetailsPage() {
     L5: "bg-warning/10 text-warning border-warning/20",
   };
 
-  // Mutations
-  const { mutate: toggleBlock, isPending: isBlocking } = useMutation({
-    mutationFn: () => {
-      const action = user.status === "active" ? blockUser : unblockUser;
-      return action(id!);
-    },
-    onSuccess: () => {
+  const { mutate: handleBlock, isPending: isBlockingOp } = useMutation({
+    mutationFn: (reason: string) => blockUser(userPhone, reason),
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
-      toast.success(`User ${user.status === "active" ? "blocked" : "unblocked"} successfully`);
+      setIsBlockModalOpen(false);
+      setBlockReason("");
+      toast.success(`User blocked — ${data?.pendingLoansRejected || 0} pending loans rejected`);
     },
-    onError: (error: any) => {
-      toast.error(getFriendlyErrorMessage(error));
-    },
+    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
   });
 
-  const { mutate: approveKyc, isPending: isApprovingKyc } = useMutation({
-    mutationFn: () => approveUserKyc(id!),
+  const { mutate: handleUnblock, isPending: isUnblockingOp } = useMutation({
+    mutationFn: () => unblockUser(userPhone),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
-      toast.success("KYC approved successfully");
-      navigate("/loans/pending");
+      toast.success("User unblocked");
     },
-    onError: (error: any) => {
-      toast.error(getFriendlyErrorMessage(error));
-    },
+    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
   });
 
-  const { mutate: rejectKyc, isPending: isRejectingKyc } = useMutation({
-    mutationFn: () => rejectUserKyc(id!),
+  const { mutate: handleVerifyKyc, isPending: isVerifyingKyc } = useMutation({
+    mutationFn: () => verifyUserKyc(userPhone),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
-      toast.success("KYC rejected");
+      toast.success("KYC Verified");
     },
-    onError: (error: any) => {
-      toast.error(getFriendlyErrorMessage(error));
+    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
+  });
+
+  const { mutate: handleSoftRejectKyc, isPending: isSoftRejectingKyc } = useMutation({
+    mutationFn: () => softRejectUserKyc(userPhone),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user", id] });
+      toast.success("KYC Soft Rejected");
     },
+    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
+  });
+
+  const { mutate: handleHardFailKyc, isPending: isHardFailingKyc } = useMutation({
+    mutationFn: (reason: string) => failUserKyc(userPhone, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user", id] });
+      toast.success("KYC Hard Failed");
+    },
+    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
+  });
+
+  const { mutate: handleRestoreKyc, isPending: isRestoringKyc } = useMutation({
+    mutationFn: () => restoreUserKyc(userPhone),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user", id] });
+      toast.success("KYC Restored");
+    },
+    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
   });
 
   if (isLoading) {
@@ -341,32 +389,49 @@ export default function UserDetailsPage() {
                 <p className="text-sm font-medium text-warning-800">First-time user awaiting KYC verification</p>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => approveKyc()} disabled={isApprovingKyc}>Approve Identity</Button>
+                <Button size="sm" onClick={() => handleVerifyKyc()} disabled={isVerifyingKyc || !canWrite}>Approve Identity</Button>
               </div>
             </motion.div>
           )}
 
         {/* Header with Tier Visualizer */}
-        <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] shadow-sm border border-border/50 overflow-hidden">
-          <div className="bg-gradient-to-r from-primary/5 via-transparent to-transparent p-4 sm:p-6">
+        <div className="bg-white rounded-2xl sm:rounded-[2rem] shadow-sm border border-border/50 overflow-hidden">
+          <div className="bg-gradient-to-r from-primary/5 via-transparent to-transparent p-5 sm:p-8">
             <div className="flex flex-col lg:flex-row justify-between gap-6 sm:gap-8">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
-                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-[1.5rem] sm:rounded-[2rem] bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary text-3xl sm:text-4xl font-black shadow-inner shrink-0">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 sm:gap-8 text-center sm:text-left">
+                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl sm:rounded-[2rem] bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary text-3xl sm:text-4xl font-black shadow-inner shrink-0 outline outline-4 outline-white">
                   {user.name.charAt(0)}
                 </div>
-                <div className="space-y-2 w-full">
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3">
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground break-words">{user.name}</h1>
-                    <Badge className={cn("px-4 py-1 text-xs font-bold rounded-full", tierColors[user.tier] ?? tierColors.L1)}>{user.tier}</Badge>
+                <div className="space-y-4 w-full">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4">
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground break-words">{user.name}</h1>
+                      <Badge className={cn("px-4 py-1 text-xs font-bold rounded-full h-fit", tierColors[user.tier] ?? tierColors.L1)}>{user.tier}</Badge>
+                    </div>
+                     {canWrite && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest border-primary/20 hover:bg-primary/10 text-primary transition-all sm:ml-auto"
+                        onClick={() => setIsEditDrawerOpen(true)}
+                      >
+                        <Edit3 className="h-3.5 w-3.5 mr-2" />
+                        Edit Profile
+                      </Button>
+                    )}
                   </div>
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 sm:gap-4 text-muted-foreground">
-                    <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium">
-                      <Phone className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 bg-muted/50 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-bold text-muted-foreground border border-border/40">
+                      <Phone className="h-3 w-3" />
                       {user.phone}
                     </div>
-                    <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium">
-                      <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                      Joined {user.joinedAt}
+                    <div className="flex items-center gap-2 bg-muted/50 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-bold text-muted-foreground border border-border/40">
+                      <Calendar className="h-3 w-3" />
+                      {user.joinedAt}
+                    </div>
+                    <div className="flex items-center gap-2 bg-primary/10 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-black text-primary border border-primary/10">
+                      Ref by: {user.referredBy}
                     </div>
                   </div>
                 </div>
@@ -374,19 +439,19 @@ export default function UserDetailsPage() {
 
               {/* Tier Progress (for returning users) */}
               {!isFirstTimeUser && (
-                <div className="lg:w-72 self-center p-5 rounded-2xl bg-muted/30 border border-border/40">
+                <div className="w-full lg:w-72 self-center p-5 rounded-[1.5rem] bg-muted/30 border border-border/40 backdrop-blur-sm">
                   <div className="flex justify-between items-end mb-3">
                     <div className="space-y-0.5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tier Advancement</p>
-                      <p className="text-sm font-bold text-foreground">Progress to {`L${parseInt(user.tier.slice(1)) + 1}`}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Tier Advancement</p>
+                      <p className="text-sm font-black text-foreground">Progress to {`L${parseInt(user.tier.slice(1)) + 1}`}</p>
                     </div>
-                    <span className="text-sm font-black text-primary">{user.totalLoansTaken % 5}/5 <span className="text-[10px] text-muted-foreground font-medium uppercase">Loans</span></span>
+                    <span className="text-sm font-black text-primary">{user.totalLoansTaken % 5}/5 <span className="text-[10px] text-muted-foreground/40 font-bold uppercase">Loans</span></span>
                   </div>
-                  <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden shadow-inner">
+                  <div className="h-2.5 w-full bg-muted/50 rounded-full overflow-hidden shadow-inner border border-border/20">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${(user.totalLoansTaken % 5) * 20}%` }}
-                      className="h-full bg-gradient-to-r from-primary/80 to-primary transition-all duration-1000 ease-out"
+                      className="h-full bg-gradient-to-r from-primary/60 to-primary transition-all duration-1000 ease-out"
                     />
                   </div>
                 </div>
@@ -407,9 +472,14 @@ export default function UserDetailsPage() {
             momoName: user.momoName,
             ghanaCardName: user.ghanaCardName,
             nodeConsentStatus: user.nodeConsentStatus as "awaiting" | "accepted" | "declined",
-            kycStatus: normalizedKycStatus as "pending" | "verified" | "rejected",
+            kycStatus: normalizedKycStatus as "pending" | "verified" | "rejected" | "failed",
             ghanaCardNumber: user.ghanaCardNumber
           }}
+          onVerifyKyc={() => handleVerifyKyc()}
+          onSoftRejectKyc={() => handleSoftRejectKyc()}
+          onHardFailKyc={(reason: string) => handleHardFailKyc(reason)}
+          onRestoreKyc={() => handleRestoreKyc()}
+          isLoading={isVerifyingKyc || isSoftRejectingKyc || isHardFailingKyc || isRestoringKyc}
         />
 
         {/* Loan & Health Section */}
@@ -539,6 +609,13 @@ export default function UserDetailsPage() {
                     </div>
                     <p className="font-medium">{user.employment}</p>
                   </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Hash className="h-4 w-4" />
+                      <span className="text-xs font-medium uppercase">Monthly Income</span>
+                    </div>
+                    <p className="font-medium">{user.monthlyIncome || "N/A"}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -548,14 +625,67 @@ export default function UserDetailsPage() {
         {/* Floating Action Center */}
         <ActionCenter
           userId={user.id}
-          kycStatus={user.kycStatus as "pending" | "verified" | "rejected"}
+          kycStatus={user.kycStatus as "pending" | "verified" | "rejected" | "failed"}
           hasActiveLoan={!!currentLoan}
           isBlocked={user.status === "blocked"}
-          onApproveKyc={() => approveKyc()}
-          onRejectKyc={() => rejectKyc()}
-          onApproveLoan={() => toast.info("Loan approval flow coming soon")}
-          onToggleBlock={() => toggleBlock()}
-          isLoading={isBlocking || isApprovingKyc || isRejectingKyc}
+          onApproveLoan={() => { toast.info("Loan approval flow coming soon"); }}
+          onBlock={() => setIsBlockModalOpen(true)}
+          onUnblock={() => handleUnblock()}
+          isLoading={isBlockingOp || isUnblockingOp}
+        />
+
+        {/* Block User Modal */}
+        <Dialog open={isBlockModalOpen} onOpenChange={setIsBlockModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-destructive flex items-center gap-2">
+                <span className="text-2xl">⚠️</span> Block User
+              </DialogTitle>
+              <DialogDescription>
+                Provide a reason for blocking this user. They will no longer be able to request loans or use the system.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="blockReason">Reason</Label>
+                <Input
+                  id="blockReason"
+                  placeholder="Enter block reason..."
+                  value={blockReason}
+                  onChange={(e) => setBlockReason(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsBlockModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => handleBlock(blockReason)}
+                disabled={!blockReason.trim() || isBlockingOp || !canWrite}
+              >
+                Block User
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit User Sheet */}
+        <EditUserSheet
+          isOpen={isEditDrawerOpen}
+          setIsOpen={setIsEditDrawerOpen}
+          userPhone={userPhone}
+          userId={user.id}
+          initialData={{
+            fullName: userData.fullName || listUser.fullName || "",
+            surname: userData.surname || listUser.surname || "",
+            email: userData.email || listUser.email || "",
+            address: userData.address || listUser.address || "",
+            region: userData.region || listUser.region || "",
+            employmentStatus: userData.employmentStatus || listUser.employmentStatus || "",
+            monthlyIncome: userData.monthlyIncome || listUser.monthlyIncome || "",
+          }}
         />
       </div>
     </DashboardLayout>

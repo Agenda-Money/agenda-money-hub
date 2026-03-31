@@ -15,6 +15,7 @@ import {
   X,
   CheckCircle,
   Wallet,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -153,7 +154,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
       const users = res.data?.data || res.data || [];
       return Array.isArray(users) ? users : [];
     },
-    enabled: user?.role === "admin",
+    enabled: !!user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin"),
     refetchInterval: 30000, // Refetch every 30 seconds as fallback
   });
 
@@ -165,7 +166,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
   }, [pendingData]);
 
   // WebSocket listener for NEW_APPLICATION
-  useSocket(user?.role === "admin" ? wsUrl : null, (message) => {
+  useSocket(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin") ? wsUrl : null, (message) => {
     if (message?.type === "NEW_APPLICATION") {
       // Increment count and refetch to get accurate data
       setPendingCount(prev => prev + 1);
@@ -175,8 +176,8 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
 
   const navItems: NavItemProps[] = [
     { to: "/", icon: Home, label: "Dashboard" },
-    // Admin-only items (top)
-    ...(user?.role === "admin"
+    // Admin/Viewer only items (top)
+    ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
       ? [
           { to: "/kyc-approvals", icon: CheckCircle, label: "KYC Approvals", badge: pendingCount },
           { to: "/agents", icon: UserCheck, label: "Agents" },
@@ -196,11 +197,12 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
       ],
     },
     { to: "/repayments", icon: Banknote, label: "Repayments" },
-    // Admin-only items (bottom)
-    ...(user?.role === "admin"
+    // Admin/Viewer only items (bottom)
+    ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
       ? [
           { to: "/payouts", icon: Wallet, label: "Payouts" },
           { to: "/analytics", icon: BarChart3, label: "Analytics" },
+          { to: "/audit-logs", icon: FileText, label: "Audit Logs" },
         ]
       : []),
     { to: "/settings", icon: Settings, label: "Settings" },
@@ -253,8 +255,8 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
           ))}
         </nav>
 
-        {/* KYC Images Preview (Admin only, for demonstration) */}
-        {user?.role === "admin" && (ghanaCardFrontUrl || ghanaCardBackUrl || selfieUrl) && (
+        {/* KYC Images Preview (Admin/Viewer only, for demonstration) */}
+        {user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin") && (ghanaCardFrontUrl || ghanaCardBackUrl || selfieUrl) && (
           <div className="border-t border-sidebar-border p-4 pb-4 flex-shrink-0 bg-sidebar/50 backdrop-blur-sm">
             <div className="mb-2 text-xs font-semibold text-muted-foreground">KYC Images Preview</div>
             <div className="flex gap-2">

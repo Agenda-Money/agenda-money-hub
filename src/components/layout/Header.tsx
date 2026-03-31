@@ -8,6 +8,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { ShieldAlert } from "lucide-react";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -17,7 +19,7 @@ import { useSocketContext } from "@/contexts/SocketContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function Header({ onMenuClick }: HeaderProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, isViewer } = useAuth();
   const { notifications } = useSocketContext();
   
   const initials = user?.fullName 
@@ -39,7 +41,12 @@ export function Header({ onMenuClick }: HeaderProps) {
           <Menu className="h-5 w-5" />
         </Button>
 
-
+        {isViewer && (
+          <Badge variant="outline" className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 bg-amber-500/10 text-amber-600 border-amber-500/20 font-black text-[10px] uppercase tracking-widest animate-pulse">
+            <ShieldAlert className="h-3 w-3" />
+            View-only admin
+          </Badge>
+        )}
       </div>
 
       {/* Right Side */}
