@@ -1,6 +1,16 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 
+// Helper to generate a unique request ID
+const generateId = () => Math.random().toString(36).substring(2, 15);
+// Helper to generate a UUID for idempotency
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 // Create axios instance with base URL
 const baseURL = import.meta.env.VITE_API_URL || '';
 
@@ -36,6 +46,17 @@ api.interceptors.request.use(
     if (token && !hasAuthHeader) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
+
+    // Add unique request tracking and idempotency for write operations
+    if (['post', 'patch', 'delete'].includes(config.method?.toLowerCase() || '')) {
+      if (!config.headers['x-request-id']) {
+        config.headers['x-request-id'] = generateId();
+      }
+      if (!config.headers['Idempotency-Key']) {
+        config.headers['Idempotency-Key'] = generateUUID();
+      }
+    }
+
     return config;
   },
   (error) => {
@@ -195,8 +216,8 @@ export const getAdminPayoutRequests = async (params?: any) => {
   return response.data;
 };
 
-export const approveAdminPayoutRequest = async (id: string) => {
-  const response = await api.post(`/api/admin/payouts/${id}/approve`);
+export const approveAdminPayoutRequest = async (id: string, reason?: string) => {
+  const response = await api.post(`/api/admin/payouts/${id}/approve`, { reason });
   return response.data;
 };
 
@@ -250,8 +271,8 @@ export const getAdminRecentLoans = async () => {
   return response.data;
 };
 
-export const approveAgentApplication = async (agentId: string) => {
-  const response = await api.patch(`/api/admin/agents/${agentId}/approve`);
+export const approveAgentApplication = async (agentId: string, reason?: string) => {
+  const response = await api.patch(`/api/admin/agents/${agentId}/approve`, { reason });
   return response.data;
 };
 
@@ -350,13 +371,13 @@ export const blockUser = async (msisdn: string, reason: string) => {
   return response.data;
 };
 
-export const unblockUser = async (msisdn: string) => {
-  const response = await api.patch(`/api/admin/users/${msisdn}/unblock`);
+export const unblockUser = async (msisdn: string, reason?: string) => {
+  const response = await api.patch(`/api/admin/users/${msisdn}/unblock`, { reason });
   return response.data;
 };
 
-export const verifyUserKyc = async (msisdn: string) => {
-  const response = await api.patch(`/api/admin/users/${msisdn}/kyc/verify`);
+export const verifyUserKyc = async (msisdn: string, reason?: string) => {
+  const response = await api.patch(`/api/admin/users/${msisdn}/kyc/verify`, { reason });
   return response.data;
 };
 
@@ -365,8 +386,8 @@ export const failUserKyc = async (msisdn: string, reason: string) => {
   return response.data;
 };
 
-export const restoreUserKyc = async (msisdn: string) => {
-  const response = await api.patch(`/api/admin/users/${msisdn}/kyc/restore`);
+export const restoreUserKyc = async (msisdn: string, reason?: string) => {
+  const response = await api.patch(`/api/admin/users/${msisdn}/kyc/restore`, { reason });
   return response.data;
 };
 
@@ -375,9 +396,9 @@ export const editUser = async (msisdn: string, data: any) => {
   return response.data;
 };
 
-export const softRejectUserKyc = async (msisdn: string) => {
+export const softRejectUserKyc = async (msisdn: string, reason?: string) => {
   // Using the old endpoint per instructions for "Soft reject"
-  const response = await api.patch(`/api/admin/users/reject/${msisdn}`);
+  const response = await api.patch(`/api/admin/users/reject/${msisdn}`, { reason });
   return response.data;
 };
 

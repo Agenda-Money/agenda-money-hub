@@ -82,7 +82,7 @@ export default function AdminPayoutsPage() {
   const totalAmount = payouts.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) => approveAdminPayoutRequest(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => approveAdminPayoutRequest(id, reason),
     onSuccess: () => {
       toast({ title: "Approved", description: "Payout request approved." });
       queryClient.invalidateQueries({ queryKey: ["adminPayouts"] });
@@ -104,7 +104,7 @@ export default function AdminPayoutsPage() {
   });
 
   const markPaidMutation = useMutation({
-    mutationFn: ({ id, ref }: { id: string; ref?: string }) => markAdminPayoutPaid(id, ref),
+    mutationFn: ({ id, reason, ref }: { id: string; reason: string; ref?: string }) => markAdminPayoutPaid(id, ref),
     onSuccess: () => {
       toast({ title: "Paid", description: "Payout marked as paid." });
       queryClient.invalidateQueries({ queryKey: ["adminPayouts"] });
@@ -277,11 +277,11 @@ export default function AdminPayoutsPage() {
                       </TableCell>
                       <TableCell>{getStatusBadge(payout.status)}</TableCell>
                       <TableCell className="pr-8 text-right">
-                        <PayoutActions 
-                           payout={payout} 
-                           onApprove={approveMutation.mutate} 
-                           onReject={({ id, reason }) => rejectMutation.mutate({ id, reason })}
-                           onMarkPaid={markPaidMutation.mutate}
+                         <PayoutActions 
+                            payout={payout} 
+                            onApprove={({ id, reason }: any) => approveMutation.mutate({ id, reason })} 
+                            onReject={({ id, reason }: any) => rejectMutation.mutate({ id, reason })}
+                            onMarkPaid={({ id, reason }: any) => markPaidMutation.mutate({ id, reason })}
                            isViewer={!canWrite}
                         />
                       </TableCell>
@@ -319,9 +319,9 @@ export default function AdminPayoutsPage() {
                         </div>
                         <PayoutActions 
                            payout={payout} 
-                           onApprove={approveMutation.mutate} 
-                           onReject={({ id, reason }) => rejectMutation.mutate({ id, reason })}
-                           onMarkPaid={markPaidMutation.mutate}
+                           onApprove={({ id, reason }: any) => approveMutation.mutate({ id, reason })} 
+                           onReject={({ id, reason }: any) => rejectMutation.mutate({ id, reason })}
+                           onMarkPaid={({ id, reason }: any) => markPaidMutation.mutate({ id, reason })}
                            isViewer={!canWrite}
                         />
                      </div>
@@ -404,7 +404,10 @@ function PayoutActions({ payout, onApprove, onReject, onMarkPaid, isViewer }: an
           <>
             <DropdownMenuItem 
               className="rounded-xl font-bold py-3 px-4 focus:bg-emerald-50 focus:text-emerald-700" 
-              onClick={() => onApprove(payout._id || payout.id)}
+              onClick={() => {
+                const reason = prompt("Describe the reason for approval (required):");
+                if (reason?.trim()) onApprove({ id: payout._id || payout.id, reason });
+              }}
             >
               <CheckCircle2 className="w-4 h-4 mr-2" />
               Approve Request
@@ -413,7 +416,7 @@ function PayoutActions({ payout, onApprove, onReject, onMarkPaid, isViewer }: an
               className="rounded-xl font-bold py-3 px-4 focus:bg-red-50 text-red-600 focus:text-red-700"
               onClick={() => {
                 const reason = prompt("Reason for rejection:");
-                if (reason) onReject({ id: payout._id || payout.id, reason });
+                if (reason?.trim()) onReject({ id: payout._id || payout.id, reason });
               }}
             >
               <XCircle className="w-4 h-4 mr-2" />
@@ -424,7 +427,10 @@ function PayoutActions({ payout, onApprove, onReject, onMarkPaid, isViewer }: an
         {payout.status === "APPROVED" && (
           <DropdownMenuItem 
             className="rounded-xl font-bold py-3 px-4 focus:bg-[#EC1B84] focus:text-white" 
-            onClick={() => onMarkPaid({ id: payout._id || payout.id })}
+            onClick={() => {
+              const reason = prompt("Notes/Reason for marking as paid (required):");
+              if (reason?.trim()) onMarkPaid({ id: payout._id || payout.id, reason });
+            }}
           >
             <DollarSign className="w-4 h-4 mr-2" />
             Mark as Paid
