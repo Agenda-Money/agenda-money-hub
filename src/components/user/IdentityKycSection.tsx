@@ -259,7 +259,7 @@ export function IdentityKycSection({
                 </Button>
                 <Button
                   className="w-full sm:w-auto h-12 sm:h-10 bg-green-600 hover:bg-green-700 text-white font-bold order-1 sm:order-3"
-                  onClick={() => setActionModal({ isOpen: true, type: 'verify' })}
+                  onClick={() => onVerifyKyc && onVerifyKyc("Identity verified via admin dashboard")}
                   disabled={isLoading}
                 >
                   Verify KYC

@@ -536,8 +536,7 @@ export default function AgentsPage() {
                                       <Button 
                                         className="flex-1 sm:flex-none bg-success hover:bg-success/90 text-success-foreground shadow-sm px-8"
                                         onClick={() => {
-                                          const reason = prompt("Describe the reason for approving this agent (required):");
-                                          if (reason?.trim()) approveMutation.mutate({ agentId: agent._id, reason: reason.trim() });
+                                          approveMutation.mutate({ agentId: agent._id, reason: "Agent application approved via admin dashboard" });
                                         }}
                                         disabled={approveMutation.isPending || rejectMutation.isPending}
                                       >
