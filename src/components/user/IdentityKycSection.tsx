@@ -1,15 +1,21 @@
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, CreditCard, CheckCircle2, XCircle, Clock, AlertCircle, Camera, IdCard, Maximize2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { User, CreditCard, CheckCircle2, XCircle, Clock, AlertCircle, Camera, IdCard, Maximize2, Lock } from "lucide-react";
+import { cn, deduplicateWords } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
+  DialogDescription
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import { SecureKycImage } from "@/components/common/SecureKycImage";
 
@@ -23,9 +29,14 @@ interface IdentityKycSectionProps {
     momoName?: string;
     ghanaCardName?: string;
     nodeConsentStatus?: "awaiting" | "accepted" | "declined";
-    kycStatus?: "pending" | "verified" | "rejected";
+    kycStatus?: "pending" | "verified" | "rejected" | "failed";
     ghanaCardNumber?: string;
   };
+  onVerifyKyc?: () => void;
+  onSoftRejectKyc?: () => void;
+  onHardFailKyc?: (reason: string) => void;
+  onRestoreKyc?: () => void;
+  isLoading?: boolean;
 }
 
 const KycStatusBadge = ({ status }: { status: string }) => {
@@ -50,10 +61,17 @@ const KycStatusBadge = ({ status }: { status: string }) => {
       border: "border-destructive/30",
       icon: XCircle,
       label: "REJECTED"
+    },
+    failed: {
+      bg: "bg-destructive/10",
+      text: "text-destructive",
+      border: "border-destructive",
+      icon: Lock,
+      label: "FAILED"
     }
   };
 
-  const { bg, text, border, icon: Icon, label } = config[status as keyof typeof config] || config.pending;
+  const { bg, text, border, icon: Icon, label } = config[status.toLowerCase() as keyof typeof config] || config.pending;
 
   return (
     <motion.div
@@ -77,8 +95,19 @@ const ImagePlaceholder = ({ icon: Icon, label }: { icon: React.ElementType; labe
   </div>
 );
 
-export function IdentityKycSection({ userId, userData }: IdentityKycSectionProps) {
+export function IdentityKycSection({ 
+  userId, 
+  userData,
+  onVerifyKyc,
+  onSoftRejectKyc,
+  onHardFailKyc,
+  onRestoreKyc,
+  isLoading
+}: IdentityKycSectionProps) {
+  const { canWrite } = useAuth();
   const [selectedImage, setSelectedImage] = useState<{ url: string; title: string } | null>(null);
+  const [isHardFailModalOpen, setIsHardFailModalOpen] = useState(false);
+  const [hardFailReason, setHardFailReason] = useState("");
 
   return (
     <motion.div
@@ -88,14 +117,14 @@ export function IdentityKycSection({ userId, userData }: IdentityKycSectionProps
     >
       <Card className="overflow-hidden shadow-sm border-border/50">
         <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b">
-          <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <User className="h-5 w-5 text-primary" />
               </div>
-              <div>
-                <CardTitle className="text-lg">Identity & KYC Verification</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">Document verification and identity check</p>
+              <div className="min-w-0">
+                <CardTitle className="text-lg truncate">Identity & KYC Verification</CardTitle>
+                <p className="text-sm text-muted-foreground mt-0.5 truncate">Document verification and identity check</p>
               </div>
             </div>
             <KycStatusBadge status={userData.kycStatus || "pending"} />
@@ -195,12 +224,95 @@ export function IdentityKycSection({ userId, userData }: IdentityKycSectionProps
             <div className="space-y-1.5 p-4 rounded-xl bg-muted/30">
               <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Name on Card</span>
               <p className="text-base font-bold text-foreground">
-                {userData.ghanaCardName || userData.fullName || "—"}
+                {deduplicateWords(userData.ghanaCardName || userData.fullName) || "—"}
               </p>
             </div>
           </div>
         </CardContent>
+        {/* Actions inside CardFooter or just bottom of CardContent */}
+        {canWrite && (
+          <div className="p-6 pt-0 flex flex-col sm:flex-row flex-wrap gap-3 justify-end bg-card">
+            {(userData.kycStatus === 'failed' || userData.kycStatus === 'rejected') && (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto h-12 sm:h-10 text-amber-600 border-amber-600 hover:bg-amber-50 font-bold"
+                onClick={onRestoreKyc}
+                disabled={isLoading}
+              >
+                 Restore KYC
+              </Button>
+            )}
+            {userData.kycStatus === 'pending' && (
+              <>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto h-12 sm:h-10 border-destructive text-destructive hover:bg-destructive/10 font-bold order-3 sm:order-1"
+                  onClick={() => setIsHardFailModalOpen(true)}
+                  disabled={isLoading}
+                >
+                  Hard fail (audit)
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto h-12 sm:h-10 border-amber-500 text-amber-600 hover:bg-amber-50 font-bold order-2"
+                  onClick={onSoftRejectKyc}
+                  disabled={isLoading}
+                >
+                  Soft reject
+                </Button>
+                <Button
+                  className="w-full sm:w-auto h-12 sm:h-10 bg-green-600 hover:bg-green-700 text-white font-bold order-1 sm:order-3"
+                  onClick={onVerifyKyc}
+                  disabled={isLoading}
+                >
+                  Verify KYC
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </Card>
+
+      {/* Hard fail modal */}
+      <Dialog open={isHardFailModalOpen} onOpenChange={setIsHardFailModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <span className="text-2xl">🚨</span> Hard Fail KYC
+            </DialogTitle>
+            <DialogDescription className="text-destructive/90 font-medium">
+              This will permanently flag this user's KYC as failed and disable loan requests, payments, and withdrawals. This action is logged.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="hardFailReason">Reason for Failure</Label>
+              <Input
+                id="hardFailReason"
+                placeholder="e.g. Forged documents..."
+                value={hardFailReason}
+                onChange={(e) => setHardFailReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsHardFailModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (onHardFailKyc) onHardFailKyc(hardFailReason);
+                setIsHardFailModalOpen(false);
+                setHardFailReason("");
+              }}
+              disabled={!hardFailReason.trim() || isLoading || isViewer}
+            >
+              Confirm hard fail
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Image viewer Modal */}
       <Dialog open={!!selectedImage} onOpenChange={(open) => !open && setSelectedImage(null)}>
