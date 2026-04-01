@@ -32,10 +32,10 @@ interface IdentityKycSectionProps {
     kycStatus?: "pending" | "verified" | "rejected" | "failed";
     ghanaCardNumber?: string;
   };
-  onVerifyKyc?: () => void;
-  onSoftRejectKyc?: () => void;
+  onVerifyKyc?: (reason: string) => void;
+  onSoftRejectKyc?: (reason: string) => void;
   onHardFailKyc?: (reason: string) => void;
-  onRestoreKyc?: () => void;
+  onRestoreKyc?: (reason: string) => void;
   isLoading?: boolean;
 }
 
@@ -108,6 +108,13 @@ export function IdentityKycSection({
   const [selectedImage, setSelectedImage] = useState<{ url: string; title: string } | null>(null);
   const [isHardFailModalOpen, setIsHardFailModalOpen] = useState(false);
   const [hardFailReason, setHardFailReason] = useState("");
+  
+  // Generic action state
+  const [actionModal, setActionModal] = useState<{ isOpen: boolean; type: 'verify' | 'soft-reject' | 'restore' | null }>({
+    isOpen: false,
+    type: null
+  });
+  const [actionReason, setActionReason] = useState("");
 
   return (
     <motion.div
@@ -232,16 +239,6 @@ export function IdentityKycSection({
         {/* Actions inside CardFooter or just bottom of CardContent */}
         {canWrite && (
           <div className="p-6 pt-0 flex flex-col sm:flex-row flex-wrap gap-3 justify-end bg-card">
-            {(userData.kycStatus === 'failed' || userData.kycStatus === 'rejected') && (
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto h-12 sm:h-10 text-amber-600 border-amber-600 hover:bg-amber-50 font-bold"
-                onClick={onRestoreKyc}
-                disabled={isLoading}
-              >
-                 Restore KYC
-              </Button>
-            )}
             {userData.kycStatus === 'pending' && (
               <>
                 <Button
@@ -255,25 +252,83 @@ export function IdentityKycSection({
                 <Button
                   variant="outline"
                   className="w-full sm:w-auto h-12 sm:h-10 border-amber-500 text-amber-600 hover:bg-amber-50 font-bold order-2"
-                  onClick={onSoftRejectKyc}
+                  onClick={() => setActionModal({ isOpen: true, type: 'soft-reject' })}
                   disabled={isLoading}
                 >
                   Soft reject
                 </Button>
                 <Button
                   className="w-full sm:w-auto h-12 sm:h-10 bg-green-600 hover:bg-green-700 text-white font-bold order-1 sm:order-3"
-                  onClick={onVerifyKyc}
+                  onClick={() => setActionModal({ isOpen: true, type: 'verify' })}
                   disabled={isLoading}
                 >
                   Verify KYC
                 </Button>
               </>
             )}
+            {(userData.kycStatus === 'failed' || userData.kycStatus === 'rejected') && (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto h-12 sm:h-10 text-amber-600 border-amber-600 hover:bg-amber-50 font-bold"
+                onClick={() => setActionModal({ isOpen: true, type: 'restore' })}
+                disabled={isLoading}
+              >
+                 Restore KYC
+              </Button>
+            )}
           </div>
         )}
       </Card>
 
-      {/* Hard fail modal */}
+      {/* KYC Action Modal (Verify/Soft-Reject/Restore) */}
+      <Dialog 
+        open={actionModal.isOpen} 
+        onOpenChange={(open) => !open && setActionModal({ isOpen: false, type: null })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 capitalize">
+              {actionModal.type?.replace('-', ' ')} KYC
+            </DialogTitle>
+            <DialogDescription>
+              Please provide a brief reason for this action. This will be stored in the audit logs.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="actionReason">Reason</Label>
+              <Input
+                id="actionReason"
+                placeholder="e.g. Identity confirmed, missing back image, etc."
+                value={actionReason}
+                onChange={(e) => setActionReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActionModal({ isOpen: false, type: null })}>
+              Cancel
+            </Button>
+            <Button
+              className={cn(
+                "font-bold",
+                actionModal.type === 'verify' ? "bg-green-600 hover:bg-green-700" : "bg-amber-600 hover:bg-amber-700"
+              )}
+              onClick={() => {
+                if (actionModal.type === 'verify' && onVerifyKyc) onVerifyKyc(actionReason);
+                if (actionModal.type === 'soft-reject' && onSoftRejectKyc) onSoftRejectKyc(actionReason);
+                if (actionModal.type === 'restore' && onRestoreKyc) onRestoreKyc(actionReason);
+                
+                setActionModal({ isOpen: false, type: null });
+                setActionReason("");
+              }}
+              disabled={!actionReason.trim() || isLoading}
+            >
+              Confirm Action
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={isHardFailModalOpen} onOpenChange={setIsHardFailModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -306,7 +361,7 @@ export function IdentityKycSection({
                 setIsHardFailModalOpen(false);
                 setHardFailReason("");
               }}
-              disabled={!hardFailReason.trim() || isLoading || isViewer}
+              disabled={!hardFailReason.trim() || isLoading || !canWrite}
             >
               Confirm hard fail
             </Button>

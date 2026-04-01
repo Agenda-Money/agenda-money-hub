@@ -74,8 +74,10 @@ export default function UserDetailsPage() {
   const { canWrite } = useAuth();
   const queryClient = useQueryClient();
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [isUnblockModalOpen, setIsUnblockModalOpen] = useState(false);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [blockReason, setBlockReason] = useState("");
+  const [unblockReason, setUnblockReason] = useState("");
 
   // Fetch User Profile
   const { data: userDataResponse, isLoading: isUserLoading, error: userError } = useQuery({
@@ -281,16 +283,18 @@ export default function UserDetailsPage() {
   });
 
   const { mutate: handleUnblock, isPending: isUnblockingOp } = useMutation({
-    mutationFn: () => unblockUser(userPhone),
+    mutationFn: (reason: string) => unblockUser(userPhone, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
+      setIsUnblockModalOpen(false);
+      setUnblockReason("");
       toast.success("User unblocked");
     },
     onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
   });
 
   const { mutate: handleVerifyKyc, isPending: isVerifyingKyc } = useMutation({
-    mutationFn: () => verifyUserKyc(userPhone),
+    mutationFn: (reason: string) => verifyUserKyc(userPhone, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
       toast.success("KYC Verified");
@@ -299,7 +303,7 @@ export default function UserDetailsPage() {
   });
 
   const { mutate: handleSoftRejectKyc, isPending: isSoftRejectingKyc } = useMutation({
-    mutationFn: () => softRejectUserKyc(userPhone),
+    mutationFn: (reason: string) => softRejectUserKyc(userPhone, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
       toast.success("KYC Soft Rejected");
@@ -317,7 +321,7 @@ export default function UserDetailsPage() {
   });
 
   const { mutate: handleRestoreKyc, isPending: isRestoringKyc } = useMutation({
-    mutationFn: () => restoreUserKyc(userPhone),
+    mutationFn: (reason: string) => restoreUserKyc(userPhone, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
       toast.success("KYC Restored");
@@ -389,7 +393,7 @@ export default function UserDetailsPage() {
                 <p className="text-sm font-medium text-warning-800">First-time user awaiting KYC verification</p>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => handleVerifyKyc()} disabled={isVerifyingKyc || !canWrite}>Approve Identity</Button>
+                <Button size="sm" onClick={() => handleVerifyKyc("Identity verification requested via dashboard banner")} disabled={isVerifyingKyc || !canWrite}>Approve Identity</Button>
               </div>
             </motion.div>
           )}
@@ -475,10 +479,10 @@ export default function UserDetailsPage() {
             kycStatus: normalizedKycStatus as "pending" | "verified" | "rejected" | "failed",
             ghanaCardNumber: user.ghanaCardNumber
           }}
-          onVerifyKyc={() => handleVerifyKyc()}
-          onSoftRejectKyc={() => handleSoftRejectKyc()}
+          onVerifyKyc={(reason: string) => handleVerifyKyc(reason)}
+          onSoftRejectKyc={(reason: string) => handleSoftRejectKyc(reason)}
           onHardFailKyc={(reason: string) => handleHardFailKyc(reason)}
-          onRestoreKyc={() => handleRestoreKyc()}
+          onRestoreKyc={(reason: string) => handleRestoreKyc(reason)}
           isLoading={isVerifyingKyc || isSoftRejectingKyc || isHardFailingKyc || isRestoringKyc}
         />
 
@@ -630,11 +634,46 @@ export default function UserDetailsPage() {
           isBlocked={user.status === "blocked"}
           onApproveLoan={() => { toast.info("Loan approval flow coming soon"); }}
           onBlock={() => setIsBlockModalOpen(true)}
-          onUnblock={() => handleUnblock()}
+          onUnblock={() => setIsUnblockModalOpen(true)}
           isLoading={isBlockingOp || isUnblockingOp}
         />
 
-        {/* Block User Modal */}
+        {/* Unblock User Modal */}
+        <Dialog open={isUnblockModalOpen} onOpenChange={setIsUnblockModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-success flex items-center gap-2">
+                <span className="text-2xl">🔓</span> Unblock User
+              </DialogTitle>
+              <DialogDescription>
+                Provide a reason for unblocking this user. Their access to the system will be restored immediately.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="unblockReason">Reason</Label>
+                <Input
+                  id="unblockReason"
+                  placeholder="e.g. Account reinstated after review..."
+                  value={unblockReason}
+                  onChange={(e) => setUnblockReason(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsUnblockModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-success hover:bg-success/90 font-bold"
+                onClick={() => handleUnblock(unblockReason)}
+                disabled={!unblockReason.trim() || isUnblockingOp || !canWrite}
+              >
+                Unblock User
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <Dialog open={isBlockModalOpen} onOpenChange={setIsBlockModalOpen}>
           <DialogContent>
             <DialogHeader>

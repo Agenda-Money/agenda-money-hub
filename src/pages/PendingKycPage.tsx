@@ -52,7 +52,7 @@ export default function PendingKycPage() {
 
   // Approve mutation
   const { mutate: approveUser, isPending: isApproving } = useMutation({
-    mutationFn: (msisdn: string) => verifyUserKyc(msisdn),
+    mutationFn: ({ msisdn, reason }: { msisdn: string; reason: string }) => verifyUserKyc(msisdn, reason),
     onSuccess: () => {
       toast.success("User Verified! 🎉", {
         description: "User can now apply for loans.",
@@ -94,7 +94,7 @@ export default function PendingKycPage() {
 
   // Restore mutation
   const { mutate: restoreUser, isPending: isRestoring } = useMutation({
-    mutationFn: (msisdn: string) => restoreUserKyc(msisdn),
+    mutationFn: ({ msisdn, reason }: { msisdn: string; reason: string }) => restoreUserKyc(msisdn, reason),
     onSuccess: () => {
       toast.success("User KYC Restored", {
         description: "The user has been moved back to the pending queue.",
@@ -472,7 +472,10 @@ export default function PendingKycPage() {
                       {selectedUser.kycStatus === 'FAILED' || selectedUser.kycStatus === 'REJECTED' ? (
                         <Button
                           variant="outline"
-                          onClick={() => restoreUser(selectedUser.msisdn)}
+                          onClick={() => {
+                            const reason = prompt("Describe the reason for restoring this user to pending (required):");
+                            if (reason?.trim()) restoreUser({ msisdn: selectedUser.msisdn, reason: reason.trim() });
+                          }}
                           disabled={isRestoring}
                           className="flex-1 h-12 sm:h-10 text-amber-600 border-amber-600 hover:bg-amber-50 font-bold"
                         >
@@ -492,7 +495,10 @@ export default function PendingKycPage() {
                       )}
                       {selectedUser.kycStatus !== 'VERIFIED' && (
                         <Button
-                          onClick={() => approveUser(selectedUser.msisdn)}
+                          onClick={() => {
+                            const reason = prompt("Describe the reason for verifying this user (required):");
+                            if (reason?.trim()) approveUser({ msisdn: selectedUser.msisdn, reason: reason.trim() });
+                          }}
                           disabled={isApproving}
                           className="flex-1 h-12 sm:h-10 bg-green-600 hover:bg-green-700 text-white font-bold"
                         >
