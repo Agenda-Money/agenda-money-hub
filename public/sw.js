@@ -38,7 +38,43 @@ self.addEventListener('fetch', (event) => {
             })
             .catch(() => {
                 // Only fall back to cache if the user is completely offline
-                return caches.match(event.request);
+                return caches.match(event.request).then(response => {
+                    if (response) return response;
+                    // If no cache match and network failed, we must return a valid Response or let it fail
+                    return new Response('Offline and not in cache', { status: 503, statusText: 'Service Unavailable' });
+                });
             })
+    );
+});
+
+// Push Notifications Listener
+self.addEventListener('push', (event) => {
+    if (event.data) {
+        const data = event.data.json();
+        const options = {
+            body: data.body,
+            icon: '/icon-192x192.png',
+            badge: '/icon-192x192.png',
+            data: data.url || '/',
+        };
+        event.waitUntil(self.registration.showNotification(data.title, options));
+    }
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            if (clientList.length > 0) {
+                let client = clientList[0];
+                for (let i = 0; i < clientList.length; i++) {
+                    if (clientList[i].focused) {
+                        client = clientList[i];
+                    }
+                }
+                return client.focus();
+            }
+            return clients.openWindow(event.notification.data);
+        })
     );
 });

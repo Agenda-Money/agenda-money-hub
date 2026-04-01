@@ -17,6 +17,12 @@ interface AdminUser {
   createdAt?: string;
   created_at?: string;
   canShareNodeFeatures?: boolean;
+  sidebar?: string[];
+  permissions?: {
+    read: boolean;
+    write: boolean;
+    delete: boolean;
+  };
 }
 
 
@@ -30,6 +36,8 @@ interface AuthContextType {
   resetPassword: (token: string, password: string) => Promise<{ success: boolean; message?: string }>;
   updateProfile: (data: { fullName?: string; email?: string }) => Promise<{ success: boolean; message?: string }>;
   isAuthenticated: boolean;
+  isViewer: boolean;
+  canWrite: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -93,13 +101,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const sub = getSubdomain();
         const actualRole = extractRole(adminData)?.toLowerCase();
         
-        if (sub === "admin" && actualRole !== "admin" && actualRole !== "superadmin" && actualRole !== "super_admin") {
+        const isPermittedRole = ["admin", "superadmin", "super_admin", "viewer"].includes(actualRole);
+        
+        if (sub === "admin" && !isPermittedRole) {
           logout(false);
         } else if (sub === "agent" && actualRole !== "agent") {
           logout(false);
         } else if (
           sub === "apply" &&
-          (actualRole === "admin" || actualRole === "agent")
+          ["admin", "agent", "viewer"].includes(actualRole)
         ) {
           logout(false);
         } else {
@@ -162,7 +172,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const actualRole = extractRole(admin)?.toLowerCase();
 
-    if (sub === "admin" && actualRole !== "admin" && actualRole !== "superadmin" && actualRole !== "super_admin") {
+    const isPermittedRole = ["admin", "superadmin", "super_admin", "viewer"].includes(actualRole);
+
+    if (sub === "admin" && !isPermittedRole) {
       return { success: false, message: "Invalid credentials. Please try again." };
     }
     if (sub === "agent" && actualRole !== "agent") {
@@ -328,6 +340,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       resetPassword,
       updateProfile,
       isAuthenticated: !!user,
+      isViewer: user?.role === "viewer",
+      canWrite: user?.permissions?.write !== false && user?.role !== "viewer",
     }),
     [
       user,

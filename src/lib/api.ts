@@ -62,6 +62,8 @@ api.interceptors.response.use(
         toast.error('Session Expired', { description: 'Your Admin session has expired. Please log in again.' });
       } else if (errorMessage.includes('agent session expired')) {
         toast.error('Session Expired', { description: 'Your Agent session has expired. Please log in again.' });
+      } else if (error.response?.status === 403) {
+        toast.error('Not permitted', { description: 'You have view-only access. This action is restricted.' });
       } else {
         toast.error('Session Expired', { description: 'Your session has expired. Please log in again.' });
       }
@@ -213,6 +215,16 @@ export const getAdminAnalytics = async (params?: any) => {
   return response.data;
 };
 
+export const getAdminAuditLogs = async (params?: any) => {
+  const response = await api.get('/api/admin/audit-logs', { params });
+  return response.data;
+};
+
+export const getAdminSensitiveAuditLogs = async (params?: any) => {
+  const response = await api.get('/api/admin/audit-logs/sensitive', { params });
+  return response.data;
+};
+
 export const getAdminRepaymentChannels = async () => {
   const response = await api.get('/api/admin/repayment-analytics/channels');
   return response.data;
@@ -313,23 +325,59 @@ export const getPendingKycUsers = async (limit: number = 1000) => {
   return response.data;
 };
 
-export const blockUser = async (userId: string) => {
-  const response = await api.patch(`/api/admin/users/block/${userId}`);
+export const getFailedKycUsers = async (page: number = 1, limit: number = 1000) => {
+  const response = await api.get('/api/admin/users/failed', { params: { page, limit } });
   return response.data;
 };
 
-export const unblockUser = async (userId: string) => {
-  const response = await api.patch(`/api/admin/users/unblock/${userId}`);
+export const getVapidPublicKey = async () => {
+  const response = await api.get('/api/admin/notifications/vapidPublicKey');
   return response.data;
 };
 
-export const approveUserKyc = async (userId: string) => {
-  const response = await api.patch(`/api/admin/users/approve/${userId}`);
+export const subscribeNotification = async (subscription: any) => {
+  const response = await api.post('/api/admin/notifications/subscribe', subscription);
   return response.data;
 };
 
-export const rejectUserKyc = async (userId: string) => {
-  const response = await api.patch(`/api/admin/users/reject/${userId}`);
+export const unsubscribeNotification = async (payload: { endpoint: string }) => {
+  const response = await api.delete('/api/admin/notifications/unsubscribe', { data: payload });
+  return response.data;
+};
+
+export const blockUser = async (msisdn: string, reason: string) => {
+  const response = await api.patch(`/api/admin/users/${msisdn}/block`, { reason });
+  return response.data;
+};
+
+export const unblockUser = async (msisdn: string) => {
+  const response = await api.patch(`/api/admin/users/${msisdn}/unblock`);
+  return response.data;
+};
+
+export const verifyUserKyc = async (msisdn: string) => {
+  const response = await api.patch(`/api/admin/users/${msisdn}/kyc/verify`);
+  return response.data;
+};
+
+export const failUserKyc = async (msisdn: string, reason: string) => {
+  const response = await api.patch(`/api/admin/users/${msisdn}/kyc/fail`, { reason });
+  return response.data;
+};
+
+export const restoreUserKyc = async (msisdn: string) => {
+  const response = await api.patch(`/api/admin/users/${msisdn}/kyc/restore`);
+  return response.data;
+};
+
+export const editUser = async (msisdn: string, data: any) => {
+  const response = await api.patch(`/api/admin/users/${msisdn}/edit`, data);
+  return response.data;
+};
+
+export const softRejectUserKyc = async (msisdn: string) => {
+  // Using the old endpoint per instructions for "Soft reject"
+  const response = await api.patch(`/api/admin/users/reject/${msisdn}`);
   return response.data;
 };
 
@@ -341,7 +389,7 @@ export const getKycSignedUrl = async (userId: string, imageType: string) => {
 };
 
 export const getUserActiveLoan = async (phone: string) => {
-  const response = await api.get(`/api/loans/active/${phone}`);
+  const response = await api.get(`/api/admin/loans/active/${phone}`);
   return response.data;
 };
 
