@@ -125,8 +125,8 @@ export default function AgentsPage() {
   });
 
   // Approve Mutation
-  const { mutate: approveAgent } = useMutation({
-    mutationFn: (agentId: string) => approveAgentApplication(agentId),
+  const approveMutation = useMutation({
+    mutationFn: ({ agentId, reason }: { agentId: string; reason: string }) => approveAgentApplication(agentId, reason),
     onSuccess: () => {
       toast.success("Agent application successfully approved!");
       queryClient.invalidateQueries({ queryKey: ["agents", "pending"] });
@@ -138,7 +138,7 @@ export default function AgentsPage() {
   });
 
   // Reject Mutation
-  const { mutate: rejectAgent } = useMutation({
+  const rejectMutation = useMutation({
     mutationFn: ({ agentId, reason }: { agentId: string; reason: string }) => rejectAgentApplication(agentId, reason),
     onSuccess: (data) => {
       toast.success(data.message || "Agent application successfully rejected.");
@@ -180,7 +180,7 @@ export default function AgentsPage() {
     const agentBase = a.agent || a;
     
     // Enriched data from individual portfolio query
-    const detailData = agentDetailsQueries[index]?.data?.data || agentDetailsQueries[index]?.data;
+    const detailData: any = agentDetailsQueries[index]?.data;
     const agentData = detailData?.agent || agentBase;
     const portfolioData = detailData?.portfolio || null;
     const metricsData = detailData?.metrics || portfolioData?.metrics || null;
@@ -528,18 +528,21 @@ export default function AgentsPage() {
                                            setSelectedAgentIdForReject(agent._id);
                                            setIsRejectModalOpen(true);
                                         }}
-                                        disabled={rejectAgent.isPending || approveAgent.isPending}
+                                        disabled={rejectMutation.isPending || approveMutation.isPending}
                                       >
                                         <XCircle className="w-4 h-4 mr-2" />
                                         Reject
                                       </Button>
                                       <Button 
                                         className="flex-1 sm:flex-none bg-success hover:bg-success/90 text-success-foreground shadow-sm px-8"
-                                        onClick={() => approveAgent(agent._id)}
-                                        disabled={approveAgent.isPending || rejectAgent.isPending}
+                                        onClick={() => {
+                                          const reason = prompt("Describe the reason for approving this agent (required):");
+                                          if (reason?.trim()) approveMutation.mutate({ agentId: agent._id, reason: reason.trim() });
+                                        }}
+                                        disabled={approveMutation.isPending || rejectMutation.isPending}
                                       >
                                         <CheckCircle2 className="w-4 h-4 mr-2" />
-                                        {approveAgent.isPending ? "Approving..." : "Approve Agent"}
+                                        {approveMutation.isPending ? "Approving..." : "Approve Agent"}
                                       </Button>
                                     </div>
                                   </div>
@@ -584,11 +587,11 @@ export default function AgentsPage() {
                 onClick={() => {
                    if (!selectedAgentIdForReject) return;
                    if (!rejectReason.trim()) { toast.error("Reason is required"); return; }
-                   rejectAgent({ agentId: selectedAgentIdForReject, reason: rejectReason.trim() });
+                   rejectMutation.mutate({ agentId: selectedAgentIdForReject, reason: rejectReason.trim() });
                 }}
-                disabled={rejectAgent.isPending || !rejectReason.trim()}
+                disabled={rejectMutation.isPending || !rejectReason.trim()}
               >
-                {rejectAgent.isPending ? "Rejecting..." : "Confirm Rejection"}
+                {rejectMutation.isPending ? "Rejecting..." : "Confirm Rejection"}
               </Button>
             </div>
           </DialogContent>
