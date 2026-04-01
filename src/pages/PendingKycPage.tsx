@@ -496,8 +496,7 @@ export default function PendingKycPage() {
                       {selectedUser.kycStatus !== 'VERIFIED' && (
                         <Button
                           onClick={() => {
-                            const reason = prompt("Describe the reason for verifying this user (required):");
-                            if (reason?.trim()) approveUser({ msisdn: selectedUser.msisdn, reason: reason.trim() });
+                            approveUser({ msisdn: selectedUser.msisdn, reason: "Identity verified via admin dashboard" });
                           }}
                           disabled={isApproving}
                           className="flex-1 h-12 sm:h-10 bg-green-600 hover:bg-green-700 text-white font-bold"
