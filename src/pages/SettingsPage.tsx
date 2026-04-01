@@ -367,7 +367,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Support Phone</Label>
-                  <Input defaultValue="+233 20 000 0000" />
+                  <Input defaultValue="+233 55 858 7833" />
                 </div>
                 <div className="space-y-2">
                   <Label>Support Email</Label>
