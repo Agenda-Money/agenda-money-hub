@@ -1903,7 +1903,7 @@ export default function ApplyPage() {
 
                 <div className="space-y-3">
                    <a 
-                     href={`sms:${import.meta.env.VITE_ADMIN_PHONE || '+233541562819'}`} 
+                     href={`sms:${import.meta.env.VITE_ADMIN_PHONE || '+233558587833'}`} 
                      className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors w-full text-left"
                    >
                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
