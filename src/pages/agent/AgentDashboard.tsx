@@ -276,16 +276,16 @@ export default function AgentDashboard() {
             <Card className="border-none shadow-xl shadow-black/5 bg-card/50 backdrop-blur-xl overflow-hidden border border-white/20">
               <CardContent className="p-0 divide-y divide-border/50">
                  {recentSignups.length > 0 ? (
-                    recentSignups.slice(0, 6).map((signup, index) => (
+                    recentSignups.slice(0, 6).map((signup) => (
                       <div key={signup._id} className="p-4 sm:p-5 flex items-center justify-between hover:bg-muted/30 transition-all group">
                          <div className="flex items-center gap-4">
                             <div className="relative">
-                               <div className="w-12 h-12 rounded-2xl bg-gradient-pink flex items-center justify-center text-primary-foreground font-black text-lg">
+                               <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-pink flex items-center justify-center text-primary-foreground font-black text-sm border-2 border-white shadow-sm shrink-0">
                                  {signup.fullName?.charAt(0) || "?"}
                                </div>
-                               <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-card rounded-full flex items-center justify-center p-0.5 shadow-sm border border-border/50">
+                               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-card rounded-full flex items-center justify-center p-0.5 shadow-sm border border-border/20">
                                  <div className={cn(
-                                   "w-full h-full rounded-full animate-pulse",
+                                   "w-full h-full rounded-full",
                                    signup.kycStatus?.toLowerCase() === "verified" ? "bg-emerald-500" : "bg-amber-500"
                                  )} />
                                </div>
