@@ -658,17 +658,40 @@ export default function ApplyPage() {
       const repayments = Array.isArray(repaymentsRes?.data) ? repaymentsRes.data : [];
 
       const combined = [
-         ...loans.map((l: any) => ({
-            id: `loan-${l.loanId || l._id}`,
-            type: 'loan',
-            title: 'Loan Disbursed',
-            amount: l.disbursementAmount || l.principal || 0,
-            date: l.disbursedAt || l.createdAt,
-         })),
+         ...loans.map((l: any) => {
+            const s = (l.status || '').toUpperCase();
+            let title = 'Loan requested';
+            let showAmount = false;
+
+            if (s === 'AWAITING_ENDORSEMENT') {
+              title = 'Loan requested';
+            } else if (s === 'PENDING' || s === 'PENDING_VERIFICATION') {
+              title = 'Under admin review';
+            } else if (s === 'REJECTED') {
+              title = 'Application not approved';
+            } else if (s === 'DISBURSING') {
+              title = 'Processing disbursement';
+            } else if (s === 'ACTIVE') {
+              title = 'Loan disbursed';
+              showAmount = true;
+            } else if (s === 'COMPLETED') {
+              title = 'Loan fully repaid';
+              showAmount = true;
+            }
+
+            return {
+               id: `loan-${l.loanId || l._id}`,
+               type: 'loan',
+               title,
+               status: s,
+               amount: showAmount ? (l.principal || l.amount || 0) : null,
+               date: showAmount ? (l.disbursedAt || l.createdAt) : l.createdAt,
+            };
+         }),
          ...repayments.map((r: any) => ({
             id: `rep-${r.repaymentId || r._id}`,
             type: 'payment',
-            title: 'Loan Repayment',
+            title: 'Loan repayment',
             amount: r.amount || 0,
             date: r.paidAt || r.createdAt,
          }))
