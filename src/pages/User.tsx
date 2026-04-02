@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { LoanStatusCard, LoanStatus } from "@/components/dashboard/LoanStatusCard";
-import { Wallet, CheckCircle2, Clock } from "lucide-react";
+import { Wallet, CheckCircle2, Clock, XCircle, Ban } from "lucide-react";
 import { TIERS, getTierByLevel } from "@/lib/constants";
 import { format } from "date-fns";
 import { useWebSocketListener } from "@/hooks/useWebSocketListener";
@@ -114,7 +114,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
   }
 
   // Real-time WebSocket Logic
-  const { latestLoanEvent, nodeEndorsedEvent, kycEvent } = useWebSocketListener(applicant?.msisdn);
+  const { latestLoanEvent, nodeEndorsedEvent } = useWebSocketListener(applicant?.msisdn);
   
   // Real-time overrides
   let cardColorOverride = undefined;
@@ -232,22 +232,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
          />
       </motion.div>
 
-      {/* 3. PERMANENT: NODE CODE (Hidden for now) */}
-      {/*
-      {isGraduatedNode && (
-         <motion.div variants={item}>
-            <LoanStatusCard
-               status="node"
-               nodeCode={(applicant as any)?.personalNodeCode || (applicant as any)?.user?.personalNodeCode || applicant?.nodeCode}
-               points={applicant?.tempWalletBalance || 0} // Using temp wallet as points/rewards placeholder
-               onAction={undefined}
-               className="shadow-sm min-h-[130px]" 
-            />
-         </motion.div>
-      )}
-      */}
-
-      {/* 4. RECENT ACTIVITY (New) */}
+      {/* 3. RECENT ACTIVITY */}
       <motion.div variants={item} className="space-y-3 pt-2">
          <div className="flex items-center justify-between px-1">
             <h3 className="text-sm font-bold text-gray-900">Recent Activity</h3>
@@ -285,40 +270,47 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
                          </div>
                    ) : (
                          recentActivity
-                            .filter((activity) => {
-                               // Hide 'Loan Disbursed' if loan is pending (not active)
-                               if (
-                                  activity.type === 'loan' &&
-                                  (activity.title === 'Loan Disbursed' || activity.title === 'Disbursed') &&
-                                  (activeLoanDetails?.status === 'PENDING' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT' || activeLoanDetails?.status === 'PENDING_VERIFICATION')
-                               ) {
-                                  return false;
-                               }
-                               return true;
-                            })
                             .slice(0, 5)
                             .map((activity, index) => {
-                               const isPayment = activity.type?.toLowerCase() === 'payment';
-                               const displayDate = activity.date
-                                  ? format(new Date(activity.date), "dd MMM yyyy, h:mm a")
-                                  : "Unknown Date";
-                               return (
-                                  <div key={activity.id || index} className={cn("p-4 flex items-center justify-between", index !== recentActivity.slice(0, 5).length - 1 && "border-b border-gray-50")}> 
-                                     <div className="flex items-center gap-3">
-                                        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", isPayment ? "bg-[#EC1B84]/10 text-[#EC1B84]" : "bg-green-50 text-green-600")}> 
-                                           {isPayment ? <Wallet className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />} 
-                                        </div>
-                                        <div>
-                                           <p className="text-sm font-bold text-gray-900">{activity.title}</p>
-                                           <p className="text-xs text-gray-500">{displayDate}</p>
-                                        </div>
-                                     </div>
-                                     <span className={cn("text-sm font-bold", isPayment ? "text-[#EC1B84]" : "text-green-600")}> 
-                                        {isPayment ? '-' : '+'}GHS {Math.abs(activity.amount).toFixed(2)}
-                                     </span>
-                                  </div>
-                               );
-                            })
+                                const isPayment = activity.type?.toLowerCase() === 'payment';
+                                const s = (activity.status || '').toUpperCase();
+                                const isPendingActivity = ['AWAITING_ENDORSEMENT', 'PENDING', 'PENDING_VERIFICATION'].includes(s);
+                                const isDisbursing = s === 'DISBURSING';
+
+                                const displayDate = activity.date
+                                   ? format(new Date(activity.date), "dd MMM yyyy, h:mm a")
+                                   : "Unknown Date";
+                                 return (
+                                    <div key={activity.id || index} className={cn("p-4 flex items-center justify-between", index !== recentActivity.slice(0, 5).length - 1 && "border-b border-gray-50")}> 
+                                       <div className="flex items-center gap-3">
+                                          <div className={cn(
+                                             "w-10 h-10 rounded-full flex items-center justify-center shrink-0", 
+                                             isPayment ? "bg-[#EC1B84]/10 text-[#EC1B84]" : 
+                                             isPendingActivity ? "bg-amber-50 text-amber-600" :
+                                             isDisbursing ? "bg-blue-50 text-blue-600" : 
+                                             s === 'REJECTED' ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"
+                                          )}> 
+                                             {isPayment ? <Wallet className="w-5 h-5" /> : 
+                                              isPendingActivity ? <Clock className="w-5 h-5" /> :
+                                              isDisbursing ? <Clock className="w-5 h-5" /> : 
+                                              s === 'REJECTED' ? <XCircle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />} 
+                                          </div>
+                                          <div>
+                                             <p className="text-sm font-bold text-gray-900">{activity.title}</p>
+                                             <p className="text-xs text-gray-500">{displayDate}</p>
+                                          </div>
+                                       </div>
+                                       {activity.amount !== null && (
+                                          <span className={cn(
+                                             "text-sm font-bold", 
+                                             isPayment ? "text-[#EC1B84]" : "text-green-600"
+                                          )}> 
+                                             {isPayment ? '-' : '+'}GHS {Math.abs(activity.amount).toFixed(2)}
+                                          </span>
+                                       )}
+                                    </div>
+                                 );
+                             })
                    )}
          </div>
       </motion.div>
@@ -353,39 +345,47 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
 
                {/* Modal Content */}
                <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-24 sm:pb-4">
-                  {recentActivity.map((activity, index) => {
-                     const isPayment = activity.type?.toLowerCase() === 'payment';
-                     const isDisbursing = activity.status === 'DISBURSING';
-                     const displayDate = activity.date 
-                        ? format(new Date(activity.date), "dd MMM yyyy, h:mm a")
-                        : "Unknown Date";
-                        
-                     return (
-                        <div key={activity.id || index} className="p-4 flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm">
-                              <div className="flex items-center gap-3">
-                                 <div className={cn(
-                                    "w-10 h-10 rounded-full flex items-center justify-center shrink-0", 
-                                    isPayment ? "bg-[#EC1B84]/10 text-[#EC1B84]" : 
-                                    isDisbursing ? "bg-blue-50 text-blue-600" : "bg-green-50 text-green-600"
-                                 )}>
-                                    {isPayment ? <Wallet className="w-5 h-5" /> : 
-                                     isDisbursing ? <Clock className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
-                                 </div>
-                                 <div>
-                                    <p className="text-sm font-bold text-gray-900">{activity.title}</p>
-                                    <p className="text-xs text-gray-500">{displayDate}</p>
-                                 </div>
-                              </div>
-                              <span className={cn(
-                                 "text-sm font-bold", 
-                                 isPayment ? "text-[#EC1B84]" : 
-                                 isDisbursing ? "text-blue-600" : "text-green-600"
-                              )}>
-                                 {isPayment ? '-' : '+'}GHS {Math.abs(activity.amount).toFixed(2)}
-                              </span>
-                        </div>
-                     );
-                  })}
+                   {recentActivity.map((activity, index) => {
+                      const isPayment = activity.type?.toLowerCase() === 'payment';
+                      const s = (activity.status || '').toUpperCase();
+                      const isPendingActivity = ['AWAITING_ENDORSEMENT', 'PENDING', 'PENDING_VERIFICATION'].includes(s);
+                      const isDisbursing = s === 'DISBURSING';
+
+                      const displayDate = activity.date 
+                         ? format(new Date(activity.date), "dd MMM yyyy, h:mm a")
+                         : "Unknown Date";
+                         
+                      return (
+                         <div key={activity.id || index} className="p-4 flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm">
+                               <div className="flex items-center gap-3">
+                                  <div className={cn(
+                                     "w-10 h-10 rounded-full flex items-center justify-center shrink-0", 
+                                     isPayment ? "bg-[#EC1B84]/10 text-[#EC1B84]" : 
+                                     isPendingActivity ? "bg-amber-50 text-amber-600" :
+                                     isDisbursing ? "bg-blue-50 text-blue-600" : 
+                                     s === 'REJECTED' ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"
+                                  )}>
+                                     {isPayment ? <Wallet className="w-5 h-5" /> : 
+                                      isPendingActivity ? <Clock className="w-5 h-5" /> :
+                                      isDisbursing ? <Clock className="w-5 h-5" /> : 
+                                      s === 'REJECTED' ? <XCircle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+                                  </div>
+                                  <div>
+                                     <p className="text-sm font-bold text-gray-900">{activity.title}</p>
+                                     <p className="text-xs text-gray-500">{displayDate}</p>
+                                  </div>
+                               </div>
+                               {activity.amount !== null && (
+                                  <span className={cn(
+                                     "text-sm font-bold", 
+                                     isPayment ? "text-[#EC1B84]" : "text-green-600"
+                                  )}>
+                                     {isPayment ? '-' : '+'}GHS {Math.abs(activity.amount).toFixed(2)}
+                                  </span>
+                               )}
+                         </div>
+                      );
+                   })}
                </div>
             </div>
          </div>,
