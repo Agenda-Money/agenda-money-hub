@@ -238,6 +238,10 @@ export default function AgentEndorsementsPage() {
                   src={selectedRequest.borrower.selfieUrl} 
                   className="w-full h-auto max-h-[85vh] object-contain mx-auto" 
                   alt="Borrower Selfie"
+                  onError={(e) => {
+                    toast.error("Failed to load selfie image.");
+                    setIsPhotoModalOpen(false);
+                  }}
                 />
                 <Button 
                   variant="ghost" 
@@ -274,16 +278,24 @@ export default function AgentEndorsementsPage() {
             className="w-[52px] h-[52px] rounded-lg overflow-hidden bg-muted flex items-center justify-center text-muted-foreground font-medium text-base shrink-0 border border-border/40"
           >
             {b.selfieUrl ? (
-              <img src={b.selfieUrl} className="w-full h-full object-cover" alt={b.name} />
+              <img 
+                src={b.selfieUrl} 
+                className="w-full h-full object-cover" 
+                alt={b.name} 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "";
+                  (e.target as HTMLImageElement).classList.add('hidden');
+                }}
+              />
             ) : (
               initialsName
             )}
           </button>
           <div>
-            <div className="text-[15px] font-medium text-foreground">{b.name}</div>
+            <div className="text-[15px] font-bold text-slate-900">{b.name}</div>
             <div className="text-xs text-muted-foreground mt-0.5">{b.phone}</div>
           </div>
-          <div className="ml-auto text-[15px] font-medium text-foreground">GHS {req.amount.toLocaleString()}</div>
+          <div className="ml-auto text-[15px] font-bold text-slate-900">GHS {req.amount.toLocaleString()}</div>
         </div>
 
         <div className="h-[0.5px] bg-border/40 mx-4" />
@@ -363,10 +375,20 @@ export default function AgentEndorsementsPage() {
 
     return (
       <div key={req.loanId} className="bg-muted/10 border border-border/40 rounded-xl p-3.5 mb-3 flex items-center gap-3 opacity-60">
-        <div className="w-9 h-9 rounded-lg bg-muted/40 flex items-center justify-center text-muted-foreground font-medium text-[11px] shrink-0">
-          {b.selfieUrl ? <img src={b.selfieUrl} className="w-full h-full object-cover" alt={b.name} /> : initialsName}
+        <div className="w-9 h-9 rounded-lg bg-muted/40 flex items-center justify-center text-muted-foreground font-medium text-[11px] shrink-0 overflow-hidden">
+          {b.selfieUrl ? (
+            <img 
+              src={b.selfieUrl} 
+              className="w-full h-full object-cover" 
+              alt={b.name} 
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "";
+                (e.target as HTMLImageElement).classList.add('hidden');
+              }}
+            />
+          ) : initialsName}
         </div>
-        <div className="text-[13px] text-muted-foreground font-medium">
+        <div className="text-[13px] text-slate-700 font-bold">
           {b.name} · GHS {req.amount.toLocaleString()}
         </div>
         <div className={cn(
