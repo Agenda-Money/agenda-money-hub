@@ -16,6 +16,20 @@ import { getAdminAgentDetails, getAdminAgentCommissions } from "@/lib/api";
 import { formatAmount, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
+const formatGHS = (amount: number | string | undefined | null) => {
+  const val = Number(amount) || 0;
+  return new Intl.NumberFormat('en-GH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(val);
+};
+
+const toNumber = (val: any) => {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  return parseFloat(val) || 0;
+};
+
 export default function AgentDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -387,49 +401,75 @@ export default function AgentDetailsPage() {
           </TabsContent>
 
           <TabsContent value="commissions" className="space-y-6 m-0">
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card className="bg-pink-50/50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-900 shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-pink-700 dark:text-pink-400 flex items-center gap-2">
-                    <Banknote className="w-4 h-4" />
-                    Estimated Next Payout
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                   <div className="text-3xl font-bold text-pink-900 dark:text-pink-100">GHS {formatAmount(agent.signUpsThisMonth * 10)}</div>
-                  <p className="text-xs text-pink-600 dark:text-pink-400 mt-1 font-medium">Based on signups this month</p>
-                </CardContent>
-              </Card>
+            {/* Main Summary Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+               {/* Available Balance Card */}
+               <Card className="bg-[#EC1B84]/5 border-[#EC1B84]/20 shadow-sm relative overflow-hidden group">
+                  <div className="absolute right-[-10px] top-[-10px] opacity-10 transition-transform group-hover:scale-110 duration-500">
+                    <Banknote className="w-24 h-24 text-[#EC1B84]" />
+                  </div>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-black uppercase tracking-widest text-[#EC1B84] flex items-center gap-2">
+                      <Banknote className="w-3.5 h-3.5" />
+                      Net Balance (Available)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <p className={cn(
+                        "text-3xl font-black tracking-tight",
+                        toNumber(commissionResponse?.data?.summary?.netBalance) >= 0 ? "text-gray-900" : "text-red-600"
+                      )}>
+                        GHS {formatGHS(commissionResponse?.data?.summary?.netBalance ?? (agent.signUpsAllTime * 10 - agent.loansOverdue * 10))}
+                      </p>
+                      <p className="text-[10px] font-bold text-gray-500 mt-1 uppercase tracking-tight">Current account value</p>
+                    </div>
+                  </CardContent>
+               </Card>
 
-              <Card>
-                <CardHeader className="pb-2 bg-muted/40 rounded-t-xl">
-                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Total Earned (All Time)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                   <div className="text-3xl font-bold text-foreground">GHS {formatAmount(agent.signUpsAllTime * 10)}</div>
-                  <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
-                    <ArrowUpRight className="w-3 h-3" /> Historical tracking
-                  </p>
-                </CardContent>
-              </Card>
+               {/* Earnings Card */}
+               <Card className="flex flex-col justify-center">
+                  <CardContent className="pt-6 space-y-4">
+                    <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Earned</p>
+                        <p className="text-2xl font-bold text-gray-900">GHS {formatGHS(commissionResponse?.data?.summary?.totalEarned ?? agent.signUpsAllTime * 10)}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+                       <div className="space-y-1">
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Signups</p>
+                          <p className="text-sm font-bold text-emerald-600">+GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.signupCommission ?? agent.signUpsAllTime * 10)}</p>
+                       </div>
+                       <div className="space-y-1">
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Repayments</p>
+                          <p className="text-sm font-bold text-blue-600">+GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.repaymentCommission ?? 0)}</p>
+                       </div>
+                    </div>
+                  </CardContent>
+               </Card>
 
-              <Card>
-                <CardHeader className="pb-2 bg-red-50/50 dark:bg-red-950/20 rounded-t-xl">
-                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" />
-                    Pending Deductions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                   <div className="text-3xl font-bold text-foreground">GHS {formatAmount(agent.loansOverdue * 10)}</div>
-                  <p className="text-xs text-destructive font-medium mt-1 flex items-center gap-1">
-                    <ArrowDownRight className="w-3 h-3" /> From defaults (-10 GHS each)
-                  </p>
-                </CardContent>
-              </Card>
+               {/* Deductions Card */}
+               <Card className="flex flex-col justify-center bg-red-50/20 border-red-100">
+                  <CardContent className="pt-6 space-y-4">
+                    <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Deductions</p>
+                        <p className="text-2xl font-bold text-red-600">GHS {formatGHS(commissionResponse?.data?.summary?.totalDeducted ?? agent.loansOverdue * 10)}</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 border-t border-red-50 pt-4">
+                       <div className="space-y-1">
+                          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Defaults</p>
+                          <p className="text-[11px] font-bold text-red-700">GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.defaultDeductions ?? agent.loansOverdue * 10)}</p>
+                       </div>
+                       <div className="space-y-1">
+                          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Fraud</p>
+                          <p className="text-[11px] font-bold text-red-700">GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.fraudRevocations ?? 0)}</p>
+                       </div>
+                       <div className="space-y-1">
+                          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Manual</p>
+                          <p className="text-[11px] font-bold text-red-700">GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.manualCorrections ?? 0)}</p>
+                       </div>
+                    </div>
+                  </CardContent>
+               </Card>
             </div>
 
             <Card>
@@ -471,10 +511,10 @@ export default function AgentDetailsPage() {
                             </td>
                             <td className="px-4 py-3 font-medium">{item.relatedName || "—"}</td>
                             <td className={cn(
-                              "px-4 py-3 text-right font-bold",
-                              item.amount >= 0 ? "text-emerald-600" : "text-destructive"
+                              "px-4 py-3 text-right font-black",
+                              item.amount >= 0 ? "text-emerald-600" : "text-red-600"
                             )}>
-                              {item.amount >= 0 ? "+" : ""}{item.amount.toFixed(2)}
+                              {item.amount >= 0 ? "+" : "-"}GHS {formatGHS(Math.abs(item.amount))}
                             </td>
                           </tr>
                         ))}

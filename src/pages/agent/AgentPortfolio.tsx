@@ -205,19 +205,11 @@ export default function AgentPortfolio() {
     return matchesSearch && matchesFilter;
   });
 
-  const globalMetrics = myStatsData?.metrics || { signUpsAllTime: 0, signUpsThisMonth: 0 };
-  const globalPortfolio = myStatsData?.portfolio || { loansActive: 0, loansClosed: 0, loansOverdue: 0 };
-
-  // Calculate KYC Verified roughly or rely on local array if global isn't provided. 
-  // Given only general signup counts, we can fall back to the total signups.
-  // Assuming 'verified' might not be in my-stats explicitly based on the user prompt.
-  // We'll map "KYC Verified" to a locally filtered number or just leave it as is representing the local page.
-  // Actually, to make "Total Customers", "Active Loans", "Overdue" globally accurate:
   const stats = {
-    total: globalMetrics.signUpsAllTime,
-    verified: users.filter(u => u.kycStatus === "verified").length, // still local page bound unless backend provides global KYC count
-    activeLoans: globalPortfolio.loansActive,
-    overdue: globalPortfolio.loansOverdue,
+    total: myStatsData?.stats?.totalSignups || myStatsData?.metrics?.signUpsAllTime || pagination.total || users.length,
+    verified: myStatsData?.stats?.verifiedCount || myStatsData?.metrics?.verifiedCount || users.filter(u => u.kycStatus === "verified").length,
+    activeLoans: myStatsData?.stats?.activeLoans || myStatsData?.portfolio?.loansActive || users.filter(u => u.loanStatus === "active").length,
+    overdue: myStatsData?.stats?.overdueLoans || myStatsData?.portfolio?.loansOverdue || users.filter(u => u.loanStatus === "overdue").length,
   };
 
   const statCards = [

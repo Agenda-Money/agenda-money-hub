@@ -46,6 +46,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -62,6 +71,10 @@ export default function AdminPayoutsPage() {
   const [requesterType, setRequesterType] = useState<string>("all");
   const [source, setSource] = useState<string>("all");
   const [page, setPage] = useState(1);
+  const [selectedPayout, setSelectedPayout] = useState<any>(null);
+  const [isMarkPaidModalOpen, setIsMarkPaidModalOpen] = useState(false);
+  const [paymentRef, setPaymentRef] = useState("");
+  const [markPaidReason, setMarkPaidReason] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["adminPayouts", status, requesterType, source, page],
@@ -106,8 +119,12 @@ export default function AdminPayoutsPage() {
   const markPaidMutation = useMutation({
     mutationFn: ({ id, reason, ref }: { id: string; reason: string; ref?: string }) => markAdminPayoutPaid(id, ref),
     onSuccess: () => {
-      toast({ title: "Paid", description: "Payout marked as paid." });
+      toast({ title: "Paid", description: "Payment confirmed — agent balance updated" });
       queryClient.invalidateQueries({ queryKey: ["adminPayouts"] });
+      setIsMarkPaidModalOpen(false);
+      setSelectedPayout(null);
+      setPaymentRef("");
+      setMarkPaidReason("");
     },
     onError: (error: any) => {
       toast({ variant: "destructive", title: "Action Failed", description: getFriendlyErrorMessage(error) });
@@ -130,7 +147,7 @@ export default function AdminPayoutsPage() {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-gray-900">Payout Management</h1>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-gray-900">Agent Withdrawals</h1>
             <p className="text-muted-foreground mt-1 text-sm sm:text-lg">Approve and track node rewards and agent commissions.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -281,7 +298,10 @@ export default function AdminPayoutsPage() {
                             payout={payout} 
                             onApprove={({ id, reason }: any) => approveMutation.mutate({ id, reason })} 
                             onReject={({ id, reason }: any) => rejectMutation.mutate({ id, reason })}
-                            onMarkPaid={({ id, reason }: any) => markPaidMutation.mutate({ id, reason })}
+                            onMarkPaidClick={() => {
+                              setSelectedPayout(payout);
+                              setIsMarkPaidModalOpen(true);
+                            }}
                            isViewer={!canWrite}
                         />
                       </TableCell>
@@ -317,12 +337,15 @@ export default function AdminPayoutsPage() {
                               <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">{format(new Date(payout.createdAt), "MMM d, yyyy")}</div>
                            </div>
                         </div>
-                        <PayoutActions 
-                           payout={payout} 
-                           onApprove={({ id, reason }: any) => approveMutation.mutate({ id, reason })} 
-                           onReject={({ id, reason }: any) => rejectMutation.mutate({ id, reason })}
-                           onMarkPaid={({ id, reason }: any) => markPaidMutation.mutate({ id, reason })}
-                           isViewer={!canWrite}
+                         <PayoutActions 
+                            payout={payout} 
+                            onApprove={({ id, reason }: any) => approveMutation.mutate({ id, reason })} 
+                            onReject={({ id, reason }: any) => rejectMutation.mutate({ id, reason })}
+                            onMarkPaidClick={() => {
+                              setSelectedPayout(payout);
+                              setIsMarkPaidModalOpen(true);
+                            }}
+                            isViewer={!canWrite}
                         />
                      </div>
 
@@ -384,11 +407,86 @@ export default function AdminPayoutsPage() {
           )}
         </div>
       </div>
+
+      {/* Mark as Paid Confirmation Modal */}
+      <Dialog open={isMarkPaidModalOpen} onOpenChange={setIsMarkPaidModalOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black">Confirm Payment</DialogTitle>
+            <DialogDescription>
+              Verify the payout details before marking as paid.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedPayout && (
+            <div className="space-y-6 py-4">
+              <div className="bg-gray-50 p-4 rounded-xl space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500 font-medium">Agent</span>
+                  <span className="font-bold text-gray-900">{selectedPayout.requesterName}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500 font-medium">MSISDN</span>
+                  <span className="font-bold text-gray-900">{selectedPayout.requesterMsisdn}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm pt-2 border-t border-gray-200">
+                  <span className="text-gray-500 font-medium">Amount</span>
+                  <span className="text-lg font-black text-[#EC1B84]">GHS {selectedPayout.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-3">
+                <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                  Warning: This will deduct <span className="font-bold text-amber-900">GHS {selectedPayout.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span> from the agent's available commission balance.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="reason" className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Reason/Notes (Required)</Label>
+                  <Input 
+                    id="reason"
+                    placeholder="e.g. Bank transfer completed" 
+                    value={markPaidReason}
+                    onChange={(e) => setMarkPaidReason(e.target.value)}
+                    className="h-12 rounded-xl border-gray-200 focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ref" className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Payment Reference (Optional)</Label>
+                  <Input 
+                    id="ref"
+                    placeholder="e.g. TXN-123456" 
+                    value={paymentRef}
+                    onChange={(e) => setPaymentRef(e.target.value)}
+                    className="h-12 rounded-xl border-gray-200 focus:border-primary"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIsMarkPaidModalOpen(false)} className="h-12 rounded-xl font-bold flex-1">
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => markPaidMutation.mutate({ id: selectedPayout._id || selectedPayout.id, reason: markPaidReason, ref: paymentRef })}
+              disabled={!markPaidReason.trim() || markPaidMutation.isPending}
+              className="h-12 rounded-xl font-black bg-[#EC1B84] hover:bg-[#D01773] text-white flex-1"
+            >
+              {markPaidMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Confirm Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
 
-function PayoutActions({ payout, onApprove, onReject, onMarkPaid, isViewer }: any) {
+function PayoutActions({ payout, onApprove, onReject, onMarkPaidClick, isViewer }: any) {
   if (isViewer) return null;
 
   return (
@@ -427,10 +525,7 @@ function PayoutActions({ payout, onApprove, onReject, onMarkPaid, isViewer }: an
         {payout.status === "APPROVED" && (
           <DropdownMenuItem 
             className="rounded-xl font-bold py-3 px-4 focus:bg-[#EC1B84] focus:text-white" 
-            onClick={() => {
-              const reason = prompt("Notes/Reason for marking as paid (required):");
-              if (reason?.trim()) onMarkPaid({ id: payout._id || payout.id, reason });
-            }}
+            onClick={() => onMarkPaidClick()}
           >
             <DollarSign className="w-4 h-4 mr-2" />
             Mark as Paid

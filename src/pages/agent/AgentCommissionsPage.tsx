@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Banknote, 
@@ -12,8 +12,11 @@ import {
   Copy,
   Calendar,
   Clock,
-  AlertCircle
+  AlertCircle,
+  HelpCircle,
+  AlertTriangle
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { 
@@ -43,7 +46,7 @@ const safeFormatDate = (value: unknown, dateFormat: string, fallback = "-") => {
   return format(parsed, dateFormat);
 };
 
-const toNumber = (value: unknown) => {
+const toNumber = (value: any): number => {
   let normalized = 0;
   if (typeof value === "number") {
     normalized = value;
@@ -55,11 +58,21 @@ const toNumber = (value: unknown) => {
   return Number.isFinite(normalized) ? normalized : 0;
 };
 
+const formatGHS = (value: number) => {
+  return new Intl.NumberFormat('en-GH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+};
+
 export default function AgentCommissionsPage() {
   const [mainTab, setMainTab] = useState<"commissions" | "network" >("commissions");
   const [historyTab, setHistoryTab] = useState<"all" | "earnings" | "deductions">("all");
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [showPendingPayoutErrorModal, setShowPendingPayoutErrorModal] = useState(false);
+  const [nextEligibleDate, setNextEligibleDate] = useState<string | null>(null);
+  const [cooldownMessage, setCooldownMessage] = useState<string | null>(null);
+  const [optimisticPendingAmount, setOptimisticPendingAmount] = useState(0);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -87,8 +100,11 @@ export default function AgentCommissionsPage() {
     isFetchingNextPage, 
     isLoading: isHistoryLoading 
   } = useInfiniteQuery({
-    queryKey: ["agent-commissions-history"],
-    queryFn: ({ pageParam = 1 }) => getAgentCommissions({ page: pageParam, limit: 10 }),
+    queryKey: ["agent-commissions-history", historyTab],
+    queryFn: ({ pageParam = 1 }) => {
+      const entryType = historyTab === "earnings" ? "EARNING" : historyTab === "deductions" ? "DEDUCTION" : undefined;
+      return getAgentCommissions({ page: pageParam, limit: 10, entryType });
+    },
     getNextPageParam: (lastPage) => {
       const items = lastPage?.commissions?.items || lastPage?.data?.commissions?.items || lastPage?.items || lastPage?.commissions || lastPage?.data?.items || [];
       const pagination = lastPage?.pagination || lastPage?.commissions?.pagination || {};
@@ -136,6 +152,10 @@ export default function AgentCommissionsPage() {
   const requestPayoutMutation = useMutation({
     mutationFn: () => requestAgentRewardPayout(),
     onSuccess: () => {
+      // Optimistically subtract the current balance
+      const currentAvailable = toNumber(summary?.availableNow || summary?.netEarnings);
+      setOptimisticPendingAmount(prev => prev + currentAvailable);
+      
       toast({ title: "Success", description: "Your payout request has been submitted!" });
       setIsPayoutModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ["agent-commissions-summary"] });
@@ -153,6 +173,14 @@ export default function AgentCommissionsPage() {
       } else if (status === 409) {
         setShowPendingPayoutErrorModal(true);
         setIsPayoutModalOpen(false);
+      } else if (status === 400 && error?.response?.data?.nextEligibleDate) {
+        setNextEligibleDate(error.response.data.nextEligibleDate);
+        setCooldownMessage(`Next payout: ${format(new Date(error.response.data.nextEligibleDate), "MMM d, yyyy")}`);
+        toast({ 
+          variant: "destructive", 
+          title: "Payout Blocked", 
+          description: `You are eligible for your next payout on ${format(new Date(error.response.data.nextEligibleDate), "MMM d, yyyy")}` 
+        });
       } else {
         toast({ 
           variant: "destructive", 
@@ -164,7 +192,7 @@ export default function AgentCommissionsPage() {
   });
 
   const handleRequestPayout = () => {
-    if (toNumber(summary?.netEarnings) > 0) {
+    if (toNumber(summary?.availableNow || summary?.netEarnings) > 0) {
        requestPayoutMutation.mutate();
     } else {
        toast({
@@ -175,33 +203,46 @@ export default function AgentCommissionsPage() {
     }
   };
 
-  const summary = summaryResponse?.summary || summaryResponse?.data?.summary || summaryResponse?.data || {};
-  const network = networkResponse || {};
+  const summary = summaryResponse?.summary || summaryResponse?.data?.summary || summaryResponse?.data || summaryResponse || {};
+  const network = networkResponse?.network || networkResponse?.data?.network || networkResponse?.data || networkResponse || {};
   const referredUsers = asArray<any>(referralsResponse?.users || referralsResponse?.data?.users || referralsResponse?.items);
   
-  const recentActivities = asArray<any>(summaryResponse?.recentActivity || summary?.recentActivity || []);
+  // MERGED HISTORY: Use the already calculated allHistory array
+  const allHistoryItems = allHistory;
   
-  // Create a merged history that prioritizes recentActivities (which have personName)
-  const mergedHistory = [...recentActivities];
+  const recentActivities = [
+    ...asArray<any>(summaryResponse?.recentActivity || summary?.recentActivity || []),
+    ...allHistoryItems.slice(0, 5) // Use some items from history as "recent" if summary is empty
+  ];
   
-  // Add items from allHistory that aren't already in recentActivities (based on reference or id)
-  allHistory.forEach(historyItem => {
-    const isAlreadyIncluded = mergedHistory.some(recentItem => 
-      (recentItem.reference && recentItem.reference === historyItem.reference) ||
-      (recentItem._id && recentItem._id === historyItem._id)
-    );
-    if (!isAlreadyIncluded) {
-      mergedHistory.push(historyItem);
-    }
-  });
-
-  const hasPendingPayout = mergedHistory.some((item: any) => {
-    const type = (item.type || item.action || "").toUpperCase();
+  const mergedHistory = [...allHistoryItems];
+  
+  const pendingRequests = mergedHistory.filter((item: any) => {
+    const type = (item.entryType || item.type || item.action || "").toUpperCase().replace('-', '_');
     const status = (item.status || "").toUpperCase();
-    const isPayoutType = ["PAYOUT", "CASH_OUT", "REWARD"].includes(type);
+    
+    const isPayoutType = ["PAYOUT", "CASH_OUT", "WITHDRAWAL", "PENDING_PAYOUT"].includes(type);
     const isPendingStatus = ["REQUESTED", "PENDING", "APPROVED", "PROCESSING"].includes(status);
+    
     return isPayoutType && isPendingStatus;
   });
+
+  const hasPendingPayout = pendingRequests.length > 0;
+  const historyPendingAmount = pendingRequests.reduce((acc: number, item: any) => acc + Math.abs(toNumber(item.amount || item.value)), 0);
+  
+  // Backend now provides these directly
+  const totalEarned = toNumber(summary.totalEarned);
+  const totalDeducted = toNumber(summary.totalDeducted || summary.defaultDeduction);
+  const netBalance = toNumber(summary.netBalance);
+  const displayAvailable = toNumber(summary.availableNow);
+  const pendingPayouts = toNumber(summary.pendingPayouts);
+
+  // Reset optimistic subtraction once history captures it
+  useEffect(() => {
+    if (historyPendingAmount > 0) {
+       setOptimisticPendingAmount(0);
+    }
+  }, [historyPendingAmount]);
   
   const filteredHistory = mergedHistory.filter((item: any) => {
     if (historyTab === "earnings") return item.amount > 0;
@@ -213,20 +254,27 @@ export default function AgentCommissionsPage() {
   const referralSkeletons = ["referral-skeleton-1", "referral-skeleton-2", "referral-skeleton-3", "referral-skeleton-4"];
 
   const renderHistoryIcon = (entryType: string) => {
-    if (entryType === "SIGNUP") {
+    const type = entryType.toUpperCase();
+    if (type === "SIGNUP" || type === "SIGNUP_COMMISSION") {
       return <Users className="w-5 h-5" />;
     }
 
-    if (entryType === "REPAYMENT") {
+    if (type === "REPAYMENT" || type === "REPAYMENT_COMMISSION") {
       return <ArrowUpRight className="w-5 h-5" />;
+    }
+
+    if (["DEFAULT_DEDUCTION", "MANUAL_DEDUCTION", "MANUAL_CORRECTION", "FRAUD_REVOCATION", "DEFAULT_PENALTY"].includes(type)) {
+      return <AlertTriangle className="w-5 h-5" />;
     }
 
     return <ArrowDownRight className="w-5 h-5" />;
   };
 
   const getHistoryLabel = (entryType: string, personName?: string) => {
+    const type = entryType.toUpperCase();
     const name = personName || "";
-    if (entryType === "SIGNUP") {
+    
+    if (type === "SIGNUP" || type === "SIGNUP_COMMISSION") {
       return (
         <>
           Bonus <span className="text-emerald-500 font-black">earned</span> from <span className="text-foreground">{name}</span>
@@ -234,7 +282,7 @@ export default function AgentCommissionsPage() {
       );
     }
 
-    if (entryType === "REPAYMENT") {
+    if (type === "REPAYMENT" || type === "REPAYMENT_COMMISSION") {
       return (
         <>
           Commission from <span className="text-foreground">{name}</span> repayment
@@ -242,11 +290,19 @@ export default function AgentCommissionsPage() {
       );
     }
 
-    if (entryType === "CASH_OUT" || entryType === "PAYOUT") {
+    if (type === "CASH_OUT" || type === "PAYOUT") {
       return "Commission Payout";
     }
 
-    return "System Deduction";
+    if (type === "FRAUD_REVOCATION") {
+      return "Fraud Revocation";
+    }
+
+    if (["DEFAULT_DEDUCTION", "MANUAL_DEDUCTION", "MANUAL_CORRECTION", "DEFAULT_PENALTY"].includes(type)) {
+      return "Commission Deduction";
+    }
+
+    return "System Adjustment";
   };
 
   let historyContent;
@@ -269,8 +325,9 @@ export default function AgentCommissionsPage() {
     historyContent = (
       <div className="space-y-3">
         {filteredHistory.map((item: any, index: number) => {
-          const entryType = item.type || item.action || "DEDUCTION";
+          const entryType = (item.entryType || item.type || item.action || "DEDUCTION").toUpperCase();
           const amount = toNumber(item.amount);
+          const isDeduction = ["DEFAULT_DEDUCTION", "MANUAL_DEDUCTION", "MANUAL_CORRECTION", "FRAUD_REVOCATION", "DEFAULT_PENALTY"].includes(entryType);
 
           return (
             <motion.div
@@ -286,16 +343,19 @@ export default function AgentCommissionsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-500 leading-tight">
-                    {getHistoryLabel(entryType, item.personName || item.userName || item.name)}
+                    {getHistoryLabel(entryType, item.personName || item.userName || item.name || item.customerName || item.borrowerName || item.referralName)}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs text-gray-500">{safeFormatDate(item.createdAt || item.date, "MMM d, yyyy")}</span>
                     <span className="text-gray-300">&bull;</span>
                     <span className={cn(
                       "text-[9px] uppercase font-black px-1.5 py-0.5 rounded-sm",
-                      item.status === "PAID" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                      item.status === "PAID" ? "bg-green-100 text-green-700" : 
+                      isDeduction ? "bg-red-100 text-red-700" :
+                      "bg-gray-100 text-gray-600"
                     )}>
-                      {(item.status || "").toUpperCase() === 'REQUESTED' || !item.status ? 'EARNED' : item.status}
+                      {isDeduction ? "DEDUCTION" : 
+                       (item.status || "").toUpperCase() === 'REQUESTED' || !item.status ? 'EARNED' : item.status}
                     </span>
                   </div>
                 </div>
@@ -304,7 +364,7 @@ export default function AgentCommissionsPage() {
                 "text-sm font-black",
                 amount > 0 ? "text-emerald-600" : "text-red-600"
               )}>
-                {amount > 0 ? "+" : "-"}GHS {Math.abs(amount).toFixed(2)}
+                {amount > 0 ? "+" : "-"}GHS {formatGHS(Math.abs(amount))}
               </div>
             </motion.div>
           );
@@ -433,8 +493,8 @@ export default function AgentCommissionsPage() {
                   <>
                     <div className="space-y-4">
                       <div className="space-y-1">
-                        <div className="text-4xl font-black text-pink-900">GHS {toNumber(summary?.netEarnings).toFixed(2)}</div>
-                        <p className="text-sm text-pink-600 font-medium">Available for payout (pending admin approval)</p>
+                        <div className="text-4xl font-black text-pink-900">GHS {formatGHS(displayAvailable)}</div>
+                        <p className="text-sm text-pink-600 font-medium">Available for payout (net earnings after deductions)</p>
                       </div>
                       
                       {hasPendingPayout && (
@@ -447,18 +507,41 @@ export default function AgentCommissionsPage() {
                         </div>
                       )}
                     </div>
-                    <Button 
-                      onClick={() => setIsPayoutModalOpen(true)}
-                      disabled={hasPendingPayout || toNumber(summary?.netEarnings) <= 0}
-                      className={cn(
-                        "h-16 px-10 rounded-2xl shadow-xl transition-all duration-300 min-w-[200px] font-black tracking-tight",
-                        hasPendingPayout 
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none border border-gray-200" 
-                          : "bg-[#EC1B84] hover:bg-[#D01773] text-white shadow-pink-200/50 hover:scale-[1.02] active:scale-[0.98]"
-                      )}
-                    >
-                      {hasPendingPayout ? "Processing Payout" : "Request Payout"}
-                    </Button>
+                    <div className="flex flex-col items-center gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="w-full">
+                              <Button 
+                                onClick={() => setIsPayoutModalOpen(true)}
+                                disabled={hasPendingPayout || displayAvailable <= 0 || (!!(summary?.lastPayoutRequestedAt || summary?.lastPayoutDate || summary?.lastPayoutAt) && (new Date().getTime() - new Date(summary.lastPayoutRequestedAt || summary.lastPayoutDate || summary.lastPayoutAt).getTime()) < 14 * 24 * 60 * 60 * 1000)}
+                                className={cn(
+                                  "h-16 px-10 rounded-2xl shadow-xl transition-all duration-300 min-w-[200px] font-black tracking-tight w-full",
+                                  (hasPendingPayout || (!!(summary?.lastPayoutRequestedAt || summary?.lastPayoutDate || summary?.lastPayoutAt) && (new Date().getTime() - new Date(summary.lastPayoutRequestedAt || summary.lastPayoutDate || summary.lastPayoutAt).getTime()) < 14 * 24 * 60 * 60 * 1000))
+                                    ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none border border-gray-200" 
+                                    : "bg-[#EC1B84] hover:bg-[#D01773] text-white shadow-pink-200/50 hover:scale-[1.02] active:scale-[0.98]"
+                                )}
+                              >
+                                {hasPendingPayout ? "Processing Payout" : "Request Payout"}
+                              </Button>
+                            </div>
+                          </TooltipTrigger>
+                          {!!cooldownMessage && (
+                            <TooltipContent>
+                              <p>Payout requests are only allowed every 2 weeks.</p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
+                      
+                      {/* Cooldown logic handled via state */}
+                      
+                      {cooldownMessage ? (
+                        <p className="text-[10px] text-gray-500 font-medium">{cooldownMessage}</p>
+                      ) : displayAvailable > 0 && !hasPendingPayout ? (
+                        <p className="text-[10px] text-emerald-600 font-bold">Payout available now</p>
+                      ) : null}
+                    </div>
                   </>
                 )}
               </CardContent>
@@ -468,21 +551,30 @@ export default function AgentCommissionsPage() {
             <Card className="flex flex-col justify-center">
               <CardContent className="pt-6 space-y-4">
                 <div>
-                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Commission Summary</p>
-                   {isSummaryLoading ? <Skeleton className="h-6 w-24" /> : <p className="text-xl font-bold text-gray-900">GHS {toNumber(summary?.netEarnings).toFixed(2)}</p>}
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Earned</p>
+                    {isSummaryLoading ? <Skeleton className="h-6 w-24" /> : <p className="text-xl font-bold text-gray-900">GHS {formatGHS(totalEarned)}</p>}
                 </div>
                 <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
                    <div className="space-y-1">
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Signups (+10)</p>
-                      <p className="text-sm font-bold text-emerald-600">+GHS {toNumber(summary?.signupCommission).toFixed(2) || "0.00"}</p>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Signups ({summary.counts?.signups || "0"})</p>
+                      <p className="text-sm font-bold text-emerald-600">+GHS {formatGHS(toNumber(summary?.signupCommission))}</p>
                    </div>
                    <div className="space-y-1">
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Repayments (5%)</p>
-                      <p className="text-sm font-bold text-blue-600">+GHS {toNumber(summary?.repaymentCommission).toFixed(2) || "0.00"}</p>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Repayments ({summary.counts?.repayments || "0"})</p>
+                      <p className="text-sm font-bold text-blue-600">+GHS {formatGHS(toNumber(summary?.repaymentCommission))}</p>
                    </div>
-                   <div className="space-y-1 col-span-2 pt-2 border-t border-gray-50">
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Default Deductions (-10)</p>
-                      <p className="text-sm font-bold text-red-600">-GHS {toNumber(summary?.defaultDeduction).toFixed(2) || "0.00"}</p>
+                    <div className="space-y-1 col-span-2 pt-2 border-t border-gray-50">
+                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Total Deductions ({summary.counts?.defaults || 0} defaults)</p>
+                       <p className="text-sm font-bold text-red-600">GHS {formatGHS(totalDeducted)}</p>
+                    </div>
+                   <div className="space-y-1 col-span-2 pt-2 border-t border-gray-100">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Net Balance (Available)</p>
+                      <p className={cn(
+                        "text-sm font-black",
+                        netBalance >= 0 ? "text-emerald-600" : "text-red-600"
+                      )}>
+                        GHS {formatGHS(netBalance)}
+                      </p>
                    </div>
                 </div>
               </CardContent>
@@ -545,7 +637,7 @@ export default function AgentCommissionsPage() {
                  </CardHeader>
                  <CardContent className="p-6 pt-2 relative z-10">
                     <div className="text-3xl font-mono tracking-widest font-black text-white mb-6">
-                       {network?.yourCode || "------"}
+                       {network?.yourCode || network?.agentCode || summary?.agentCode || user?.agentCode || user?.referralCode || "------"}
                     </div>
                     <Button 
                        onClick={() => {
@@ -577,11 +669,11 @@ export default function AgentCommissionsPage() {
                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                           <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex flex-col justify-center">
                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight mb-1">Total Users</p>
-                             <p className="text-2xl font-black text-gray-900">{network?.referredUsers || 0}</p>
+                             <p className="text-2xl font-black text-gray-900">{toNumber(network?.referredUsers || network?.totalUsers || network?.totalReferrals || network?.totalCount).toFixed(0)}</p>
                           </div>
                           <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 flex flex-col justify-center">
                              <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tight mb-1">Network Size</p>
-                             <p className="text-2xl font-black text-blue-900">{network?.totalNetwork || 0}</p>
+                             <p className="text-2xl font-black text-blue-900">{toNumber(network?.totalNetwork || network?.networkSize || network?.activeUsers || network?.size).toFixed(0)}</p>
                           </div>
                           <div className="hidden sm:flex flex-col justify-center bg-pink-50/30 rounded-2xl p-4 border border-pink-100 group">
                              <p className="text-[10px] text-pink-600 font-bold uppercase tracking-tight mb-1 flex items-center justify-between">
@@ -636,7 +728,7 @@ export default function AgentCommissionsPage() {
           <div className="space-y-6 relative z-10">
              <div className="bg-gray-50 rounded-[24px] p-6 border border-gray-100">
                 <p className="text-sm font-medium text-gray-500 mb-1">Payout Amount</p>
-               <div className="text-3xl font-black text-[#EC1B84]">GHS {toNumber(summary?.netEarnings).toFixed(2)}</div>
+               <div className="text-3xl font-black text-[#EC1B84]">GHS {formatGHS(toNumber(summary?.availableNow || summary?.netEarnings))}</div>
              </div>
 
              <div className="space-y-4">
@@ -665,9 +757,32 @@ export default function AgentCommissionsPage() {
             <Button variant="secondary" onClick={() => setIsPayoutModalOpen(false)} className="w-full rounded-[18px] h-14 font-bold bg-gray-100 hover:bg-gray-200 border-none text-gray-600" disabled={requestPayoutMutation.isPending}>
               Maybe Later
             </Button>
-            <Button onClick={handleRequestPayout} className="w-full bg-[#EC1B84] hover:bg-[#D01773] text-white rounded-[18px] h-14 font-black shadow-xl shadow-pink-200" disabled={requestPayoutMutation.isPending}>
-              {requestPayoutMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm Payout"}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="w-full h-14">
+                    <Button 
+                      onClick={handleRequestPayout} 
+                      className="w-full bg-[#EC1B84] hover:bg-[#D01773] text-white rounded-[18px] h-14 font-black shadow-xl shadow-pink-200" 
+                      disabled={
+                        requestPayoutMutation.isPending || 
+                        hasPendingPayout || 
+                        displayAvailable <= 0 || 
+                        (!!(summary?.lastPayoutRequestedAt || summary?.lastPayoutDate || summary?.lastPayoutAt) && 
+                        (new Date().getTime() - new Date(summary.lastPayoutRequestedAt || summary.lastPayoutDate || summary.lastPayoutAt).getTime()) < 1209600000)
+                      }
+                    >
+                      {requestPayoutMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm Payout"}
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {cooldownMessage && (
+                  <TooltipContent>
+                    <p>{cooldownMessage}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -296,6 +296,31 @@ export const getAdminDashboardStats = async () => {
   return response.data;
 };
 
+export const getAdminDeductions = async (params?: any) => {
+  const response = await api.get('/api/admin/commissions/deductions', { params });
+  return response.data;
+};
+
+export const confirmDeduction = async (id: string) => {
+  const response = await api.post(`/api/admin/commissions/deductions/${id}/confirm`);
+  return response.data;
+};
+
+export const reverseDeduction = async (id: string) => {
+  const response = await api.post(`/api/admin/commissions/deductions/${id}/reverse`);
+  return response.data;
+};
+
+export const createManualDeduction = async (data: any) => {
+  const response = await api.post('/api/admin/commissions/manual-deduction', data);
+  return response.data;
+};
+
+export const revokeFraud = async (borrowerMsisdn: string, reason: string) => {
+  const response = await api.post(`/api/admin/commissions/revoke-fraud/${borrowerMsisdn}`, { reason });
+  return response.data;
+};
+
 export const resolveMomoName = async (id: string) => {
   const response = await api.get(`/api/admin/loans/${id}/resolve-momo`);
   return response.data;
