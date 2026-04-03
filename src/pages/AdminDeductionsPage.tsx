@@ -90,7 +90,7 @@ export default function AdminDeductionsPage() {
   
   // Manual deduction form state
   const [manualData, setManualData] = useState({
-    msisdn: "",
+    agentMsisdn: "",
     amount: "",
     reason: "",
     loanReference: ""
@@ -145,7 +145,7 @@ export default function AdminDeductionsPage() {
     onSuccess: () => {
       toast({ title: "Created", description: "Manual deduction created — pending confirmation." });
       setIsManualSheetOpen(false);
-      setManualData({ msisdn: "", amount: "", reason: "", loanReference: "" });
+      setManualData({ agentMsisdn: "", amount: "", reason: "", loanReference: "" });
       queryClient.invalidateQueries({ queryKey: ["adminDeductions"] });
     },
     onError: (error: any) => {
@@ -217,8 +217,8 @@ export default function AdminDeductionsPage() {
                   <Input 
                     id="agent-msisdn" 
                     placeholder="233XXXXXXXXX" 
-                    value={manualData.msisdn}
-                    onChange={(e) => setManualData({ ...manualData, msisdn: e.target.value })}
+                    value={manualData.agentMsisdn}
+                    onChange={(e) => setManualData({ ...manualData, agentMsisdn: e.target.value })}
                     className="h-12 rounded-xl border-gray-200 focus:border-primary"
                   />
                 </div>
@@ -257,9 +257,9 @@ export default function AdminDeductionsPage() {
               <SheetFooter>
                 <Button 
                   className="w-full h-14 bg-[#EC1B84] hover:bg-[#D01773] text-white font-black text-lg rounded-2xl"
-                  disabled={!manualData.msisdn || !manualData.amount || !manualData.reason || manualMutation.isPending}
+                  disabled={!manualData.agentMsisdn || !manualData.amount || !manualData.reason || manualMutation.isPending}
                   onClick={() => manualMutation.mutate({
-                    borrowerMsisdn: manualData.msisdn,
+                    agentMsisdn: manualData.agentMsisdn,
                     amount: parseFloat(manualData.amount),
                     reason: manualData.reason,
                     linkedLoanReference: manualData.loanReference,
