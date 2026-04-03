@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, CreditCard, CheckCircle2, XCircle, Clock, AlertCircle, Camera, IdCard, Maximize2, Lock } from "lucide-react";
+import { User, CreditCard, CheckCircle2, XCircle, Clock, AlertCircle, Camera, IdCard, Maximize2, Lock, AlertTriangle } from "lucide-react";
 import { cn, deduplicateWords } from "@/lib/utils";
 import {
   Dialog,
@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 import { SecureKycImage } from "@/components/common/SecureKycImage";
 
@@ -36,6 +37,10 @@ interface IdentityKycSectionProps {
   onSoftRejectKyc?: (reason: string) => void;
   onHardFailKyc?: (reason: string) => void;
   onRestoreKyc?: (reason: string) => void;
+  onRevokeFraud?: (reason: string) => void;
+  hasLoans?: boolean;
+  referrerName?: string;
+  referrerMsisdn?: string;
   isLoading?: boolean;
 }
 
@@ -102,12 +107,18 @@ export function IdentityKycSection({
   onSoftRejectKyc,
   onHardFailKyc,
   onRestoreKyc,
+  onRevokeFraud,
+  hasLoans,
+  referrerName,
+  referrerMsisdn,
   isLoading
 }: IdentityKycSectionProps) {
   const { canWrite } = useAuth();
   const [selectedImage, setSelectedImage] = useState<{ url: string; title: string } | null>(null);
   const [isHardFailModalOpen, setIsHardFailModalOpen] = useState(false);
+  const [isRevokeFraudModalOpen, setIsRevokeFraudModalOpen] = useState(false);
   const [hardFailReason, setHardFailReason] = useState("");
+  const [revokeReason, setRevokeReason] = useState("");
   
   // Generic action state
   const [actionModal, setActionModal] = useState<{ isOpen: boolean; type: 'verify' | 'soft-reject' | 'restore' | null }>({
@@ -266,6 +277,16 @@ export function IdentityKycSection({
                 </Button>
               </>
             )}
+            {userData.kycStatus === 'verified' && hasLoans && onRevokeFraud && (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto h-12 sm:h-10 border-red-600 text-red-600 hover:bg-red-50 font-bold"
+                onClick={() => setIsRevokeFraudModalOpen(true)}
+                disabled={isLoading}
+              >
+                 Revoke Fraud
+              </Button>
+            )}
             {(userData.kycStatus === 'failed' || userData.kycStatus === 'rejected') && (
               <Button
                 variant="outline"
@@ -364,6 +385,60 @@ export function IdentityKycSection({
               disabled={!hardFailReason.trim() || isLoading || !canWrite}
             >
               Confirm hard fail
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRevokeFraudModalOpen} onOpenChange={setIsRevokeFraudModalOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2 font-black">
+              <AlertTriangle className="h-6 w-6" />
+              Fraud Revocation
+            </DialogTitle>
+            <DialogDescription className="font-bold text-gray-900 mt-2">
+              Fraud revocation — this cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-red-50 p-4 rounded-xl text-xs text-red-800 font-medium leading-relaxed">
+              This will revoke all sign-up and repayment commissions earned by the referring agent for this borrower. Any already-paid commissions will be deducted from the agent's balance.
+            </div>
+            
+            {referrerName && (
+              <div className="bg-gray-50 p-4 rounded-xl space-y-1">
+                <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Referring Agent</p>
+                <p className="font-bold text-gray-900">{referrerName}</p>
+                <p className="text-xs text-gray-500">{referrerMsisdn}</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="revokeReason" className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Reason for Revocation (Required)</Label>
+              <Textarea
+                id="revokeReason"
+                placeholder="Describe the fraud identified..."
+                value={revokeReason}
+                onChange={(e) => setRevokeReason(e.target.value)}
+                className="rounded-xl border-gray-200 focus:border-red-500 min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIsRevokeFraudModalOpen(false)} className="h-12 rounded-xl font-bold flex-1">
+              Cancel
+            </Button>
+            <Button
+              className="h-12 rounded-xl font-black bg-red-600 hover:bg-red-700 text-white flex-1"
+              onClick={() => {
+                if (onRevokeFraud) onRevokeFraud(revokeReason);
+                setIsRevokeFraudModalOpen(false);
+                setRevokeReason("");
+              }}
+              disabled={!revokeReason.trim() || isLoading}
+            >
+              Confirm Revocation
             </Button>
           </DialogFooter>
         </DialogContent>

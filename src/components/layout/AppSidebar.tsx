@@ -200,7 +200,15 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     // Admin/Viewer only items (bottom)
     ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
       ? [
-          { to: "/payouts", icon: Wallet, label: "Payouts" },
+          {
+            to: "/admin/commissions",
+            icon: Banknote,
+            label: "Commissions",
+            subItems: [
+              { to: "/payouts", label: "Withdrawals" },
+              { to: "/commissions/deductions", label: "Deductions" },
+            ],
+          },
           { to: "/analytics", icon: BarChart3, label: "Analytics" },
           { to: "/audit-logs", icon: FileText, label: "Audit Logs" },
         ]

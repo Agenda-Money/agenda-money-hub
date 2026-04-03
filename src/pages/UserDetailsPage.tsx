@@ -27,7 +27,9 @@ import api, {
   verifyUserKyc,
   softRejectUserKyc,
   failUserKyc,
-  restoreUserKyc
+  restoreUserKyc,
+  revokeFraud,
+  getAdminAgents
 } from "@/lib/api";
 import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
@@ -80,7 +82,7 @@ export default function UserDetailsPage() {
   const [unblockReason, setUnblockReason] = useState("");
 
   // Fetch User Profile
-  const { data: userDataResponse, isLoading: isUserLoading, error: userError } = useQuery({
+  const { data: userDataResponse, isLoading: isUserLoading, error: userError, refetch } = useQuery({
     queryKey: ["user", id],
     queryFn: async () => {
       const res = await getAdminUserProfile(id!);
@@ -92,6 +94,15 @@ export default function UserDetailsPage() {
   const userDataRaw = userDataResponse?.data || userDataResponse || {};
   const userData = userDataRaw.user || userDataRaw;
   const userPhone = userData.msisdn || userData.phone;
+
+  const { data: agentData } = useQuery({
+    queryKey: ["referrerAgent", userData?.referredByNodeCode],
+    queryFn: async () => {
+      const res = await getAdminAgents({ nodeCode: userData.referredByNodeCode });
+      return res.data?.items?.[0] || null;
+    },
+    enabled: !!userData?.referredByNodeCode,
+  });
 
   // Fetch Wallet History
   const { data: walletHistoryResponse, isLoading: isWalletLoading } = useQuery({
@@ -329,6 +340,15 @@ export default function UserDetailsPage() {
     onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
   });
 
+  const revokeFraudMutation = useMutation({
+    mutationFn: ({ reason }: { reason: string }) => revokeFraud(userPhone, reason),
+    onSuccess: (res: any) => {
+      toast.success(`Successfully revoked ${res.revokedCount || 0} commissions. GHS ${res.totalAmountRevoked?.toFixed(2) || "0.00"} deducted from agent balance.`);
+      refetch();
+    },
+    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
+  });
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -483,7 +503,11 @@ export default function UserDetailsPage() {
           onSoftRejectKyc={(reason: string) => handleSoftRejectKyc(reason)}
           onHardFailKyc={(reason: string) => handleHardFailKyc(reason)}
           onRestoreKyc={(reason: string) => handleRestoreKyc(reason)}
-          isLoading={isVerifyingKyc || isSoftRejectingKyc || isHardFailingKyc || isRestoringKyc}
+          onRevokeFraud={(reason: string) => revokeFraudMutation.mutate({ reason })}
+          hasLoans={(user.totalBorrowed || 0) > 0}
+          referrerName={agentData?.fullName}
+          referrerMsisdn={agentData?.msisdn}
+          isLoading={isVerifyingKyc || isSoftRejectingKyc || isHardFailingKyc || isRestoringKyc || revokeFraudMutation.isPending}
         />
 
         {/* Loan & Health Section */}
