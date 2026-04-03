@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { toast } from 'sonner';
+import { ManualDisbursementRequest } from "@/types/disbursement";
 
 // Helper to generate a unique request ID
 const generateId = () => Math.random().toString(36).substring(2, 15);
@@ -333,6 +334,12 @@ export const getAdminLoans = async (params?: any) => {
 
 export const approveLoan = async (id: string) => {
   const response = await api.post(`/api/admin/loans/${id}/approve`);
+  return response.data;
+};
+
+export const manualDisburseLoan = async (id: string, data: ManualDisbursementRequest, idempotencyKey?: string) => {
+  const headers = idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {};
+  const response = await api.post(`/api/admin/loans/${id}/manual-disbursement`, data, { headers });
   return response.data;
 };
 

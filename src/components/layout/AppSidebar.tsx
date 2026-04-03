@@ -16,6 +16,7 @@ import {
   CheckCircle,
   Wallet,
   FileText,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -196,6 +197,11 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         { to: "/loans/overdue", label: "Overdue" },
       ],
     },
+    ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
+      ? [
+          { to: "/admin/loans/manual-disburse", icon: Send, label: "Manual Disbursement" },
+        ]
+      : []),
     { to: "/repayments", icon: Banknote, label: "Repayments" },
     // Admin/Viewer only items (bottom)
     ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
@@ -206,7 +212,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
             label: "Commissions",
             subItems: [
               { to: "/payouts", label: "Withdrawals" },
-              { to: "/commissions/deductions", label: "Deductions" },
+              { to: "/admin/commissions/deductions", label: "Deductions" },
             ],
           },
           { to: "/analytics", icon: BarChart3, label: "Analytics" },
