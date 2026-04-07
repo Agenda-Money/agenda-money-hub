@@ -5,7 +5,8 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
 interface LoanApplicationPageProps {
-  tierLimit: number;
+  tierMin: number;
+  tierMax: number;
   onBack: () => void;
   onContinue: (data: { amount: number; tenure: number; purpose: string; nodeCode?: string }) => void;
   showNodeCode?: boolean;
@@ -38,10 +39,10 @@ const PURPOSES = [
 ];
 
 const TENURE_OPTIONS = [1, 5, 10, 14];
-const MIN_LOAN_AMOUNT = 50;
 
 export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({ 
-  tierLimit, 
+  tierMin,
+  tierMax, 
   onBack, 
   onContinue, 
   showNodeCode, 
@@ -52,7 +53,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
   errorMessage,
   onErrorDismiss
 }) => {
-  const [amount, setAmount] = useState<number>(initialAmount || Math.max(MIN_LOAN_AMOUNT, Math.min(140, tierLimit)));
+  const [amount, setAmount] = useState<number>(initialAmount || tierMin);
   const [tenure, setTenure] = useState<number>(initialTenure || 10);
   const [purpose, setPurpose] = useState<string>(initialPurpose || "Business");
   const [nodeCode, setNodeCode] = useState<string>(initialNodeCode || "");
@@ -102,7 +103,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
         <div className="space-y-8 mt-4">
            <div className="text-center space-y-1">
              <h2 className="text-lg font-bold text-gray-900">Loan Amount</h2>
-             <p className="text-sm text-gray-500">You are eligible for loan up to GHS{tierLimit}</p>
+             <p className="text-sm text-gray-500">You are eligible for loan up to GHS{tierMax}</p>
            </div>
 
            <div className="px-2 space-y-6">
@@ -121,13 +122,13 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                            }
                            const val = Number(raw);
                            // Allow typing any number up to limit, clamp on blur
-                           if (!Number.isNaN(val) && val <= tierLimit) {
+                           if (!Number.isNaN(val) && val <= tierMax) {
                              setAmount(val);
                            }
                         }}
                         onBlur={() => {
                            // Clamp on blur to ensure valid range
-                           const clamped = Math.max(MIN_LOAN_AMOUNT, Math.min(amount, tierLimit));
+                           const clamped = Math.max(tierMin, Math.min(amount, tierMax));
                            setAmount(clamped);
                         }}
                         className="w-40 h-16 bg-gray-50 rounded-2xl text-center text-3xl font-bold text-gray-900 border-2 border-transparent focus:border-[#EC1B84] focus:bg-white outline-none transition-all pl-8 pr-4 shadow-sm"
@@ -142,17 +143,17 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
               {/* Slider */}
               <div className="pt-2 pb-6">
                 <Slider 
-                  value={[Math.max(MIN_LOAN_AMOUNT, amount)]} 
+                  value={[Math.max(tierMin, amount)]} 
                   onValueChange={(vals) => setAmount(vals[0])} 
-                  max={tierLimit} 
-                  min={MIN_LOAN_AMOUNT} 
+                  max={tierMax} 
+                  min={tierMin} 
                   step={5} 
                   className="[&_[role=slider]]:bg-[#EC1B84] [&_[role=slider]]:border-[#EC1B84] [&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:shadow-lg [&_[role=slider]]:shadow-pink-200"
                 />
                 
                 <div className="flex justify-between text-xs font-bold text-gray-400 mt-3 px-1">
-                  <span>Min: GHS{MIN_LOAN_AMOUNT}</span>
-                  <span>Max: GHS{tierLimit}</span>
+                  <span>Min: GHS{tierMin}</span>
+                  <span>Max: GHS{tierMax}</span>
                 </div>
               </div>
            </div>
@@ -261,7 +262,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
           <div className="max-w-md mx-auto space-y-4">
              <Button 
                onClick={() => {
-                 const finalAmount = Math.max(MIN_LOAN_AMOUNT, amount);
+                 const finalAmount = Math.max(tierMin, amount);
                  onContinue({ amount: finalAmount, tenure, purpose, ...(nodeCode && { nodeCode }) });
                }}
                disabled={!amount || !tenure || !purpose || (showNodeCode && nodeCode.length < 4)}

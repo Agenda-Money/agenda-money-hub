@@ -103,7 +103,7 @@ export default function AgentCommissionsPage() {
     queryKey: ["agent-commissions-history", historyTab],
     queryFn: ({ pageParam = 1 }) => {
       const entryType = historyTab === "earnings" ? "EARNING" : historyTab === "deductions" ? "DEDUCTION" : undefined;
-      return getAgentCommissions({ page: pageParam, limit: 10, entryType });
+      return getAgentCommissions({ page: pageParam, limit: 10, entryType } as any);
     },
     getNextPageParam: (lastPage) => {
       const items = lastPage?.commissions?.items || lastPage?.data?.commissions?.items || lastPage?.items || lastPage?.commissions || lastPage?.data?.items || [];
@@ -557,11 +557,11 @@ export default function AgentCommissionsPage() {
                 <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
                    <div className="space-y-1">
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Signups ({summary.counts?.signups || "0"})</p>
-                      <p className="text-sm font-bold text-emerald-600">+GHS {formatGHS(toNumber(summary?.signupCommission))}</p>
+                      <p className="text-sm font-bold text-emerald-600">+GHS {formatGHS(toNumber(summary?.breakdown?.signupCommission || summary?.signupCommission))}</p>
                    </div>
                    <div className="space-y-1">
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Repayments ({summary.counts?.repayments || "0"})</p>
-                      <p className="text-sm font-bold text-blue-600">+GHS {formatGHS(toNumber(summary?.repaymentCommission))}</p>
+                      <p className="text-sm font-bold text-blue-600">+GHS {formatGHS(toNumber(summary?.breakdown?.repaymentCommission || summary?.repaymentCommission))}</p>
                    </div>
                     <div className="space-y-1 col-span-2 pt-2 border-t border-gray-50">
                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Total Deductions ({summary.counts?.defaults || 0} defaults)</p>
@@ -637,7 +637,7 @@ export default function AgentCommissionsPage() {
                  </CardHeader>
                  <CardContent className="p-6 pt-2 relative z-10">
                     <div className="text-3xl font-mono tracking-widest font-black text-white mb-6">
-                       {network?.yourCode || network?.agentCode || summary?.agentCode || user?.agentCode || user?.referralCode || "------"}
+                       {network?.yourCode || network?.agentCode || summary?.agentCode || "------"}
                     </div>
                     <Button 
                        onClick={() => {
