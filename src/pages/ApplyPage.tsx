@@ -20,7 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSocketContext } from "@/contexts/SocketContext";
 import api, { getUserLoansHistory, getUserRepaymentsHistory } from "@/lib/api";
 import { uploadToSupabase } from "@/lib/supabase";
-import { TIER_LIMITS, type TierConfig } from "@/lib/constants";
+import { TIER_LIMITS, TIERS, type TierConfig } from "@/lib/constants";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
 import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
@@ -110,7 +110,7 @@ const buildAmountOptions = (tier?: TierConfig) => {
   if (!tier) return [];
   if (tier.amounts?.length) return tier.amounts;
   if (!tier.minAmount || !tier.maxAmount) return [];
-  const step = 50;
+  const step = tier.minAmount;
   const count = Math.floor((tier.maxAmount - tier.minAmount) / step) + 1;
   return Array.from({ length: count }, (_, i) => tier.minAmount + i * step);
 };
@@ -388,7 +388,7 @@ export default function ApplyPage() {
 
   const currentTier = Number(userData?.currentTier ?? 1);
   const activeTier = TIER_LIMITS[currentTier];
-  const tierMin = activeTier?.minAmount ?? 50;
+  const tierMin = activeTier?.minAmount ?? TIERS[0].minAmount;
   const tierMax = activeTier?.maxAmount ?? 300;
   const tierMaxTenure = activeTier?.maxTenure ?? 14;
   const amountOptions = useMemo(() => {
@@ -1631,7 +1631,8 @@ export default function ApplyPage() {
            {/* LOAN APPLICATION PAGE */}
            {activeTab === "application" && (
              <LoanApplicationPage 
-               tierLimit={tierMax} 
+               tierMin={tierMin}
+               tierMax={tierMax} 
                onBack={() => setActiveTab("home")}
                onContinue={(data) => {
                  setLoanApplicationData(data);
@@ -2037,7 +2038,8 @@ export default function ApplyPage() {
   if (onboardingStep === 4) {
       return (
         <LoanApplicationPage 
-            tierLimit={tierMax}
+            tierMin={tierMin}
+            tierMax={tierMax}
             onBack={() => setOnboardingStep(3)}
             showNodeCode={true}
             initialNodeCode={nodeCode}
