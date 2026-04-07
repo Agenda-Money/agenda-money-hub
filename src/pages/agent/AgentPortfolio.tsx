@@ -13,7 +13,10 @@ import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -80,8 +83,10 @@ const getKycBadge = (status: string) => {
 
 const getLoanStatusBadge = (status: string, amount?: number) => {
   const baseClasses = "text-xs font-medium";
-  switch (status) {
-    case "active":
+  const normalizedStatus = status?.toUpperCase();
+  
+  switch (normalizedStatus) {
+    case "ACTIVE":
       return (
         <div className="text-right">
           <p className="font-bold text-foreground">₵{amount || 0}</p>
@@ -90,7 +95,7 @@ const getLoanStatusBadge = (status: string, amount?: number) => {
           </Badge>
         </div>
       );
-    case "repaid":
+    case "REPAID":
       return (
         <div className="text-right">
           <p className="font-bold text-foreground">₵{amount || 0}</p>
@@ -99,12 +104,31 @@ const getLoanStatusBadge = (status: string, amount?: number) => {
           </Badge>
         </div>
       );
-    case "overdue":
+    case "OVERDUE":
       return (
         <div className="text-right">
           <p className="font-bold text-foreground">₵{amount || 0}</p>
           <Badge className={cn(baseClasses, "bg-red-500/10 text-red-700 border-red-500/30 dark:text-red-400")}>
             Overdue
+          </Badge>
+        </div>
+      );
+    case "DEFAULTED":
+      return (
+        <div className="text-right">
+          <p className="font-bold text-foreground">₵{amount || 0}</p>
+          <Badge className={cn(baseClasses, "bg-slate-500/10 text-slate-700 border-slate-500/30 dark:text-slate-400")}>
+            Defaulted
+          </Badge>
+        </div>
+      );
+    case "PENDING":
+    case "AWAITING_ENDORSEMENT":
+      return (
+        <div className="text-right">
+          <p className="font-bold text-foreground">₵{amount || 0}</p>
+          <Badge className={cn(baseClasses, "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400")}>
+            Pending
           </Badge>
         </div>
       );
@@ -131,10 +155,14 @@ export default function AgentPortfolio() {
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, error } = useQuery<PortfolioResponse>({
-    queryKey: ["agent-portfolio", user?.email, page],
+    queryKey: ["agent-portfolio", user?.email, page, searchTerm, filterStatus],
     queryFn: async () => {
       try {
-        const res = await getAgentPortfolio({ page, limit: 10 });
+        const params: any = { page, limit: 10 };
+        if (searchTerm) params.search = searchTerm;
+        if (filterStatus !== "all") params.status = filterStatus;
+
+        const res = await getAgentPortfolio(params);
         
 
 
@@ -193,23 +221,26 @@ export default function AgentPortfolio() {
 
   const { users = [], pagination = { total: 0, page: 1, pages: 1 } } = data || {};
 
-
-  const filteredUsers = users.filter(u => {
-    const matchesSearch = 
-      u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.ghanaCardNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.phoneNumber.includes(searchTerm);
-    
-    const matchesFilter = filterStatus === "all" || u.kycStatus === filterStatus;
-    
-    return matchesSearch && matchesFilter;
-  });
+  const filteredUsers = users; // Results are now filtered server-side
 
   const stats = {
-    total: myStatsData?.stats?.totalSignups || myStatsData?.metrics?.signUpsAllTime || pagination.total || users.length,
-    verified: myStatsData?.stats?.verifiedCount || myStatsData?.metrics?.verifiedCount || users.filter(u => u.kycStatus === "verified").length,
-    activeLoans: myStatsData?.stats?.activeLoans || myStatsData?.portfolio?.loansActive || users.filter(u => u.loanStatus === "active").length,
-    overdue: myStatsData?.stats?.overdueLoans || myStatsData?.portfolio?.loansOverdue || users.filter(u => u.loanStatus === "overdue").length,
+    total: myStatsData?.stats?.totalSignups || 
+           myStatsData?.metrics?.signUpsAllTime || 
+           myStatsData?.portfolio?.metrics?.signUpsAllTime ||
+           pagination.total || 
+           users.length,
+    verified: myStatsData?.stats?.verifiedCount || 
+              myStatsData?.metrics?.verifiedCount || 
+              myStatsData?.portfolio?.metrics?.verifiedCount ||
+              users.filter(u => u.kycStatus === "verified").length,
+    activeLoans: myStatsData?.stats?.activeLoans || 
+                 myStatsData?.portfolio?.loansActive || 
+                 myStatsData?.portfolio?.metrics?.loansActive ||
+                 users.filter(u => u.loanStatus === "active").length,
+    overdue: myStatsData?.stats?.overdueLoans || 
+             myStatsData?.portfolio?.loansOverdue || 
+             myStatsData?.portfolio?.metrics?.loansOverdue ||
+             users.filter(u => u.loanStatus === "overdue").length,
   };
 
   const statCards = [
@@ -267,20 +298,38 @@ export default function AgentPortfolio() {
                   <Input
                     placeholder="Search by name or phone..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setPage(1);
+                    }}
                     className="pl-10 bg-muted/50 border-0"
                   />
                 </div>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-[130px] bg-muted/50 border-0">
+                <Select value={filterStatus} onValueChange={(val) => {
+                  setFilterStatus(val);
+                  setPage(1);
+                }}>
+                  <SelectTrigger className="w-[140px] bg-muted/50 border-0">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="verified">Verified</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="mismatch">Mismatch</SelectItem>
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Identity (KYC)</SelectLabel>
+                      <SelectItem value="verified">Verified</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="mismatch">Mismatch</SelectItem>
+                    </SelectGroup>
+                    <SelectSeparator />
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Loan Status</SelectLabel>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="repaid">Repaid</SelectItem>
+                      <SelectItem value="overdue">Overdue</SelectItem>
+                      <SelectItem value="defaulted">Defaulted</SelectItem>
+                      <SelectItem value="none">No Loan</SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>

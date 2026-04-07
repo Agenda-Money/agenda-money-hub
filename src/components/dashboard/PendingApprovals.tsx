@@ -51,6 +51,23 @@ const tierConfig: Record<string, { badge: string; emphasis: string; order: numbe
     emphasis: "border-l-4 border-l-green-500 bg-green-500/5",
     order: 5,
   },
+  // High Tiers (L6-L10)
+  L6: { badge: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30", emphasis: "border-l-4 border-l-emerald-500 bg-emerald-500/5", order: 6 },
+  L7: { badge: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30", emphasis: "border-l-4 border-l-emerald-500 bg-emerald-500/5", order: 7 },
+  L8: { badge: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30", emphasis: "border-l-4 border-l-emerald-500 bg-emerald-500/5", order: 8 },
+  L9: { badge: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30", emphasis: "border-l-4 border-l-emerald-500 bg-emerald-500/5", order: 9 },
+  L10: { badge: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 font-bold underline", emphasis: "border-l-4 border-l-emerald-600 bg-emerald-600/5", order: 10 },
+  // Elite Tiers (L11-L20)
+  L11: { badge: "bg-purple-500/10 text-purple-700 border-purple-500/30", emphasis: "border-l-4 border-l-purple-500 bg-purple-500/5", order: 11 },
+  L12: { badge: "bg-purple-500/10 text-purple-700 border-purple-500/30", emphasis: "border-l-4 border-l-purple-500 bg-purple-500/5", order: 12 },
+  L13: { badge: "bg-purple-500/10 text-purple-700 border-purple-500/30", emphasis: "border-l-4 border-l-purple-500 bg-purple-500/5", order: 13 },
+  L14: { badge: "bg-purple-500/10 text-purple-700 border-purple-500/30", emphasis: "border-l-4 border-l-purple-500 bg-purple-500/5", order: 14 },
+  L15: { badge: "bg-purple-500/10 text-purple-700 border-purple-500/30", emphasis: "border-l-4 border-l-purple-500 bg-purple-500/5", order: 15 },
+  L16: { badge: "bg-purple-500/10 text-purple-700 border-purple-500/30", emphasis: "border-l-4 border-l-purple-500 bg-purple-500/5", order: 16 },
+  L17: { badge: "bg-purple-500/10 text-purple-700 border-purple-500/30", emphasis: "border-l-4 border-l-purple-500 bg-purple-500/5", order: 17 },
+  L18: { badge: "bg-purple-500/10 text-purple-700 border-purple-500/30", emphasis: "border-l-4 border-l-purple-500 bg-purple-500/5", order: 18 },
+  L19: { badge: "bg-purple-500/10 text-purple-700 border-purple-500/30", emphasis: "border-l-4 border-l-purple-500 bg-purple-500/5", order: 19 },
+  L20: { badge: "bg-slate-900 text-white border-slate-900 font-black", emphasis: "border-l-4 border-l-slate-900 bg-slate-900/5 shadow-inner scale-[1.01]", order: 20 },
 };
 
 function getTierConfig(tier: string = "L1") {
@@ -73,8 +90,8 @@ export function PendingApprovals() {
       
       // Map API fields strictly
       const mappedLoans = (Array.isArray(rawData) ? rawData : []).map((l: any) => {
-        const rawTier = l.tier ? String(l.tier) : "L1";
-        const normalizedTier = rawTier.startsWith("L") ? rawTier : `L${rawTier}`;
+        const rawTier = l.user?.currentTier ?? l.currentTier ?? l.tier ?? "L1";
+        const normalizedTier = String(rawTier).startsWith("L") ? String(rawTier) : `L${rawTier}`;
         
         return {
           ...l,
@@ -87,7 +104,7 @@ export function PendingApprovals() {
           date: l.createdAt ?? l.requestedAt,
           tenor: l.tenureDays == null ? (l.tenure ?? l.tenor ?? "N/A") : `${l.tenureDays} days`,
           repaymentDate: l.dueDate ?? l.repaymentDate,
-          loansToDate: l.loansToDate ?? 0,
+          loansToDate: l.user?.totalLoansRepaid ?? l.user?.totalLoansTaken ?? l.user?.totalLoans ?? l.totalLoans ?? l.loansToDate ?? 0,
           repaymentRate: l.repaymentRate ?? 100,
           creditScore: l.creditScore ?? 700,
           nodeCode: l.nodeCode ?? "N/A",

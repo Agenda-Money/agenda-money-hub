@@ -209,6 +209,11 @@ export default function AgentApplyPage() {
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ msisdn: formatted }),
       });
+      
+      if (res.status === 429) {
+        throw new Error("Too many requests. Please wait a few minutes before trying again.");
+      }
+      
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Failed to send OTP.");
       setResendSeconds(60);
@@ -238,6 +243,11 @@ export default function AgentApplyPage() {
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ msisdn: normalizedMsisdn, otp: otpToVerify }),
       });
+      
+      if (res.status === 429) {
+        throw new Error("Too many requests. Please wait a few minutes before trying again.");
+      }
+      
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "OTP verification failed.");
 

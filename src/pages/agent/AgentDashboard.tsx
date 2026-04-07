@@ -11,19 +11,28 @@ import {
   getAgentPendingEndorsements, 
   getAgentCommissions 
 } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, toNumber } from "@/lib/utils";
 import { useSocket } from "@/hooks/useSocket";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { startOfWeek, endOfWeek } from "date-fns";
 
 interface AgentDashboardData {
-  agentName: string;
+  agentName?: string;
+  fullName?: string;
   agentCode: string;
+  totalSignups?: number;
+  signupsThisMonth?: number;
+  activeLoans?: number;
+  data?: any;
+  portfolio?: any;
   stats: {
     totalSignups: number;
+    signups_this_month?: number;
+    total_signups?: number;
     signupsThisMonth: number;
     activeLoans: number;
+    active_loans?: number;
     totalCommission: number | string;
     portfolioHealth: number;
   };
@@ -135,9 +144,9 @@ export default function AgentDashboard() {
   });
 
   const stats = {
-    totalSignups: typeof portfolioStats?.total === 'number' ? portfolioStats.total : (dashboardData?.stats?.totalSignups ?? 0),
-    signupsThisMonth: dashboardData?.stats?.signupsThisMonth ?? 0,
-    activeLoans: typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : (dashboardData?.stats?.activeLoans ?? 0),
+    totalSignups: toNumber(dashboardData?.totalSignups || dashboardData?.stats?.totalSignups || dashboardData?.stats?.total_signups || dashboardData?.data?.stats?.totalSignups || (typeof portfolioStats?.total === 'number' ? portfolioStats.total : 0)),
+    signupsThisMonth: toNumber(dashboardData?.signupsThisMonth || dashboardData?.stats?.signupsThisMonth || dashboardData?.stats?.signups_this_month || 0),
+    activeLoans: typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : toNumber(dashboardData?.activeLoans || dashboardData?.stats?.activeLoans || dashboardData?.stats?.active_loans || dashboardData?.portfolio?.loansActive || dashboardData?.data?.stats?.activeLoans || 0),
     pendingEndorsements: pendingEndorsementsCount ?? 0,
     portfolioHealth: dashboardData?.stats?.portfolioHealth ?? 100,
   };
@@ -194,7 +203,7 @@ export default function AgentDashboard() {
             Dashboard
           </h1>
           <p className="text-muted-foreground mt-1 text-sm font-medium">
-            Welcome back, <span className="text-foreground font-bold">{dashboardData?.agentName?.split(' ')[0] || user?.fullName?.split(' ')[0] || "Pearson"}</span>. You have {stats.pendingEndorsements} approvals waiting.
+            Welcome back, <span className="text-foreground font-bold">{dashboardData?.agentName?.split(' ')[0] || dashboardData?.fullName?.split(' ')[0] || user?.fullName?.split(' ')[0] || "Pearson"}</span>. You have {stats.pendingEndorsements} approvals waiting.
           </p>
         </div>
         <div className="flex items-center gap-3">

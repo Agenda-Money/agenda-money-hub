@@ -55,6 +55,12 @@ type LoanReviewData = {
   creditScore?: number;
   loansToDate?: number;
   repaymentRate?: number;
+  totalLoans?: number;
+  referredBy?: {
+    agentId?: string;
+    name?: string;
+    code?: string;
+  };
   kycStatus?: string;
   selfieUrl?: string;
   guaranteedBy?: string;
@@ -63,6 +69,7 @@ type LoanReviewData = {
   guaranteedAt?: string;
   guarantorApprovedAt?: string;
   createdAt?: string;
+  loanDetails?: any;
 };
 
 interface LoanReviewModalProps {
@@ -77,6 +84,23 @@ const tierColors: Record<string, string> = {
   L3: "bg-primary/10 text-primary",
   L4: "bg-success/10 text-success",
   L5: "bg-warning/10 text-warning",
+  // High Tiers (L6-L10)
+  L6: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L7: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L8: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L9: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L10: "bg-emerald-600 text-white font-bold",
+  // Elite Tiers (L11-L20)
+  L11: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L12: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L13: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L14: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L15: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L16: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L17: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L18: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L19: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L20: "bg-slate-900 text-white font-black shadow-lg",
 };
 
 export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanReviewModalProps>) {
@@ -104,9 +128,12 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
 
   const userDetails = userResponse?.data?.user || userResponse?.data || userResponse || {};
   
-  // Prioritize fetched personalNodeCode -> fetched nodeCode -> loan prop nodeCode -> N/A
-  const displayNodeCode = userDetails.personalNodeCode || userDetails.nodeCode || loan?.nodeCode || "N/A";
-  const displayTier = loan?.tier || loanUser?.currentTier || userDetails?.currentTier || 1;
+  const actualLoan = loan?.loanDetails || loan;
+  const displayNodeCode = userDetails.personalNodeCode || userDetails.nodeCode || actualLoan?.nodeCode || "N/A";
+  const rawTier = userDetails?.currentTier || loanUser?.currentTier || actualLoan?.tier || 1;
+  const tierNum = typeof rawTier === "string" ? rawTier.replace(/\D/g, "") || "1" : rawTier;
+  const displayTier = `Tier ${tierNum}`;
+  const displayTierKey = `L${tierNum}`;
   const kycStatus = (userDetails?.kycStatus || loan?.kycStatus || loanUser?.kycStatus || userDetails?.onboardingData?.kycStatus || userDetails?.kyc?.status || "Unknown") as string;
   const status = (loan?.status || "PENDING").toString().toUpperCase();
   const isPending = status === "PENDING";
@@ -254,10 +281,17 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-lg font-semibold text-foreground">{deduplicateWords(loanUser?.fullName || userNameString || "Unknown User")}</p>
-                <p className="text-sm text-muted-foreground">{loan.userMsisdn || loan.phone}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">{loan.userMsisdn || loan.phone}</p>
+                  {actualLoan?.referredBy?.name && (
+                    <Badge variant="secondary" className="px-2 py-0 h-5 text-[10px] bg-primary/10 text-primary border-primary/20 uppercase font-black">
+                      Ref by: {actualLoan.referredBy.name}
+                    </Badge>
+                  )}
+                </div>
               </div>
-              <Badge variant="outline" className={tierColors[`L${displayTier}`] || tierColors.L1}>
-                Tier {displayTier}
+              <Badge variant="outline" className={tierColors[displayTierKey] || tierColors.L1}>
+                {displayTier}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
@@ -410,8 +444,25 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">No. Loans to Date</p>
-                <p className="font-medium">{loan.loansToDate || 0}</p>
+                <p className="font-medium">
+                  {userDetails?.totalLoans ?? 
+                   userDetails?.totalLoansRepaid ?? 
+                   userDetails?.totalLoansTaken ?? 
+                   loanUser?.totalLoans ?? 
+                   loanUser?.totalLoansRepaid ?? 
+                   loanUser?.totalLoansTaken ?? 
+                   actualLoan?.totalLoans ?? 
+                   actualLoan?.totalLoansRepaid ?? 
+                   actualLoan?.totalLoansTaken ?? 
+                   actualLoan?.loansToDate ?? 0}
+                </p>
               </div>
+              {Number(tierNum) >= 2 && (
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Guaranteed By</p>
+                  <p className="font-medium">{actualLoan?.guaranteedByName || actualLoan?.guarantorName || "Pending Guarantor"}</p>
+                </div>
+              )}
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Repayment Rate</p>
                 <p className="font-medium">{loan.repaymentRate || 100}%</p>
