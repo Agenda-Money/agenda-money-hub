@@ -509,7 +509,14 @@ export default function AgentDetailsPage() {
                                 {item.type.replace('_', ' ')}
                               </Badge>
                             </td>
-                            <td className="px-4 py-3 font-medium">{item.relatedName || "—"}</td>
+                            <td className="px-4 py-3 font-medium">
+                              {item.relatedName || item.sourceName || item.deductionReason || (
+                                item.type === 'SIGNUP' ? "New Signup" :
+                                item.type === 'REPAYMENT' ? "Loan Repayment" :
+                                item.type === 'PAYOUT' ? "Commission Payout" :
+                                "System Adjustment"
+                              )}
+                            </td>
                             <td className={cn(
                               "px-4 py-3 text-right font-black",
                               item.amount >= 0 ? "text-emerald-600" : "text-red-600"

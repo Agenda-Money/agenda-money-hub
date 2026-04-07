@@ -191,9 +191,12 @@ export default function AgentsPage() {
     
     // Enriched data from individual portfolio query
     const detailData: any = agentDetailsQueries[index]?.data;
-    const agentData = detailData?.agent || agentBase;
-    const portfolioData = detailData?.portfolio || null;
-    const metricsData = detailData?.metrics || portfolioData?.metrics || null;
+    const resData = detailData?.data || detailData || {};
+    const agentData = resData.agent || detailData?.agent || agentBase;
+    const portfolioData = resData.portfolio || detailData?.portfolio || null;
+    const metricsData = resData.metrics || resData.stats || portfolioData?.metrics || detailData?.metrics || null;
+    
+    const statsData = resData.stats || agentData?.stats || {};
     
     return {
       id: agentData.id ?? agentData._id,
@@ -205,12 +208,12 @@ export default function AgentsPage() {
       status: agentData.isActive === false || agentData.status === "inactive" ? "inactive" : "active",
       location: agentData.region ?? agentData.location ?? "—",
       totalTransactions: metricsData?.totalTransactions ?? portfolioData?.totalTransactions ?? agentData.totalTransactions ?? 0,
-      signUpsAllTime: agentData.totalSignups ?? metricsData?.signUpsAllTime ?? portfolioData?.metrics?.signUpsAllTime ?? agentData.totalSignUps ?? agentData.signUpsAllTime ?? agentData.activeUsers ?? 0,
-      signUpsThisMonth: metricsData?.signUpsThisMonth ?? portfolioData?.metrics?.signUpsThisMonth ?? agentData.signUpsThisMonth ?? 0,
-      loansActive: agentData.loansActiveCount ?? metricsData?.loansActive ?? portfolioData?.portfolio?.loansActive ?? portfolioData?.loansActive ?? metricsData?.counts?.activeLoans ?? agentData.loansActive ?? 0,
-      loansPending: agentData.loansPendingCount ?? metricsData?.loansPending ?? portfolioData?.portfolio?.loansPending ?? portfolioData?.loansPending ?? agentData.loansPending ?? 0,
-      loansClosed: metricsData?.loansClosed ?? portfolioData?.portfolio?.loansClosed ?? portfolioData?.loansClosed ?? agentData.loansClosed ?? 0,
-      loansOverdue: agentData.loansOverdueCount ?? metricsData?.loansOverdue ?? portfolioData?.portfolio?.loansOverdue ?? portfolioData?.loansOverdue ?? agentData.loansOverdue ?? 0,
+      signUpsAllTime: statsData.totalSignups ?? agentData.totalSignups ?? metricsData?.signUpsAllTime ?? portfolioData?.metrics?.signUpsAllTime ?? agentData.totalSignUps ?? agentData.signUpsAllTime ?? agentData.activeUsers ?? 0,
+      signUpsThisMonth: statsData.signupsThisMonth ?? metricsData?.signUpsThisMonth ?? portfolioData?.metrics?.signUpsThisMonth ?? agentData.signUpsThisMonth ?? agentData.signUpsThisMonth ?? 0,
+      loansActive: statsData.activeLoans ?? agentData.loansActiveCount ?? metricsData?.loansActive ?? portfolioData?.portfolio?.loansActive ?? portfolioData?.loansActive ?? metricsData?.counts?.activeLoans ?? agentData.loansActive ?? 0,
+      loansPending: statsData.pendingLoans ?? agentData.loansPendingCount ?? metricsData?.loansPending ?? portfolioData?.portfolio?.loansPending ?? portfolioData?.loansPending ?? agentData.loansPending ?? 0,
+      loansClosed: statsData.closedLoans ?? metricsData?.loansClosed ?? portfolioData?.portfolio?.loansClosed ?? portfolioData?.loansClosed ?? agentData.loansClosed ?? 0,
+      loansOverdue: statsData.overdueLoans ?? agentData.loansOverdueCount ?? metricsData?.loansOverdue ?? portfolioData?.portfolio?.loansOverdue ?? portfolioData?.loansOverdue ?? agentData.loansOverdue ?? 0,
       highDefaultRisk: agentData.highDefaultRisk ?? false,
       selfieUrl: agentData.selfieUrl ?? agentData.selfie ?? agentData.user?.selfieUrl ?? agentData.user?.selfie ?? null,
     };

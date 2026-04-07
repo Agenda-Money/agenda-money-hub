@@ -4,7 +4,18 @@
  */
 
 export const getFriendlyErrorMessage = (error: any): string => {
-  // 1. Handle network errors or cases where the response is missing
+  // 1. Handle JSON parsing errors or browser-level errors
+  const message = error.message || "";
+  if (message.includes("Unexpected token") || message.includes("not valid JSON") || message.includes("JSON.parse")) {
+    // If it's a 429 specifically but failed to parse JSON, return the rate limit message
+    if (error.response?.status === 429) {
+      return "Too many requests. Please wait a few minutes before trying again.";
+    }
+    // General parsing/network failure
+    return "We encountered a temporary technical issue. Please try again in a moment.";
+  }
+
+  // 2. Handle network errors or cases where the response is missing
   if (!error.response) {
     if (error.message === 'Network Error') {
       return "Please check your internet connection and try again.";

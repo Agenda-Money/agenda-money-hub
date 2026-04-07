@@ -9,11 +9,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "next-themes";
-import { cn } from "@/lib/utils";
+import { cn, toNumber } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { getAgentMyStats } from "@/lib/api";
+import { getAgentMyStats, getAgentPortfolio } from "@/lib/api";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -40,6 +40,24 @@ export default function AgentProfile() {
     queryFn: async () => {
       const res = await getAgentMyStats();
       return res.data || res;
+    },
+    enabled: !!user?.email,
+  });
+  
+  // Also fetch portfolio for a more reliable fallback count
+  const { data: portfolioStats } = useQuery({
+    queryKey: ["agent-portfolio-profile", user?.email],
+    queryFn: async () => {
+      const res = await getAgentPortfolio({ page: 1, limit: 1000 });
+      let directory = [];
+      const data = res.data || res;
+      if (data?.directory) directory = data.directory;
+      else if (Array.isArray(data?.data)) directory = data.data;
+      else if (Array.isArray(data)) directory = data;
+      
+      const total = directory.length;
+      const activeLoans = directory.filter((u) => (u.loanStatus || '').toLowerCase() === 'active').length;
+      return { total, activeLoans };
     },
     enabled: !!user?.email,
   });
@@ -84,8 +102,8 @@ export default function AgentProfile() {
   };
 
   const stats = {
-    totalSignups: dashboardStats?.metrics?.signUpsAllTime ?? 0,
-    activeLoans: dashboardStats?.portfolio?.loansActive ?? 0,
+    totalSignups: toNumber(dashboardStats?.totalSignups || dashboardStats?.stats?.totalSignups || dashboardStats?.stats?.total_signups || dashboardStats?.data?.stats?.totalSignups || (typeof portfolioStats?.total === 'number' ? portfolioStats.total : 0)),
+    activeLoans: toNumber(dashboardStats?.activeLoans || dashboardStats?.stats?.activeLoans || dashboardStats?.stats?.active_loans || dashboardStats?.portfolio?.loansActive || dashboardStats?.data?.stats?.activeLoans || (typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : 0)),
   };
 
   const themes = [

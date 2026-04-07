@@ -378,7 +378,9 @@ export default function LoansPage() {
     guaranteedByMsisdn: l.guaranteedByMsisdn,
     guaranteedAt: l.guaranteedAt,
     guarantorApprovedAt: l.guarantorApprovedAt,
-    createdAt: l.createdAt
+    createdAt: l.createdAt,
+    totalLoans: l.user?.totalLoansRepaid ?? l.user?.totalLoansTaken ?? l.user?.totalLoans ?? l.totalLoans ?? l.loansToDate ?? 0,
+    loansToDate: l.user?.totalLoansRepaid ?? l.user?.totalLoansTaken ?? l.user?.totalLoans ?? l.totalLoans ?? l.loansToDate ?? 0
     };
 
 

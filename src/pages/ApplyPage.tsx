@@ -831,12 +831,19 @@ export default function ApplyPage() {
         method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ msisdn: normalizedMsisdn, nodeCode: "" }), // Node code moved to Onboarding Step 4
       });
+      
+      if (r.status === 429) {
+        throw new Error("Too many requests. Please wait a few minutes before trying again.");
+      }
+      
       const p = await r.json();
       if (!r.ok) throw new Error(p?.message || "Unable to request OTP.");
       setNodeName(p?.nodeName ?? "your Node");
       setOtp(""); resetAutoSubmit(); setResendSeconds(RESEND_SECONDS);
       setDirection(1); setView("otp");
-    } catch (e: any) { setErrorMessage(e?.message || "Unable to request OTP."); } finally { setIsRequesting(false); }
+    } catch (e: any) { 
+      setErrorMessage(getFriendlyErrorMessage(e)); 
+    } finally { setIsRequesting(false); }
   };
 
   const handleVerifyOtp = useCallback(async (code?: string) => {
@@ -853,6 +860,11 @@ export default function ApplyPage() {
         method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ msisdn: normalizedMsisdn, otp: otpToVerify }),
       });
+      
+      if (r.status === 429) {
+        throw new Error("Too many requests. Please wait a few minutes before trying again.");
+      }
+      
       const p = await r.json();
       if (!r.ok) throw new Error(p?.message || "OTP verification failed.");
       
@@ -865,6 +877,9 @@ export default function ApplyPage() {
             const profileRes = await fetch(`${baseApiUrl}/api/auth/me`, {
                 headers: { Accept: "application/json", Authorization: `Bearer ${p.token}` }
             });
+            if (profileRes.status === 429) {
+              throw new Error("Too many requests.");
+            }
             if (profileRes.ok) {
                 const profileData = await profileRes.json();
                 // Merge verify response (has nextStep) with profile data (has full user)
@@ -884,11 +899,7 @@ export default function ApplyPage() {
         }
       }
     } catch (e: any) { 
-      let msg = e?.message || "OTP verification failed.";
-      if (msg.toLowerCase().includes("exist") || msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("wrong")) {
-        msg = "The OTP is invalid or has expired. Please try again.";
-      }
-      setErrorMessage(msg); 
+      setErrorMessage(getFriendlyErrorMessage(e)); 
     } finally { setIsVerifying(false); }
   }, [normalizedMsisdn, otp, setApplicant, isVerifying, handleAuthResponse]);
 
