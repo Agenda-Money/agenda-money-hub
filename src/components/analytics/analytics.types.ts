@@ -57,10 +57,19 @@ export interface AnalyticsDistributionResponse {
   geographicDistribution: Array<{ region: string; userCount: number; repaymentRate: number }>;
 }
 
+export interface TelcoDisbursementRow {
+  network: string;
+  loanCount: number;
+  volumeGHS: number;
+  sharePercent: number;
+}
+
 export interface AnalyticsVolumeResponse {
   disbursementVsCollection: Array<{ month: string; disbursed: number; collected: number; net?: number }>;
   repaymentChannels: {
     channels: Array<{ method: "app" | "ussd" | "other"; transactionCount: number; volumeGHS: number; percentage: number }>;
-    total: { transactionCount: number; volumeGHS: number };
+    total: { transactionCount: number; volumeGHS: number } | null;
   };
+  /** Populated by normalizer from /volume and/or legacy /analytics */
+  disbursementByTelco?: TelcoDisbursementRow[];
 }
