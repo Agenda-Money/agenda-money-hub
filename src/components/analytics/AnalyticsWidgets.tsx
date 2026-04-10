@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { 
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, ComposedChart 
+  LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, ComposedChart 
 } from "recharts";
-import { fPct, safeNum, fGHS } from './analytics.helpers';
+import { fPct, safeNum, fGHS, fCount } from './analytics.helpers';
+import type { TelcoDisbursementRow } from './analytics.types';
 
 /* ── Section Header ───────────────────────────────────── */
 export function SectionHead({ title }: { title: string }) {
@@ -257,12 +258,105 @@ export function ChartDisbColl({ data }: { data: any[] }) {
 }
 
 /* ── Section 4: Volume (Repayment Channels) ─────────── */
+function telcoBarColor(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes('mtn')) return '#FFCC00';
+  if (n.includes('telecel') || n.includes('vodafone')) return '#E40000';
+  if (n.includes('tigo') || n.includes('airtel') || n.includes('at ')) return '#003399';
+  return '#1D9E75';
+}
+
+function TelcoDisbursementTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: TelcoDisbursementRow }> }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  return (
+    <div className="rounded-xl border border-[#E8E6E0] bg-white px-3 py-2 shadow-md text-[12px]">
+      <div className="font-semibold text-neutral-800">{row.network}</div>
+      <div className="text-neutral-600 mt-1">Volume: {fGHS(row.volumeGHS)}</div>
+      <div className="text-neutral-600">Loans: {fCount(row.loanCount)}</div>
+      {safeNum(row.sharePercent) > 0 && (
+        <div className="text-neutral-600">Share of volume: {safeNum(row.sharePercent).toFixed(1)}%</div>
+      )}
+    </div>
+  );
+}
+
+/** Horizontal bars: disbursement value by mobile money network (Telco). */
+export function ChartTelcoDisbursements({ data }: { data: TelcoDisbursementRow[] | undefined }) {
+  const rows = (data || []).filter((r) => r.network && (safeNum(r.volumeGHS) > 0 || safeNum(r.loanCount) > 0));
+  if (!rows.length) {
+    return <div className="h-[280px] flex items-center justify-center text-sm text-neutral-400">No data available</div>;
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="h-[280px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart layout="vertical" data={rows} margin={{ top: 4, right: 16, left: 0, bottom: 4 }} barCategoryGap={12}>
+            <CartesianGrid strokeDasharray="3 3" horizontal stroke="#F1EFE8" vertical={false} />
+            <XAxis
+              type="number"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fill: '#888780' }}
+              tickFormatter={(v) => {
+                if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+                if (v >= 1_000) return `${(v / 1_000).toFixed(0)}k`;
+                return `${v}`;
+              }}
+            />
+            <YAxis
+              type="category"
+              dataKey="network"
+              width={88}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fill: '#2C2C2A' }}
+            />
+            <Tooltip content={TelcoDisbursementTooltip} cursor={{ fill: '#F5F4F0' }} />
+            <Bar dataKey="volumeGHS" name="Disbursed" radius={[0, 6, 6, 0]} barSize={18}>
+              {rows.map((entry) => (
+                <Cell key={entry.network} fill={telcoBarColor(entry.network)} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="rounded-lg border border-[#E8E6E0] overflow-hidden">
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="bg-neutral-50 text-neutral-500 uppercase tracking-wider text-left">
+              <th className="px-3 py-2 font-semibold">Telco</th>
+              <th className="px-3 py-2 font-semibold text-right">Loans</th>
+              <th className="px-3 py-2 font-semibold text-right">Volume</th>
+              <th className="px-3 py-2 font-semibold text-right">Share</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.network} className="border-t border-[#F1EFE8] text-neutral-800">
+                <td className="px-3 py-2 font-medium">{r.network}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{fCount(r.loanCount)}</td>
+                <td className="px-3 py-2 text-right tabular-nums font-semibold">{fGHS(r.volumeGHS)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-neutral-600">
+                  {safeNum(r.sharePercent) > 0 ? `${safeNum(r.sharePercent).toFixed(1)}%` : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function RepaymentChannels({ data }: { data: any }) {
   const channels = data?.channels || [];
   if (!channels.length) return <div className="p-8 text-center text-sm text-neutral-400">No data available</div>;
 
-  const app = channels.find((c: any) => c.method === 'app') || { method: 'app', transactionCount: 0, volumeGHS: 0, percentage: 0 };
-  const ussd = channels.find((c: any) => c.method === 'ussd') || { method: 'ussd', transactionCount: 0, volumeGHS: 0, percentage: 0 };
+  const methodEq = (c: any, m: string) => String(c.method || c.channel || '').toLowerCase() === m;
+  const app = channels.find((c: any) => methodEq(c, 'app')) || { method: 'app', transactionCount: 0, volumeGHS: 0, percentage: 0 };
+  const ussd = channels.find((c: any) => methodEq(c, 'ussd')) || { method: 'ussd', transactionCount: 0, volumeGHS: 0, percentage: 0 };
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -271,7 +365,7 @@ export function RepaymentChannels({ data }: { data: any }) {
         <h4 className="text-[11px] font-semibold uppercase tracking-wider text-[#0F6E56] mb-3">Mobile App</h4>
         <div className="mb-4">
           <span className="text-[24px] font-semibold text-[#085041] tabular-nums leading-none">
-            {fPct(app.percentage)}
+            {fPct(app.percentage ?? app.percent)}
           </span>
           <span className="text-[12px] text-[#0F6E56] ml-2 font-medium">of total</span>
         </div>
@@ -292,7 +386,7 @@ export function RepaymentChannels({ data }: { data: any }) {
         <h4 className="text-[11px] font-semibold uppercase tracking-wider text-[#185FA5] mb-3">USSD</h4>
         <div className="mb-4">
           <span className="text-[24px] font-semibold text-[#0C447C] tabular-nums leading-none">
-            {fPct(ussd.percentage)}
+            {fPct(ussd.percentage ?? ussd.percent)}
           </span>
           <span className="text-[12px] text-[#185FA5] ml-2 font-medium">of total</span>
         </div>
@@ -310,3 +404,6 @@ export function RepaymentChannels({ data }: { data: any }) {
     </div>
   );
 }
+
+/** Alias for legacy AnalyticsDashboard imports */
+export const ChartChannels = RepaymentChannels;

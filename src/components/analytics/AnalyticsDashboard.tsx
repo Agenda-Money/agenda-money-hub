@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { KpiCard } from './KpiCard';
 import {
   SectionHead, SectionError, PanelHead,
-  ChartDisbColl, ChartChannels, ChartSignupGrowth, TableTierBreakdown
+  ChartDisbColl, ChartChannels, ChartSignupGrowth, TableTierBreakdown, ChartTelcoDisbursements
 } from './AnalyticsWidgets';
 import {
   useSummary, usePerformance, useDistribution, useVolume,
@@ -137,6 +137,10 @@ export default function AnalyticsDashboard() {
         </Card>
         <Card className="col-span-1 p-5 shadow-sm border-border bg-white">
           {vol.loading ? <div className="animate-pulse bg-muted/30 h-[220px] rounded-xl" /> : <ChartChannels data={v_?.repaymentChannels || { channels: [], total: null }} />}
+        </Card>
+        <Card className="col-span-1 lg:col-span-3 p-5 shadow-sm border-border bg-white">
+          <PanelHead title="Disbursements by Telco network" />
+          {vol.loading ? <div className="animate-pulse bg-muted/30 h-[280px] rounded-xl" /> : <ChartTelcoDisbursements data={v_?.disbursementByTelco} />}
         </Card>
       </div>
 
