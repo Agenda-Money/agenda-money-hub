@@ -1,8 +1,15 @@
 import type { Config } from "tailwindcss";
+import flyonui from "flyonui";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+  ],
   prefix: "",
   theme: {
     container: {
@@ -76,7 +83,13 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        sans: [
+          "Inter",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "sans-serif",
+        ],
       },
       keyframes: {
         "accordion-down": {
@@ -103,9 +116,9 @@ export default {
         "slide-in-right": "slide-in-right 0.3s ease-out",
       },
       boxShadow: {
-        'pink': '0 10px 30px -5px hsla(330, 86%, 52%, 0.3)',
+        pink: "0 10px 30px -5px hsla(330, 86%, 52%, 0.3)",
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("flyonui")],
+  plugins: [tailwindcssAnimate, flyonui],
 } satisfies Config;
