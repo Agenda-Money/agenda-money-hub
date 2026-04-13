@@ -123,7 +123,7 @@ const App = () => {
               <Sonner />
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <Routes>
-                  {subdomain === "csa" && (
+                  {subdomain === "collections" && (
                     <Route element={<CsaAuthProvider><span /></CsaAuthProvider>}>
                       <Route path="/login" element={<CsaAuthProvider><CsaLoginPage /></CsaAuthProvider>} />
                       <Route path="/signup" element={<CsaAuthProvider><CsaSignupPage /></CsaAuthProvider>} />
