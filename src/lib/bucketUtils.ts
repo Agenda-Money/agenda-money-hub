@@ -86,6 +86,12 @@ export function getBucketMeta(bucket: number): BucketMeta {
 
 export const BUCKET_ORDER = [8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3];
 
+export function formatNetwork(network: string) {
+  if (network === 'VODAFONE') return 'Telecel';
+  if (network === 'ARTLTIGO') return 'AirtelTigo';
+  return network;
+}
+
 export function formatGHS(amount: number) {
   return `GHS ${amount.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
