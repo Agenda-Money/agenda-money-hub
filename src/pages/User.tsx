@@ -105,7 +105,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
       feedStatus = "awaiting_endorsement";
   } else if (isPending || currentLoanStatus === 'PENDING') {
       feedStatus = "review";
-  } else if (isOverdue || currentLoanStatus === 'OVERDUE') {
+  } else if (isOverdue || currentLoanStatus === 'OVERDUE' || currentLoanStatus === 'DEFAULTED') {
       feedStatus = "overdue";
   } else if (isActive || currentLoanStatus === 'ACTIVE') {
       feedStatus = "active";
@@ -120,6 +120,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
   let cardColorOverride = undefined;
   let titleOverride = undefined;
   let subtextOverride = undefined;
+
+  if (currentLoanStatus === 'DEFAULTED') {
+     titleOverride = "Defaulted Loan";
+     subtextOverride = "You have an overdue loan. Tap to repay now and restore your borrowing access.";
+  }
 
 
   if (nodeEndorsedEvent && feedStatus === "awaiting_endorsement") {

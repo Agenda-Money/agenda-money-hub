@@ -34,8 +34,9 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, repay
   } : null;
 
   // Urgency Logic
+  const loanStatus = loan?.status || loan?.loanStatus;
   const isUrgent = activeLoan ? (activeLoan.daysRemaining < 3 && activeLoan.daysRemaining >= 0) : false;
-  const isOverdue = activeLoan ? activeLoan.daysRemaining < 0 : false;
+  const isOverdue = activeLoan ? (activeLoan.daysRemaining < 0 || String(loanStatus).toUpperCase() === 'DEFAULTED') : false;
 
   const renderTopCard = () => {
       const loanStatus = loan?.status || loan?.loanStatus;
