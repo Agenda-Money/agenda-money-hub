@@ -43,6 +43,11 @@ import AdminDeductionsPage from "./pages/AdminDeductionsPage";
 import AdminManualDisbursePage from "./pages/AdminManualDisbursePage";
 import { SessionManager } from "./components/auth/SessionManager";
 import InstallPWA from "./components/InstallPWA";
+import { CsaAuthProvider, useCsaAuth } from "@/contexts/CsaAuthContext";
+import CsaLayout from "./components/csa/CsaLayout";
+import CsaDashboard from "./pages/csa/CsaDashboard";
+import CsaLoginPage from "./pages/csa/CsaLoginPage";
+import CsaSignupPage from "./pages/csa/CsaSignupPage";
 
 import { getSubdomain } from "@/lib/domain";
 
@@ -71,6 +76,14 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// CSA auth guard — redirects to /login if not authenticated
+function CsaGuard() {
+  const { isAuthenticated, loading } = useCsaAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <CsaLayout />;
+}
 
 // AdminRoute wrapper to guard admin-only pages
 function AdminRoute({ children }: { readonly children: React.ReactNode }) {
@@ -110,6 +123,20 @@ const App = () => {
               <Sonner />
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <Routes>
+                  {subdomain === "csa" && (
+                    <Route element={<CsaAuthProvider><span /></CsaAuthProvider>}>
+                      <Route path="/login" element={<CsaAuthProvider><CsaLoginPage /></CsaAuthProvider>} />
+                      <Route path="/signup" element={<CsaAuthProvider><CsaSignupPage /></CsaAuthProvider>} />
+                      <Route element={<CsaAuthProvider><CsaGuard /></CsaAuthProvider>}>
+                        <Route element={<CsaAuthProvider><CsaLayout /></CsaAuthProvider>}>
+                          <Route path="/csa" element={<CsaDashboard />} />
+                          <Route path="/" element={<Navigate to="/csa" replace />} />
+                        </Route>
+                      </Route>
+                      <Route path="*" element={<Navigate to="/login" replace />} />
+                    </Route>
+                  )}
+
                   {subdomain === "apply" && (
                     <>
                       <Route path="/" element={<ApplyPage />} />
