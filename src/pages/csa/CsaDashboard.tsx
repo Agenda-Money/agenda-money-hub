@@ -12,7 +12,11 @@ import { LoanCard } from '@/components/csa/LoanCard';
 import { LoanDrawer } from '@/components/csa/LoanDrawer';
 import { getBucketMeta, formatGHS, BUCKET_ORDER } from '@/lib/bucketUtils';
 
-const NETWORKS = ['MTN', 'VODAFONE', 'ARTLTIGO'];
+const NETWORKS = [
+  { label: 'MTN', value: 'MTN' },
+  { label: 'Telecel', value: 'VODAFONE' },
+  { label: 'AirtelTigo', value: 'ARTLTIGO' },
+];
 const REGIONS = ['Greater Accra', 'Ashanti', 'Central', 'Eastern', 'Western', 'Northern', 'Upper East', 'Upper West', 'Volta', 'Bono', 'Ahafo', 'Bono East', 'Oti', 'Savannah', 'North East', 'Western North'];
 
 export default function CsaDashboard() {
@@ -29,7 +33,7 @@ export default function CsaDashboard() {
     refetchInterval: 2 * 60_000,
   });
 
-  const { data: loansData, isLoading: loansLoading, isFetching } = useQuery({
+  const { data: loansData, isLoading: loansLoading, isFetching, refetch: refetchLoans } = useQuery({
     queryKey: ['csa-loans', activeBucket, page, search, network, region],
     queryFn: () => csaApi.get('/api/csa/collections/loans', {
       params: { bucket: activeBucket, page, limit: 18, search: search || undefined, network: network || undefined, region: region || undefined },
@@ -59,7 +63,7 @@ export default function CsaDashboard() {
             <span className="font-semibold text-red-600">{totalOverdue.toLocaleString()}</span> overdue loans · <span className="font-semibold">{formatGHS(totalOutstanding)}</span> outstanding
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2 self-start" onClick={() => refetchBuckets()}>
+        <Button variant="outline" size="sm" className="gap-2 self-start" onClick={() => { refetchBuckets(); refetchLoans(); }}>
           <RefreshCw className="h-3.5 w-3.5" />
           Refresh
         </Button>
@@ -140,7 +144,7 @@ export default function CsaDashboard() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Networks</SelectItem>
-            {NETWORKS.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+            {NETWORKS.map((n) => <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={region} onValueChange={(v) => { setRegion(v === 'ALL' ? '' : v); setPage(1); }}>
