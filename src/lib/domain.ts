@@ -3,7 +3,7 @@
  * Utility to extract and identify the current active subdomain.
  */
 
-export type Subdomain = 'admin' | 'agent' | 'apply';
+export type Subdomain = 'admin' | 'agent' | 'apply' | 'csa';
 
 export function getSubdomain(): Subdomain {
   const hostname = window.location.hostname;
@@ -12,6 +12,7 @@ export function getSubdomain(): Subdomain {
   if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) {
     // Determine based on port (e.g., 8081 = admin, 8082 = agent)
     const port = window.location.port;
+    if (port === '8084') return 'csa';
     if (port === '8083') return 'apply';
     if (port === '8082') return 'agent';
     if (port === '8081') return 'admin';
@@ -25,7 +26,7 @@ export function getSubdomain(): Subdomain {
   const parts = hostname.split('.');
   if (parts.length >= 3) {
     const sub = parts[0].toLowerCase();
-    if (sub === 'admin' || sub === 'agent' || sub === 'apply') {
+    if (sub === 'admin' || sub === 'agent' || sub === 'apply' || sub === 'csa') {
       return sub as Subdomain;
     }
   }
@@ -35,6 +36,7 @@ export function getSubdomain(): Subdomain {
   // which portal the user is trying to reach (for example `/agent/...`), prefer
   // that path-based indicator so client-side routing works after redirects.
   const pathname = window.location.pathname || '/';
+  if (pathname.startsWith('/csa')) return 'csa';
   if (pathname.startsWith('/apply')) return 'apply';
   if (pathname.startsWith('/agent')) return 'agent';
   if (pathname.startsWith('/admin')) return 'admin';
