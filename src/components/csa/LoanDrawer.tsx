@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import csaApi from '@/lib/csaApi';
-import { getBucketMeta, formatGHS, formatOutcome, outcomeColor } from '@/lib/bucketUtils';
+import { getBucketMeta, formatGHS, formatOutcome, outcomeColor, formatNetwork } from '@/lib/bucketUtils';
 
 const OUTCOMES = [
   { value: 'NO_ANSWER', label: 'No Answer' },
@@ -178,7 +178,7 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                           {(loan?.user as any)?.region && (
                             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{(loan.user as any).region}</span>
                           )}
-                          <span className="flex items-center gap-1"><Wifi className="h-3 w-3" />{loan?.network}</span>
+                          <span className="flex items-center gap-1"><Wifi className="h-3 w-3" />{formatNetwork(loan?.network ?? '')}</span>
                           {(loan?.user as any)?.address && (
                             <span className="col-span-2 flex items-center gap-1 truncate">{(loan.user as any).address}</span>
                           )}
