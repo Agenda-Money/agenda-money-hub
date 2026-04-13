@@ -48,6 +48,8 @@ import CsaLayout from "./components/csa/CsaLayout";
 import CsaDashboard from "./pages/csa/CsaDashboard";
 import CsaLoginPage from "./pages/csa/CsaLoginPage";
 import CsaSignupPage from "./pages/csa/CsaSignupPage";
+import CsaActivityPage from "./pages/csa/CsaActivityPage";
+import CsaTemplatesPage from "./pages/csa/CsaTemplatesPage";
 
 import { getSubdomain } from "@/lib/domain";
 
@@ -130,6 +132,8 @@ const App = () => {
                       <Route element={<CsaAuthProvider><CsaGuard /></CsaAuthProvider>}>
                         <Route element={<CsaAuthProvider><CsaLayout /></CsaAuthProvider>}>
                           <Route path="/csa" element={<CsaDashboard />} />
+                          <Route path="/csa/activity" element={<CsaActivityPage />} />
+                          <Route path="/csa/templates" element={<CsaTemplatesPage />} />
                           <Route path="/" element={<Navigate to="/csa" replace />} />
                         </Route>
                       </Route>
