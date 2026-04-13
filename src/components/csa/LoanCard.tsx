@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Phone, MapPin, Wifi, UserCheck, MessageSquare, PhoneCall } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getBucketMeta, formatGHS, formatOutcome, outcomeColor } from '@/lib/bucketUtils';
+import { getBucketMeta, formatGHS, formatOutcome, outcomeColor, formatNetwork } from '@/lib/bucketUtils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -87,11 +87,12 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
             </span>
           )}
           <span className="flex items-center gap-1">
-            <Wifi className="h-3 w-3" />{loan.network}
+            <Wifi className="h-3 w-3" />{formatNetwork(loan.network)}
           </span>
           {loan.guarantorName && (
             <span className="flex items-center gap-1">
               <UserCheck className="h-3 w-3" />{loan.guarantorName}
+              {loan.guarantorMsisdn && <span className="text-muted-foreground/70">· {loan.guarantorMsisdn}</span>}
             </span>
           )}
         </div>
