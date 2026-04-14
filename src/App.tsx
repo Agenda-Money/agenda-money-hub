@@ -44,8 +44,6 @@ import AdminManualDisbursePage from "./pages/AdminManualDisbursePage";
 import { SessionManager } from "./components/auth/SessionManager";
 import InstallPWA from "./components/InstallPWA";
 import { DevEligibilitySandbox } from "./pages/DevEligibilitySandbox";
-import DummyUserDetail from "./pages/DummyUserDetail";
-
 import { getSubdomain } from "@/lib/domain";
 
 const queryClient = new QueryClient({
@@ -177,7 +175,7 @@ const App = () => {
                       <Route path="/settings" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents" element={<RequireAuth><AdminRoute><AgentsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents/:id" element={<RequireAuth><AdminRoute><AgentDetailsPage /></AdminRoute></RequireAuth>} />
-                      <Route path="/dummy-user-detail/:id" element={<RequireAuth><AdminRoute><DummyUserDetail /></AdminRoute></RequireAuth>} />
+
 
                       <Route path="*" element={<NotFound />} />
                     </>

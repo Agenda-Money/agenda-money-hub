@@ -335,51 +335,50 @@ export default function DummyUserDetail() {
         <Card className="p-8">
           <FlagBanner flag={activeFlag} />
 
-          <div className="flex flex-wrap gap-8 items-start justify-between">
-            <div className="flex gap-6 items-center">
+          <div className="flex flex-col md:flex-row gap-8 items-center md:items-start justify-center md:justify-between text-center md:text-left">
+            <div className="flex flex-col md:flex-row gap-6 items-center">
               <div className="w-20 h-20 rounded-[2.5rem] flex items-center justify-center flex-shrink-0 shadow-xl shadow-pink-200 dark:shadow-none bg-gradient-to-br from-pink-500 to-rose-600 ring-4 ring-white dark:ring-gray-800">
                 <span className="text-white text-3xl font-black">{user.name?.[0] || 'U'}</span>
               </div>
-              <div>
-                <div className="flex items-center gap-3 flex-wrap mb-2">
+              <div className="flex flex-col items-center md:items-start">
+                <div className="flex items-center gap-3 flex-wrap justify-center md:justify-start mb-2">
                   <h1 className="text-3xl font-black text-gray-900 dark:text-gray-100 tracking-tight italic">{user.name}</h1>
                   <Pill color="blue" className="px-4">{user.tier}</Pill>
                   {user.kycStatus === 'verified' && <Pill color="teal">KYC Verified</Pill>}
                   <Pill color="brand" className="font-mono">Node: {user.nodeCode}</Pill>
                 </div>
-                <div className="flex gap-5 flex-wrap text-[13px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide">
+                <div className="flex gap-4 flex-wrap justify-center md:justify-start text-[13px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide">
                   <span className="font-mono tracking-normal text-gray-900 dark:text-gray-100">{user.phone}</span>
-                  <span className="opacity-30">·</span>
+                  <span className="hidden md:inline opacity-30">·</span>
                   <span>Joined {new Date(user.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                </div>
+                <div className="mt-4 md:mt-2">
                   {user.referredBy && (
-                    <>
-                      <span className="opacity-30">·</span>
-                      <span className="flex items-center gap-2">
-                        <span className="text-pink-600 dark:text-pink-400 font-black text-[10px] tracking-[0.2em]">Referred by:</span>
-                        <span className="text-gray-900 dark:text-gray-100 font-black text-[11px] font-mono">{user.agentName || user.referredBy}</span>
-                      </span>
-                    </>
+                    <div className="flex items-center gap-2 justify-center md:justify-start">
+                      <span className="text-pink-600 dark:text-pink-400 font-black text-[10px] tracking-[0.2em] uppercase">Referred by:</span>
+                      <span className="text-gray-900 dark:text-gray-100 font-black text-[11px] font-mono">{user.agentName || user.referredBy}</span>
+                    </div>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 items-end">
-              <div className="flex gap-2.5">
-                <button onClick={() => setFlagModalOpen(true)} className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-xl border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors font-black uppercase tracking-widest">
-                  Flag user
+            <div className="flex flex-col gap-4 items-center md:items-end w-full md:w-auto">
+              <div className="flex gap-2.5 flex-wrap justify-center md:justify-end w-full md:w-auto">
+                <button onClick={() => setFlagModalOpen(true)} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-xs px-4 py-3 md:py-2 rounded-xl border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors font-black uppercase tracking-widest whitespace-nowrap">
+                  Flag
                 </button>
-                <button className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 font-black uppercase tracking-widest shadow-lg shadow-red-900/20 transition-all active:scale-95">
-                  Block user
+                <button className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-xs px-4 py-3 md:py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 font-black uppercase tracking-widest shadow-lg shadow-red-900/20 transition-all active:scale-95 whitespace-nowrap">
+                  Block
                 </button>
-                <button className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-xl border border-pink-100 dark:border-gray-700 text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-gray-800 transition-colors font-black uppercase tracking-widest">
-                  Edit profile
+                <button className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-xs px-4 py-3 md:py-2 rounded-xl border border-pink-100 dark:border-gray-700 text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-gray-800 transition-colors font-black uppercase tracking-widest whitespace-nowrap">
+                  Edit
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-pink-100/50 dark:border-gray-800 mt-8 pt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+          <div className="border-t border-pink-100/50 dark:border-gray-800 mt-8 pt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6">
             <MetricCard label="Credit score" value={`${user.creditScore}`} sub="Out of 100" valueColor="text-teal-600 dark:text-teal-400" />
             <MetricCard label="On-time rate" value={`${user.onTimeRepaymentRate}%`} sub="Repayment history" />
             <MetricCard label="Wallet balance" value="GHS 0" sub="Temporary wallet" />
@@ -396,12 +395,12 @@ export default function DummyUserDetail() {
           <div className="lg:col-span-2 space-y-8">
             
             {/* Tabs Navigation */}
-            <div className="flex gap-1 p-1 bg-white dark:bg-gray-900 border border-pink-100/50 dark:border-gray-800 rounded-2xl w-fit shadow-sm">
+            <div className="flex gap-1 p-1 bg-white dark:bg-gray-900 border border-pink-100/50 dark:border-gray-800 rounded-2xl w-full sm:w-fit shadow-sm overflow-x-auto no-scrollbar">
               {['Identity', 'Financials', 'Activity'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
+                  className={`flex-1 sm:flex-none px-6 sm:px-8 py-2.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] transition-all duration-300 whitespace-nowrap ${
                     activeTab === tab 
                       ? 'bg-pink-600 text-white shadow-lg shadow-pink-900/20' 
                       : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
@@ -453,7 +452,7 @@ export default function DummyUserDetail() {
                     </InnerCard>
                     <InnerCard className="p-5 flex items-center justify-between group flex-wrap">
                       <div className="min-w-0">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Verified Card Name</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">KYC Name</p>
                         <p className="text-sm font-black text-gray-900 dark:text-gray-100 truncate">{user.kycDocs.nameOnCard || user.name}</p>
                       </div>
                     </InnerCard>
@@ -463,13 +462,15 @@ export default function DummyUserDetail() {
                 {/* Profile Detail Grid */}
                 <Card className="p-8">
                   <SectionHeader>User Personal Metadata</SectionHeader>
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    <DetailItem label="Employment" value="Public Sector" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>} />
-                    <DetailItem label="Income Range" value="GHS 2,500 - 5,000" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>} />
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <DetailItem label="Employment" value="Self Employed" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>} />
+                    <DetailItem label="Monthly Income" value="GHS 1,000 - 2,000" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>} />
                     <DetailItem label="Location" value="Greater Accra, GH" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>} />
-                    <DetailItem label="Accomodation" value="Rented Apartment" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} />
+                    <DetailItem label="Address" value="Lakeside Community 8" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} />
                     <DetailItem label="Gender" value="Male" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="5" r="3"/><path d="M12 22V8M5 12l7-2 7 2"/></svg>} />
-                    <DetailItem label="Birthday" value="14 July 1992" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} />
+                    <DetailItem label="Birthday" value="5 Jul 2004" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} />
+                    <DetailItem label="Joined" value="14 Apr 2026" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} />
+                    <DetailItem label="Accomodation" value="Rented Apartment" icon={() => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} />
                   </div>
                 </Card>
               </div>
@@ -599,6 +600,52 @@ export default function DummyUserDetail() {
                 </Card>
               </div>
             )}
+
+            {/* Restructured bottom cards for Desktop */}
+            <div className="hidden lg:grid grid-cols-2 gap-8">
+              {/* Network Nodes Card */}
+              <Card className="p-8">
+                <SectionHeader>Network Nodes</SectionHeader>
+                <div className="mt-6 space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 italic">Recent Referrals</p>
+                  {referrals.map((ref: any) => (
+                    <div key={ref.id} className="flex items-center justify-between p-4 rounded-2xl bg-pink-50/30 dark:bg-gray-800/50 border border-pink-100/20 group hover:border-pink-300 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center text-xs font-black text-pink-600 shadow-sm">{ref.name[0]}</div>
+                        <div>
+                          <p className="text-xs font-black text-gray-900 dark:text-gray-100 tracking-tight">{ref.name}</p>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{ref.id}</p>
+                        </div>
+                      </div>
+                      <Pill color="teal" className="scale-90 origin-right">L1</Pill>
+                    </div>
+                  ))}
+                  <button className="w-full text-center py-3 text-[10px] font-black uppercase tracking-[0.2em] text-pink-600 hover:text-pink-700 transition-colors bg-pink-50 dark:bg-transparent rounded-xl">
+                    Expand Tree View
+                  </button>
+                </div>
+              </Card>
+
+              {/* Advancement Logic Card */}
+              <Card className="p-8">
+                 <SectionHeader>Advancement Logic</SectionHeader>
+                 <div className="mt-6 flex flex-col h-full justify-between">
+                    <div>
+                      <div className="flex justify-between items-end mb-4">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-pink-600/60 mb-0.5">Eligibility Engine</p>
+                          <p className="text-base font-black text-gray-900 dark:text-gray-100 italic">Tier L2 Unlock</p>
+                        </div>
+                        <span className="text-[13px] font-black text-pink-600 dark:text-pink-400 font-mono">3 / 5 <span className="text-[9px] opacity-40 uppercase font-sans">Loans</span></span>
+                      </div>
+                      <div className="h-3 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden border border-pink-100/10 shadow-inner">
+                        <div className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full" style={{ width: '60%' }} />
+                      </div>
+                      <p className="text-[10px] font-bold text-gray-400 mt-4 leading-relaxed">The user needs <span className="text-gray-900 dark:text-gray-100 font-black">2 more repaid loans</span> with no defaults to qualify for the upgrade.</p>
+                    </div>
+                 </div>
+              </Card>
+            </div>
           </div>
 
           {/* Sidebar Column */}
@@ -678,49 +725,49 @@ export default function DummyUserDetail() {
               </div>
             </Card>
 
-            {/* Referrals Widget */}
-            <Card className="p-8">
-              <SectionHeader>Network Nodes</SectionHeader>
-
-              <div className="mt-6 space-y-6">
-                <div className="pt-2 space-y-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 italic">Recent Referrals</p>
-                  {referrals.map((ref: any) => (
-                    <div key={ref.id} className="flex items-center justify-between p-4 rounded-2xl bg-pink-50/30 dark:bg-gray-800/50 border border-pink-100/20 group hover:border-pink-300 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center text-xs font-black text-pink-600 shadow-sm">{ref.name[0]}</div>
-                        <div>
-                          <p className="text-xs font-black text-gray-900 dark:text-gray-100 tracking-tight">{ref.name}</p>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{ref.id}</p>
+            {/* Referrals Widget (Mobile ONLY now) */}
+            <div className="lg:hidden">
+              <Card className="p-8">
+                <SectionHeader>Network Nodes</SectionHeader>
+                <div className="mt-6 space-y-6 text-center">
+                   {/* Mobile version remains same but centered */}
+                   <div className="pt-2 space-y-4">
+                    {referrals.map((ref: any) => (
+                      <div key={ref.id} className="flex items-center justify-between p-4 rounded-2xl bg-pink-50/30 dark:bg-gray-800/50 border border-pink-100/20 group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center text-xs font-black text-pink-600 shadow-sm">{ref.name[0]}</div>
+                          <div className="text-left">
+                            <p className="text-xs font-black text-gray-900 dark:text-gray-100 tracking-tight">{ref.name}</p>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{ref.id}</p>
+                          </div>
                         </div>
+                        <Pill color="teal" className="scale-90 origin-right">L1</Pill>
                       </div>
-                      <Pill color="teal" className="scale-90 origin-right">L1</Pill>
-                    </div>
-                  ))}
-                  <button className="w-full text-center py-3 text-[10px] font-black uppercase tracking-[0.2em] text-pink-600 hover:text-pink-700 transition-colors bg-pink-50 dark:bg-transparent rounded-xl">
-                    Expand Tree View
-                  </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
 
-            {/* Progress Widget */}
-            <Card className="p-8">
-               <SectionHeader>Advancement Logic</SectionHeader>
-               <div className="mt-6">
-                  <div className="flex justify-between items-end mb-4">
-                    <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-pink-600/60 mb-0.5">Eligibility Engine</p>
-                      <p className="text-base font-black text-gray-900 dark:text-gray-100 italic">Tier L2 Unlock</p>
+            {/* Advancement Logic (Mobile ONLY now) */}
+            <div className="lg:hidden mt-8">
+              <Card className="p-8 text-center">
+                 <SectionHeader>Advancement Logic</SectionHeader>
+                 <div className="mt-6">
+                    <div className="flex justify-between items-end mb-4">
+                      <div className="text-left">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-pink-600/60 mb-0.5 font-sans">Eligibility Engine</p>
+                        <p className="text-base font-black text-gray-900 dark:text-gray-100 italic">Tier L2 Unlock</p>
+                      </div>
+                      <span className="text-[13px] font-black text-pink-600 dark:text-pink-400 font-mono">3 / 5 <span className="text-[9px] opacity-40 uppercase font-sans">Loans</span></span>
                     </div>
-                    <span className="text-[13px] font-black text-pink-600 dark:text-pink-400 font-mono">3 / 5 <span className="text-[9px] opacity-40 uppercase font-sans">Loans</span></span>
-                  </div>
-                  <div className="h-3 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden border border-pink-100/10 shadow-inner">
-                    <div className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full" style={{ width: '60%' }} />
-                  </div>
-                  <p className="text-[10px] font-bold text-gray-400 mt-4 leading-relaxed">The user needs <span className="text-gray-900 dark:text-gray-100 font-black">2 more repaid loans</span> with no defaults to qualify for the L2 tier borrowing limit upgrade.</p>
-               </div>
-            </Card>
+                    <div className="h-3 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden border border-pink-100/10 shadow-inner">
+                      <div className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full" style={{ width: '60%' }} />
+                    </div>
+                    <p className="text-[11px] font-bold text-gray-400 mt-4 leading-relaxed">2 more repaid loans to qualify for upgrade.</p>
+                 </div>
+              </Card>
+            </div>
 
           </div>
         </div>

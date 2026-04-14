@@ -30,6 +30,9 @@ type LoanReviewUser = {
   selfieUrl?: string;
   currentTier?: string | number;
   endorsedAt?: string;
+  totalLoans?: number;
+  totalLoansRepaid?: number;
+  totalLoansTaken?: number;
 };
 
 type LoanReviewData = {
@@ -56,6 +59,8 @@ type LoanReviewData = {
   loansToDate?: number;
   repaymentRate?: number;
   totalLoans?: number;
+  totalLoansRepaid?: number;
+  totalLoansTaken?: number;
   referredBy?: {
     agentId?: string;
     name?: string;

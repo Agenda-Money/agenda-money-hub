@@ -482,6 +482,26 @@ export const getUserActiveLoan = async (phone: string) => {
   return response.data;
 };
 
+export const getUserDetail = async (userId: string) => {
+  const response = await api.get(`/api/admin/users/${userId}`);
+  return response.data;
+};
+
+export const getUserSessions = async (userId: string, page = 1, limit = 20) => {
+  const response = await api.get(`/api/admin/users/${userId}/sessions`, { params: { page, limit } });
+  return response.data;
+};
+
+export const addFlag = async (userId: string, level: string, reason: string) => {
+  const response = await api.post(`/api/admin/users/${userId}/flag`, { level, reason });
+  return response.data;
+};
+
+export const deleteFlag = async (userId: string, flagId: string) => {
+  const response = await api.delete(`/api/admin/users/${userId}/flag/${flagId}`);
+  return response.data;
+};
+
 export const getAdminAgentDetails = async (id: string) => {
   const response = await api.get(`/api/admin/agents/${id}`);
   return response.data;
