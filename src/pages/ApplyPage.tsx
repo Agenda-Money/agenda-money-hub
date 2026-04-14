@@ -41,6 +41,7 @@ import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
 import { ProfileTab } from "./ProfileTab";
 import { LoanSummaryPage } from "./LoanSummaryPage";
+import { LivenessCapture } from "@/components/liveliness/LivenessCapture";
 
 import { UserRewardsTab } from "./UserRewardsTab";
 import { UserNetworkTab } from "./UserNetworkTab";
@@ -134,6 +135,7 @@ interface OnboardingData {
   gender: string;
   region: string;
   address: string;
+  alternatePhone: string;
   accommodationType: string;
   yearsAtAddress: string;
   educationLevel: string;
@@ -410,9 +412,12 @@ export default function ApplyPage() {
   const [dobError, setDobError] = useState<string | null>(null); // Validation error message
   const [isRequesting, setIsRequesting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [decisionError, setDecisionError] = useState<DecisionError | null>(null);
+  const [decisionError, setDecisionError] = useState<DecisionError | null>(
+    null,
+  );
 
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [onboardingDirection, setOnboardingDirection] = useState(0);
@@ -432,6 +437,7 @@ export default function ApplyPage() {
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [showLiveness, setShowLiveness] = useState(false);
 
   const DEFAULT_ONBOARDING_DATA: OnboardingData = {
     firstName: "",
@@ -440,6 +446,7 @@ export default function ApplyPage() {
     gender: "",
     region: "",
     address: "",
+    alternatePhone: "",
     accommodationType: "",
     yearsAtAddress: "",
     educationLevel: "",
@@ -760,6 +767,19 @@ export default function ApplyPage() {
     checkAuth();
   }, [setApplicant, handleAuthResponse]);
 
+  useEffect(() => {
+    setOnboardingData((prev) => ({
+      ...prev,
+      ghanaCardFrontUrl: prev.ghanaCardFrontUrl?.startsWith("blob:")
+        ? ""
+        : prev.ghanaCardFrontUrl,
+      ghanaCardBackUrl: prev.ghanaCardBackUrl?.startsWith("blob:")
+        ? ""
+        : prev.ghanaCardBackUrl,
+      selfieUrl: prev.selfieUrl?.startsWith("blob:") ? "" : prev.selfieUrl,
+    }));
+  }, []);
+
   // ─── Scroll Reset on View/Step Change ───
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -940,11 +960,7 @@ export default function ApplyPage() {
       if (onboardingData.selfieUrl?.startsWith("blob:"))
         URL.revokeObjectURL(onboardingData.selfieUrl);
     };
-  }, [
-    onboardingData.ghanaCardFrontUrl,
-    onboardingData.ghanaCardBackUrl,
-    onboardingData.selfieUrl,
-  ]);
+  }, []);
 
   // ─── Handlers ───
 
@@ -1183,6 +1199,8 @@ export default function ApplyPage() {
           onboardingData.address.trim().split(/\s+/).filter(Boolean).length < 3
         )
           return "Provide a full address (at least 3 words).";
+        if (!onboardingData.alternatePhone)
+          return "Provide an alternate phone number.";
         return null;
       case 2:
         if (!onboardingData.accommodationType || !onboardingData.yearsAtAddress)
@@ -1366,6 +1384,7 @@ export default function ApplyPage() {
           gender: onboardingData.gender,
           region: onboardingData.region,
           address: onboardingData.address,
+          alternatePhone: normalizeMsisdn(onboardingData.alternatePhone),
           accommodationType: onboardingData.accommodationType,
           yearsAtAddress: onboardingData.yearsAtAddress,
           educationLevel: onboardingData.educationLevel,
@@ -1495,21 +1514,31 @@ export default function ApplyPage() {
         {isUploading ? (
           <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
         ) : fieldUrl ? (
-          <div className="flex items-center gap-2 justify-center">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">{label} uploaded</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="ml-2 text-xs text-red-500 h-6 px-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                // Allow retake -> Trigger Camera
-                cameraRef.current?.click();
-              }}
-            >
-              Retake
-            </Button>
+          <div className="space-y-3">
+            <img
+              src={fieldUrl}
+              alt={label}
+              className="w-full h-40 object-cover rounded-lg border border-primary/20"
+            />
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-primary">
+                  {label} uploaded
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-red-500 h-6 px-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cameraRef.current?.click();
+                }}
+              >
+                Retake
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -1830,7 +1859,12 @@ export default function ApplyPage() {
                           <InputOTPSlot
                             key={slot}
                             index={i}
-                            className="h-14 w-10 sm:w-12 bg-transparent border-b-2 border-border/50 rounded-none text-xl focus:border-primary focus:ring-0 transition-all font-bold"
+                            className={cn(
+                              "h-14 w-10 sm:w-12 bg-transparent border-b-2 rounded-none text-xl focus:ring-0 transition-all font-bold",
+                              errorMessage
+                                ? "border-red-500 text-red-500"
+                                : "border-border/50 focus:border-primary",
+                            )}
                           />
                         ))}
                       </InputOTPGroup>
@@ -2779,22 +2813,22 @@ export default function ApplyPage() {
   // ═══════════════════════════════════════
 
   if (decisionError) {
-     return (
-        <EligibilityBlockScreen
-           decision={decisionError}
-           onHome={() => {
-              setDecisionError(null);
-              setOnboardingStep(0);
-              setView("loan-dashboard");
-           }}
-           onBack={() => setDecisionError(null)}
-           loanData={{
-              amount: loanAmount,
-              tenure: loanTenure,
-              purpose: loanPurpose
-           }}
-        />
-     );
+    return (
+      <EligibilityBlockScreen
+        decision={decisionError}
+        onHome={() => {
+          setDecisionError(null);
+          setOnboardingStep(0);
+          setView("loan-dashboard");
+        }}
+        onBack={() => setDecisionError(null)}
+        loanData={{
+          amount: loanAmount,
+          tenure: loanTenure,
+          purpose: loanPurpose,
+        }}
+      />
+    );
   }
 
   // Step 4: Loan Application (Full Screen)
@@ -3094,7 +3128,12 @@ export default function ApplyPage() {
                           <SelectTrigger className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent
+                            position="popper"
+                            side="bottom"
+                            sideOffset={4}
+                            className="max-h-60 overflow-y-auto"
+                          >
                             {GHANA_REGIONS.map((r) => (
                               <SelectItem key={r} value={r}>
                                 {r}
@@ -3118,6 +3157,34 @@ export default function ApplyPage() {
                         className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900 placeholder:text-gray-300"
                       />
                     </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-gray-500">
+                        Alternate Phone Number{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative flex items-center w-full h-12 bg-[#F8FAFC] border border-gray-300 rounded-lg px-4">
+                        <span className="text-gray-600 font-bold text-sm pr-3 border-r border-gray-200">
+                          +233
+                        </span>
+                        <Input
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength={10}
+                          value={(onboardingData as any).alternatePhone || ""}
+                          onChange={(e) =>
+                            handleOnboardingChange(
+                              "alternatePhone" as any,
+                              sanitizeMsisdnEntryInput(e.target.value),
+                            )
+                          }
+                          placeholder="24 XXX XXXX"
+                          className="flex-1 bg-transparent border-0 h-full font-mono font-medium text-gray-800 focus:ring-0 focus:outline-none placeholder:text-gray-400 ml-2"
+                        />
+                      </div>
+                      <p className="text-[10px] text-gray-400 font-medium">
+                        Emergency contact number
+                      </p>
+                    </div>
 
                     <Button
                       onClick={handleOnboardingNext}
@@ -3128,6 +3195,7 @@ export default function ApplyPage() {
                         !onboardingData.gender ||
                         !onboardingData.region ||
                         !onboardingData.address ||
+                        !onboardingData.alternatePhone ||
                         onboardingData.address?.trim().split(/\s+/).length < 3
                       }
                       className={cn(
@@ -3138,6 +3206,7 @@ export default function ApplyPage() {
                           onboardingData.gender &&
                           onboardingData.region &&
                           onboardingData.address &&
+                          onboardingData.alternatePhone &&
                           onboardingData.address?.trim().split(/\s+/).length >=
                             3
                           ? "bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200"
@@ -3610,6 +3679,7 @@ export default function ApplyPage() {
                         </div>
 
                         {/* Selfie Card */}
+
                         <div className="border border-gray-200 rounded-xl overflow-hidden bg-white transition-all">
                           <button
                             onClick={() =>
@@ -3625,10 +3695,11 @@ export default function ApplyPage() {
                               </div>
                               <div className="text-left">
                                 <h3 className="text-sm font-bold text-gray-900">
-                                  Selfie
+                                  Live Selfie
                                 </h3>
                                 <p className="text-xs text-gray-500 font-medium">
-                                  Share a selfie to verify your identity
+                                  Complete a quick liveness check to verify your
+                                  identity
                                 </p>
                               </div>
                             </div>
@@ -3649,14 +3720,57 @@ export default function ApplyPage() {
                                 className="overflow-hidden bg-gray-50/50"
                               >
                                 <div className="p-4 pt-0 border-t border-gray-100">
-                                  <div className="mt-4" /> {/* Spacer */}
-                                  {renderUploadBox(
-                                    "Live Selfie",
-                                    onboardingData.selfieUrl,
-                                    !!uploadProgress.selfieUrl,
-                                    selfieRef,
-                                    "user",
-                                    (f) => handleUpload(f, "selfieUrl"),
+                                  <div className="mt-4" />
+                                  {onboardingData.selfieUrl ? (
+                                    // Show success state if liveness already completed
+                                    <div className="flex items-center gap-2 justify-center p-4 bg-green-50 rounded-xl border border-green-100">
+                                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                      <span className="text-sm font-medium text-green-700">
+                                        Liveness verified
+                                      </span>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="ml-2 text-xs text-red-500 h-6 px-2"
+                                        onClick={() => {
+                                          setOnboardingData((prev) => ({
+                                            ...prev,
+                                            selfieUrl: "",
+                                          }));
+                                          setShowLiveness(true);
+                                        }}
+                                      >
+                                        Redo
+                                      </Button>
+                                    </div>
+                                  ) : showLiveness ? (
+                                    <LivenessCapture
+                                      userId={normalizedMsisdn || "unknown"}
+                                      mode="kyc"
+                                      onSuccess={(result) => {
+                                        setOnboardingData((prev) => ({
+                                          ...prev,
+                                          selfieUrl: result.capturedFrame,
+                                        }));
+                                        setShowLiveness(false);
+                                      }}
+                                      onFailure={(reason) => {
+                                        setShowLiveness(false);
+                                        setErrorMessage(
+                                          reason === "max_attempts_reached"
+                                            ? "Liveness check failed. Your application will be reviewed manually."
+                                            : "Liveness check failed. Please try again.",
+                                        );
+                                      }}
+                                    />
+                                  ) : (
+                                    <Button
+                                      onClick={() => setShowLiveness(true)}
+                                      className="w-full h-12 rounded-full bg-[#EC1B84] text-white font-bold hover:bg-[#D41574]"
+                                    >
+                                      <Camera className="w-4 h-4 mr-2" /> Start
+                                      Liveness Check
+                                    </Button>
                                   )}
                                 </div>
                               </motion.div>
