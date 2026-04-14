@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, Sparkles, CircleAlert } from 'lucide-react';
+import { Eye, EyeOff, Landmark, CircleAlert } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,7 +58,7 @@ export default function CsaSignupPage() {
         <div className="text-center space-y-3">
           <div className="flex justify-center">
             <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-pink">
-              <Sparkles className="h-7 w-7 text-primary-foreground" />
+              <Landmark className="h-7 w-7 text-primary-foreground" />
             </div>
           </div>
           <h1 className="text-2xl font-extrabold text-foreground">Set up your account</h1>
