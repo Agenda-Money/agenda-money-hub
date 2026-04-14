@@ -43,6 +43,7 @@ import AdminDeductionsPage from "./pages/AdminDeductionsPage";
 import AdminManualDisbursePage from "./pages/AdminManualDisbursePage";
 import { SessionManager } from "./components/auth/SessionManager";
 import InstallPWA from "./components/InstallPWA";
+import { DevEligibilitySandbox } from "./pages/DevEligibilitySandbox";
 
 import { getSubdomain } from "@/lib/domain";
 
@@ -112,6 +113,9 @@ const App = () => {
                 <Routes>
                   {subdomain === "apply" && (
                     <>
+                      {import.meta.env.DEV && (
+                        <Route path="/dev-eligibility" element={<DevEligibilitySandbox />} />
+                      )}
                       <Route path="/" element={<ApplyPage />} />
                       <Route path="*" element={<ApplyPage />} />
                     </>

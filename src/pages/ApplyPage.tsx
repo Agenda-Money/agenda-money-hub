@@ -29,6 +29,9 @@ import { LoanSummaryPage } from "./LoanSummaryPage";
 
 import { UserRewardsTab } from "./UserRewardsTab";
 import { UserNetworkTab } from "./UserNetworkTab";
+import { GENDERS, GHANA_REGIONS, TERMS_LIST } from "@/lib/constants";
+import { parseDecisionError, DecisionError } from "@/lib/api";
+import { EligibilityBlockScreen } from "@/components/eligibility/EligibilityBlockScreen";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
 import { RepaymentPage } from "./RepaymentPage";
 import { LoanStatusCard } from "@/components/dashboard/LoanStatusCard";
@@ -85,7 +88,6 @@ const TERMS_LIST = [
   "Late payment affects credit score",
   "Penal interest: 2% per day on overdue amount"
 ];
-
 
 interface OnboardingData {
   firstName: string;
@@ -304,8 +306,9 @@ export default function ApplyPage() {
   const [dobError, setDobError] = useState<string | null>(null); // Validation error message
   const [isRequesting, setIsRequesting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [resendSeconds, setResendSeconds] = useState(0);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [decisionError, setDecisionError] = useState<DecisionError | null>(null);
 
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [onboardingDirection, setOnboardingDirection] = useState(0);
@@ -2044,6 +2047,25 @@ export default function ApplyPage() {
   // ═══════════════════════════════════════
   // ONBOARDING (new users)
   // ═══════════════════════════════════════
+
+  if (decisionError) {
+     return (
+        <EligibilityBlockScreen
+           decision={decisionError}
+           onHome={() => {
+              setDecisionError(null);
+              setOnboardingStep(0);
+              setView("loan-dashboard");
+           }}
+           onBack={() => setDecisionError(null)}
+           loanData={{
+              amount: loanAmount,
+              tenure: loanTenure,
+              purpose: loanPurpose
+           }}
+        />
+     );
+  }
 
   // Step 4: Loan Application (Full Screen)
   if (onboardingStep === 4) {
