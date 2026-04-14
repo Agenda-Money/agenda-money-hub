@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, PhoneCall, LogOut, X, ChevronRight, Sparkles, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, PhoneCall, LogOut, X, ChevronRight, Landmark, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useCsaAuth } from '@/contexts/CsaAuthContext';
@@ -63,7 +63,7 @@ export function CsaSidebar({ isOpen, onToggle }: CsaSidebarProps) {
               whileTap={{ scale: 0.95 }}
               className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center shadow-pink"
             >
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
+              <Landmark className="h-5 w-5 text-primary-foreground" />
             </motion.div>
             <div>
               <h1 className="font-bold text-base text-foreground">Collections</h1>
