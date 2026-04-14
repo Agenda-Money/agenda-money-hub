@@ -2,6 +2,42 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { ManualDisbursementRequest } from "@/types/disbursement";
 
+export interface DecisionError {
+  uiState: 'soft_block' | 'hard_block' | 'hard_block_date' | 'cap_state' | 'blacklisted';
+  reasonCode: string;
+  displayDate?: string;
+  capAmount?: number;
+  message: string;
+  isDecision: boolean; // Flag to easily identify parsed decision errors
+}
+
+export const parseDecisionError = (error: any): DecisionError | null => {
+  if (!error.response?.data) return null;
+  const data = error.response.data;
+  const code = data.errorCode || data.code || data.reasonCode || '';
+  const message = data.message || "Your application could not be processed at this time.";
+  
+  switch (code) {
+    case 'COOLING_OFF_HIGHER':
+      return { uiState: 'soft_block', reasonCode: code, message, isDecision: true, capAmount: data.capAmount };
+    case 'ROLLING_WINDOW_LIMIT':
+      return { uiState: 'hard_block', reasonCode: code, message, isDecision: true, displayDate: data.displayDate || data.availableDate };
+    case 'SHORT_TENOR_COOLDOWN':
+      return { uiState: 'hard_block_date', reasonCode: code, message, isDecision: true, displayDate: data.displayDate || data.nextDate };
+    case 'TIER_CAPPED':
+      return { uiState: 'cap_state', reasonCode: code, message, isDecision: true, capAmount: data.capAmount || data.approvedAmount };
+    case 'BLACKLISTED_TEMP':
+    case 'BLACKLISTED_PERMANENT':
+      return { uiState: 'blacklisted', reasonCode: code, message, isDecision: true, displayDate: data.displayDate || data.endDate };
+    default:
+      if (error.response.status === 409 || code === 'ACTIVE_LOAN_EXISTS') {
+         return { uiState: 'hard_block', reasonCode: 'ACTIVE_LOAN_EXISTS', message: "You already have an active loan. Please repay it to apply for another.", isDecision: true };
+      }
+      // If none matched, return null
+      return null;
+  }
+};
+
 // Helper to generate a unique request ID
 const generateId = () => Math.random().toString(36).substring(2, 15);
 // Helper to generate a UUID for idempotency
