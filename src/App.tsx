@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -79,12 +79,21 @@ const queryClient = new QueryClient({
   },
 });
 
+// Provides CsaAuthContext to all collections routes via a single shared instance
+function CsaProviderLayout() {
+  return (
+    <CsaAuthProvider>
+      <Outlet />
+    </CsaAuthProvider>
+  );
+}
+
 // CSA auth guard — redirects to /login if not authenticated
 function CsaGuard() {
   const { isAuthenticated, loading } = useCsaAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <CsaLayout />;
+  return <Outlet />;
 }
 
 // AdminRoute wrapper to guard admin-only pages
@@ -126,11 +135,11 @@ const App = () => {
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <Routes>
                   {subdomain === "collections" && (
-                    <Route element={<CsaAuthProvider><span /></CsaAuthProvider>}>
-                      <Route path="/login" element={<CsaAuthProvider><CsaLoginPage /></CsaAuthProvider>} />
-                      <Route path="/signup" element={<CsaAuthProvider><CsaSignupPage /></CsaAuthProvider>} />
-                      <Route element={<CsaAuthProvider><CsaGuard /></CsaAuthProvider>}>
-                        <Route element={<CsaAuthProvider><CsaLayout /></CsaAuthProvider>}>
+                    <Route element={<CsaProviderLayout />}>
+                      <Route path="/login" element={<CsaLoginPage />} />
+                      <Route path="/signup" element={<CsaSignupPage />} />
+                      <Route element={<CsaGuard />}>
+                        <Route element={<CsaLayout />}>
                           <Route path="/csa" element={<CsaDashboard />} />
                           <Route path="/csa/activity" element={<CsaActivityPage />} />
                           <Route path="/csa/templates" element={<CsaTemplatesPage />} />
