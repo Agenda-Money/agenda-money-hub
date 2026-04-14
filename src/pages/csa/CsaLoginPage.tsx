@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, PhoneCall, CircleAlert, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, PhoneCall, CircleAlert, Landmark } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,7 @@ export default function CsaLoginPage() {
         <div className="relative z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-white" />
+              <Landmark className="h-5 w-5 text-white" />
             </div>
             <span className="text-white font-extrabold text-lg">Agenda Money</span>
           </div>
@@ -85,7 +85,7 @@ export default function CsaLoginPage() {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-pink">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
+              <Landmark className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
               <p className="font-extrabold text-foreground">Agenda Money</p>
