@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, SlidersHorizontal, RefreshCw, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -38,12 +38,12 @@ export default function CsaDashboard() {
     queryFn: () => csaApi.get('/api/csa/collections/loans', {
       params: { bucket: activeBucket, page, limit: 18, search: search || undefined, network: network || undefined, region: region || undefined },
     }).then((r) => r.data),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
-  const buckets = bucketsData?.buckets ?? {};
-  const loans = loansData?.data ?? [];
-  const pagination = loansData?.pagination;
+  const buckets = (bucketsData as any)?.buckets ?? {};
+  const loans = (loansData as any)?.data ?? [];
+  const pagination = (loansData as any)?.pagination;
 
   const totalOverdue = BUCKET_ORDER.filter(b => b > 0).reduce((sum, b) => sum + (buckets[b]?.count ?? 0), 0);
   const totalOutstanding = BUCKET_ORDER.filter(b => b > 0).reduce((sum, b) => sum + (buckets[b]?.totalOutstanding ?? 0), 0);
@@ -63,9 +63,15 @@ export default function CsaDashboard() {
             <span className="font-semibold text-red-600">{totalOverdue.toLocaleString()}</span> overdue loans · <span className="font-semibold">{formatGHS(totalOutstanding)}</span> outstanding
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2 self-start" onClick={() => { refetchBuckets(); refetchLoans(); }}>
-          <RefreshCw className="h-3.5 w-3.5" />
-          Refresh
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="gap-2 self-start h-9 rounded-xl shadow-sm hover:bg-muted transition-all active:scale-95" 
+          onClick={() => { refetchBuckets(); refetchLoans(); }}
+          disabled={isFetching || bucketsLoading}
+        >
+          <RefreshCw className={cn("h-3.5 w-3.5 transition-transform", (isFetching || bucketsLoading) && "animate-spin")} />
+          {isFetching || bucketsLoading ? "Refreshing..." : "Refresh"}
         </Button>
       </div>
 

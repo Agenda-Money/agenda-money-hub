@@ -3,17 +3,9 @@ import { Outlet } from 'react-router-dom';
 import { CsaSidebar } from './CsaSidebar';
 import { CsaHeader } from './CsaHeader';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
-import csaApi from '@/lib/csaApi';
 
 export default function CsaLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const { data: stats } = useQuery({
-    queryKey: ['csa-me-stats'],
-    queryFn: () => csaApi.get('/api/csa/collections/stats/me').then((r) => r.data),
-    refetchInterval: 60_000,
-  });
 
   return (
     <div className="h-screen bg-background flex w-full overflow-hidden">
@@ -21,8 +13,6 @@ export default function CsaLayout() {
       <div className="flex-1 flex flex-col min-w-0 h-full">
         <CsaHeader
           onMenuClick={() => setSidebarOpen(!sidebarOpen)}
-          callsToday={stats?.today?.callsLogged ?? 0}
-          dailyTarget={stats?.dailyCallTarget ?? 30}
         />
         <motion.main
           initial={{ opacity: 0, y: 10 }}

@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone } from "lucide-react";
 import { AuthorizeAgentModal } from "@/components/agents/AuthorizeAgentModal";
+import { InviteCsaModal } from "@/components/csa/InviteCsaModal";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
@@ -224,6 +225,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
   const [isAuthorizeModalOpen, setIsAuthorizeModalOpen] = useState(false);
+  const [isInviteCsaModalOpen, setIsInviteCsaModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -350,6 +352,23 @@ export default function SettingsPage() {
                 )}
               </CardContent>
             </Card>
+
+            <Card className="mt-6 border-pink-500/20 bg-pink-50/50 dark:bg-pink-950/10">
+              <CardHeader>
+                <CardTitle className="text-pink-600 dark:text-pink-400">CSR Agent Support</CardTitle>
+                <CardDescription>
+                  Invite a new Customer Service Representative to help manage collections and outreach.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {canWrite && (
+                  <Button onClick={() => setIsInviteCsaModalOpen(true)} className="bg-pink-600 hover:bg-pink-700 text-white">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Invite CSR Agent
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="general" className="mt-4">
@@ -453,6 +472,10 @@ export default function SettingsPage() {
       <AuthorizeAgentModal 
         open={isAuthorizeModalOpen} 
         onOpenChange={setIsAuthorizeModalOpen}
+      />
+      <InviteCsaModal 
+        open={isInviteCsaModalOpen} 
+        onOpenChange={setIsInviteCsaModalOpen}
       />
     </DashboardLayout>
   );

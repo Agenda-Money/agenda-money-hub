@@ -40,7 +40,7 @@ export const getNetwork = (msisdn: string | number): NetworkType => {
     (intlPrefix && ['23327', '23357', '23326', '23356'].includes(intlPrefix))
   ) return 'AT';
   
-  return 'MTN'; // Default to MTN which is the most common
+  return 'Unknown';
 };
 
 export const getNetworkStyles = (network: NetworkType): NetworkStyles => {

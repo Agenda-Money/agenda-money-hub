@@ -61,7 +61,7 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
     mutationFn: (payload: any) =>
       csaApi.post(`/api/csa/collections/loans/${loanId}/activity`, payload),
     onSuccess: () => {
-      toast.success('Activity logged');
+      toast.success('Activity recorded successfully!');
       qc.invalidateQueries({ queryKey: ['csa-loans'] });
       qc.invalidateQueries({ queryKey: ['csa-loan-detail', loanId] });
       qc.invalidateQueries({ queryKey: ['csa-me-stats'] });
@@ -69,7 +69,7 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
       setPromisedAmount(''); setCallbackAt(''); setSendSms(false); setSmsTemplateKey('');
       setActiveTab('history');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to log activity'),
+    onError: (err: any) => toast.error('Could not record activity. Please try again.'),
   });
 
   const handleSubmit = () => {
@@ -83,7 +83,7 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
     });
   };
 
-  const loan = data;
+  const loan = data as any;
   const meta = loan?.ddBucket != null ? getBucketMeta(loan.ddBucket) : null;
   const templates = templateData?.templates ?? [];
 
@@ -178,7 +178,7 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                           {(loan?.user as any)?.region && (
                             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{(loan.user as any).region}</span>
                           )}
-                          <span className="flex items-center gap-1"><Wifi className="h-3 w-3" />{formatNetwork(loan?.network ?? '')}</span>
+                          <span className="flex items-center gap-1"><Wifi className="h-3 w-3" />{formatNetwork(loan?.network ?? '', loan?.userMsisdn)}</span>
                           {(loan?.user as any)?.address && (
                             <span className="col-span-2 flex items-center gap-1 truncate">{(loan.user as any).address}</span>
                           )}

@@ -86,9 +86,25 @@ export function getBucketMeta(bucket: number): BucketMeta {
 
 export const BUCKET_ORDER = [8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3];
 
-export function formatNetwork(network: string) {
+export function formatNetwork(network: string, msisdn?: string) {
+  // 1. If we have an MSISDN, use heuristic detection to verify/fallback
+  if (msisdn) {
+    const cleanNum = msisdn.replace(/\D/g, '');
+    const local = cleanNum.startsWith('0') ? cleanNum.slice(0, 3) : '';
+    const intl = cleanNum.startsWith('233') ? cleanNum.slice(0, 5) : '';
+
+    // Telecel detection
+    if (['020', '050'].includes(local) || ['23320', '23350'].includes(intl)) return 'Telecel';
+    // AT detection
+    if (['027', '057', '026', '056'].includes(local) || ['23327', '23357', '23326', '23356'].includes(intl)) return 'AirtelTigo';
+    // MTN detection
+    if (['024', '054', '055', '059', '025', '053'].includes(local) || ['23324', '23354', '23355', '23359', '23325', '23353'].includes(intl)) return 'MTN';
+  }
+
+  // 2. Fallback to provided network field
   if (network === 'VODAFONE') return 'Telecel';
   if (network === 'ARTLTIGO') return 'AirtelTigo';
+  if (network === 'UNKNOWN' || !network) return 'Unknown';
   return network;
 }
 

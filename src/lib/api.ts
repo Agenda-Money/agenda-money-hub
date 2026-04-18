@@ -21,9 +21,6 @@ if (!baseURL) {
   // Keep the warning; remove in production if you prefer silence.
   // eslint-disable-next-line no-console
   console.warn('VITE_API_URL is not set. API requests will be sent to the same origin.');
-} else {
-  // eslint-disable-next-line no-console
-  console.info('Using VITE_API_URL:', baseURL);
 }
 
 const api = axios.create({

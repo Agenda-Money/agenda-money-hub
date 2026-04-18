@@ -87,7 +87,7 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
             </span>
           )}
           <span className="flex items-center gap-1">
-            <Wifi className="h-3 w-3" />{formatNetwork(loan.network)}
+            <Wifi className="h-3 w-3" />{formatNetwork(loan.network, loan.userMsisdn)}
           </span>
           {loan.guarantorName && (
             <span className="flex items-center gap-1">
