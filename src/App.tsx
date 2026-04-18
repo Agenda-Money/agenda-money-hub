@@ -50,6 +50,7 @@ import CsaLoginPage from "./pages/csa/CsaLoginPage";
 import CsaSignupPage from "./pages/csa/CsaSignupPage";
 import CsaActivityPage from "./pages/csa/CsaActivityPage";
 import CsaTemplatesPage from "./pages/csa/CsaTemplatesPage";
+import { DevEligibilitySandbox } from "./pages/DevEligibilitySandbox";
 
 import { getSubdomain } from "@/lib/domain";
 
@@ -152,6 +153,9 @@ const App = () => {
 
                   {subdomain === "apply" && (
                     <>
+                      {import.meta.env.DEV && (
+                        <Route path="/dev-eligibility" element={<DevEligibilitySandbox />} />
+                      )}
                       <Route path="/" element={<ApplyPage />} />
                       <Route path="*" element={<ApplyPage />} />
                     </>
