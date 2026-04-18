@@ -359,6 +359,20 @@ function sanitizeMsisdnEntryInput(value: string): string {
     : digitsOnly.slice(0, 9);
 }
 
+function isValidGhanaLocalPhone(value: string | undefined): boolean {
+  const digitsOnly = sanitizeMsisdnEntryInput(value || "");
+  if (!digitsOnly) return false;
+  if (digitsOnly.length === 9) return true;
+  return digitsOnly.length === 10 && digitsOnly.startsWith("0");
+}
+
+function normalizeToGhanaE164(value: string | undefined): string {
+  const digitsOnly = sanitizeMsisdnEntryInput(value || "");
+  if (!isValidGhanaLocalPhone(digitsOnly)) return "";
+  const national = digitsOnly.length === 10 ? digitsOnly.slice(1) : digitsOnly;
+  return `+233${national}`;
+}
+
 /**
  * Normalizes a phone number to the format 233XXXXXXXXX
  * Handles three cases:
@@ -1020,6 +1034,24 @@ export default function ApplyPage() {
     return last === -1 ? ".jpg" : file.name.substring(last);
   }, []);
 
+  const base64ToJpegFile = useCallback(
+    (base64Data: string, fileName: string): File | null => {
+      try {
+        const cleaned = (base64Data || "").replace(/^data:image\/\w+;base64,/, "");
+        const binary = atob(cleaned);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        return new File([bytes], fileName, { type: "image/jpeg" });
+      } catch (error) {
+        console.error("Failed to convert liveness frame to file:", error);
+        return null;
+      }
+    },
+    [],
+  );
+
   const handleRequestOtp = async () => {
     setErrorMessage(null);
     // Removed nodeCode check per user request
@@ -1201,6 +1233,8 @@ export default function ApplyPage() {
           return "Provide a full address (at least 3 words).";
         if (!onboardingData.alternatePhone)
           return "Provide an alternate phone number.";
+        if (!isValidGhanaLocalPhone(onboardingData.alternatePhone))
+          return "Alternate phone must be 9 digits or 10 digits starting with 0.";
         return null;
       case 2:
         if (!onboardingData.accommodationType || !onboardingData.yearsAtAddress)
@@ -1384,7 +1418,7 @@ export default function ApplyPage() {
           gender: onboardingData.gender,
           region: onboardingData.region,
           address: onboardingData.address,
-          alternatePhone: normalizeMsisdn(onboardingData.alternatePhone),
+          alternatePhone: normalizeToGhanaE164(onboardingData.alternatePhone),
           accommodationType: onboardingData.accommodationType,
           yearsAtAddress: onboardingData.yearsAtAddress,
           educationLevel: onboardingData.educationLevel,
@@ -3196,6 +3230,7 @@ export default function ApplyPage() {
                         !onboardingData.region ||
                         !onboardingData.address ||
                         !onboardingData.alternatePhone ||
+                        !isValidGhanaLocalPhone(onboardingData.alternatePhone) ||
                         onboardingData.address?.trim().split(/\s+/).length < 3
                       }
                       className={cn(
@@ -3207,6 +3242,7 @@ export default function ApplyPage() {
                           onboardingData.region &&
                           onboardingData.address &&
                           onboardingData.alternatePhone &&
+                          isValidGhanaLocalPhone(onboardingData.alternatePhone) &&
                           onboardingData.address?.trim().split(/\s+/).length >=
                             3
                           ? "bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200"
@@ -3747,11 +3783,21 @@ export default function ApplyPage() {
                                     <LivenessCapture
                                       userId={normalizedMsisdn || "unknown"}
                                       mode="kyc"
-                                      onSuccess={(result) => {
-                                        setOnboardingData((prev) => ({
-                                          ...prev,
-                                          selfieUrl: result.capturedFrame,
-                                        }));
+                                      onSuccess={async (result) => {
+                                        const file = base64ToJpegFile(
+                                          result.capturedFrame,
+                                          `liveness-${Date.now()}.jpg`,
+                                        );
+
+                                        if (!file) {
+                                          setErrorMessage(
+                                            "Liveness captured but could not prepare image upload. Please try again.",
+                                          );
+                                          setShowLiveness(false);
+                                          return;
+                                        }
+
+                                        await handleUpload(file, "selfieUrl");
                                         setShowLiveness(false);
                                       }}
                                       onFailure={(reason) => {

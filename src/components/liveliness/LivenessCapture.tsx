@@ -16,7 +16,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface LivenessCaptureProps {
   userId: string;
@@ -57,53 +57,63 @@ interface ChallengeConfig {
   color: string;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const CHALLENGES: ChallengeConfig[] = [
   {
     key: "blink",
     label: "Blink",
-    instruction: "Slowly blink your eyes twice",
+    instruction: "Quick blink once — light blink is OK",
     icon: <Eye className="w-8 h-8" />,
     color: "#3B82F6",
   },
   {
     key: "headTurn",
     label: "Turn Head",
-    instruction: "Turn your head left, then right",
+    instruction: "Nod your face slightly left and right",
     icon: <ArrowLeftRight className="w-8 h-8" />,
     color: "#8B5CF6",
   },
   {
     key: "smile",
-    label: "Smile",
-    instruction: "Give us a big smile!",
+    label: "Lips",
+    instruction: "Slight lip movement is enough",
     icon: <Smile className="w-8 h-8" />,
     color: "#EC1B84",
   },
 ];
 
-const CHALLENGE_TIMEOUT = 8; // seconds
 const MAX_ATTEMPTS = 3;
 const MODELS_PATH = "/models";
-const DETECTION_INTERVAL_MS = 66; // ~15fps
+const DETECTION_INTERVAL_MS = 72;
 
-// EAR thresholds
-const EAR_BLINK_THRESHOLD = 0.21;
-const EAR_BLINK_CONSECUTIVE_FRAMES = 2;
-const BLINKS_REQUIRED = 2;
+// Blink: detect a dip in EAR from a recent “open” peak — catches partial / quick blinks.
+const BLINK_MIN_OPEN_EAR = 0.2; // need some baseline before we trust a dip
+const BLINK_DIP_FROM_PEAK = 0.07; // small drop counts (partial blink)
+const BLINK_RECOVER_WITHIN = 0.06; // recovered = back near peak → one blink
+const BLINK_WARMUP_FRAMES = 8;
+const BLINKS_REQUIRED = 1;
+/** Only update on-screen hints when EAR suggests eyes are open enough to read text */
+const EAR_FEEDBACK_VISIBLE_MIN = 0.26;
 
-// Head turn threshold — nose tip must deviate > 20% of box width
-const HEAD_TURN_THRESHOLD = 0.2;
+// Head: blend yaw (nose vs eye mid) + jaw metric; min/max range — order & mirror agnostic.
+const HEAD_SWING_THRESHOLD = 0.035; // each way from neutral — very small turn passes
+const HEAD_BLEND_YAW = 0.62;
+const HEAD_BLEND_JAW = 0.38;
 
-// Smile threshold — mouth width-to-height ratio
-const SMILE_RATIO_THRESHOLD = 2.8;
-const SMILE_SUSTAINED_FRAMES = 10;
+// Mouth: subtle movement vs short baseline (not a “big smile”).
+const MOUTH_BASELINE_FRAMES = 6;
+const MOUTH_DELTA_PASS = 0.0045;
+const MOUTH_NEAR_DELTA = 0.002;
+const MOUTH_SUSTAINED_FRAMES = 1;
+const MOUTH_EMA_ALPHA = 0.42;
 
-// Anti-fraud
-const FACE_DISAPPEAR_THRESHOLD_MS = 1500;
+// Anti-fraud (keep light — avoid failing real users)
+const FACE_DISAPPEAR_THRESHOLD_MS = 2200;
 
-// ─── Helper: generate UUID ────────────────────────────────────────────────────
+const FACE_MIN_CONFIDENCE = 0.38;
+
+// â”€â”€â”€ Helper: generate UUID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function generateUUID(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -113,7 +123,7 @@ function generateUUID(): string {
   });
 }
 
-// ─── Helper: Eye Aspect Ratio ─────────────────────────────────────────────────
+// â”€â”€â”€ Helper: Eye Aspect Ratio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // EAR = (||p2-p6|| + ||p3-p5||) / (2 * ||p1-p4||)
 // Landmark indices for left eye:  [36,37,38,39,40,41]
 // Landmark indices for right eye: [42,43,44,45,46,47]
@@ -144,31 +154,50 @@ function getEAR(landmarks: faceapi.FaceLandmarks68): number {
   return (leftEAR + rightEAR) / 2;
 }
 
-// ─── Helper: Nose tip deviation for head turn ────────────────────────────────
+// â”€â”€â”€ Helper: Nose tip deviation for head turn â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-function getNoseTipDeviation(
-  landmarks: faceapi.FaceLandmarks68,
-  box: faceapi.Box,
-): number {
-  // Nose tip is landmark index 30
-  const noseTip = landmarks.positions[30];
-  const boxCenterX = box.x + box.width / 2;
-  return (noseTip.x - boxCenterX) / box.width;
-}
-
-// ─── Helper: Mouth ratio for smile ───────────────────────────────────────────
-// Mouth corners: 48 (left), 54 (right)
-// Mouth top: 51, bottom: 57
-
-function getSmileRatio(landmarks: faceapi.FaceLandmarks68): number {
+function getNoseTipDeviation(landmarks: faceapi.FaceLandmarks68): number {
   const pts = landmarks.positions;
-  const mouthWidth = dist(pts[48], pts[54]);
-  const mouthHeight = dist(pts[51], pts[57]);
-  if (mouthHeight < 1) return 0;
-  return mouthWidth / mouthHeight;
+  const noseTip = pts[30];
+  const leftJaw = pts[2];
+  const rightJaw = pts[14];
+  const leftDistance = dist(noseTip, leftJaw);
+  const rightDistance = dist(noseTip, rightJaw);
+
+  if (leftDistance + rightDistance < 1) return 0;
+
+  return (leftDistance - rightDistance) / (leftDistance + rightDistance);
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+/** Nose vs midpoint of outer eye corners, normalized by inter-eye distance — good yaw proxy. */
+function getHeadYaw01(landmarks: faceapi.FaceLandmarks68): number {
+  const p = landmarks.positions;
+  const eyeL = p[36];
+  const eyeR = p[45];
+  const nose = p[30];
+  const eyeMidX = (eyeL.x + eyeR.x) / 2;
+  const faceW = Math.abs(eyeR.x - eyeL.x) || 1;
+  return (nose.x - eyeMidX) / faceW;
+}
+
+function getCombinedHeadTurnScore(landmarks: faceapi.FaceLandmarks68): number {
+  return (
+    HEAD_BLEND_YAW * getHeadYaw01(landmarks) +
+    HEAD_BLEND_JAW * getNoseTipDeviation(landmarks)
+  );
+}
+
+/** Lip / mouth motion (corners + vertical opening) — sensitive to subtle movement. */
+function getMouthMotionScore(landmarks: faceapi.FaceLandmarks68): number {
+  const p = landmarks.positions;
+  const eyeD = dist(p[36], p[45]);
+  if (eyeD < 1) return 0;
+  const cornerW = dist(p[48], p[54]);
+  const openH = dist(p[51], p[57]);
+  return (cornerW * 0.45 + openH * 1.25) / eyeD;
+}
+
+// â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ProgressBar({ current, total }: { current: number; total: number }) {
   return (
@@ -188,53 +217,6 @@ function ProgressBar({ current, total }: { current: number; total: number }) {
           animate={{ width: `${(current / total) * 100}%` }}
           transition={{ duration: 0.5, ease: "easeOut" }}
         />
-      </div>
-    </div>
-  );
-}
-
-function CountdownTimer({
-  seconds,
-  total,
-}: {
-  seconds: number;
-  total: number;
-}) {
-  const pct = (seconds / total) * 100;
-  const isUrgent = seconds <= 3;
-  return (
-    <div className="relative w-14 h-14">
-      <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-        <circle
-          cx="28"
-          cy="28"
-          r="24"
-          fill="none"
-          stroke="#F3F4F6"
-          strokeWidth="4"
-        />
-        <circle
-          cx="28"
-          cy="28"
-          r="24"
-          fill="none"
-          stroke={isUrgent ? "#EF4444" : "#EC1B84"}
-          strokeWidth="4"
-          strokeDasharray={`${2 * Math.PI * 24}`}
-          strokeDashoffset={`${2 * Math.PI * 24 * (1 - pct / 100)}`}
-          strokeLinecap="round"
-          className="transition-all duration-1000"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span
-          className={cn(
-            "text-lg font-black",
-            isUrgent ? "text-red-500" : "text-gray-800",
-          )}
-        >
-          {seconds}
-        </span>
       </div>
     </div>
   );
@@ -278,7 +260,7 @@ function ChallengeIcon({
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function LivenessCapture({
   userId,
@@ -289,43 +271,113 @@ export function LivenessCapture({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rafRef = useRef<number | null>(null);
   const stageRef = useRef<Stage>("loading");
 
   // Detection state refs (avoid stale closures in rAF loop)
   const blinkCountRef = useRef(0);
-  const earBelowThreshFrames = useRef(0);
-  const headTurnedLeftRef = useRef(false);
-  const headTurnedRightRef = useRef(false);
-  const smileFramesRef = useRef(0);
+  const blinkWarmupFramesRef = useRef(0);
+  const blinkMaxOpenEarRef = useRef(0);
+  const blinkInDipRef = useRef(false);
+  const blinkPeakAtDipRef = useRef(0);
+  const blinkStuckFramesRef = useRef(0);
+
+  const headScoreMinRef = useRef(Number.POSITIVE_INFINITY);
+  const headScoreMaxRef = useRef(Number.NEGATIVE_INFINITY);
+
+  const mouthMotionFramesRef = useRef(0);
+  const baselineMouthRef = useRef<number | null>(null);
+  const mouthBaselineSamplesRef = useRef<number[]>([]);
+  const mouthEmaRef = useRef<number | null>(null);
+  const advanceInFlightRef = useRef(false);
   const challengeIdxRef = useRef(0);
   const completedSetRef = useRef<Set<Challenge>>(new Set());
   const attemptCountRef = useRef(0);
   const faceDisappearRef = useRef<number | null>(null);
   const challengeStartTimeRef = useRef<number>(0);
   const tabHiddenRef = useRef(false);
+  const debugLogAtRef = useRef(0);
 
   const [stage, setStage] = useState<Stage>("loading");
   const [currentChallengeIdx, setCurrentChallengeIdx] = useState(0);
   const [completedChallenges, setCompletedChallenges] = useState<
     Set<Challenge>
   >(new Set());
-  const [countdown, setCountdown] = useState(CHALLENGE_TIMEOUT);
   const [attemptCount, setAttemptCount] = useState(0);
   const [sessionId] = useState(generateUUID());
   const [capturedFrame, setCapturedFrame] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [feedbackMessage, setFeedbackMessage] = useState<string>("");
+  const [headTurnProgress, setHeadTurnProgress] = useState(0);
   const [antiFraudFlags, setAntiFraudFlags] = useState<string[]>([]);
+  const headUiTickRef = useRef(0);
 
   const currentChallenge = CHALLENGES[currentChallengeIdx];
+
+  const debugGesture = useCallback((payload: Record<string, unknown>) => {
+    if (!import.meta.env.DEV) return;
+
+    const now = Date.now();
+    if (now - debugLogAtRef.current < 250) return;
+    debugLogAtRef.current = now;
+
+    console.log("[liveness-debug]", payload);
+  }, []);
+
+  useEffect(() => {
+    if (!currentChallenge) return;
+
+    debugGesture({
+      event: "challenge-enter",
+      challenge: currentChallenge.key,
+      challengeIndex: currentChallengeIdx,
+    });
+
+    if (currentChallenge.key === "blink") {
+      blinkCountRef.current = 0;
+      blinkWarmupFramesRef.current = 0;
+      blinkMaxOpenEarRef.current = 0;
+      blinkInDipRef.current = false;
+      blinkPeakAtDipRef.current = 0;
+      blinkStuckFramesRef.current = 0;
+    }
+
+    if (currentChallenge.key === "headTurn") {
+      headScoreMinRef.current = Number.POSITIVE_INFINITY;
+      headScoreMaxRef.current = Number.NEGATIVE_INFINITY;
+      setHeadTurnProgress(0);
+    }
+
+    if (currentChallenge.key === "smile") {
+      mouthMotionFramesRef.current = 0;
+      baselineMouthRef.current = null;
+      mouthBaselineSamplesRef.current = [];
+      mouthEmaRef.current = null;
+    }
+
+    if (currentChallenge.key === "blink") {
+      setFeedbackMessage(
+        "Look at the circle — blink once (a light blink is fine)",
+      );
+      return;
+    }
+
+    if (currentChallenge.key === "headTurn") {
+      setFeedbackMessage("Turn gently both ways — small movements count");
+      return;
+    }
+
+    if (currentChallenge.key === "smile") {
+      setFeedbackMessage("Hold neutral, then move your lips slightly");
+    }
+  }, [currentChallenge, currentChallengeIdx, debugGesture]);
 
   // Keep stageRef in sync
   useEffect(() => {
     stageRef.current = stage;
   }, [stage]);
 
-  // ─── Tab visibility tracking ──────────────────────────────────────────────
+  // â”€â”€â”€ Tab visibility tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -342,14 +394,13 @@ export function LivenessCapture({
       document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
-  // ─── Camera ───────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Camera â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
-    if (timerRef.current) clearInterval(timerRef.current);
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
   }, []);
 
@@ -357,13 +408,27 @@ export function LivenessCapture({
     return () => stopCamera();
   }, [stopCamera]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+
+    if (!video || !stream) return;
+
+    if (video.srcObject !== stream) {
+      video.srcObject = stream;
+    }
+
+    void video.play().catch(() => {
+      // The current stage may mount a fresh video element after permission was
+      // granted. Retry silence is fine here; the stream remains attached.
+    });
+  }, [stage]);
+
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: 640, height: 480 },
       });
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      console.log(devices);
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -388,7 +453,7 @@ export function LivenessCapture({
     }
   }, []);
 
-  // ─── Model loading ────────────────────────────────────────────────────────
+  // â”€â”€â”€ Model loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   useEffect(() => {
     const loadModels = async () => {
@@ -407,54 +472,9 @@ export function LivenessCapture({
     loadModels();
   }, []);
 
-  // ─── Challenge Timer ──────────────────────────────────────────────────────
+  // â”€â”€â”€ Challenge Timer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  const handleChallengeTimeout = useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    const newAttempt = attemptCountRef.current + 1;
-    attemptCountRef.current = newAttempt;
-    setAttemptCount(newAttempt);
-
-    if (newAttempt >= MAX_ATTEMPTS) {
-      stopCamera();
-      setStage("failure");
-      setErrorMessage(
-        "Maximum attempts reached. You'll be referred for manual review.",
-      );
-      onFailure("max_attempts_reached");
-    } else {
-      setErrorMessage(
-        `Time's up! ${MAX_ATTEMPTS - newAttempt} attempt${MAX_ATTEMPTS - newAttempt === 1 ? "" : "s"} remaining.`,
-      );
-      // Reset all challenge state
-      blinkCountRef.current = 0;
-      earBelowThreshFrames.current = 0;
-      headTurnedLeftRef.current = false;
-      headTurnedRightRef.current = false;
-      smileFramesRef.current = 0;
-      challengeIdxRef.current = 0;
-      completedSetRef.current = new Set();
-      setCompletedChallenges(new Set());
-      setCurrentChallengeIdx(0);
-      setCountdown(CHALLENGE_TIMEOUT);
-    }
-  }, [onFailure, stopCamera]);
-
-  const startChallengeTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setCountdown(CHALLENGE_TIMEOUT);
-    let remaining = CHALLENGE_TIMEOUT;
-    timerRef.current = setInterval(() => {
-      remaining -= 1;
-      setCountdown(remaining);
-      if (remaining <= 0) {
-        clearInterval(timerRef.current!);
-        handleChallengeTimeout();
-      }
-    }, 1000);
-  }, [handleChallengeTimeout]);
-
-  // ─── Capture Frame ────────────────────────────────────────────────────────
+  // â”€â”€â”€ Capture Frame â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const captureFrame = useCallback((): string => {
     if (!videoRef.current || !canvasRef.current) return "";
@@ -468,14 +488,17 @@ export function LivenessCapture({
     return canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
   }, []);
 
-  // ─── Challenge Advance ────────────────────────────────────────────────────
+  // â”€â”€â”€ Challenge Advance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const advanceChallenge = useCallback(() => {
+    if (advanceInFlightRef.current) return;
+    advanceInFlightRef.current = true;
+
     const challenge = CHALLENGES[challengeIdxRef.current].key;
 
-    // Anti-fraud: flag suspiciously fast completion
+    // Anti-fraud: only flag implausibly instant completes (still allow quick natural gestures)
     const elapsed = Date.now() - challengeStartTimeRef.current;
-    if (elapsed < 1000) {
+    if (elapsed < 350) {
       setAntiFraudFlags((prev) => [
         ...prev,
         `fast_completion_${challenge}_${elapsed}ms`,
@@ -488,8 +511,6 @@ export function LivenessCapture({
     setCompletedChallenges(new Set(newCompleted));
 
     if (newCompleted.size === CHALLENGES.length) {
-      // All done!
-      if (timerRef.current) clearInterval(timerRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       setStage("capture");
       const frame = captureFrame();
@@ -498,8 +519,6 @@ export function LivenessCapture({
 
       setTimeout(() => {
         setStage("submitting");
-        // TODO: replace with real API call when backend is ready
-        // POST /kyc/liveness/session then POST /kyc/liveness
         setTimeout(() => {
           setStage("success");
           onSuccess({
@@ -508,26 +527,43 @@ export function LivenessCapture({
             attemptCount: attemptCountRef.current,
             capturedFrame: frame,
           });
-        }, 1500);
-      }, 500);
+        }, 900);
+      }, 350);
     } else {
-      // Reset per-challenge counters
       blinkCountRef.current = 0;
-      earBelowThreshFrames.current = 0;
-      headTurnedLeftRef.current = false;
-      headTurnedRightRef.current = false;
-      smileFramesRef.current = 0;
+      blinkWarmupFramesRef.current = 0;
+      blinkMaxOpenEarRef.current = 0;
+      blinkInDipRef.current = false;
+      blinkPeakAtDipRef.current = 0;
+      blinkStuckFramesRef.current = 0;
+      headScoreMinRef.current = Number.POSITIVE_INFINITY;
+      headScoreMaxRef.current = Number.NEGATIVE_INFINITY;
+      mouthMotionFramesRef.current = 0;
+      baselineMouthRef.current = null;
+      mouthBaselineSamplesRef.current = [];
+      mouthEmaRef.current = null;
       challengeIdxRef.current += 1;
       setCurrentChallengeIdx(challengeIdxRef.current);
-      // Reset timer for next challenge
-      if (timerRef.current) clearInterval(timerRef.current);
-      setCountdown(CHALLENGE_TIMEOUT);
+      setHeadTurnProgress(0);
+      const nextChallenge = CHALLENGES[challengeIdxRef.current];
+      if (nextChallenge?.key === "blink") {
+        setFeedbackMessage(
+          "Look at the circle — blink once (a light blink is fine)",
+        );
+      } else if (nextChallenge?.key === "headTurn") {
+        setFeedbackMessage("Turn gently both ways — small movements count");
+      } else if (nextChallenge?.key === "smile") {
+        setFeedbackMessage("Hold neutral, then move your lips slightly");
+      }
       challengeStartTimeRef.current = Date.now();
-      startChallengeTimer();
     }
-  }, [captureFrame, stopCamera, onSuccess, sessionId, startChallengeTimer]);
 
-  // ─── Detection Loop ───────────────────────────────────────────────────────
+    queueMicrotask(() => {
+      advanceInFlightRef.current = false;
+    });
+  }, [captureFrame, stopCamera, onSuccess, sessionId]);
+
+  // â”€â”€â”€ Detection Loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const runDetectionLoop = useCallback(async () => {
     if (stageRef.current !== "challenge") return;
@@ -542,13 +578,14 @@ export function LivenessCapture({
       const detections = await faceapi
         .detectAllFaces(
           videoRef.current,
-          new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }),
+          new faceapi.SsdMobilenetv1Options({
+            minConfidence: FACE_MIN_CONFIDENCE,
+          }),
         )
         .withFaceLandmarks();
 
-      // ── Anti-fraud: multiple faces ────────────────────────────────────────
+      // â”€â”€ Anti-fraud: multiple faces â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (detections.length > 1) {
-        if (timerRef.current) clearInterval(timerRef.current);
         stopCamera();
         setStage("failure");
         setErrorMessage("Multiple faces detected. Session aborted.");
@@ -556,7 +593,7 @@ export function LivenessCapture({
         return;
       }
 
-      // ── Anti-fraud: face disappears ───────────────────────────────────────
+      // â”€â”€ Anti-fraud: face disappears â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (detections.length === 0) {
         if (!faceDisappearRef.current) {
           faceDisappearRef.current = Date.now();
@@ -577,53 +614,204 @@ export function LivenessCapture({
       }
 
       faceDisappearRef.current = null;
-      const { landmarks, detection } = detections[0];
-      const box = detection.box;
+      const { landmarks } = detections[0];
       const currentKey = CHALLENGES[challengeIdxRef.current].key;
 
-      // ── Blink detection ───────────────────────────────────────────────────
+      // â”€â”€ Blink: dip-from-peak (partial blinks count); text only when eyes likely open enough to read
       if (currentKey === "blink") {
         const ear = getEAR(landmarks);
-        if (ear < EAR_BLINK_THRESHOLD) {
-          earBelowThreshFrames.current += 1;
-        } else {
-          if (earBelowThreshFrames.current >= EAR_BLINK_CONSECUTIVE_FRAMES) {
-            blinkCountRef.current += 1;
+
+        if (blinkInDipRef.current) {
+          blinkStuckFramesRef.current += 1;
+          if (blinkStuckFramesRef.current > 48) {
+            blinkInDipRef.current = false;
+            blinkStuckFramesRef.current = 0;
+            blinkPeakAtDipRef.current = 0;
           }
-          earBelowThreshFrames.current = 0;
+        } else {
+          blinkStuckFramesRef.current = 0;
         }
+
+        if (blinkWarmupFramesRef.current < BLINK_WARMUP_FRAMES) {
+          blinkWarmupFramesRef.current += 1;
+          blinkMaxOpenEarRef.current = Math.max(
+            blinkMaxOpenEarRef.current,
+            ear,
+          );
+        } else if (!blinkInDipRef.current) {
+          blinkMaxOpenEarRef.current = Math.max(
+            blinkMaxOpenEarRef.current,
+            ear,
+          );
+          if (
+            blinkMaxOpenEarRef.current >= BLINK_MIN_OPEN_EAR &&
+            blinkMaxOpenEarRef.current - ear >= BLINK_DIP_FROM_PEAK
+          ) {
+            blinkInDipRef.current = true;
+            blinkPeakAtDipRef.current = blinkMaxOpenEarRef.current;
+          }
+        } else if (ear >= blinkPeakAtDipRef.current - BLINK_RECOVER_WITHIN) {
+          blinkCountRef.current += 1;
+          blinkInDipRef.current = false;
+          blinkPeakAtDipRef.current = 0;
+          blinkMaxOpenEarRef.current = ear;
+          blinkStuckFramesRef.current = 0;
+        }
+
+        debugGesture({
+          challenge: "blink",
+          ear: Number(ear.toFixed(4)),
+          blinkCount: blinkCountRef.current,
+          inDip: blinkInDipRef.current,
+          peakAtDip: Number(blinkPeakAtDipRef.current.toFixed(4)),
+          maxOpen: Number(blinkMaxOpenEarRef.current.toFixed(4)),
+        });
+
+        if (ear >= EAR_FEEDBACK_VISIBLE_MIN) {
+          if (blinkCountRef.current >= BLINKS_REQUIRED) {
+            setFeedbackMessage("Got it");
+          } else if (!blinkInDipRef.current) {
+            setFeedbackMessage("Light blink once — a small flicker is enough");
+          }
+        }
+
         if (blinkCountRef.current >= BLINKS_REQUIRED) {
           advanceChallenge();
+          setTimeout(() => {
+            if (stageRef.current === "challenge") {
+              rafRef.current = requestAnimationFrame(
+                runDetectionLoop,
+              ) as unknown as number;
+            }
+          }, 250);
           return;
         }
       }
 
-      // ── Head turn detection ───────────────────────────────────────────────
+      // â”€â”€ Head: track min/max blend score — both directions required; mirror / order independent
       if (currentKey === "headTurn") {
-        const deviation = getNoseTipDeviation(landmarks, box);
-        if (deviation < -HEAD_TURN_THRESHOLD) headTurnedLeftRef.current = true;
-        if (deviation > HEAD_TURN_THRESHOLD) headTurnedRightRef.current = true;
-        if (headTurnedLeftRef.current && headTurnedRightRef.current) {
+        const score = getCombinedHeadTurnScore(landmarks);
+        headScoreMinRef.current = Math.min(headScoreMinRef.current, score);
+        headScoreMaxRef.current = Math.max(headScoreMaxRef.current, score);
+
+        const need = HEAD_SWING_THRESHOLD;
+        const gotLeft = headScoreMinRef.current <= -need;
+        const gotRight = headScoreMaxRef.current >= need;
+
+        headUiTickRef.current += 1;
+        if (headUiTickRef.current % 3 === 0) {
+          const lProg = gotLeft
+            ? 1
+            : Math.min(
+                1,
+                Math.abs(Math.min(0, headScoreMinRef.current)) / need,
+              );
+          const rProg = gotRight
+            ? 1
+            : Math.min(1, Math.max(0, headScoreMaxRef.current) / need);
+          setHeadTurnProgress(Math.round(((lProg + rProg) / 2) * 100));
+        }
+
+        debugGesture({
+          challenge: "headTurn",
+          score: Number(score.toFixed(4)),
+          min: Number(headScoreMinRef.current.toFixed(4)),
+          max: Number(headScoreMaxRef.current.toFixed(4)),
+          need,
+          gotLeft,
+          gotRight,
+        });
+
+        if (gotLeft && !gotRight) {
+          setFeedbackMessage("Good — now tilt a little the other way");
+        } else if (!gotLeft && gotRight) {
+          setFeedbackMessage("Good — now tilt a little the other way");
+        } else if (!gotLeft && !gotRight) {
+          setFeedbackMessage("Turn gently — the bar shows if we see movement");
+        }
+
+        if (gotLeft && gotRight) {
           advanceChallenge();
+          setTimeout(() => {
+            if (stageRef.current === "challenge") {
+              rafRef.current = requestAnimationFrame(
+                runDetectionLoop,
+              ) as unknown as number;
+            }
+          }, 250);
           return;
         }
       }
 
-      // ── Smile detection ───────────────────────────────────────────────────
+      // â”€â”€ Lips / mouth: subtle movement vs neutral baseline
       if (currentKey === "smile") {
-        const ratio = getSmileRatio(landmarks);
-        if (ratio > SMILE_RATIO_THRESHOLD) {
-          smileFramesRef.current += 1;
-        } else {
-          smileFramesRef.current = 0;
+        const raw = getMouthMotionScore(landmarks);
+        const prev = mouthEmaRef.current;
+        const smoothed =
+          prev === null
+            ? raw
+            : prev * (1 - MOUTH_EMA_ALPHA) + raw * MOUTH_EMA_ALPHA;
+        mouthEmaRef.current = smoothed;
+
+        if (baselineMouthRef.current === null) {
+          mouthBaselineSamplesRef.current.push(smoothed);
+          debugGesture({
+            challenge: "mouth",
+            phase: "baseline",
+            score: Number(smoothed.toFixed(4)),
+            samples: mouthBaselineSamplesRef.current.length,
+          });
+
+          if (mouthBaselineSamplesRef.current.length < MOUTH_BASELINE_FRAMES) {
+            setFeedbackMessage("Hold a neutral face…");
+          } else {
+            const samples = mouthBaselineSamplesRef.current;
+            baselineMouthRef.current =
+              samples.reduce((a, b) => a + b, 0) / samples.length;
+            setFeedbackMessage("Now slightly move your lips");
+          }
         }
-        if (smileFramesRef.current >= SMILE_SUSTAINED_FRAMES) {
-          advanceChallenge();
-          return;
+
+        const baseline = baselineMouthRef.current;
+        if (baseline !== null) {
+          const delta = smoothed - baseline;
+          debugGesture({
+            challenge: "mouth",
+            phase: "live",
+            smoothed: Number(smoothed.toFixed(4)),
+            baseline: Number(baseline.toFixed(4)),
+            delta: Number(delta.toFixed(4)),
+            frames: mouthMotionFramesRef.current,
+          });
+
+          if (delta > MOUTH_DELTA_PASS) {
+            mouthMotionFramesRef.current += 1;
+            setFeedbackMessage("Got it");
+          } else if (delta > MOUTH_NEAR_DELTA) {
+            setFeedbackMessage("Tiny bit more");
+          } else {
+            mouthMotionFramesRef.current = Math.max(
+              0,
+              mouthMotionFramesRef.current - 1,
+            );
+            setFeedbackMessage("Small lip movement — purse, smile, or relax");
+          }
+
+          if (mouthMotionFramesRef.current >= MOUTH_SUSTAINED_FRAMES) {
+            advanceChallenge();
+            setTimeout(() => {
+              if (stageRef.current === "challenge") {
+                rafRef.current = requestAnimationFrame(
+                  runDetectionLoop,
+                ) as unknown as number;
+              }
+            }, 250);
+            return;
+          }
         }
       }
     } catch (e) {
-      // Detection error — just skip this frame
+      // Detection error — skip this frame
     }
 
     if (stageRef.current === "challenge") {
@@ -633,30 +821,46 @@ export function LivenessCapture({
         ) as unknown as number;
       }, DETECTION_INTERVAL_MS);
     }
-  }, [advanceChallenge, onFailure, stopCamera]);
+  }, [advanceChallenge, debugGesture, onFailure, stopCamera]);
 
-  // ─── Start challenges ─────────────────────────────────────────────────────
+  // â”€â”€â”€ Start challenges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const startChallenges = useCallback(() => {
+    advanceInFlightRef.current = false;
+    blinkCountRef.current = 0;
+    blinkWarmupFramesRef.current = 0;
+    blinkMaxOpenEarRef.current = 0;
+    blinkInDipRef.current = false;
+    blinkPeakAtDipRef.current = 0;
+    blinkStuckFramesRef.current = 0;
+    headScoreMinRef.current = Number.POSITIVE_INFINITY;
+    headScoreMaxRef.current = Number.NEGATIVE_INFINITY;
+    mouthMotionFramesRef.current = 0;
+    baselineMouthRef.current = null;
+    mouthBaselineSamplesRef.current = [];
+    mouthEmaRef.current = null;
+    challengeIdxRef.current = 0;
+    setHeadTurnProgress(0);
+    completedSetRef.current = new Set();
+    setCompletedChallenges(new Set());
+    setCurrentChallengeIdx(0);
     setStage("challenge");
     stageRef.current = "challenge";
     challengeStartTimeRef.current = Date.now();
-    startChallengeTimer();
-    // Small delay to let stage update propagate before starting detection
     setTimeout(() => {
       rafRef.current = requestAnimationFrame(
         runDetectionLoop,
       ) as unknown as number;
-    }, 100);
-  }, [startChallengeTimer, runDetectionLoop]);
+    }, 180);
+  }, [runDetectionLoop]);
 
-  // ─── DEV: Manual challenge completion ────────────────────────────────────
+  // â”€â”€â”€ DEV: Manual challenge completion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const devCompleteChallenge = useCallback(() => {
     advanceChallenge();
   }, [advanceChallenge]);
 
-  // ─── Render: Loading ──────────────────────────────────────────────────────
+  // â”€â”€â”€ Render: Loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   if (stage === "loading") {
     return (
@@ -673,7 +877,7 @@ export function LivenessCapture({
     );
   }
 
-  // ─── Render: Permission Request ───────────────────────────────────────────
+  // â”€â”€â”€ Render: Permission Request â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   if (stage === "permission") {
     return (
@@ -723,7 +927,7 @@ export function LivenessCapture({
     );
   }
 
-  // ─── Render: Permission Denied ────────────────────────────────────────────
+  // â”€â”€â”€ Render: Permission Denied â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   if (stage === "permission-denied") {
     return (
@@ -754,7 +958,7 @@ export function LivenessCapture({
     );
   }
 
-  // ─── Render: Pre-check ────────────────────────────────────────────────────
+  // â”€â”€â”€ Render: Pre-check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   if (stage === "precheck") {
     return (
@@ -816,216 +1020,272 @@ export function LivenessCapture({
     );
   }
 
-  // ─── Render: Challenge ────────────────────────────────────────────────────
+  // â”€â”€â”€ Render: Challenge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   if (stage === "challenge") {
+    const currentStep = currentChallengeIdx + 1;
+
     return (
-      <div className="space-y-4">
-        <ProgressBar
-          current={completedChallenges.size + 1}
-          total={CHALLENGES.length}
-        />
-
-        <div className="flex items-center justify-between px-2">
-          {CHALLENGES.map((c, i) => (
-            <div key={c.key} className="flex flex-col items-center gap-1">
-              <ChallengeIcon
-                challenge={c}
-                isActive={i === currentChallengeIdx}
-                isComplete={completedChallenges.has(c.key)}
-              />
-              <span
-                className={cn(
-                  "text-[10px] font-bold",
-                  i === currentChallengeIdx
-                    ? "text-gray-900"
-                    : completedChallenges.has(c.key)
-                      ? "text-green-600"
-                      : "text-gray-400",
-                )}
-              >
-                {c.label}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Video Feed */}
-        <div className="relative rounded-3xl overflow-hidden bg-gray-900 aspect-[3/4]">
+      <div className="relative min-h-[78vh] overflow-hidden rounded-[36px] bg-black text-white shadow-2xl shadow-black/30">
+        <div className="absolute inset-0">
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover scale-x-[-1]"
+            className="h-full w-full object-cover scale-x-[-1]"
           />
-
-          {/* Face guide overlay */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-48 h-60 rounded-full border-4 border-white/60 border-dashed" />
-          </div>
-
-          {/* Challenge overlay */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentChallengeIdx}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute bottom-4 left-4 right-4"
-            >
-              <div
-                className="rounded-2xl p-4 text-white flex items-center gap-3"
-                style={{
-                  backgroundColor: `${currentChallenge.color}CC`,
-                  backdropFilter: "blur(8px)",
-                }}
-              >
-                <div className="shrink-0">{currentChallenge.icon}</div>
-                <div className="flex-1">
-                  <p className="font-black text-sm">{currentChallenge.label}</p>
-                  <p className="text-xs opacity-90">
-                    {currentChallenge.instruction}
-                  </p>
-                </div>
-                <CountdownTimer seconds={countdown} total={CHALLENGE_TIMEOUT} />
-              </div>
-            </motion.div>
-          </AnimatePresence>
-
-          {attemptCount > 0 && (
-            <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1">
-              <p className="text-white text-xs font-bold">
-                Attempt {attemptCount + 1}/{MAX_ATTEMPTS}
-              </p>
-            </div>
-          )}
+          <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/75 via-black/35 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
         </div>
 
-        <canvas ref={canvasRef} className="hidden" />
-
-        <AnimatePresence>
-          {errorMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl"
-            >
-              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-              <p className="text-sm text-amber-700 font-medium">
-                {errorMessage}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {mode === "agent-onboarding" && (
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3">
-            <p className="text-xs font-bold text-blue-700 mb-2 uppercase tracking-wider">
-              Agent Panel
-            </p>
-            <div className="flex gap-2">
-              {CHALLENGES.map((c) => (
-                <div
-                  key={c.key}
-                  className={cn(
-                    "flex-1 py-1.5 rounded-lg text-center text-[10px] font-bold",
-                    completedChallenges.has(c.key)
-                      ? "bg-green-100 text-green-700"
-                      : c.key === currentChallenge.key
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-white text-gray-400",
-                  )}
-                >
-                  {completedChallenges.has(c.key) ? "✓ " : ""}
-                  {c.label}
+        <div className="relative z-10 flex min-h-[78vh] flex-col px-5 pb-6 pt-6 sm:px-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-white/70 backdrop-blur-md">
+                Step {currentStep} of {CHALLENGES.length}
+              </div>
+              {attemptCount > 0 && (
+                <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/70 backdrop-blur-md">
+                  Attempt {attemptCount + 1}/{MAX_ATTEMPTS}
                 </div>
-              ))}
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              {CHALLENGES.map((c, i) => {
+                const isActive = i === currentChallengeIdx;
+                const isComplete = completedChallenges.has(c.key);
+
+                return (
+                  <div
+                    key={c.key}
+                    className={cn(
+                      "h-1.5 flex-1 rounded-full transition-all duration-300",
+                      isComplete
+                        ? "bg-[#EC1B84]"
+                        : isActive
+                          ? "bg-white"
+                          : "bg-white/20",
+                    )}
+                  />
+                );
+              })}
+            </div>
+
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentChallengeIdx}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mx-auto max-w-xs text-center"
+              >
+                <p className="text-xs font-bold uppercase tracking-[0.26em] text-[#EC1B84]">
+                  {currentChallenge.label}
+                </p>
+                <h3 className="mt-2 text-2xl font-bold tracking-tight text-white">
+                  {currentChallenge.instruction}
+                </h3>
+                <p className="mt-2 text-sm font-medium text-white/65">
+                  Keep your face inside the oval while we verify this step.
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          <div className="flex flex-1 items-center justify-center py-8">
+            <div className="relative flex w-full items-center justify-center">
+              <div
+                className="pointer-events-none relative h-[380px] w-[255px] max-h-[52vh] max-w-[72vw] rounded-[999px] border-[5px] border-white/95"
+                style={{
+                  boxShadow:
+                    "0 0 0 999px rgba(0,0,0,0.46), 0 0 0 18px rgba(255,255,255,0.08), 0 0 60px rgba(0,0,0,0.35)",
+                }}
+              >
+                <div className="absolute inset-[10px] rounded-[999px] border border-white/15" />
+                <motion.div
+                  className="absolute -inset-[8px] rounded-[999px] border-[3px] border-[#EC1B84]/85"
+                  animate={{
+                    opacity: [0.35, 1, 0.35],
+                    scale: [0.99, 1.01, 0.99],
+                  }}
+                  transition={{
+                    duration: 2.2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+              </div>
             </div>
           </div>
-        )}
 
-        {/* DEV ONLY */}
-        {import.meta.env.DEV && (
-          <Button
-            onClick={devCompleteChallenge}
-            variant="outline"
-            className="w-full h-10 rounded-full text-sm font-bold border-dashed"
-          >
-            [DEV] Complete "{currentChallenge.label}" Challenge
-          </Button>
-        )}
+          <div className="space-y-4">
+            <div className="mx-auto w-full max-w-xs rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-center backdrop-blur-xl">
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#EC1B84]">
+                Live feedback
+              </p>
+              <p className="mt-1 text-sm font-medium text-white/90">
+                {feedbackMessage || "Follow the instruction to begin"}
+              </p>
+              {currentChallenge?.key === "headTurn" && (
+                <div className="mt-3 space-y-1.5 text-left">
+                  <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
+                    <span>Movement detected</span>
+                    <span>{headTurnProgress}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-white/12">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-violet-400 to-[#EC1B84] transition-[width] duration-200 ease-out"
+                      style={{ width: `${headTurnProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <AnimatePresence>
+              {errorMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="mx-auto flex w-full max-w-xs items-center gap-2 rounded-2xl border border-amber-400/25 bg-amber-500/15 p-3 text-left backdrop-blur-xl"
+                >
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" />
+                  <p className="text-sm font-medium text-amber-50">
+                    {errorMessage}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {mode === "agent-onboarding" && (
+              <div className="mx-auto w-full max-w-xs rounded-2xl border border-sky-400/20 bg-sky-500/10 p-3 backdrop-blur-xl">
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-200">
+                  Agent note
+                </p>
+                <p className="mt-1 text-sm font-medium text-sky-50/90">
+                  Guide the customer to stay centered and complete each prompt
+                  in order.
+                </p>
+              </div>
+            )}
+
+            {import.meta.env.DEV && (
+              <div className="mx-auto w-full max-w-xs">
+                <Button
+                  onClick={devCompleteChallenge}
+                  variant="outline"
+                  className="h-10 w-full rounded-full border-white/20 bg-white/10 text-sm font-bold text-white hover:bg-white/20 hover:text-white"
+                >
+                  [DEV] Complete "{currentChallenge.label}" Challenge
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <canvas ref={canvasRef} className="hidden" />
+        </div>
       </div>
     );
   }
-
-  // ─── Render: Submitting ───────────────────────────────────────────────────
 
   if (stage === "submitting") {
     return (
-      <div className="flex flex-col items-center justify-center py-12 space-y-4">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-          className="w-12 h-12 rounded-full border-4 border-[#EC1B84]/20 border-t-[#EC1B84]"
-        />
-        <p className="text-sm font-medium text-gray-500">
-          Submitting verification...
-        </p>
+      <div className="relative min-h-[78vh] overflow-hidden rounded-[36px] bg-black text-white shadow-2xl shadow-black/30">
+        {capturedFrame && (
+          <img
+            src={`data:image/jpeg;base64,${capturedFrame}`}
+            alt="Captured frame"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+        <div className="absolute inset-0 bg-black/65" />
+        <div className="relative z-10 flex min-h-[78vh] flex-col items-center justify-center px-6 text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+            className="mb-6 h-16 w-16 rounded-full border-4 border-[#EC1B84]/25 border-t-[#EC1B84]"
+          />
+          <p className="text-xs font-bold uppercase tracking-[0.26em] text-[#EC1B84]">
+            Finalizing
+          </p>
+          <h3 className="mt-3 text-3xl font-bold tracking-tight text-white">
+            Hold steady for a moment
+          </h3>
+          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-white/70">
+            We’re securing your liveness verification and preparing the result.
+          </p>
+        </div>
       </div>
     );
   }
 
-  // ─── Render: Success ──────────────────────────────────────────────────────
-
   if (stage === "success") {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex flex-col items-center justify-center py-12 space-y-4 text-center"
-      >
+      <div className="relative min-h-[78vh] overflow-hidden rounded-[36px] bg-black text-white shadow-2xl shadow-black/30">
+        {capturedFrame && (
+          <img
+            src={`data:image/jpeg;base64,${capturedFrame}`}
+            alt="Captured frame"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/60 to-black/75" />
         <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 200, damping: 15 }}
-          className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative z-10 flex min-h-[78vh] flex-col items-center justify-center px-6 text-center"
         >
-          <ShieldCheck className="w-10 h-10 text-green-500" />
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15 }}
+            className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#EC1B84]/18 ring-1 ring-[#EC1B84]/35 backdrop-blur-xl"
+          >
+            <ShieldCheck className="h-10 w-10 text-[#EC1B84]" />
+          </motion.div>
+          <p className="text-xs font-bold uppercase tracking-[0.26em] text-[#EC1B84]">
+            Verified
+          </p>
+          <h3 className="mt-3 text-3xl font-bold tracking-tight text-white">
+            Liveness confirmed
+          </h3>
+          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-white/70">
+            Your identity check is complete. We’ll return you to the form now.
+          </p>
         </motion.div>
-        <h3 className="text-xl font-bold text-gray-900">
-          Liveness Verified! 🎉
-        </h3>
-        <p className="text-sm text-gray-500">
-          Your identity has been successfully confirmed.
-        </p>
-      </motion.div>
+      </div>
     );
   }
 
-  // ─── Render: Failure ──────────────────────────────────────────────────────
-
   if (stage === "failure") {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center py-12 space-y-4 text-center"
-      >
-        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center">
-          <XCircle className="w-10 h-10 text-red-500" />
-        </div>
-        <div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
-            Verification Failed
+      <div className="relative min-h-[78vh] overflow-hidden rounded-[36px] bg-black text-white shadow-2xl shadow-black/30">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/75 to-black/85" />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 flex min-h-[78vh] flex-col items-center justify-center px-6 text-center"
+        >
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-500/12 ring-1 ring-red-400/20 backdrop-blur-xl">
+            <XCircle className="h-10 w-10 text-red-300" />
+          </div>
+          <p className="text-xs font-bold uppercase tracking-[0.26em] text-red-300">
+            Verification failed
+          </p>
+          <h3 className="mt-3 text-3xl font-bold tracking-tight text-white">
+            We couldn’t complete the capture
           </h3>
-          <p className="text-sm text-gray-500 px-4">{errorMessage}</p>
-        </div>
-        <p className="text-xs text-gray-400">
-          Your application has been flagged for manual review.
-        </p>
-      </motion.div>
+          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-white/70">
+            {errorMessage}
+          </p>
+          <p className="mt-5 text-xs font-medium uppercase tracking-[0.18em] text-white/45">
+            Your application may be flagged for manual review
+          </p>
+        </motion.div>
+      </div>
     );
   }
 
