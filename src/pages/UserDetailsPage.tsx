@@ -13,12 +13,12 @@ import {
   Hash, 
   Shield, 
   Clock, 
-  Smartphone, 
-  Info,
   AlertCircle,
   CheckCircle2,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  X,
+  ShieldAlert
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { 
@@ -39,6 +39,15 @@ import { EditUserSheet } from "@/components/user/EditUserSheet"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SecureKycImage } from "@/components/common/SecureKycImage"
+
+// Helper to format dates to DD/MM/YYYY
+const formatDate = (dateInput: any) => {
+  if (!dateInput) return "N/A";
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return "N/A";
+  return date.toLocaleDateString('en-GB'); // Uses DD/MM/YYYY format
+};
 
 // ─── UI Components (Local) ──────────────────────────────────────────────────
 const Pill = ({ color = 'gray', children, className = '' }: any) => {
@@ -97,28 +106,49 @@ const DetailItem = ({ label, value, icon: Icon }: any) => (
   </div>
 )
 
-const KYCDoc = ({ label, url }: any) => (
-  <div className="group relative aspect-[1.6/1] rounded-2xl overflow-hidden border-2 border-pink-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 cursor-zoom-in">
-    {url ? (
-      <img src={url} alt={label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-    ) : (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-        <span className="text-[10px] font-black uppercase tracking-widest text-center px-4">{label} Missing</span>
-      </div>
-    )}
-    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-      <span className="text-white text-xs font-black uppercase tracking-widest">Click to enlarge</span>
-    </div>
-    <div className="absolute top-3 left-3 px-2 py-1 bg-white/90 dark:bg-gray-900/90 backdrop-blur rounded-lg shadow-sm border border-white/20">
-      <p className="text-[8px] font-black uppercase tracking-[0.15em] text-pink-600">{label}</p>
-    </div>
-  </div>
-)
+const KYCDoc = ({ label, type, imageUrl }: any) => {
+  const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+  
+  return (
+    <>
+      <SecureKycImage 
+        imageUrl={imageUrl}
+        imageType={type}
+        label={label}
+        className="w-full h-full"
+        onExpand={setZoomUrl}
+      />
+
+      <Dialog open={!!zoomUrl} onOpenChange={() => setZoomUrl(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden bg-black/95 border-none rounded-[2rem]">
+          <DialogHeader className="absolute top-4 right-4 z-50">
+            <Button variant="outline" size="icon" className="rounded-full bg-white/10 border-white/10 hover:bg-white/20 text-white" onClick={() => setZoomUrl(null)}>
+              <span className="text-lg">×</span>
+            </Button>
+          </DialogHeader>
+          <div className="w-full h-full flex items-center justify-center p-4">
+            {zoomUrl && (
+              <img 
+                src={zoomUrl} 
+                alt={label} 
+                className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" 
+              />
+            )}
+          </div>
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/10">
+            <p className="text-white text-xs font-black uppercase tracking-[0.2em]">{label}</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
 
 const FlagBanner = ({ flag, id, onDeleted }: any) => {
   if (!flag) return null
   const isHigh = flag.level === 'high'
+  const formattedDate = flag.createdAt ? formatDate(flag.createdAt) : formatDate(new Date());
+
   return (
     <div className={`px-5 py-4 mb-6 rounded-2xl border flex items-start justify-between gap-4 font-sans animate-fade-in shadow-sm
       ${isHigh
@@ -126,24 +156,20 @@ const FlagBanner = ({ flag, id, onDeleted }: any) => {
         : 'border-amber-200 bg-amber-50 text-amber-900 dark:bg-amber-900/10 dark:border-amber-800'}`}>
       <div className="flex gap-3 items-start">
         <div className={`p-2 rounded-xl scale-90 ${isHigh ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2.5 13.5V2.5H9.5M9.5 2.5L10 4.5H13.5V9.5H8.5L8 7.5H2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <ShieldAlert size={20} />
         </div>
         <div>
           <p className={`text-[10px] font-black uppercase tracking-widest ${isHigh ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'}`}>
-            {flag.level.charAt(0).toUpperCase() + flag.level.slice(1)} severity flag active
+            {flag.level.toUpperCase()} severity flag active · {formattedDate} {flag.adminName ? `· By ${flag.adminName}` : ''}
           </p>
           <p className="text-xs font-bold text-gray-600 dark:text-gray-400 mt-1 max-w-xl leading-relaxed">
             {flag.reason}
           </p>
-          <div className="flex items-center gap-4 mt-2">
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono">
-               By {flag.adminName || 'System'} · {new Date(flag.createdAt).toLocaleDateString()}
-            </p>
-            <button onClick={() => onDeleted(flag._id)} className="text-[10px] font-black text-red-600 hover:underline uppercase tracking-widest">Remove Flag</button>
-          </div>
         </div>
       </div>
-      <Pill color={isHigh ? 'red' : 'amber'}>{flag.level.toUpperCase()}</Pill>
+      <button onClick={() => onDeleted(flag._id)} className="p-2 hover:bg-black/5 rounded-lg transition-colors group">
+         <X size={16} className="text-gray-400 group-hover:text-gray-600 transition-colors" />
+      </button>
     </div>
   )
 }
@@ -222,7 +248,7 @@ const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onRemoveFlag, canWrite }
           </div>
           <div className="flex flex-col items-center md:items-start">
             <div className="flex items-center gap-3 flex-wrap justify-center md:justify-start mb-2">
-              <h1 className="text-3xl font-black text-gray-900 dark:text-gray-100 tracking-tight italic">{user.fullName}</h1>
+              <h1 className="text-3xl font-black text-gray-900 dark:text-gray-100 tracking-tight">{user.fullName}</h1>
               <Pill color="blue">L{user.currentTier || 1}</Pill>
               {user.kycStatus === 'VERIFIED' && <Pill color="teal">Verified</Pill>}
               <Pill color="brand" className="font-mono">{user.personalNodeCode || user.nodeCode}</Pill>
@@ -230,7 +256,7 @@ const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onRemoveFlag, canWrite }
             <div className="flex gap-4 flex-wrap justify-center md:justify-start text-[13px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide">
               <span className="font-mono tracking-normal text-gray-900 dark:text-gray-100">{user.msisdn}</span>
               <span className="hidden md:inline opacity-30">·</span>
-              <span>Joined {new Date(user.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              <span>Joined {formatDate(user.createdAt)}</span>
             </div>
              <div className="mt-2">
               {user.referredByNodeCode && (
@@ -323,6 +349,13 @@ export default function UserDetailsPage() {
     </DashboardLayout>
   )
 
+  // Robust Identity Resolution - SAFE HERE after data guards
+  const resolvedIdentity = {
+    momoName: user.kyc?.momoName || loanHistory?.find((l: any) => l.momoResolvedName)?.momoResolvedName || 'N/A',
+    ghanaCardName: user.kyc?.ghanaCardName || user.fullName || 'N/A',
+    ghanaCardNumber: user.kyc?.ghanaCardNumber || user.ghanaCardNumber || 'N/A'
+  };
+
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto space-y-8 pb-12">
@@ -349,9 +382,9 @@ export default function UserDetailsPage() {
            <MetricCard label="On-time Rate" value={`${payload.onTimeRateTrend?.[0]?.rate || 90}%`} sub="Historical average" valueColor="text-teal-600" />
            <MetricCard label="Credit Score" value={user.creditScore || 80} sub="Out of 100" />
            <MetricCard label="Repayment Ratio" value={payload.referralQuality?.positiveRate?.toFixed(1) || '1.0'} sub="Recovery performance" />
-           <MetricCard label="Total Borrowed" value={`₵${payload.loanHistory?.reduce((s:any,l:any)=>s+l.principal,0) || 0}`} sub="Lifetime" />
+           <MetricCard label="Total Borrowed" value={`₵${loanHistory?.reduce((s: any, l: any) => s + (l.principal || 0), 0).toLocaleString()}`} sub="Sum of all loan principals" />
            <MetricCard label="Nodes" value={referrals?.length || 0} sub="Direct Network" />
-           <MetricCard label="Last Seen" value={payload.lastSeen?.at ? new Date(payload.lastSeen.at).toLocaleDateString() : 'N/A'} sub={payload.lastSeen?.channel || 'Unknown'} />
+           <MetricCard label="Last Seen" value={payload.lastSeen?.at ? formatDate(payload.lastSeen.at) : 'N/A'} sub={payload.lastSeen?.channel || 'Unknown'} />
         </Card>
 
         {/* 3. Content Tabs */}
@@ -376,22 +409,22 @@ export default function UserDetailsPage() {
                   <Card className="p-8">
                     <SectionHeader>Identity Verification Documents</SectionHeader>
                     <div className="grid sm:grid-cols-3 gap-6">
-                      <KYCDoc label="Selfie ID" url={user.kyc?.selfieUrl} />
-                      <KYCDoc label="Card Front" url={user.kyc?.ghanaCardFrontUrl} />
-                      <KYCDoc label="Card Back" url={user.kyc?.ghanaCardBackUrl} />
+                      <KYCDoc label="Selfie ID" type="selfie" imageUrl={user.selfieUrl} />
+                      <KYCDoc label="Card Front" type="front" imageUrl={user.ghanaCardFrontUrl} />
+                      <KYCDoc label="Card Back" type="back" imageUrl={user.ghanaCardBackUrl} />
                     </div>
                     <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <InnerCard className="p-4">
                         <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Momo Name</p>
-                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono italic">{user.kyc?.momoName || 'N/A'}</p>
+                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono">{resolvedIdentity.momoName}</p>
                       </InnerCard>
                       <InnerCard className="p-4">
                         <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">ID Number</p>
-                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono">{user.kyc?.ghanaCardNumber || 'N/A'}</p>
+                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono">{resolvedIdentity.ghanaCardNumber}</p>
                       </InnerCard>
                       <InnerCard className="p-4">
                         <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Card Name</p>
-                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 truncate">{user.kyc?.ghanaCardName || 'N/A'}</p>
+                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 truncate">{resolvedIdentity.ghanaCardName}</p>
                       </InnerCard>
                     </div>
                   </Card>
@@ -404,7 +437,7 @@ export default function UserDetailsPage() {
                         <DetailItem label="Location" value={user.metadata?.location || user.region} icon={MapPin} />
                         <DetailItem label="Address" value={user.metadata?.address || user.address} icon={MapPin} />
                         <DetailItem label="Gender" value={user.metadata?.gender || user.gender} icon={User} />
-                        <DetailItem label="Birthday" value={(user.metadata?.dob || user.dob) ? new Date(user.metadata?.dob || user.dob).toLocaleDateString() : 'N/A'} icon={Calendar} />
+                        <DetailItem label="Birthday" value={(user.metadata?.dob || user.dob) ? formatDate(user.metadata?.dob || user.dob) : 'N/A'} icon={Calendar} />
                         <DetailItem label="Accomodation" value={user.metadata?.accommodationType || user.metadata?.accomodation || user.accommodationType} icon={MapPin} />
                         <DetailItem label="Status" value={user.isBlocked ? 'Blocked' : 'Active'} icon={User} />
                      </div>
@@ -418,7 +451,7 @@ export default function UserDetailsPage() {
                     <SectionHeader>Repayment Behavior</SectionHeader>
                     <div className="grid md:grid-cols-2 gap-12">
                        <div>
-                          <p className="text-3xl font-black text-gray-900 dark:text-gray-100 mb-2 font-mono italic">{payload.onTimeRateTrend?.[0]?.rate || 90}%</p>
+                          <p className="text-3xl font-black text-gray-900 dark:text-gray-100 mb-2 font-mono">{payload.onTimeRateTrend?.[0]?.rate || 90}%</p>
                           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 leading-relaxed">The user consistently pays back installments before the due date.</p>
                           <div className="flex gap-1 h-3 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800">
                             <div className="bg-teal-500 h-full" style={{ width: `${payload.onTimeRateTrend?.[0]?.rate || 90}%` }} />
@@ -442,19 +475,34 @@ export default function UserDetailsPage() {
                       <SectionHeader>Historical Records</SectionHeader>
                       <div className="space-y-4">
                         {loanHistory?.length > 0 ? loanHistory.map((loan: any) => (
-                          <div key={loan._id} className="flex items-center justify-between p-5 rounded-2xl bg-pink-50/20 dark:bg-gray-800/50 border border-pink-100/30">
+                          <div key={loan._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-2xl bg-pink-50/20 dark:bg-gray-800/50 border border-pink-100/30 hover:border-pink-300 transition-colors gap-4">
                             <div className="flex items-center gap-4">
                               <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-900 flex items-center justify-center text-pink-600 shadow-sm border border-pink-100/30">
                                 <Shield size={18} strokeWidth={2.5} />
                               </div>
                               <div>
-                                 <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono italic">{loan.loanReference || loan.loanRef}</p>
-                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{new Date(loan.createdAt).toLocaleDateString()}</p>
+                                 <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono">{loan.loanReference || loan.loanRef}</p>
+                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{formatDate(loan.createdAt)}</p>
                               </div>
                             </div>
-                            <div className="text-right">
-                               <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono">₵{loan.principal || loan.amount}</p>
-                               <Pill color="teal" className="mt-1 scale-90 origin-right">REPAID</Pill>
+                            
+                            <div className="flex items-center gap-8 text-right sm:text-left">
+                               <div className="hidden sm:block">
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Principal</p>
+                                  <p className="text-xs font-black text-gray-900 dark:text-gray-100 font-mono">₵{(loan.principal || 0).toLocaleString()}</p>
+                               </div>
+                               <div className="hidden sm:block">
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Interest</p>
+                                  <p className="text-xs font-black text-gray-600 dark:text-gray-400 font-mono">₵{(loan.interestAmount || 0).toLocaleString()}</p>
+                               </div>
+                               <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Due Date</p>
+                                  <p className="text-xs font-black text-gray-900 dark:text-gray-100 font-mono">{formatDate(loan.dueDate)}</p>
+                               </div>
+                               <div className="min-w-[80px] text-right">
+                                  <p className="text-sm font-black text-pink-600 dark:text-pink-400 font-mono">₵{(loan.totalPayable || (loan.principal + loan.interestAmount) || 0).toLocaleString()}</p>
+                                  <Pill color={loan.status === 'ACTIVE' ? 'blue' : 'teal'} className="mt-1 scale-90 origin-right">{(loan.status || 'CLOSED').toUpperCase()}</Pill>
+                               </div>
                             </div>
                           </div>
                         )) : (
@@ -491,14 +539,14 @@ export default function UserDetailsPage() {
                                 {s.channel === 'app' ? 'App Session' : 'USSD Entry'} · {s.action?.replace(/_/g, ' ')}
                               </p>
                               <span className="text-[10px] text-gray-400 font-mono font-black">
-                                {new Date(s.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {new Date(s.createdAt).toLocaleDateString()}
+                                {new Date(s.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {formatDate(s.createdAt)}
                               </span>
                             </div>
-                            <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mt-1">
-                              {s.channel === 'app' && s.deviceMeta?.model
-                                ? `${s.deviceMeta.model} · ${s.deviceMeta.os} · Node Authorized`
-                                : 'Session originated via *713# · Direct Network Access'}
-                            </p>
+                              <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mt-1">
+                                {s.channel === 'app'
+                                  ? `${s.deviceMeta?.model || 'Unknown'} · ${s.deviceMeta?.os || 'Unknown'}`
+                                  : 'Session originated via *415*102# · USSD Access'}
+                              </p>
                           </div>
                         </div>
                       ))}
@@ -532,11 +580,11 @@ export default function UserDetailsPage() {
                       <Pill color={activeLoan.daysOverdue > 0 ? 'red' : 'teal'}>{activeLoan.paymentStatus?.toUpperCase() || 'ACTIVE'}</Pill>
                     </div>
                     <div className="space-y-4 mb-4">
-                      <div className="flex justify-between text-xs font-bold italic">
+                      <div className="flex justify-between text-xs font-bold">
                         <span className="text-gray-400">Principal</span>
                         <span className="text-gray-900 dark:text-gray-100 font-mono font-black">₵{activeLoan.principal || activeLoan.amountBorrowed}</span>
                       </div>
-                      <div className="flex justify-between text-xs font-bold italic">
+                      <div className="flex justify-between text-xs font-bold">
                         <span className="text-gray-400">Balance</span>
                         <span className="text-gray-900 dark:text-gray-100 font-mono font-black">₵{activeLoan.balanceRemaining}</span>
                       </div>
@@ -567,7 +615,7 @@ export default function UserDetailsPage() {
                        </div>
                     </div>
                     <div className="pt-2">
-                       <p className="text-[10px] text-gray-400 font-bold italic">No active liabilities found. This member is currently eligible for an advancement.</p>
+                       <p className="text-[10px] text-gray-400 font-bold">No active liabilities found. This member is currently eligible for an advancement.</p>
                     </div>
                   </div>
                 </Card>
@@ -577,7 +625,7 @@ export default function UserDetailsPage() {
               <Card className="p-8">
                 <SectionHeader>App Session Intensity</SectionHeader>
                 <div className="mt-6">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6 italic">Weekly volume (last 4 periods)</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Weekly volume (last 4 periods)</p>
                   <div className="flex items-end gap-3 h-24 mb-4 bg-pink-50/20 dark:bg-gray-800/20 p-4 rounded-2xl">
                     {weeklyUsage?.map((w: any, i: any) => {
                       const maxCount = Math.max(...weeklyUsage.map((x: any) => x.count), 1)
