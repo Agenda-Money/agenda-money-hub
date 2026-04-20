@@ -301,6 +301,7 @@ export default function ApplyPage() {
   const [nodeCode, setNodeCode] = useState("");
   const [, setNodeName] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [userData, setUserData] = useState<Record<string, unknown> | null>(null);
   const [dobInput, setDobInput] = useState(""); // Local state for DD/MM/YYYY input
   const [dobError, setDobError] = useState<string | null>(null); // Validation error message
