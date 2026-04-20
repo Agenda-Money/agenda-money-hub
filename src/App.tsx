@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,6 +43,13 @@ import AdminDeductionsPage from "./pages/AdminDeductionsPage";
 import AdminManualDisbursePage from "./pages/AdminManualDisbursePage";
 import { SessionManager } from "./components/auth/SessionManager";
 import InstallPWA from "./components/InstallPWA";
+import { CsaAuthProvider, useCsaAuth } from "@/contexts/CsaAuthContext";
+import CsaLayout from "./components/csa/CsaLayout";
+import CsaDashboard from "./pages/csa/CsaDashboard";
+import CsaLoginPage from "./pages/csa/CsaLoginPage";
+import CsaSignupPage from "./pages/csa/CsaSignupPage";
+import CsaActivityPage from "./pages/csa/CsaActivityPage";
+import CsaTemplatesPage from "./pages/csa/CsaTemplatesPage";
 import { DevEligibilitySandbox } from "./pages/DevEligibilitySandbox";
 
 import { getSubdomain } from "@/lib/domain";
@@ -72,6 +79,23 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Provides CsaAuthContext to all collections routes via a single shared instance
+function CsaProviderLayout() {
+  return (
+    <CsaAuthProvider>
+      <Outlet />
+    </CsaAuthProvider>
+  );
+}
+
+// CSA auth guard — redirects to /login if not authenticated
+function CsaGuard() {
+  const { isAuthenticated, loading } = useCsaAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <Outlet />;
+}
 
 // AdminRoute wrapper to guard admin-only pages
 function AdminRoute({ children }: { readonly children: React.ReactNode }) {
@@ -111,6 +135,22 @@ const App = () => {
               <Sonner />
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <Routes>
+                  {subdomain === "collections" && (
+                    <Route element={<CsaProviderLayout />}>
+                      <Route path="/login" element={<CsaLoginPage />} />
+                      <Route path="/signup" element={<CsaSignupPage />} />
+                      <Route element={<CsaGuard />}>
+                        <Route element={<CsaLayout />}>
+                          <Route path="/csa" element={<CsaDashboard />} />
+                          <Route path="/csa/activity" element={<CsaActivityPage />} />
+                          <Route path="/csa/templates" element={<CsaTemplatesPage />} />
+                          <Route path="/" element={<Navigate to="/csa" replace />} />
+                        </Route>
+                      </Route>
+                      <Route path="*" element={<Navigate to="/login" replace />} />
+                    </Route>
+                  )}
+
                   {subdomain === "apply" && (
                     <>
                       {import.meta.env.DEV && (
