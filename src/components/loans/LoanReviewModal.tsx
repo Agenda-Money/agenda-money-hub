@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Loader2, RefreshCcw, User, X, Clock, AlertTriangle } from "lucide-react";
+import { Check, Loader2, RefreshCcw, User, X, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   Sheet,
@@ -132,6 +132,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   });
 
   const userDetails = userResponse?.data?.user || userResponse?.data || userResponse || {};
+  const activeFlag = userDetails?.flags?.slice(-1)[0] || (loanUser as any)?.flags?.slice(-1)[0] || null;
   
   const actualLoan = loan?.loanDetails || loan;
   const displayNodeCode = userDetails.personalNodeCode || userDetails.nodeCode || actualLoan?.nodeCode || "N/A";
@@ -316,6 +317,30 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-14">
+            {activeFlag && (
+              <div className={cn(
+                "rounded-xl border p-4 text-sm font-medium flex flex-col gap-2 shadow-sm animate-fade-in",
+                activeFlag.level === 'high' 
+                  ? "border-red-200 bg-red-50 text-red-900 dark:bg-red-900/10 dark:border-red-800"
+                  : "border-amber-200 bg-amber-50 text-amber-900 dark:bg-amber-900/10 dark:border-amber-800"
+              )}>
+                <div className="flex items-center gap-2 uppercase tracking-widest text-[#000] font-black text-[11px]">
+                  <ShieldAlert className={activeFlag.level === 'high' ? "text-red-600" : "text-amber-600"} size={16} />
+                  <span className={activeFlag.level === 'high' ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"}>
+                    {activeFlag.level} Severity User Flag
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 leading-relaxed max-w-[90%] pl-6">
+                  {activeFlag.reason}
+                </p>
+                {activeFlag.adminName && (
+                  <p className="text-[10px] text-gray-500 pl-6 mt-1 font-mono uppercase">
+                    By: {activeFlag.adminName}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="rounded-xl border border-border bg-muted/60 p-4">
               <p className="text-sm font-semibold text-muted-foreground mb-3">KYC Verification</p>
               <Badge variant="outline" className={kycBadgeClass}>

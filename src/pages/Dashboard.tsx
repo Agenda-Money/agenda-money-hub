@@ -2,6 +2,7 @@ import { Users, TrendingDown, BookOpen, AlertTriangle } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentLoansTable } from "@/components/dashboard/RecentLoansTable";
 import { PendingApprovals } from "@/components/dashboard/PendingApprovals";
+import { RecentRepaymentsWidget } from "@/components/dashboard/RecentRepaymentsWidget";
 import { LoanTrendsChart } from "@/components/dashboard/LoanTrendsChart";
 import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
 import { normalizeStatsResponse, formatAmount, formatNumber } from "@/lib/utils";
@@ -99,10 +100,15 @@ export default function Dashboard() {
 
       {/* Recent Activity Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-4">
           <RecentLoansTable />
         </div>
-        <PendingApprovals />
+        <div className="space-y-4 h-full flex flex-col">
+          <PendingApprovals />
+          <div className="flex-1 min-h-[300px]">
+            <RecentRepaymentsWidget />
+          </div>
+        </div>
       </div>
     </div>
   );

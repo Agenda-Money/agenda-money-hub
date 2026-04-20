@@ -391,12 +391,22 @@ export const getAdminUserProfile = async (userId: string) => {
   return response.data;
 };
 
+export const getRepayments = async (params?: any) => {
+  const response = await api.get('/api/admin/repayments', { params });
+  return response.data;
+};
+
 export const getRecentRepayments = async (params?: { period?: string; limit?: number }) => {
   const response = await api.get('/api/admin/repayments/recent', { params });
   return response.data;
 };
 
-export const recordManualRepayment = async (data: { msisdn: string; amount: number; method: string; reference: string; notes?: string }) => {
+export const getEligibleLoans = async (msisdn: string) => {
+  const response = await api.get('/api/admin/repayments/eligible-loans', { params: { msisdn } });
+  return response.data;
+};
+
+export const recordManualRepayment = async (data: { msisdn?: string; amount: number; method: string; reference: string; notes?: string; loanReference?: string }) => {
   const response = await api.post('/api/admin/repayments/record', data);
   return response.data;
 };
