@@ -1233,8 +1233,19 @@ export default function ApplyPage() {
           return "Provide a full address (at least 3 words).";
         if (!onboardingData.alternatePhone)
           return "Provide an alternate phone number.";
-        if (!isValidGhanaLocalPhone(onboardingData.alternatePhone))
-          return "Alternate phone must be 9 digits or 10 digits starting with 0.";
+        if (
+          onboardingData.alternatePhone &&
+          !isValidGhanaLocalPhone(onboardingData.alternatePhone)
+        )
+          return "Enter a valid Ghana phone number.";
+
+        const primaryPhoneNorm = normalizedMsisdn || fallbackUserIdRef.current;
+        if (
+          onboardingData.alternatePhone &&
+          primaryPhoneNorm &&
+          normalizeToGhanaE164(onboardingData.alternatePhone) === normalizeToGhanaE164(primaryPhoneNorm)
+        )
+          return "Alternate phone cannot be the same as primary phone.";
         return null;
       case 2:
         if (!onboardingData.accommodationType || !onboardingData.yearsAtAddress)
@@ -1418,7 +1429,7 @@ export default function ApplyPage() {
           gender: onboardingData.gender,
           region: onboardingData.region,
           address: onboardingData.address,
-          alternatePhone: normalizeToGhanaE164(onboardingData.alternatePhone),
+          alternatePhone: onboardingData.alternatePhone ? normalizeToGhanaE164(onboardingData.alternatePhone).replace('+', '') : undefined,
           accommodationType: onboardingData.accommodationType,
           yearsAtAddress: onboardingData.yearsAtAddress,
           educationLevel: onboardingData.educationLevel,

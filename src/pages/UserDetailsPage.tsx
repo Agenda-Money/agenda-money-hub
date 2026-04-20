@@ -173,6 +173,7 @@ export default function UserDetailsPage() {
     surname: userData.surname || listUser.surname || "",
     email: userData.email || "N/A",
     phone: userData.msisdn || userData.phone || "N/A",
+    alternatePhone: userData.alternatePhone || listUser.alternatePhone || null,
     tier: `L${userData.currentTier || 1}`,
     nodeCode: userData.personalNodeCode || userData.nodeCode || listUser.personalNodeCode || listUser.nodeCode || "N/A",
     referredBy: userData.referredByNodeCode || userData.onboardingData?.referredByNodeCode || userData.kyc?.referredByNodeCode || userData.onboardingData?.referredBy || userData.referredByEmail || userData.referredByMsisdn || userData.referredByName || listUser.referredByNodeCode || listUser.onboardingData?.referredByNodeCode || listUser.kyc?.referredByNodeCode || listUser.onboardingData?.referredBy || listUser.referredByEmail || listUser.referredByName || "Direct Signup",
@@ -646,6 +647,13 @@ export default function UserDetailsPage() {
                       <span className="text-xs font-medium uppercase">Address</span>
                     </div>
                     <p className="font-medium">{user.address}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Phone className="h-4 w-4" />
+                      <span className="text-xs font-medium uppercase">Alternate Phone</span>
+                    </div>
+                    <p className="font-medium">{user.alternatePhone ? `+${user.alternatePhone}` : "—"}</p>
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-muted-foreground">
