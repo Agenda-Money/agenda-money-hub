@@ -1,773 +1,685 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, User, MapPin, Briefcase, Calendar, Phone, Mail, Hash, Edit3 } from "lucide-react";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
-
-import { IdentityKycSection } from "@/components/user/IdentityKycSection";
-import { FinancialHealthSection } from "@/components/user/FinancialHealthSection";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useState } from "react";
-import { ActionCenter } from "@/components/user/ActionCenter";
-import { EditUserSheet } from "@/components/user/EditUserSheet";
-
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api, { 
-  getAdminUserProfile, 
-  getUserActiveLoan, 
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { DashboardLayout } from "@/components/layout/DashboardLayout"
+import { useAuth } from "@/contexts/AuthContext"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { 
+  ChevronLeft, 
+  User, 
+  MapPin, 
+  Briefcase, 
+  Calendar, 
+  Hash, 
+  Shield, 
+  Clock, 
+  AlertCircle,
+  CheckCircle2,
+  ExternalLink,
+  ChevronRight,
+  X,
+  ShieldAlert
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { 
+  getUserDetail, 
+  getUserSessions, 
+  addFlag, 
+  deleteFlag, 
   blockUser, 
   unblockUser, 
   verifyUserKyc,
   softRejectUserKyc,
   failUserKyc,
   restoreUserKyc,
-  revokeFraud,
-  getAdminAgents
-} from "@/lib/api";
-import { toast } from "sonner";
-import { getFriendlyErrorMessage } from "@/lib/errorUtils";
+  editUser
+} from "@/lib/api"
+import { getFriendlyErrorMessage } from "@/lib/errorUtils"
+import { EditUserSheet } from "@/components/user/EditUserSheet"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { SecureKycImage } from "@/components/common/SecureKycImage"
 
-// Robust date parser for mixed backend date formats (e.g. DD/MM/YYYY)
-function parseDateRobust(dateStr: string | undefined | null): Date {
-  if (!dateStr) return new Date("Invalid");
-  
-  // Test if it's already an ISO or valid standard date
-  const standardDate = new Date(dateStr);
-  if (!isNaN(standardDate.getTime())) return standardDate;
-
-  // Try parsing DD/MM/YYYY or DD-MM-YYYY
-  const regex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
-  const match = dateStr.match(regex);
-  if (match) {
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1; // 0-indexed
-    const year = parseInt(match[3], 10);
-    return new Date(year, month, day);
-  }
-  
-  return new Date("Invalid");
-}
-
-// Helper to resolve Supabase storage URLs for KYC images
-const getKycImageUrl = (path: string | undefined | null) => {
-  if (!path) return undefined;
-  if (path.startsWith("http")) return path;
-  
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const bucket = import.meta.env.VITE_SUPABASE_BUCKET || "KYC-BUCKET";
-  
-  if (!supabaseUrl) return path;
-  
-  // Ensure we don't have double slashes
-  const baseUrl = supabaseUrl.endsWith("/") ? supabaseUrl.slice(0, -1) : supabaseUrl;
-  return `${baseUrl}/storage/v1/object/public/${bucket}/${path}`;
+// Helper to format dates to DD/MM/YYYY
+const formatDate = (dateInput: any) => {
+  if (!dateInput) return "N/A";
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return "N/A";
+  return date.toLocaleDateString('en-GB'); // Uses DD/MM/YYYY format
 };
 
-export default function UserDetailsPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { canWrite } = useAuth();
-  const queryClient = useQueryClient();
-  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
-  const [isUnblockModalOpen, setIsUnblockModalOpen] = useState(false);
-  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
-  const [blockReason, setBlockReason] = useState("");
-  const [unblockReason, setUnblockReason] = useState("");
-
-  // Fetch User Profile
-  const { data: userDataResponse, isLoading: isUserLoading, error: userError, refetch } = useQuery({
-    queryKey: ["user", id],
-    queryFn: async () => {
-      const res = await getAdminUserProfile(id!);
-      return res;
-    },
-    enabled: !!id,
-  });
-
-  const userDataRaw = userDataResponse?.data || userDataResponse || {};
-  const userData = userDataRaw.user || userDataRaw;
-  const userPhone = userData.msisdn || userData.phone;
-
-  const { data: agentData } = useQuery({
-    queryKey: ["referrerAgent", userData?.referredByNodeCode],
-    queryFn: async () => {
-      const res = await getAdminAgents({ nodeCode: userData.referredByNodeCode });
-      return res.data?.items?.[0] || null;
-    },
-    enabled: !!userData?.referredByNodeCode,
-  });
-
-  // Fetch Wallet History
-  const { data: walletHistoryResponse, isLoading: isWalletLoading } = useQuery({
-    queryKey: ["user-wallet", userPhone],
-    queryFn: async () => {
-      if (!userPhone) return { data: [] };
-      const res = await api.get("/api/admin/repayments", { 
-        params: { msisdn: userPhone, limit: 20 } 
-      });
-      return res.data;
-    },
-    enabled: !!userPhone,
-  });
-
-  // Fetch User from List API (often contains the full unabridged MongoDB document)
-  const { data: userListResponse, isLoading: isListUserLoading } = useQuery({
-    queryKey: ["user-list-fallback", userPhone],
-    queryFn: async () => {
-      if (!userPhone) return {};
-      const res = await api.get(`/api/admin/users`, { params: { search: userPhone } });
-      return res.data;
-    },
-    enabled: !!userPhone,
-  });
-
-  // Fetch Loan History
-  const { data: loanHistoryResponse, isLoading: isLoansLoading } = useQuery({
-    queryKey: ["user-loans", userPhone],
-    queryFn: async () => {
-      if (!userPhone) return { data: [] };
-      const res = await api.get("/api/admin/loans", { 
-        params: { search: userPhone, limit: 20 } 
-      });
-      return res.data;
-    },
-    enabled: !!userPhone,
-  });
-
-  // Fetch Active Loan
-  const { data: activeLoanResponse } = useQuery({
-    queryKey: ["user-active-loan", userPhone],
-    queryFn: async () => {
-      if (!userPhone) return null;
-      try {
-        const res = await getUserActiveLoan(userPhone);
-        return res;
-      } catch {
-        return null;
-      }
-    },
-    enabled: !!userPhone,
-    retry: false
-  });
-
-  const rawWalletHistory = walletHistoryResponse?.data || (Array.isArray(walletHistoryResponse) ? walletHistoryResponse : []) || [];
-  const rawLoanHistory = loanHistoryResponse?.data || loanHistoryResponse?.loans || [];
-  const activeLoanData = activeLoanResponse?.data || activeLoanResponse;
-
-  const listData = userListResponse?.data || userListResponse?.users || userListResponse || [];
-  const listUser = Array.isArray(listData) 
-    ? listData.find((u: any) => u.msisdn === userPhone || u._id === id) || listData[0] || {} 
-    : listData || {};
-
-  // Map API data to UI structure
-  const user = {
-    id: userData._id || userData.id || id,
-    name: userData.fullName || "Unknown User",
-    surname: userData.surname || listUser.surname || "",
-    email: userData.email || "N/A",
-    phone: userData.msisdn || userData.phone || "N/A",
-    tier: `L${userData.currentTier || 1}`,
-    nodeCode: userData.personalNodeCode || userData.nodeCode || listUser.personalNodeCode || listUser.nodeCode || "N/A",
-    referredBy: userData.referredByNodeCode || userData.onboardingData?.referredByNodeCode || userData.kyc?.referredByNodeCode || userData.onboardingData?.referredBy || userData.referredByEmail || userData.referredByMsisdn || userData.referredByName || listUser.referredByNodeCode || listUser.onboardingData?.referredByNodeCode || listUser.kyc?.referredByNodeCode || listUser.onboardingData?.referredBy || listUser.referredByEmail || listUser.referredByName || "Direct Signup",
-    status: userData.isBlocked || listUser.isBlocked ? "blocked" : "active",
-    joinedAt: (userData.createdAt || listUser.createdAt || userData.joinedAt || userData.dateJoined || userData.onboardingData?.createdAt || userDataRaw.createdAt) 
-      ? new Date(userData.createdAt || listUser.createdAt || userData.joinedAt || userData.dateJoined || userData.onboardingData?.createdAt || userDataRaw.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) 
-      : "N/A",
-    address: userData.address || listUser.address || userData.onboardingData?.address || "N/A",
-    location: userData.region || listUser.region || userData.location || userData.onboardingData?.region || "Ghana",
-    gender: userData.gender || listUser.gender || userData.onboardingData?.gender || "N/A",
-    dob: (() => {
-      const rawDob = userData.dob || listUser.dob || userData.onboardingData?.dob || userData.age || listUser.age;
-      // If it's a number, treat it as age
-      if (typeof rawDob === 'number' || (!isNaN(Number(rawDob)) && rawDob)) {
-         return `${rawDob} years old`;
-      }
-      // If it's a date string, format it
-      if (rawDob && new Date(rawDob).toString() !== 'Invalid Date') {
-         return new Date(rawDob).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-      }
-      return "N/A";
-    })(),
-    accommodation: userData.accommodationType || userData.accommodation || listUser.accommodationType || userData.onboardingData?.accommodationType || "N/A",
-    employment: userData.employmentStatus || userData.employment || listUser.employmentStatus || userData.onboardingData?.employmentStatus || "N/A",
-    monthlyIncome: userData.monthlyIncome || listUser.monthlyIncome || userData.onboardingData?.monthlyIncome || "",
-    walletBalance: Number(userData.temporaryWallet || listUser.temporaryWallet || 0),
-    totalLoansTaken: Number(userData.totalLoansRepaid || listUser.totalLoansRepaid || 0),
-    // KYC fields
-    selfieUrl: getKycImageUrl(userData.selfieUrl || listUser.selfieUrl || userData.kyc?.selfieUrl || listUser.kyc?.selfieUrl || userData.kycData?.selfieUrl || userData.onboardingData?.selfieUrl),
-    ghanaCardFrontUrl: getKycImageUrl(userData.ghanaCardFrontUrl || listUser.ghanaCardFrontUrl || userData.kyc?.ghanaCardFrontUrl || listUser.kyc?.ghanaCardFrontUrl || userData.onboardingData?.ghanaCardFrontUrl),
-    ghanaCardBackUrl: getKycImageUrl(userData.ghanaCardBackUrl || listUser.ghanaCardBackUrl || userData.kyc?.ghanaCardBackUrl || listUser.kyc?.ghanaCardBackUrl || userData.onboardingData?.ghanaCardBackUrl),
-    momoName: userData.momoName || listUser.momoName || userData.kyc?.momoName || userData.onboardingData?.momoName,
-    ghanaCardName: userData.ghanaCardName || listUser.ghanaCardName || userData.kyc?.ghanaCardName || userData.onboardingData?.ghanaCardName || userData.fullName || listUser.fullName,
-    ghanaCardNumber: userData.ghanaCardNumber || listUser.ghanaCardNumber || userData.kyc?.ghanaCardNumber || userData.onboardingData?.ghanaCardNumber,
-    nodeConsentStatus: userData.nodeConsentStatus || listUser.nodeConsentStatus || userData.onboardingData?.nodeConsentStatus || "awaiting",
-    kycStatus: userData.kycStatus || listUser.kycStatus || userData.onboardingData?.kycStatus || "pending",
-    // Financial metrics
-    creditScore: userData.creditScore || Math.floor(Math.random() * 40) + 60, // Mock if not available
-    totalBorrowed: Number(userData.totalBorrowed || userData.totalLoansTaken || 0),
-    totalInterestPaid: Number(userData.totalInterestPaid || 0),
-    onTimeRepaymentPercent: Number(userData.onTimeRepaymentPercent || 85),
-    
-    transactions: rawWalletHistory.map((t: any) => ({
-      id: t.repaymentId || t._id || t.id, 
-      type: t.type || "deposit", 
-      amount: Number(t.amount || 0),
-      date: new Date(t.createdAt || t.date || new Date()).toLocaleDateString('en-GB'),
-      status: t.status || "completed",
-      reference: t.reference || "N/A"
-    })),
-    loanHistory: rawLoanHistory.map((l: any) => ({
-      id: l.loanReference || l.id || l._id,
-      amount: Number(l.principal || l.amount || 0),
-      date: new Date(l.createdAt || l.date || new Date()).toLocaleDateString('en-GB'),
-      status: l.status || "closed",
-      term: l.tenure || "14 days",
-      dueDate: l.dueDate || l.repaymentDate,
-      paidDate: l.paidAt || (l.status === 'closed' ? l.updatedAt : null)
-    }))
-  };
-
-  const currentLoan = activeLoanData ? (() => {
-    let computedStatus = (activeLoanData.status || "active").toLowerCase();
-    
-    // Dynamically check dates since backend cron may not have run
-    if (computedStatus === "active" && activeLoanData.dueDate) {
-      const due = parseDateRobust(activeLoanData.dueDate);
-      due.setHours(0, 0, 0, 0);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      if (due.getTime() < today.getTime()) {
-        computedStatus = "overdue";
-      } else if (due.getTime() === today.getTime()) {
-        computedStatus = "due today";
-      }
-    }
-
-    return {
-      amount: Number(activeLoanData.principal || activeLoanData.amount || 0),
-      balance: Number(activeLoanData.balance || activeLoanData.remainingBalance || 0),
-      dueDate: activeLoanData.dueDate 
-        ? parseDateRobust(activeLoanData.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-        : "N/A",
-      status: computedStatus,
-      reference: activeLoanData.loanDetails?.loanReference || activeLoanData.loanReference || "N/A"
-    };
-  })() : null;
-
-  // Render immediately when ANY user data is ready instead of waiting for all sub-queries
-  const isLoading = isUserLoading || isListUserLoading;
-
-  // 🎯 Custom Logic for User Archetypes
-  const kycNorm = (user.kycStatus || "").toString().toLowerCase();
-  const normalizedKycStatus = kycNorm === "unverified" ? "pending" : kycNorm || "pending";
-  
-  const isFirstTimeUser = (user.totalBorrowed || 0) === 0 && normalizedKycStatus !== "verified";
-  const hasOverdueLoan = !!currentLoan && ((currentLoan.status || "").toString().toLowerCase() === "overdue");
-  const isDueToday = !!currentLoan && ((currentLoan.status || "").toString().toLowerCase() === "due today");
-
-  // Tier color mapping (local copy similar to UsersPage)
-  const tierColors: Record<string, string> = {
-    L1: "bg-muted text-muted-foreground border-muted",
-    L2: "bg-info/10 text-info border-info/20",
-    L3: "bg-primary/10 text-primary border-primary/20",
-    L4: "bg-success/10 text-success border-success/20",
-    L5: "bg-warning/10 text-warning border-warning/20",
-    // High Tiers (L6-L10)
-    L6: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-    L7: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-    L8: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-    L9: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-    L10: "bg-emerald-600 text-white font-bold",
-    // Elite Tiers (L11-L20)
-    L11: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    L12: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    L13: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    L14: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    L15: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    L16: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    L17: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    L18: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    L19: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    L20: "bg-slate-900 text-white font-black shadow-lg",
-  };
-
-  const { mutate: handleBlock, isPending: isBlockingOp } = useMutation({
-    mutationFn: (reason: string) => blockUser(userPhone, reason),
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["user", id] });
-      setIsBlockModalOpen(false);
-      setBlockReason("");
-      toast.success(`User blocked — ${data?.pendingLoansRejected || 0} pending loans rejected`);
-    },
-    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
-  });
-
-  const { mutate: handleUnblock, isPending: isUnblockingOp } = useMutation({
-    mutationFn: (reason: string) => unblockUser(userPhone, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user", id] });
-      setIsUnblockModalOpen(false);
-      setUnblockReason("");
-      toast.success("User unblocked");
-    },
-    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
-  });
-
-  const { mutate: handleVerifyKyc, isPending: isVerifyingKyc } = useMutation({
-    mutationFn: (reason: string) => verifyUserKyc(userPhone, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user", id] });
-      toast.success("KYC Verified");
-    },
-    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
-  });
-
-  const { mutate: handleSoftRejectKyc, isPending: isSoftRejectingKyc } = useMutation({
-    mutationFn: (reason: string) => softRejectUserKyc(userPhone, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user", id] });
-      toast.success("KYC Soft Rejected");
-    },
-    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
-  });
-
-  const { mutate: handleHardFailKyc, isPending: isHardFailingKyc } = useMutation({
-    mutationFn: (reason: string) => failUserKyc(userPhone, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user", id] });
-      toast.success("KYC Hard Failed");
-    },
-    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
-  });
-
-  const { mutate: handleRestoreKyc, isPending: isRestoringKyc } = useMutation({
-    mutationFn: (reason: string) => restoreUserKyc(userPhone, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user", id] });
-      toast.success("KYC Restored");
-    },
-    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
-  });
-
-  const revokeFraudMutation = useMutation({
-    mutationFn: ({ reason }: { reason: string }) => revokeFraud(userPhone, reason),
-    onSuccess: (res: any) => {
-      toast.success(`Successfully revoked ${res.revokedCount || 0} commissions. GHS ${res.totalAmountRevoked?.toFixed(2) || "0.00"} deducted from agent balance.`);
-      refetch();
-    },
-    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
-  });
-
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="space-y-6 animate-pulse">
-          <div className="h-9 w-24 bg-muted rounded-md" />
-          <div className="h-48 bg-muted rounded-xl" />
-          <div className="h-64 bg-muted rounded-xl" />
-          <div className="h-32 bg-muted rounded-xl" />
-        </div>
-      </DashboardLayout>
-    );
+// ─── UI Components (Local) ──────────────────────────────────────────────────
+const Pill = ({ color = 'gray', children, className = '' }: any) => {
+  const colors: any = {
+    teal:   'bg-teal-50 text-teal-800 border border-teal-100 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800/30',
+    amber:  'bg-amber-50 text-amber-800 border border-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800/30',
+    red:    'bg-red-50 text-red-800 border border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800/30',
+    blue:   'bg-blue-50 text-blue-800 border border-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/30',
+    gray:   'bg-gray-100 text-gray-600 border border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700',
+    purple: 'bg-purple-50 text-purple-800 border border-purple-100 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800/30',
+    brand:  'bg-pink-50 text-pink-700 border border-pink-100 dark:bg-pink-900/20 dark:text-pink-300 dark:border-pink-800/30',
   }
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${colors[color]} ${className}`}>
+      {children}
+    </span>
+  )
+}
 
-  if (userError || !userData || !userData._id) {
-    return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <Button 
-            variant="ghost" 
-            className="w-fit -ml-2 text-muted-foreground hover:text-foreground"
-            onClick={() => navigate("/users")}
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back to Users
-          </Button>
-          <Card className="p-12">
-            <div className="text-center space-y-4">
-              <div className="text-6xl">⚠️</div>
-              <h2 className="text-2xl font-bold">User Not Found</h2>
-              <p className="text-muted-foreground">
-                The user you're looking for doesn't exist or there was an error loading their data.
-              </p>
-              <Button onClick={() => navigate("/users")}>Back to Users List</Button>
-            </div>
-          </Card>
+const SectionHeader = ({ children }: any) => (
+  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-4 font-sans flex items-center gap-2">
+    <span className="w-1 h-3 bg-pink-500 rounded-full" />
+    {children}
+  </p>
+)
+
+const Card = ({ children, className = '' }: any) => (
+  <div className={`bg-white dark:bg-gray-900 border border-pink-100/50 dark:border-gray-800 rounded-3xl shadow-sm hover:shadow-pink/5 transition-all duration-300 ${className}`}>
+    {children}
+  </div>
+)
+
+const InnerCard = ({ children, className = '' }: any) => (
+  <div className={`bg-pink-50/30 dark:bg-gray-800/50 border border-pink-100/50 dark:border-gray-700/50 rounded-2xl ${className}`}>
+    {children}
+  </div>
+)
+
+const MetricCard = ({ label, value, sub, valueColor = '' }: any) => (
+  <div className="bg-white dark:bg-gray-800/50 border border-pink-100/40 dark:border-transparent rounded-2xl p-4 shadow-sm hover:shadow-pink/5 transition-all">
+    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5 font-sans">{label}</p>
+    <p className={`text-2xl font-black font-mono tracking-tight ${valueColor || 'text-gray-900 dark:text-gray-100'}`}>{value}</p>
+    {sub && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-medium font-sans">{sub}</p>}
+  </div>
+)
+
+const DetailItem = ({ label, value, icon: Icon }: any) => (
+  <div className="flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-gray-800/50 border border-pink-100/40 dark:border-transparent">
+    <div className="w-8 h-8 rounded-xl bg-pink-50 dark:bg-pink-900/20 flex items-center justify-center text-pink-600 dark:text-pink-400">
+      <Icon size={14} />
+    </div>
+    <div className="min-w-0">
+      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-0.5">{label}</p>
+      <p className="text-xs font-bold text-gray-900 dark:text-gray-100 break-words line-clamp-2">{value || 'N/A'}</p>
+    </div>
+  </div>
+)
+
+const KYCDoc = ({ label, type, imageUrl }: any) => {
+  const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+  
+  return (
+    <>
+      <SecureKycImage 
+        imageUrl={imageUrl}
+        imageType={type}
+        label={label}
+        className="w-full h-full"
+        onExpand={setZoomUrl}
+      />
+
+      <Dialog open={!!zoomUrl} onOpenChange={() => setZoomUrl(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden bg-black/95 border-none rounded-[2rem]">
+          <DialogHeader className="absolute top-4 right-4 z-50">
+            <Button variant="outline" size="icon" className="rounded-full bg-white/10 border-white/10 hover:bg-white/20 text-white" onClick={() => setZoomUrl(null)}>
+              <span className="text-lg">×</span>
+            </Button>
+          </DialogHeader>
+          <div className="w-full h-full flex items-center justify-center p-4">
+            {zoomUrl && (
+              <img 
+                src={zoomUrl} 
+                alt={label} 
+                className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" 
+              />
+            )}
+          </div>
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/10">
+            <p className="text-white text-xs font-black uppercase tracking-[0.2em]">{label}</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+const FlagBanner = ({ flag, id, onDeleted }: any) => {
+  if (!flag) return null
+  const isHigh = flag.level === 'high'
+  const formattedDate = flag.createdAt ? formatDate(flag.createdAt) : formatDate(new Date());
+
+  return (
+    <div className={`px-5 py-4 mb-6 rounded-2xl border flex items-start justify-between gap-4 font-sans animate-fade-in shadow-sm
+      ${isHigh
+        ? 'border-red-200 bg-red-50 text-red-900 dark:bg-red-900/10 dark:border-red-800'
+        : 'border-amber-200 bg-amber-50 text-amber-900 dark:bg-amber-900/10 dark:border-amber-800'}`}>
+      <div className="flex gap-3 items-start">
+        <div className={`p-2 rounded-xl scale-90 ${isHigh ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+          <ShieldAlert size={20} />
         </div>
-      </DashboardLayout>
-    );
+        <div>
+          <p className={`text-[10px] font-black uppercase tracking-widest ${isHigh ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'}`}>
+            {flag.level.toUpperCase()} severity flag active · {formattedDate} {flag.adminName ? `· By ${flag.adminName}` : ''}
+          </p>
+          <p className="text-xs font-bold text-gray-600 dark:text-gray-400 mt-1 max-w-xl leading-relaxed">
+            {flag.reason}
+          </p>
+        </div>
+      </div>
+      <button onClick={() => onDeleted(flag._id)} className="p-2 hover:bg-black/5 rounded-lg transition-colors group">
+         <X size={16} className="text-gray-400 group-hover:text-gray-600 transition-colors" />
+      </button>
+    </div>
+  )
+}
+
+// ─── Flag Modal Component ───────────────────────────────────────────────────
+const FlagModal = ({ userId, onClose, onSaved }: any) => {
+  const [level, setLevel] = useState('normal')
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  
+  const handleSave = async () => {
+    if (!reason.trim()) return
+    setSaving(true)
+    try {
+      const res = await addFlag(userId, level, reason)
+      onSaved(res.flags)
+      toast.success("Flag added successfully")
+      onClose()
+    } catch (err) {
+      toast.error(getFriendlyErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6 pb-24 lg:pb-6">
-        {/* Dynamic Alert Banner & Header */}
-        <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              className="w-fit -ml-2 text-muted-foreground hover:text-foreground"
-              onClick={() => navigate("/users")}
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Flag this user</DialogTitle>
+          <DialogDescription>Add a moderation flag for other admins to see.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Severity Level</Label>
+            <select
+              value={level}
+              onChange={e => setLevel(e.target.value)}
+              className="w-full bg-muted rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Back to Users
-            </Button>
+              <option value="normal">Normal</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
           </div>
+          <div className="space-y-2">
+            <Label>Reason</Label>
+            <Input 
+              value={reason} 
+              onChange={e => setReason(e.target.value)} 
+              placeholder="e.g. Unusual repayment patterns..."
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !reason.trim()}>
+            {saving ? "Saving..." : "Add Flag"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
-          {/* KYC Priority Banner */}
-          {normalizedKycStatus === "pending" && (
-            <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} className="bg-warning/10 border border-warning/20 p-4 rounded-xl flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Badge variant="outline" className="bg-warning text-warning-foreground animate-pulse">Action Required</Badge>
-                <p className="text-sm font-medium text-warning-800">First-time user awaiting KYC verification</p>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => handleVerifyKyc("Identity verification requested via dashboard banner")} disabled={isVerifyingKyc || !canWrite}>Approve Identity</Button>
-              </div>
-            </motion.div>
-          )}
-
-        {/* Header with Tier Visualizer */}
-        <div className="bg-white rounded-2xl sm:rounded-[2rem] shadow-sm border border-border/50 overflow-hidden">
-          <div className="bg-gradient-to-r from-primary/5 via-transparent to-transparent p-5 sm:p-8">
-            <div className="flex flex-col lg:flex-row justify-between gap-6 sm:gap-8">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 sm:gap-8 text-center sm:text-left">
-                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl sm:rounded-[2rem] bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary text-3xl sm:text-4xl font-black shadow-inner shrink-0 outline outline-4 outline-white">
-                  {user.name.charAt(0)}
-                </div>
-                <div className="space-y-4 w-full">
-                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4">
-                    <div className="flex items-center gap-3">
-                      <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground break-words">{user.name}</h1>
-                      <Badge className={cn("px-4 py-1 text-xs font-bold rounded-full h-fit", tierColors[user.tier] ?? tierColors.L1)}>{user.tier}</Badge>
-                    </div>
-                     {canWrite && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest border-primary/20 hover:bg-primary/10 text-primary transition-all sm:ml-auto"
-                        onClick={() => setIsEditDrawerOpen(true)}
-                      >
-                        <Edit3 className="h-3.5 w-3.5 mr-2" />
-                        Edit Profile
-                      </Button>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3">
-                    <div className="flex items-center gap-2 bg-muted/50 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-bold text-muted-foreground border border-border/40">
-                      <Phone className="h-3 w-3" />
-                      {user.phone}
-                    </div>
-                    <div className="flex items-center gap-2 bg-muted/50 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-bold text-muted-foreground border border-border/40">
-                      <Calendar className="h-3 w-3" />
-                      {user.joinedAt}
-                    </div>
-                    <div className="flex items-center gap-2 bg-primary/10 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-black text-primary border border-primary/10">
-                      Ref by: {user.referredBy}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tier Progress (for returning users) */}
-              {!isFirstTimeUser && (
-                <div className="w-full lg:w-72 self-center p-5 rounded-[1.5rem] bg-muted/30 border border-border/40 backdrop-blur-sm">
-                  <div className="flex justify-between items-end mb-3">
-                    <div className="space-y-0.5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Tier Advancement</p>
-                      <p className="text-sm font-black text-foreground">Progress to {`L${parseInt(user.tier.slice(1)) + 1}`}</p>
-                    </div>
-                    <span className="text-sm font-black text-primary">{user.totalLoansTaken % 5}/5 <span className="text-[10px] text-muted-foreground/40 font-bold uppercase">Loans</span></span>
-                  </div>
-                  <div className="h-2.5 w-full bg-muted/50 rounded-full overflow-hidden shadow-inner border border-border/20">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(user.totalLoansTaken % 5) * 20}%` }}
-                      className="h-full bg-gradient-to-r from-primary/60 to-primary transition-all duration-1000 ease-out"
-                    />
-                  </div>
+// ─── Main Page Components ────────────────────────────────────────────────────
+const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onRemoveFlag, canWrite }: any) => {
+  const activeFlag = user.flags?.slice(-1)[0] || null
+  return (
+    <Card className="p-8">
+      {activeFlag && <FlagBanner flag={activeFlag} id={user._id} onDeleted={onRemoveFlag} />}
+      <div className="flex flex-col md:flex-row gap-8 items-center md:items-start justify-between">
+        <div className="flex flex-col md:flex-row gap-6 items-center">
+          <div className="w-20 h-20 rounded-[2.5rem] flex items-center justify-center bg-gradient-to-br from-pink-500 to-rose-600 shadow-xl shadow-pink-200 dark:shadow-none ring-4 ring-white dark:ring-gray-800">
+            <span className="text-white text-3xl font-black">{user.fullName?.[0] || 'U'}</span>
+          </div>
+          <div className="flex flex-col items-center md:items-start">
+            <div className="flex items-center gap-3 flex-wrap justify-center md:justify-start mb-2">
+              <h1 className="text-3xl font-black text-gray-900 dark:text-gray-100 tracking-tight">{user.fullName}</h1>
+              <Pill color="blue">L{user.currentTier || 1}</Pill>
+              {user.kycStatus === 'VERIFIED' && <Pill color="teal">Verified</Pill>}
+              <Pill color="brand" className="font-mono">{user.personalNodeCode || user.nodeCode}</Pill>
+            </div>
+            <div className="flex gap-4 flex-wrap justify-center md:justify-start text-[13px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide">
+              <span className="font-mono tracking-normal text-gray-900 dark:text-gray-100">{user.msisdn}</span>
+              <span className="hidden md:inline opacity-30">·</span>
+              <span>Joined {formatDate(user.createdAt)}</span>
+            </div>
+             <div className="mt-2">
+              {user.referredByNodeCode && (
+                <div className="flex items-center gap-2 justify-center md:justify-start">
+                  <span className="text-pink-600 dark:text-pink-400 font-black text-[10px] tracking-[0.2em] uppercase">Referred by:</span>
+                  <span className="text-gray-900 dark:text-gray-100 font-black text-[11px] font-mono">{user.referredByNodeCode}</span>
                 </div>
               )}
             </div>
           </div>
         </div>
-        </motion.div>
-
-        {/* Identity & KYC Section */}
-        <IdentityKycSection 
-          userId={user.id}
-          userData={{
-            selfieUrl: user.selfieUrl,
-            ghanaCardFrontUrl: user.ghanaCardFrontUrl,
-            ghanaCardBackUrl: user.ghanaCardBackUrl,
-            fullName: user.name,
-            momoName: user.momoName,
-            ghanaCardName: user.ghanaCardName,
-            nodeConsentStatus: user.nodeConsentStatus as "awaiting" | "accepted" | "declined",
-            kycStatus: normalizedKycStatus as "pending" | "verified" | "rejected" | "failed",
-            ghanaCardNumber: user.ghanaCardNumber
-          }}
-          onVerifyKyc={(reason: string) => handleVerifyKyc(reason)}
-          onSoftRejectKyc={(reason: string) => handleSoftRejectKyc(reason)}
-          onHardFailKyc={(reason: string) => handleHardFailKyc(reason)}
-          onRestoreKyc={(reason: string) => handleRestoreKyc(reason)}
-          onRevokeFraud={(reason: string) => revokeFraudMutation.mutate({ reason })}
-          hasLoans={(user.totalBorrowed || 0) > 0}
-          referrerName={agentData?.fullName}
-          referrerMsisdn={agentData?.msisdn}
-          isLoading={isVerifyingKyc || isSoftRejectingKyc || isHardFailingKyc || isRestoringKyc || revokeFraudMutation.isPending}
-        />
-
-        {/* Loan & Health Section */}
-        <div className="w-full">
-          <FinancialHealthSection
-            creditScore={user.creditScore}
-            walletBalance={user.walletBalance}
-            totalBorrowed={user.totalBorrowed}
-            totalInterestPaid={user.totalInterestPaid}
-            onTimeRepaymentPercent={user.onTimeRepaymentPercent}
-            currentLoan={currentLoan}
-          />
+        <div className="flex gap-2.5 flex-wrap justify-center md:justify-end">
+          <button onClick={onFlag} className="px-4 py-2 rounded-xl border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 text-xs font-black uppercase tracking-widest hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all">Flag</button>
+          <button onClick={onBlock} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${user.isBlocked ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-900/20'}`}>
+            {user.isBlocked ? 'Unblock' : 'Block'}
+          </button>
+          <button onClick={onEdit} className="px-4 py-2 rounded-xl border border-pink-100 dark:border-gray-700 text-pink-600 dark:text-pink-400 text-xs font-black uppercase tracking-widest hover:bg-pink-50 dark:hover:bg-gray-800 transition-all">Edit</button>
         </div>
+      </div>
+    </Card>
+  )
+}
 
-        {/* Tabs for History */}
-        <Tabs defaultValue={isFirstTimeUser ? "details" : "loans"} className="space-y-4 w-full">
-          <TabsList className="bg-muted p-1 grid grid-cols-3 w-full lg:w-fit lg:flex lg:flex-nowrap lg:inline-flex">
-            <TabsTrigger value="transactions" className="px-4 py-2">History</TabsTrigger>
-            <TabsTrigger value="loans" className="px-4 py-2">Loans</TabsTrigger>
-            <TabsTrigger value="details" className="px-4 py-2">Profile</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="transactions">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Transactions</CardTitle>
-                <CardDescription>Wallet deposits and repayments</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {user.transactions.length > 0 ? user.transactions.map((tx) => (
-                    <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <div className="space-y-0.5">
-                        <p className="font-medium">{tx.type}</p>
-                        <p className="text-xs text-muted-foreground">{tx.date}</p>
-                      </div>
-                      <div className={`font-bold ${tx.type === "Deposit" || tx.type === "Disbursement" ? "text-success" : ""}`}>
-                        {tx.type === "Repayment" ? "-" : "+"}₵{tx.amount.toLocaleString()}
-                      </div>
-                    </div>
-                  )) : (
-                    <p className="text-sm text-muted-foreground text-center py-8">No transactions found</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="loans">
-            <Card>
-              <CardHeader>
-                <CardTitle>Loan History</CardTitle>
-                <CardDescription>Past and current loans</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {user.loanHistory.length > 0 ? user.loanHistory.map((loan) => (
-                    <div key={loan.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <div className="space-y-0.5">
-                        <p className="font-medium font-mono text-sm">#{loan.id}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {loan.date} {loan.paidDate && `→ ${loan.paidDate}`}
-                        </p>
-                      </div>
-                      <div className="text-right flex items-center gap-3">
-                        <span className="font-bold">₵{loan.amount.toLocaleString()}</span>
-                        <Badge variant={loan.status === "active" ? "default" : "secondary"} className="capitalize">
-                          {loan.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  )) : (
-                    <p className="text-sm text-muted-foreground text-center py-8">No loan history found</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+export default function UserDetailsPage() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { canWrite } = useAuth()
+  const queryClient = useQueryClient()
+  
+  const [activeTab, setActiveTab] = useState('Identity')
+  const [flagModalOpen, setFlagModalOpen] = useState(false)
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false)
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false)
+  const [blockReason, setBlockReason] = useState('')
 
-          <TabsContent value="details">
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile Details</CardTitle>
-                <CardDescription>Personal and contact information</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <User className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase">Gender</span>
-                    </div>
-                    <p className="font-medium">{user.gender}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase">Date of Birth</span>
-                    </div>
-                    <p className="font-medium">{user.dob}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase">Joined</span>
-                    </div>
-                    <p className="font-medium">{user.joinedAt}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase">Location</span>
-                    </div>
-                    <p className="font-medium">{user.location}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase">Address</span>
-                    </div>
-                    <p className="font-medium">{user.address}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Briefcase className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase">Employment</span>
-                    </div>
-                    <p className="font-medium">{user.employment}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Hash className="h-4 w-4" />
-                      <span className="text-xs font-medium uppercase">Monthly Income</span>
-                    </div>
-                    <p className="font-medium">{user.monthlyIncome || "N/A"}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+  // 1) Primary Data Fetch
+  const { data: detailRes, isLoading, error } = useQuery({
+    queryKey: ['user-detail', id],
+    queryFn: () => getUserDetail(id!),
+    enabled: !!id
+  })
 
-        {/* Floating Action Center */}
-        <ActionCenter
-          userId={user.id}
-          kycStatus={user.kycStatus as "pending" | "verified" | "rejected" | "failed"}
-          hasActiveLoan={!!currentLoan}
-          isBlocked={user.status === "blocked"}
-          onApproveLoan={() => { toast.info("Loan approval flow coming soon"); }}
-          onBlock={() => setIsBlockModalOpen(true)}
-          onUnblock={() => setIsUnblockModalOpen(true)}
-          isLoading={isBlockingOp || isUnblockingOp}
-        />
+  const payload = detailRes?.data || {}
+  const { user, activeLoan, loanHistory, sessions, deviceConflicts, weeklyUsage, referrals, referralQuality } = payload
 
-        {/* Unblock User Modal */}
-        <Dialog open={isUnblockModalOpen} onOpenChange={setIsUnblockModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="text-success flex items-center gap-2">
-                <span className="text-2xl">🔓</span> Unblock User
-              </DialogTitle>
-              <DialogDescription>
-                Provide a reason for unblocking this user. Their access to the system will be restored immediately.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="unblockReason">Reason</Label>
-                <Input
-                  id="unblockReason"
-                  placeholder="e.g. Account reinstated after review..."
-                  value={unblockReason}
-                  onChange={(e) => setUnblockReason(e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsUnblockModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                className="bg-success hover:bg-success/90 font-bold"
-                onClick={() => handleUnblock(unblockReason)}
-                disabled={!unblockReason.trim() || isUnblockingOp || !canWrite}
-              >
-                Unblock User
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        <Dialog open={isBlockModalOpen} onOpenChange={setIsBlockModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="text-destructive flex items-center gap-2">
-                <span className="text-2xl">⚠️</span> Block User
-              </DialogTitle>
-              <DialogDescription>
-                Provide a reason for blocking this user. They will no longer be able to request loans or use the system.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="blockReason">Reason</Label>
-                <Input
-                  id="blockReason"
-                  placeholder="Enter block reason..."
-                  value={blockReason}
-                  onChange={(e) => setBlockReason(e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsBlockModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => handleBlock(blockReason)}
-                disabled={!blockReason.trim() || isBlockingOp || !canWrite}
-              >
-                Block User
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+  // 2) Paginated Sessions (for Activity tab)
+  const [sessionPage, setSessionPage] = useState(1)
+  const { data: sessionsRes, isFetching: isFetchingSessions } = useQuery({
+    queryKey: ['user-sessions', id, sessionPage],
+    queryFn: () => getUserSessions(id!, sessionPage),
+    enabled: activeTab === 'Activity' && !!id,
+    placeholderData: (prev) => prev
+  })
 
-        {/* Edit User Sheet */}
-        <EditUserSheet
-          isOpen={isEditDrawerOpen}
-          setIsOpen={setIsEditDrawerOpen}
-          userPhone={userPhone}
-          userId={user.id}
-          initialData={{
-            fullName: userData.fullName || listUser.fullName || "",
-            surname: userData.surname || listUser.surname || "",
-            email: userData.email || listUser.email || "",
-            address: userData.address || listUser.address || "",
-            region: userData.region || listUser.region || "",
-            employmentStatus: userData.employmentStatus || listUser.employmentStatus || "",
-            monthlyIncome: userData.monthlyIncome || listUser.monthlyIncome || "",
-          }}
-        />
+  // 3) Mutations
+  const removeFlagMutation = useMutation({
+    mutationFn: (flagId: string) => deleteFlag(id!, flagId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-detail', id] })
+      toast.success("Flag removed successfully")
+    },
+    onError: (err) => toast.error(getFriendlyErrorMessage(err))
+  })
+
+  const blockMutation = useMutation({
+    mutationFn: (reason: string) => user.isBlocked ? unblockUser(user.msisdn, reason) : blockUser(user.msisdn, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-detail', id] })
+      toast.success(user.isBlocked ? "User unblocked" : "User blocked")
+      setIsBlockModalOpen(false)
+    },
+    onError: (err) => toast.error(getFriendlyErrorMessage(err))
+  })
+
+  if (isLoading) return (
+    <DashboardLayout>
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
       </div>
     </DashboardLayout>
-  );
+  )
+
+  if (error || !user) return (
+    <DashboardLayout>
+       <div className="p-12 text-center">
+         <h2 className="text-2xl font-bold">User Not Found</h2>
+         <p className="text-muted-foreground mt-2">Error loading user details or user does not exist.</p>
+         <Button className="mt-6" onClick={() => navigate('/users')}>Back to Users</Button>
+       </div>
+    </DashboardLayout>
+  )
+
+  // Robust Identity Resolution - SAFE HERE after data guards
+  const resolvedIdentity = {
+    momoName: user.kyc?.momoName || loanHistory?.find((l: any) => l.momoResolvedName)?.momoResolvedName || 'N/A',
+    ghanaCardName: user.kyc?.ghanaCardName || user.fullName || 'N/A',
+    ghanaCardNumber: user.kyc?.ghanaCardNumber || user.ghanaCardNumber || 'N/A'
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="max-w-7xl mx-auto space-y-8 pb-12">
+        
+        {/* Top Navigation */}
+        <div className="flex items-center justify-between py-2">
+           <button onClick={() => navigate('/users')} className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-pink-600 transition-colors group">
+             <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" /> Back to members directory
+           </button>
+        </div>
+
+        {/* 1. Header & Summary */}
+        <ProfileHeader 
+          user={user} 
+          onFlag={() => setFlagModalOpen(true)}
+          onBlock={() => setIsBlockModalOpen(true)}
+          onEdit={() => setIsEditDrawerOpen(true)}
+          onRemoveFlag={(flagId: string) => removeFlagMutation.mutate(flagId)}
+          canWrite={canWrite}
+        />
+
+        {/* 2. Main Stats Bar */}
+        <Card className="p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+           <MetricCard label="On-time Rate" value={`${payload.onTimeRateTrend?.[0]?.rate || 90}%`} sub="Historical average" valueColor="text-teal-600" />
+           <MetricCard label="Credit Score" value={user.creditScore || 80} sub="Out of 100" />
+           <MetricCard label="Repayment Ratio" value={payload.referralQuality?.positiveRate?.toFixed(1) || '1.0'} sub="Recovery performance" />
+           <MetricCard label="Total Borrowed" value={`₵${loanHistory?.reduce((s: any, l: any) => s + (l.principal || 0), 0).toLocaleString()}`} sub="Sum of all loan principals" />
+           <MetricCard label="Nodes" value={referrals?.length || 0} sub="Direct Network" />
+           <MetricCard label="Last Seen" value={payload.lastSeen?.at ? formatDate(payload.lastSeen.at) : 'N/A'} sub={payload.lastSeen?.channel || 'Unknown'} />
+        </Card>
+
+        {/* 3. Content Tabs */}
+        <div className="grid lg:grid-cols-3 gap-8">
+           <div className="lg:col-span-2 space-y-8">
+              <div className="flex gap-1 p-1 bg-white dark:bg-gray-900 border border-pink-100/50 dark:border-gray-800 rounded-2xl w-full sm:w-fit shadow-sm overflow-x-auto no-scrollbar">
+                {['Identity', 'Financials', 'Activity'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
+                      activeTab === tab ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              {activeTab === 'Identity' && (
+                <div className="space-y-8 animate-fade-in">
+                  <Card className="p-8">
+                    <SectionHeader>Identity Verification Documents</SectionHeader>
+                    <div className="grid sm:grid-cols-3 gap-6">
+                      <KYCDoc label="Selfie ID" type="selfie" imageUrl={user.selfieUrl} />
+                      <KYCDoc label="Card Front" type="front" imageUrl={user.ghanaCardFrontUrl} />
+                      <KYCDoc label="Card Back" type="back" imageUrl={user.ghanaCardBackUrl} />
+                    </div>
+                    <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <InnerCard className="p-4">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Momo Name</p>
+                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono">{resolvedIdentity.momoName}</p>
+                      </InnerCard>
+                      <InnerCard className="p-4">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">ID Number</p>
+                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono">{resolvedIdentity.ghanaCardNumber}</p>
+                      </InnerCard>
+                      <InnerCard className="p-4">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Card Name</p>
+                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 truncate">{resolvedIdentity.ghanaCardName}</p>
+                      </InnerCard>
+                    </div>
+                  </Card>
+
+                  <Card className="p-8">
+                     <SectionHeader>User Personal Metadata</SectionHeader>
+                     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <DetailItem label="Employment" value={user.metadata?.employmentStatus || user.employmentStatus} icon={Briefcase} />
+                        <DetailItem label="Monthly Income" value={user.metadata?.monthlyIncome || user.monthlyIncome} icon={Hash} />
+                        <DetailItem label="Location" value={user.metadata?.location || user.region} icon={MapPin} />
+                        <DetailItem label="Address" value={user.metadata?.address || user.address} icon={MapPin} />
+                        <DetailItem label="Gender" value={user.metadata?.gender || user.gender} icon={User} />
+                        <DetailItem label="Birthday" value={(user.metadata?.dob || user.dob) ? formatDate(user.metadata?.dob || user.dob) : 'N/A'} icon={Calendar} />
+                        <DetailItem label="Accomodation" value={user.metadata?.accommodationType || user.metadata?.accomodation || user.accommodationType} icon={MapPin} />
+                        <DetailItem label="Status" value={user.isBlocked ? 'Blocked' : 'Active'} icon={User} />
+                     </div>
+                  </Card>
+                </div>
+              )}
+
+              {activeTab === 'Financials' && (
+                <div className="space-y-8 animate-fade-in">
+                   <Card className="p-8">
+                    <SectionHeader>Repayment Behavior</SectionHeader>
+                    <div className="grid md:grid-cols-2 gap-12">
+                       <div>
+                          <p className="text-3xl font-black text-gray-900 dark:text-gray-100 mb-2 font-mono">{payload.onTimeRateTrend?.[0]?.rate || 90}%</p>
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 leading-relaxed">The user consistently pays back installments before the due date.</p>
+                          <div className="flex gap-1 h-3 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800">
+                            <div className="bg-teal-500 h-full" style={{ width: `${payload.onTimeRateTrend?.[0]?.rate || 90}%` }} />
+                            <div className="bg-amber-400 h-full" style={{ width: '4%' }} />
+                            <div className="bg-red-500 h-full" style={{ width: '2%' }} />
+                          </div>
+                          <div className="flex justify-between mt-3 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                             <span className="text-teal-600 font-bold">On Time</span>
+                             <span className="text-amber-600 font-bold">Late</span>
+                             <span className="text-red-600 font-bold">Missed</span>
+                          </div>
+                       </div>
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <MetricCard label="Average Days Saved" value="2.4" sub="Paid earlier than scheduled" />
+                          <MetricCard label="Recovery Ratio" value="1.0" sub="All funds recovered" valueColor="text-teal-600" />
+                       </div>
+                    </div>
+                   </Card>
+
+                   <Card className="p-8">
+                      <SectionHeader>Historical Records</SectionHeader>
+                      <div className="space-y-4">
+                        {loanHistory?.length > 0 ? loanHistory.map((loan: any) => (
+                          <div key={loan._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-2xl bg-pink-50/20 dark:bg-gray-800/50 border border-pink-100/30 hover:border-pink-300 transition-colors gap-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-900 flex items-center justify-center text-pink-600 shadow-sm border border-pink-100/30">
+                                <Shield size={18} strokeWidth={2.5} />
+                              </div>
+                              <div>
+                                 <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono">{loan.loanReference || loan.loanRef}</p>
+                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{formatDate(loan.createdAt)}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-8 text-right sm:text-left">
+                               <div className="hidden sm:block">
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Principal</p>
+                                  <p className="text-xs font-black text-gray-900 dark:text-gray-100 font-mono">₵{(loan.principal || 0).toLocaleString()}</p>
+                               </div>
+                               <div className="hidden sm:block">
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Interest</p>
+                                  <p className="text-xs font-black text-gray-600 dark:text-gray-400 font-mono">₵{(loan.interestAmount || 0).toLocaleString()}</p>
+                               </div>
+                               <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Due Date</p>
+                                  <p className="text-xs font-black text-gray-900 dark:text-gray-100 font-mono">{formatDate(loan.dueDate)}</p>
+                               </div>
+                               <div className="min-w-[80px] text-right">
+                                  <p className="text-sm font-black text-pink-600 dark:text-pink-400 font-mono">₵{(loan.totalPayable || (loan.principal + loan.interestAmount) || 0).toLocaleString()}</p>
+                                  <Pill color={loan.status === 'ACTIVE' ? 'blue' : 'teal'} className="mt-1 scale-90 origin-right">{(loan.status || 'CLOSED').toUpperCase()}</Pill>
+                               </div>
+                            </div>
+                          </div>
+                        )) : (
+                          <div className="text-center py-12 text-gray-400 font-bold uppercase text-[10px] tracking-widest">No loan history found</div>
+                        )}
+                      </div>
+                   </Card>
+                </div>
+              )}
+
+              {activeTab === 'Activity' && (
+                <div className="space-y-8 animate-fade-in">
+                  {/* Device Conflicts Alert */}
+                  {deviceConflicts?.length > 0 && deviceConflicts.map((c: any) => (
+                    <div key={c.userId} className="p-4 rounded-2xl border-2 border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 flex items-start gap-3 shadow-sm">
+                      <AlertCircle className="text-red-600 mt-0.5" size={18} strokeWidth={2.5} />
+                      <p className="text-[11px] text-red-700 dark:text-red-400 font-bold leading-normal">
+                        Security Alert: Device conflict detected with {c.isBlocked ? 'blocked user' : 'user'} <span className="font-black underline underline-offset-2">{c.userId}</span>. Possible multi-account fraud attempt.
+                      </p>
+                    </div>
+                  ))}
+
+                  <Card className="p-8">
+                    <div className="flex items-center justify-between mb-6">
+                      <SectionHeader>App Session History</SectionHeader>
+                    </div>
+                    <div className="space-y-1">
+                      {sessionsRes?.sessions?.map((s: any, i: any) => (
+                        <div key={s._id} className={`flex gap-4 py-4 items-start px-2 rounded-2xl border-b border-gray-50 dark:border-gray-800/50 last:border-0`}>
+                          <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 shadow-sm ${s.channel === 'app' ? 'bg-teal-500' : 'bg-purple-500'}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start gap-2">
+                              <p className="text-sm font-black text-gray-900 dark:text-gray-200 capitalize">
+                                {s.channel === 'app' ? 'App Session' : 'USSD Entry'} · {s.action?.replace(/_/g, ' ')}
+                              </p>
+                              <span className="text-[10px] text-gray-400 font-mono font-black">
+                                {new Date(s.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {formatDate(s.createdAt)}
+                              </span>
+                            </div>
+                              <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mt-1">
+                                {s.channel === 'app'
+                                  ? `${s.deviceMeta?.model || 'Unknown'} · ${s.deviceMeta?.os || 'Unknown'}`
+                                  : 'Session originated via *415*102# · USSD Access'}
+                              </p>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {sessionsRes?.total > sessionsRes?.sessions?.length && (
+                        <button 
+                          onClick={() => setSessionPage(p => p + 1)}
+                          disabled={isFetchingSessions}
+                          className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-pink-600 hover:text-pink-700 transition-colors"
+                        >
+                          {isFetchingSessions ? 'Loading...' : 'Load more sessions'}
+                        </button>
+                      )}
+                    </div>
+                  </Card>
+                </div>
+              )}
+           </div>
+
+           {/* 4. Sidebar */}
+           <div className="space-y-8">
+              {activeLoan ? (
+                <Card className="p-8 bg-gradient-to-br from-white to-pink-50/20 dark:from-gray-900 dark:to-pink-900/5 relative overflow-hidden">
+                  <SectionHeader>Active Loan Focus</SectionHeader>
+                  <div className="mt-6 p-6 rounded-[2rem] bg-white dark:bg-gray-800 shadow-xl border border-pink-100/30">
+                    <div className="flex justify-between items-start mb-8">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-600 mb-1">Total Payback</p>
+                        <p className="text-4xl font-black text-gray-900 dark:text-gray-100 font-mono tracking-tighter">₵{activeLoan.totalPayable || activeLoan.amountBorrowed}</p>
+                      </div>
+                      <Pill color={activeLoan.daysOverdue > 0 ? 'red' : 'teal'}>{activeLoan.paymentStatus?.toUpperCase() || 'ACTIVE'}</Pill>
+                    </div>
+                    <div className="space-y-4 mb-4">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className="text-gray-400">Principal</span>
+                        <span className="text-gray-900 dark:text-gray-100 font-mono font-black">₵{activeLoan.principal || activeLoan.amountBorrowed}</span>
+                      </div>
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className="text-gray-400">Balance</span>
+                        <span className="text-gray-900 dark:text-gray-100 font-mono font-black">₵{activeLoan.balanceRemaining}</span>
+                      </div>
+                    </div>
+                    {activeLoan.daysOverdue > 0 && (
+                      <div className="mt-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 text-[10px] font-black uppercase tracking-widest text-center">
+                        {activeLoan.daysOverdue} Days Overdue
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ) : (
+                <Card className="p-8 bg-gradient-to-br from-white to-teal-50/10 dark:from-gray-900 dark:to-teal-900/5">
+                  <SectionHeader>Account Health</SectionHeader>
+                  <div className="mt-4 space-y-6">
+                    <div className="p-4 rounded-2xl bg-teal-50/30 dark:bg-teal-900/10 border border-teal-100/30">
+                       <p className="text-[10px] font-black uppercase tracking-widest text-teal-600 mb-1">Lifetime Reliability</p>
+                       <p className="text-2xl font-black text-gray-900 dark:text-gray-100 font-mono">{payload.onTimeRateTrend?.[0]?.rate || 100}%</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="p-4 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Loans</p>
+                          <p className="text-lg font-black text-gray-900 dark:text-gray-100">{loanHistory?.length || 0}</p>
+                       </div>
+                       <div className="p-4 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Nodes</p>
+                          <p className="text-lg font-black text-gray-900 dark:text-gray-100">{referrals?.length || 0}</p>
+                       </div>
+                    </div>
+                    <div className="pt-2">
+                       <p className="text-[10px] text-gray-400 font-bold">No active liabilities found. This member is currently eligible for an advancement.</p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Weekly Intensity */}
+              <Card className="p-8">
+                <SectionHeader>App Session Intensity</SectionHeader>
+                <div className="mt-6">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Weekly volume (last 4 periods)</p>
+                  <div className="flex items-end gap-3 h-24 mb-4 bg-pink-50/20 dark:bg-gray-800/20 p-4 rounded-2xl">
+                    {weeklyUsage?.map((w: any, i: any) => {
+                      const maxCount = Math.max(...weeklyUsage.map((x: any) => x.count), 1)
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
+                          <div 
+                            className={`w-full rounded-t-lg transition-all duration-500 bg-pink-200 dark:bg-gray-700 group-hover:bg-pink-500`}
+                            style={{ height: `${(w.count / maxCount) * 100}%`, minHeight: '8px' }}
+                          />
+                          <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">W{w.week}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Referrals (Growth) */}
+              <Card className="p-8">
+                <SectionHeader>Network Growth</SectionHeader>
+                <div className="mt-6 space-y-4">
+                  {referrals?.slice(0, 3).map((ref: any) => (
+                    <div key={ref._id} className="flex items-center justify-between p-4 rounded-2xl bg-pink-50/30 dark:bg-gray-800/50 border border-pink-100/20">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center text-xs font-black text-pink-600 shadow-sm">{ref.fullName?.[0]}</div>
+                        <div>
+                          <p className="text-xs font-black text-gray-900 dark:text-gray-100 tracking-tight">{ref.fullName}</p>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">T{ref.currentTier}</p>
+                        </div>
+                      </div>
+                      <Pill color="teal" className="scale-75 origin-right">Active</Pill>
+                    </div>
+                  ))}
+                  {(!referrals || referrals.length === 0) && (
+                    <p className="text-[10px] font-bold text-gray-400 text-center py-4">No referrals found</p>
+                  )}
+                </div>
+              </Card>
+           </div>
+        </div>
+
+        {/* Modals & Controls */}
+        {flagModalOpen && <FlagModal userId={id} onClose={() => setFlagModalOpen(false)} onSaved={() => queryClient.invalidateQueries({ queryKey: ['user-detail', id] })} />}
+        
+        {isEditDrawerOpen && (
+          <EditUserSheet 
+            isOpen={isEditDrawerOpen} 
+            setIsOpen={setIsEditDrawerOpen} 
+            userPhone={user.msisdn} 
+            userId={id!} 
+            initialData={user} 
+          />
+        )}
+      </div>
+    </DashboardLayout>
+  )
 }

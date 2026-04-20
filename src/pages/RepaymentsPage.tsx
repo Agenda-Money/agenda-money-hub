@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LoanInfo {
   id: string;
@@ -44,21 +45,24 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   getRecentRepayments, 
   getAdminLoans, 
-  recordManualRepayment 
+  recordManualRepayment,
+  getEligibleLoans
 } from "@/lib/api";
 import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
 export default function RepaymentsPage() {
+  const { user } = useAuth();
   const [phone, setPhone] = useState("");
-  const [loanInfo, setLoanInfo] = useState<LoanInfo | null>(null);
+  const [loanReference, setLoanReference] = useState("");
+  const [debouncedPhone, setDebouncedPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [resultData, setResultData] = useState<any>(null);
+  
   const [period, setPeriod] = useState("monthly");
   const [limit, setLimit] = useState(10);
 
@@ -78,36 +82,21 @@ export default function RepaymentsPage() {
     return acc;
   }, {} as Record<string, any[]>);
 
-  const handleSearch = async () => {
-    if (!phone) return;
-    setIsSearching(true);
-    
-    // Attempt to find loan by user phone (mock logic for now as endpoint wasn't specified for search)
-    // In a real scenario we might hit /api/admin/loans?search={phone}
-    try {
-      const res = await getAdminLoans({ search: phone, status: "active" });
-      const loans = res.data || res.loans || [];
-      const userLoan = loans.find((l: any) => l.userMsisdn === phone || l.phone === phone);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedPhone(phone), 400);
+    return () => clearTimeout(timer);
+  }, [phone]);
 
-      if (userLoan) {
-        setLoanInfo({
-          id: userLoan.loanReference || userLoan.id || userLoan._id,
-          user: userLoan.user?.fullName  || userLoan.user || "Unknown",
-          amount: userLoan.principal || userLoan.amount,
-          remaining: (userLoan.totalPayable || 0) - (userLoan.amountRepaid || 0),
-          dueDate: userLoan.dueDate || new Date().toISOString()
-        });
-      } else {
-        toast.error("No active loan found for this number");
-        setLoanInfo(null);
-      }
-    } catch (e) {
-      console.error("Search failed", e);
-      toast.error(getFriendlyErrorMessage(e));
-    } finally {
-      setIsSearching(false);
-    }
-  };
+  const { data: eligibleLoansRes, isLoading: isCheckingLoans } = useQuery({
+    queryKey: ["eligible-loans", debouncedPhone],
+    queryFn: async () => {
+      const res = await getEligibleLoans(debouncedPhone);
+      return res;
+    },
+    enabled: debouncedPhone.trim().length >= 9,
+  });
+
+  const eligibleLoans = eligibleLoansRes?.loans || [];
 
   const mutation = useMutation({
     mutationFn: (data: any) => recordManualRepayment(data),
@@ -121,15 +110,23 @@ export default function RepaymentsPage() {
     }
   });
 
+  const generateReference = () => {
+    const adminId = user?._id?.substring(0, 4) || "ADM";
+    const dateStr = format(new Date(), "yyyyMMdd");
+    const timestamp = Date.now().toString().slice(-4);
+    setReference(`MAN-${dateStr}-${adminId.toUpperCase()}-${timestamp}`);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone || !amount || !method || !reference) {
-      toast.error("Please fill in all required fields");
+    if ((!phone && !loanReference) || !amount || !method || !reference) {
+      toast.error("Please fill in required fields. Phone or Loan Reference is required.");
       return;
     }
     
     mutation.mutate({
-      msisdn: phone,
+      msisdn: phone || undefined,
+      loanReference: loanReference || undefined,
       amount: parseFloat(amount),
       method: method.toUpperCase(),
       reference,
@@ -182,6 +179,7 @@ export default function RepaymentsPage() {
                 onClick={() => {
                   setSubmitted(false);
                   setPhone("");
+                  setLoanReference("");
                   setAmount("");
                   setMethod("");
                   setReference("");
@@ -225,16 +223,66 @@ export default function RepaymentsPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Phone Input */}
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  placeholder="Enter customer phone number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
+              {/* Phone and Reference Inputs */}
+              <div className="grid grid-cols-2 gap-4 mb-2">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    {isCheckingLoans && debouncedPhone.length >= 9 && <span className="text-[10px] text-primary uppercase tracking-wider font-semibold animate-pulse">Checking...</span>}
+                  </div>
+                  <Input
+                    id="phone"
+                    placeholder="e.g. 2335..."
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (loanReference) setLoanReference("");
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="loanReference">Loan Reference</Label>
+                  <Input
+                    id="loanReference"
+                    placeholder="e.g. LN-..."
+                    value={loanReference}
+                    onChange={(e) => setLoanReference(e.target.value)}
+                  />
+                </div>
               </div>
+              <p className="text-[11px] text-muted-foreground mt-0 mb-4">Provide at least one of Phone Number or Loan Reference.</p>
+
+              {eligibleLoans.length > 0 && !isCheckingLoans && debouncedPhone.trim().length >= 9 && (
+                <div className="space-y-2 mb-4 animate-fade-in">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Select Eligible Loan</Label>
+                  <div className="flex flex-col gap-2">
+                    {eligibleLoans.map((loan: any) => (
+                      <button
+                        key={loan.loanReference}
+                        type="button"
+                        onClick={() => setLoanReference(loan.loanReference)}
+                        className={cn(
+                          "bg-[#e1f5ee]/30 border rounded-xl p-3 flex justify-between items-center transition-all shadow-sm text-left hover:bg-[#e1f5ee]/70",
+                          loanReference === loan.loanReference ? "ring-2 ring-[#0f6e56] border-[#0f6e56] bg-[#e1f5ee]/80" : "border-[#b2e5d3]"
+                        )}
+                      >
+                        <div>
+                          <p className="text-sm font-bold text-[#0f6e56] mb-0.5">{loan.loanReference}</p>
+                          <p className="text-[11px] text-[#0f6e56]/80 font-medium tracking-tight">
+                            Bal: ₵{Number((loan.totalPayable || 0) - (loan.amountRepaid || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="opacity-70 ml-1">(Due {format(new Date(loan.dueDate), "MMM d")})</span>
+                          </p>
+                        </div>
+                        <Badge className={cn("text-white font-bold text-[9px] uppercase tracking-widest px-2.5 py-0.5 border-none",
+                          loan.status === 'OVERDUE' || loan.status === 'DEFAULTED' ? "bg-red-500 hover:bg-red-600 shadow-md shadow-red-500/20" : "bg-[#0f6e56] hover:bg-[#0f6e56]/90 shadow-md shadow-[#0f6e56]/20"
+                        )}>
+                          {loan.status}
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
 
               {/* Amount */}
               <div className="space-y-2">
@@ -264,7 +312,16 @@ export default function RepaymentsPage() {
 
               {/* Reference */}
               <div className="space-y-2">
-                <Label htmlFor="reference">Reference Number</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="reference">Reference Number</Label>
+                  <button 
+                    type="button" 
+                    onClick={generateReference}
+                    className="text-xs text-primary hover:underline font-medium"
+                  >
+                    Auto-generate
+                  </button>
+                </div>
                 <Input
                   id="reference"
                   placeholder="Enter transaction reference"
@@ -289,9 +346,9 @@ export default function RepaymentsPage() {
               <Button
                 type="submit"
                 className="w-full bg-primary hover:bg-primary/90"
-                disabled={!phone || !amount || !method || !reference}
+                disabled={(!phone && !loanReference) || !amount || !method || !reference || mutation.isPending}
               >
-                Record Payment
+                {mutation.isPending ? "Recording..." : "Record Payment"}
               </Button>
             </form>
           </CardContent>
@@ -301,7 +358,7 @@ export default function RepaymentsPage() {
 
       <TabsContent value="history" className="mt-0">
          <div className="space-y-6">
-           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 px-1">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 px-1">
              <h2 className="text-[22px] font-semibold text-foreground leading-tight">
                Recent<span className="md:hidden"><br /></span> repayments
              </h2>

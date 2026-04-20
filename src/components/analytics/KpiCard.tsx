@@ -16,52 +16,54 @@ interface Props {
 export function KpiCard({ label, value, subtext, trend, badge, status, icon, loading }: Props) {
   if (loading) {
     return (
-      <div 
-        className="animate-pulse flex items-center justify-center relative"
-        style={{
-          height: '160px', // rough height
-          backgroundColor: '#F1EFE8',
-          border: '1px solid #D3D1C7',
-          borderRadius: '14px',
-          padding: '20px 20px 16px'
-        }}
-      >
-        <Loader2 className="w-6 h-6 animate-spin text-[#D3D1C7]" />
+      <div className="animate-pulse flex items-center justify-center relative h-[160px] bg-muted/30 border border-muted/50 rounded-[14px] p-[20px_20px_16px]">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground/30" />
       </div>
     );
   }
 
-  // Card Backgrounds
-  const cardBgColor = status === 'green' ? '#E1F5EE' : status === 'red' ? '#FCEBEB' : '#F1EFE8';
-  const cardBorderColor = status === 'green' ? '#9FE1CB' : status === 'red' ? '#F7C1C1' : '#D3D1C7';
-
-  // Label Colors
-  const labelColor = status === 'green' ? '#0F6E56' : status === 'red' ? '#A32D2D' : '#5F5E5A';
-  
-  // Value Colors
-  const valueColor = status === 'green' ? '#085041' : status === 'red' ? '#791F1F' : '#2C2C2A';
-
-  // Badge Colors map
-  const getBadgeColors = (variant: string) => {
-    switch (variant) {
-      case 'green': return { bg: '#9FE1CB', text: '#085041' };
-      case 'red': return { bg: '#F7C1C1', text: '#791F1F' };
-      case 'amber': return { bg: '#FAC775', text: '#633806' };
-      default: return { bg: '#D3D1C7', text: '#444441' }; // neutral
+  // Card Theme Config
+  const configs = {
+    green: {
+      card: "bg-emerald-50/50 border-emerald-200 dark:bg-emerald-950/10 dark:border-emerald-900/50",
+      label: "text-emerald-700 dark:text-emerald-400",
+      value: "text-emerald-900 dark:text-emerald-100",
+      iconBg: "bg-emerald-200/50 dark:bg-emerald-900/30",
+      iconText: "text-emerald-700 dark:text-emerald-400"
+    },
+    red: {
+      card: "bg-red-50/50 border-red-200 dark:bg-red-950/10 dark:border-red-900/50",
+      label: "text-red-700 dark:text-red-400",
+      value: "text-red-900 dark:text-red-100",
+      iconBg: "bg-red-200/50 dark:bg-red-900/30",
+      iconText: "text-red-700 dark:text-red-400"
+    },
+    neutral: {
+      card: "bg-gray-50/50 border-gray-200 dark:bg-gray-900/40 dark:border-gray-800",
+      label: "text-gray-500 dark:text-gray-400",
+      value: "text-gray-900 dark:text-gray-100",
+      iconBg: "bg-gray-200/50 dark:bg-gray-800",
+      iconText: "text-gray-600 dark:text-gray-300"
     }
   };
 
-  // Icon container Colors
-  const iconBgColor = status === 'green' ? '#9FE1CB' : status === 'red' ? '#F7C1C1' : '#D3D1C7';
-  // Note: the prompt didn't specify icon SVG text color, let's use the value color or label color to blend nicely, or default it to inherit.
-  const iconColor = status === 'green' ? '#085041' : status === 'red' ? '#791F1F' : '#2C2C2A';
+  const theme = configs[status as keyof typeof configs] || configs.neutral;
 
-  // Trend Colors
-  const getTrendColor = (dir: string) => {
-    if (dir === 'up') return '#0F6E56';
-    if (dir === 'down') return '#A32D2D';
-    return '#888780';
+  const getBadgeClasses = (variant: string) => {
+    switch (variant) {
+      case 'green': return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-none shadow-none";
+      case 'red': return "bg-red-500/10 text-red-700 dark:text-red-400 border-none shadow-none";
+      case 'amber': return "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-none shadow-none";
+      default: return "bg-muted text-muted-foreground border-none shadow-none";
+    }
   };
+
+  const getTrendColor = (dir: string) => {
+    if (dir === 'up') return 'text-emerald-600 dark:text-emerald-400';
+    if (dir === 'down') return 'text-red-600 dark:text-red-400';
+    return 'text-gray-400 dark:text-gray-500';
+  };
+
   const getTrendPrefix = (dir: string) => {
     if (dir === 'up') return '↑';
     if (dir === 'down') return '↓';
@@ -69,91 +71,32 @@ export function KpiCard({ label, value, subtext, trend, badge, status, icon, loa
   };
 
   return (
-    <div 
-      style={{
-        backgroundColor: cardBgColor,
-        border: `1px solid ${cardBorderColor}`,
-        borderRadius: '14px',
-        padding: '20px 20px 16px',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        minHeight: '160px'
-      }}
-    >
-      {/* Icon Container absolute positioned */}
+    <div className={`relative flex flex-col justify-between min-h-[160px] p-[20px_20px_16px] rounded-[14px] border transition-all duration-300 shadow-sm ${theme.card}`}>
       {icon && (
-        <div 
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            width: '34px',
-            height: '34px',
-            borderRadius: '8px',
-            backgroundColor: iconBgColor,
-            color: iconColor,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
+        <div className={`absolute top-5 right-5 w-[34px] h-[34px] rounded-lg flex items-center justify-center transition-colors ${theme.iconBg} ${theme.iconText}`}>
           {icon}
         </div>
       )}
 
       <div>
-        <h3 
-          style={{
-            fontSize: '11px',
-            fontWeight: 500,
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            color: labelColor,
-            margin: '0 0 8px 0',
-            maxWidth: icon ? 'calc(100% - 40px)' : '100%' // avoid text overlap with icon
-          }}
-        >
+        <h3 className={`text-[11px] font-black uppercase tracking-[0.1em] mb-2 leading-none ${theme.label} ${icon ? 'max-w-[calc(100%-40px)]' : 'w-full'}`}>
           {label}
         </h3>
         
-        <div 
-          style={{
-            fontSize: '28px',
-            fontWeight: 500,
-            color: valueColor,
-            margin: '0 0 4px 0',
-            lineHeight: 1
-          }}
-        >
+        <div className={`text-[28px] font-black tracking-tighter mb-1 font-mono leading-none ${theme.value}`}>
           {value}
         </div>
 
-        <div 
-          style={{
-            fontSize: '12px',
-            color: labelColor,
-            margin: '0 0 8px 0'
-          }}
-        >
+        <div className={`text-xs font-bold italic mb-3 text-opacity-70 ${theme.label}`}>
           {subtext}
         </div>
 
         {trend && (
-          <div 
-            style={{
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              margin: '0 0 12px 0'
-            }}
-          >
-            <span style={{ color: getTrendColor(trend.direction), fontWeight: 500 }}>
+          <div className="flex items-center gap-1 mb-3 text-xs">
+            <span className={`font-black tracking-tight ${getTrendColor(trend.direction)}`}>
               {getTrendPrefix(trend.direction)} {trend.value}
             </span>
-            <span style={{ color: '#888780', fontSize: '11px' }}>
+            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
               {trend.label}
             </span>
           </div>
@@ -162,18 +105,7 @@ export function KpiCard({ label, value, subtext, trend, badge, status, icon, loa
 
       <div>
         {badge && badge.text && (
-          <span 
-            style={{
-              display: 'inline-block',
-              borderRadius: '20px',
-              padding: '4px 12px',
-              fontSize: '11px',
-              fontWeight: 500,
-              textTransform: 'uppercase',
-              backgroundColor: getBadgeColors(badge.variant).bg,
-              color: getBadgeColors(badge.variant).text
-            }}
-          >
+          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${getBadgeClasses(badge.variant)}`}>
             {badge.text}
           </span>
         )}

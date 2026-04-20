@@ -199,8 +199,8 @@ export default function AnalyticsPage() {
             <Activity className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-neutral-900">Analytics Dashboard</h1>
-            <p className="text-sm text-neutral-500 mt-1">Ecosystem pulse & business intelligence</p>
+            <h1 className="text-2xl lg:text-3xl font-black text-gray-900 dark:text-gray-100">Analytics Dashboard</h1>
+            <p className="text-sm font-bold text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-tight italic">Ecosystem pulse & business intelligence</p>
           </div>
         </div>
 
@@ -214,15 +214,15 @@ export default function AnalyticsPage() {
         <div>
           <SectionHead title="Performance metrics" />
           
-          <div className="flex flex-wrap items-center gap-2 mb-4 bg-white border border-border rounded-xl px-3 py-2 shadow-sm w-full sm:w-fit max-w-full">
-            <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-widest px-1 shrink-0">Date Filter</span>
-            <input type="date" className="text-xs bg-transparent border border-neutral-200 rounded px-2 py-1 outline-none text-neutral-700 flex-1 min-w-[110px]" value={fromInput} onChange={e => setFromInput(e.target.value)} />
-            <span className="text-[11px] text-neutral-400 shrink-0">to</span>
-            <input type="date" className="text-xs bg-transparent border border-neutral-200 rounded px-2 py-1 outline-none text-neutral-700 flex-1 min-w-[110px]" value={toInput} onChange={e => setToInput(e.target.value)} />
-            <div className="hidden sm:block h-4 w-px bg-border mx-2" />
+          <div className="flex flex-wrap items-center gap-2 mb-4 bg-white dark:bg-gray-900 border border-border dark:border-gray-800 rounded-xl px-3 py-2 shadow-sm w-full sm:w-fit max-w-full">
+            <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1 shrink-0">Filter By Date Range</span>
+            <input type="date" className="text-xs bg-transparent border border-gray-100 dark:border-gray-800 rounded-lg px-2 py-1 outline-none text-gray-700 dark:text-gray-200 flex-1 min-w-[110px] font-bold" value={fromInput} onChange={e => setFromInput(e.target.value)} />
+            <span className="text-[10px] font-black text-gray-300 dark:text-gray-600 shrink-0 uppercase">to</span>
+            <input type="date" className="text-xs bg-transparent border border-gray-100 dark:border-gray-800 rounded-lg px-2 py-1 outline-none text-gray-700 dark:text-gray-200 flex-1 min-w-[110px] font-bold" value={toInput} onChange={e => setToInput(e.target.value)} />
+            <div className="hidden sm:block h-4 w-px bg-gray-100 dark:bg-gray-800 mx-2" />
             <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-              <button onClick={applyRange} className="flex-1 sm:flex-none text-xs font-semibold px-4 py-1.5 bg-[#085041] text-white rounded-md hover:bg-[#0F6E56] transition-colors">Apply</button>
-              <button onClick={clearRange} className="flex-1 sm:flex-none text-xs font-semibold px-4 py-1.5 bg-neutral-100 text-neutral-600 rounded-md hover:bg-neutral-200 transition-colors">Clear</button>
+              <button onClick={applyRange} className="flex-1 sm:flex-none text-[10px] font-black uppercase tracking-widest px-4 py-1.5 bg-[#085041] text-white rounded-lg hover:bg-[#0F6E56] transition-colors shadow-sm">Apply</button>
+              <button onClick={clearRange} className="flex-1 sm:flex-none text-[10px] font-black uppercase tracking-widest px-4 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm">Clear</button>
             </div>
           </div>
 
@@ -244,17 +244,17 @@ export default function AnalyticsPage() {
             <SectionError section="Distribution data" onRetry={dist.refetch} />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="bg-white border rounded-[14px] p-5 shadow-sm">
+              <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-[14px] p-5 shadow-sm">
                 <PanelHead title="Signup Growth" />
-                {dist.loading ? <div className="animate-pulse bg-neutral-100 h-[260px] rounded-lg" /> : <ChartSignupGrowth data={d?.signupGrowth || []} />}
+                {dist.loading ? <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-[260px] rounded-lg" /> : <ChartSignupGrowth data={d?.signupGrowth || []} />}
               </div>
-              <div className="bg-white border rounded-[14px] p-5 shadow-sm">
+              <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-[14px] p-5 shadow-sm">
                 <PanelHead title="Tier Distribution" />
-                {dist.loading ? <div className="animate-pulse bg-neutral-100 h-[260px] rounded-lg" /> : <ChartTierDistribution data={d?.tierDistribution?.byTier || []} />}
+                {dist.loading ? <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-[260px] rounded-lg" /> : <ChartTierDistribution data={d?.tierDistribution?.byTier || []} />}
               </div>
-              <div className="bg-white border rounded-[14px] p-5 shadow-sm">
+              <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-[14px] p-5 shadow-sm">
                 <PanelHead title="Geographic Distribution" />
-                {dist.loading ? <div className="animate-pulse bg-neutral-100 h-[260px] rounded-lg" /> : <GeographicList data={d?.geographicDistribution || []} />}
+                {dist.loading ? <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-[260px] rounded-lg" /> : <GeographicList data={d?.geographicDistribution || []} />}
               </div>
             </div>
           )}
@@ -267,13 +267,13 @@ export default function AnalyticsPage() {
             <SectionError section="Volume data" onRetry={vol.refetch} />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-white border rounded-[14px] p-5 shadow-sm">
+              <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-[14px] p-5 shadow-sm">
                 <PanelHead title="Disbursement vs Collection" />
-                {vol.loading ? <div className="animate-pulse bg-neutral-100 h-[280px] rounded-lg" /> : <ChartDisbColl data={v?.disbursementVsCollection || []} />}
+                {vol.loading ? <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-[280px] rounded-lg" /> : <ChartDisbColl data={v?.disbursementVsCollection || []} />}
               </div>
-              <div className="bg-white border rounded-[14px] p-5 shadow-sm flex flex-col">
+              <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-[14px] p-5 shadow-sm flex flex-col">
                 <PanelHead title="Repayment Channels" />
-                {vol.loading ? <div className="animate-pulse bg-neutral-100 h-[280px] rounded-lg flex-1" /> : (
+                {vol.loading ? <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-[280px] rounded-lg flex-1" /> : (
                   <div className="flex-1 flex flex-col justify-center">
                     <RepaymentChannels data={v?.repaymentChannels} />
                   </div>

@@ -51,7 +51,6 @@ import CsaSignupPage from "./pages/csa/CsaSignupPage";
 import CsaActivityPage from "./pages/csa/CsaActivityPage";
 import CsaTemplatesPage from "./pages/csa/CsaTemplatesPage";
 import { DevEligibilitySandbox } from "./pages/DevEligibilitySandbox";
-
 import { getSubdomain } from "@/lib/domain";
 
 const queryClient = new QueryClient({
@@ -216,6 +215,7 @@ const App = () => {
                       <Route path="/settings" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents" element={<RequireAuth><AdminRoute><AgentsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents/:id" element={<RequireAuth><AdminRoute><AgentDetailsPage /></AdminRoute></RequireAuth>} />
+
 
                       <Route path="*" element={<NotFound />} />
                     </>

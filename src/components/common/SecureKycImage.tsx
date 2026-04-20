@@ -4,8 +4,9 @@ import { getKycSignedUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface SecureKycImageProps {
-  userId: string;
-  imageType: "front" | "back" | "selfie";
+  userId?: string;
+  imageUrl?: string;
+  imageType?: "front" | "back" | "selfie";
   label: string;
   className?: string;
   onExpand?: (url: string) => void;
@@ -13,6 +14,7 @@ interface SecureKycImageProps {
 
 export function SecureKycImage({ 
   userId, 
+  imageUrl,
   imageType, 
   label, 
   className,
@@ -26,7 +28,13 @@ export function SecureKycImage({
     let isMounted = true;
 
     const fetchSignedUrl = async () => {
-      if (!userId) return;
+      if (imageUrl) {
+        setUrl(imageUrl);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!userId || !imageType) return;
       
       setIsLoading(true);
       setError(null);
@@ -57,7 +65,7 @@ export function SecureKycImage({
     return () => {
       isMounted = false;
     };
-  }, [userId, imageType]);
+  }, [userId, imageType, imageUrl]);
 
   if (isLoading) {
     return (
