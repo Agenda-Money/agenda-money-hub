@@ -2,6 +2,9 @@ import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Activity, CalendarDays, TrendingUp, AlertTriangle, ShieldCheck, Banknote, RefreshCw } from "lucide-react";
 import { KpiCard } from "@/components/analytics/KpiCard";
+import { ReferralRateCard } from "@/components/dashboard/ReferralRateCard";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
 import { 
   SectionHead, 
   SectionError, 
@@ -43,6 +46,11 @@ export default function AnalyticsPage() {
   const [range, setRange] = useState<DateRange>({});
   const [fromInput, setFromInput] = useState('');
   const [toInput, setToInput] = useState('');
+
+  const { data: refRes, isLoading: refLoading } = useQuery({
+    queryKey: ['referrals-analytics'],
+    queryFn: () => api.get('/api/referrals/analytics').then(r => r.data.data)
+  });
 
   const sum = useSummary();
   const perf = usePerformance(range);
@@ -102,9 +110,9 @@ export default function AnalyticsPage() {
         />
         <KpiCard
           label="Repayment Rate"
-          value={fPct(p?.repaymentRate?.overall)}
-          subtext="On-time performance"
-          {...getRepaymentRateStatus(safeNum(p?.repaymentRate?.overall))}
+          value={fPct(p?.repaymentRate?.rate ?? p?.repaymentRate?.overall)}
+          subtext={p?.repaymentRate?.dueLoanCount ? `${fCount(p?.repaymentRate?.repaidCount)} of ${fCount(p?.repaymentRate?.dueLoanCount)} loans repaid` : "On-time performance"}
+          {...getRepaymentRateStatus(safeNum(p?.repaymentRate?.rate ?? p?.repaymentRate?.overall))}
           icon={<TrendingUp className="w-5 h-5" />}
         />
         <KpiCard
@@ -116,9 +124,9 @@ export default function AnalyticsPage() {
         />
         <KpiCard
           label="Loan book"
-          value={fGHS(s?.loanBook?.total)}
-          subtext="Outstanding principal"
-          {...getLoanBookStatus(safeNum(s?.loanBook?.total))}
+          value={fGHS(s?.loanBook?.value ?? s?.loanBook?.total)}
+          subtext={s?.loanBook?.count ? `${fCount(s?.loanBook?.count)} total loans` : "Outstanding principal"}
+          {...getLoanBookStatus(safeNum(s?.loanBook?.value ?? s?.loanBook?.total))}
           icon={<Banknote className="w-5 h-5" />}
         />
         <KpiCard
@@ -167,24 +175,32 @@ export default function AnalyticsPage() {
         />
         <KpiCard
           label="All-time disbursements"
-          value={fGHS(s?.disbursements?.allTime?.totalGHS)}
-          subtext="Total disbursed"
+          value={fGHS(s?.allTimeDisbursement?.totalValue ?? s?.disbursements?.allTime?.totalGHS)}
+          subtext={s?.allTimeDisbursement?.totalCount ? `${fCount(s?.allTimeDisbursement?.totalCount)} total loans` : "Total disbursed"}
           status="neutral"
           icon={<Banknote className="w-5 h-5" />}
         />
         <KpiCard
-          label="Active users"
-          value={fCount(p?.activeUsers?.count || s?.userActivity?.activeUsers || 0)}
-          subtext="Last 30 days"
+          label="Active Customers"
+          value={fCount(s?.activeCustomers?.count ?? p?.activeUsers?.count ?? s?.userActivity?.activeUsers ?? 0)}
+          subtext={s?.activeCustomers?.windowDays ? `Last ${s?.activeCustomers?.windowDays} days` : "Last 30 days"}
           status="green"
           badge={{ text: "Healthy", variant: "green" }}
           icon={<Activity className="w-5 h-5" />}
         />
         <KpiCard
-          label="Churn risk"
-          value={safeNum(s?.userActivity?.churnRisk).toString()}
-          subtext="No re-application"
-          {...getChurnStatus(safeNum(s?.userActivity?.churnRisk))}
+          label="Retention Rate"
+          value={fPct(p?.retentionRate?.retentionRate)}
+          subtext={p?.retentionRate?.eligibleCustomers ? `${fCount(p?.retentionRate?.retainedCustomers)} of ${fCount(p?.retentionRate?.eligibleCustomers)} customers` : "Repaid & returned"}
+          status="green"
+          badge={{ text: "Loyal", variant: "green" }}
+          icon={<RefreshCw className="w-5 h-5" />}
+        />
+        <KpiCard
+          label="Churn Rate"
+          value={fPct(p?.churnRate ?? s?.userActivity?.churnRisk)}
+          subtext="Did not return in 90 days"
+          {...getChurnStatus(safeNum(p?.churnRate ?? s?.userActivity?.churnRisk))}
           icon={<AlertTriangle className="w-5 h-5" />}
         />
       </div>
@@ -280,6 +296,18 @@ export default function AnalyticsPage() {
                 )}
               </div>
             </div>
+          )}
+        </div>
+
+        {/* Section 5: Referrals */}
+        <div>
+          <SectionHead title="Referrals" />
+          {refLoading ? (
+            <div className="h-[200px] bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse" />
+          ) : refRes ? (
+            <ReferralRateCard data={refRes} />
+          ) : (
+            <SectionError section="Referrals data" onRetry={() => {}} />
           )}
         </div>
 
