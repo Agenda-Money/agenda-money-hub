@@ -77,7 +77,7 @@ const CHALLENGES: ChallengeConfig[] = [
   {
     key: "smile",
     label: "Lips",
-    instruction: "Slight lip movement is enough",
+    instruction: "Gently move your lips",
     icon: <Smile className="w-8 h-8" />,
     color: "#EC1B84",
   },
@@ -102,11 +102,11 @@ const HEAD_BLEND_YAW = 0.62;
 const HEAD_BLEND_JAW = 0.38;
 
 // Mouth: subtle movement vs short baseline (not a “big smile”).
-const MOUTH_BASELINE_FRAMES = 6;
-const MOUTH_DELTA_PASS = 0.0045;
-const MOUTH_NEAR_DELTA = 0.002;
-const MOUTH_SUSTAINED_FRAMES = 1;
-const MOUTH_EMA_ALPHA = 0.42;
+const MOUTH_BASELINE_FRAMES = 10;
+const MOUTH_DELTA_PASS = 0.02;
+const MOUTH_NEAR_DELTA = 0.008;
+const MOUTH_SUSTAINED_FRAMES = 5;
+const MOUTH_EMA_ALPHA = 0.25;
 
 // Anti-fraud (keep light — avoid failing real users)
 const FACE_DISAPPEAR_THRESHOLD_MS = 2200;
@@ -368,7 +368,7 @@ export function LivenessCapture({
     }
 
     if (currentChallenge.key === "smile") {
-      setFeedbackMessage("Hold neutral, then move your lips slightly");
+      setFeedbackMessage("Hold neutral, then gently move your lips");
     }
   }, [currentChallenge, currentChallengeIdx, debugGesture]);
 
@@ -553,7 +553,7 @@ export function LivenessCapture({
       } else if (nextChallenge?.key === "headTurn") {
         setFeedbackMessage("Turn gently both ways — small movements count");
       } else if (nextChallenge?.key === "smile") {
-        setFeedbackMessage("Hold neutral, then move your lips slightly");
+        setFeedbackMessage("Hold neutral, then gently move your lips");
       }
       challengeStartTimeRef.current = Date.now();
     }
@@ -768,32 +768,38 @@ export function LivenessCapture({
             const samples = mouthBaselineSamplesRef.current;
             baselineMouthRef.current =
               samples.reduce((a, b) => a + b, 0) / samples.length;
-            setFeedbackMessage("Now slightly move your lips");
+            setFeedbackMessage("Now gently move your lips");
           }
         }
 
         const baseline = baselineMouthRef.current;
         if (baseline !== null) {
-          const delta = smoothed - baseline;
+          let delta = smoothed - baseline;
+          let movement = Math.abs(delta);
+
+          // 🔥 Ignore noise (VERY IMPORTANT)
+          if (movement < 0.006) {
+            movement = 0;
+          }
+
           debugGesture({
             challenge: "mouth",
             phase: "live",
             smoothed: Number(smoothed.toFixed(4)),
             baseline: Number(baseline.toFixed(4)),
             delta: Number(delta.toFixed(4)),
+            movement: Number(movement.toFixed(4)),
             frames: mouthMotionFramesRef.current,
           });
 
-          if (delta > MOUTH_DELTA_PASS) {
+          if (movement > MOUTH_DELTA_PASS) {
             mouthMotionFramesRef.current += 1;
             setFeedbackMessage("Got it");
-          } else if (delta > MOUTH_NEAR_DELTA) {
-            setFeedbackMessage("Tiny bit more");
+          } else if (movement > MOUTH_NEAR_DELTA) {
+            mouthMotionFramesRef.current = 0; // 🔥 reset
+            setFeedbackMessage("A little more lip movement");
           } else {
-            mouthMotionFramesRef.current = Math.max(
-              0,
-              mouthMotionFramesRef.current - 1,
-            );
+            mouthMotionFramesRef.current = 0; // 🔥 reset (CRITICAL)
             setFeedbackMessage("Small lip movement — purse, smile, or relax");
           }
 
