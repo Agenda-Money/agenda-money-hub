@@ -256,26 +256,28 @@ export default function AgentsPage() {
                       List of registered agents and their node codes
                     </CardDescription>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white/40 backdrop-blur-md p-4 rounded-3xl border border-white/40 shadow-sm flex-1">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <Input
-                        placeholder="Search by name, MSISDN or node code..."
-                        className="pl-12 h-12 bg-white/80 border-none rounded-2xl shadow-none font-medium focus:ring-2 focus:ring-primary/20"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center gap-3 bg-white/80 h-12 px-4 rounded-2xl border border-gray-100/50">
-                      <Switch 
-                        id="high-risk-filter" 
-                        checked={showHighRiskOnly} 
-                        onCheckedChange={setShowHighRiskOnly}
-                      />
-                      <Label htmlFor="high-risk-filter" className="text-[10px] font-black uppercase text-gray-500 tracking-widest cursor-pointer whitespace-nowrap">
-                        High Risk Only
-                      </Label>
+                  <div className="bg-white/40 dark:bg-gray-900/40 backdrop-blur-md p-4 rounded-3xl border border-white/40 dark:border-gray-800 shadow-sm flex-1">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative flex-1 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 transition-colors group-focus-within:text-primary" />
+                        <Input
+                          placeholder="Search by name, code or phone..."
+                          className="pl-11 bg-white/80 dark:bg-gray-800/80 border-none rounded-2xl shadow-none font-medium focus:ring-2 focus:ring-primary/20 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
+                      
+                      <div className="flex items-center gap-3 bg-white/80 dark:bg-gray-800/80 h-12 px-4 rounded-2xl border border-gray-100/50 dark:border-gray-700">
+                        <Switch 
+                          id="high-risk-filter" 
+                          checked={showHighRiskOnly} 
+                          onCheckedChange={setShowHighRiskOnly}
+                        />
+                        <Label htmlFor="high-risk-filter" className="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-widest cursor-pointer whitespace-nowrap">
+                          High Risk Only
+                        </Label>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -305,7 +307,7 @@ export default function AgentsPage() {
                         >
                           <TableCell>
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0 font-black text-gray-400 text-xs overflow-hidden border">
+                              <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center shrink-0 font-black text-gray-400 dark:text-gray-500 text-xs overflow-hidden border border-gray-100 dark:border-gray-700">
                                 {agent.selfieUrl ? (
                                   <img 
                                     src={agent.selfieUrl.startsWith('http') ? agent.selfieUrl : `${baseApiUrl}/api/assets/${agent.selfieUrl}`} 
@@ -322,7 +324,7 @@ export default function AgentsPage() {
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <div className="font-black text-gray-900">{agent.fullName}</div>
+                                  <div className="font-black text-gray-900 dark:text-gray-100">{agent.fullName}</div>
                                   {agent.highDefaultRisk && (
                                     <TooltipProvider>
                                       <Tooltip>
