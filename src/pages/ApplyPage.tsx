@@ -698,7 +698,6 @@ export default function ApplyPage() {
 
     const handleLoanStatusUpdated = async (data: any) => {
       try {
-        console.log("Real-time loan status update:", data);
 
         if (data.title && data.message) {
           toast.success(`${data.title}: ${data.message}`, { duration: 5000 });

@@ -146,7 +146,6 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
         setMomoCheckLoading(true);
         try {
           const res = await resolveMomoName(loanId);
-          console.log("MoMo Check Response for loan", loanId, ":", res);
           setMomoCheck(res.data || res);
         } catch (err: any) {
           console.error("MoMo Check Error for loan", loanId, ":", err);

@@ -321,7 +321,6 @@ export function LivenessCapture({
     if (now - debugLogAtRef.current < 250) return;
     debugLogAtRef.current = now;
 
-    console.log("[liveness-debug]", payload);
   }, []);
 
   useEffect(() => {
@@ -862,9 +861,6 @@ export function LivenessCapture({
 
   // â”€â”€â”€ DEV: Manual challenge completion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  const devCompleteChallenge = useCallback(() => {
-    advanceChallenge();
-  }, [advanceChallenge]);
 
   // â”€â”€â”€ Render: Loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -1178,17 +1174,6 @@ export function LivenessCapture({
               </div>
             )}
 
-            {import.meta.env.DEV && (
-              <div className="mx-auto w-full max-w-xs">
-                <Button
-                  onClick={devCompleteChallenge}
-                  variant="outline"
-                  className="h-10 w-full rounded-full border-white/20 bg-white/10 text-sm font-bold text-white hover:bg-white/20 hover:text-white"
-                >
-                  [DEV] Complete "{currentChallenge.label}" Challenge
-                </Button>
-              </div>
-            )}
           </div>
 
           <canvas ref={canvasRef} className="hidden" />
