@@ -26,7 +26,7 @@ const itemVariants = {
 };
 
 export default function AgentProfile() {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const { theme, setTheme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -75,10 +75,46 @@ export default function AgentProfile() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    let altPhoneToSave = undefined;
+    if (formData.alternatePhone && formData.alternatePhone.trim() !== "") {
+      const digits = formData.alternatePhone.replace(/\D/g, "");
+      let normalized = "";
+      if (digits.length === 10 && digits.startsWith("0")) normalized = "233" + digits.substring(1);
+      else if (digits.length === 9) normalized = "233" + digits;
+      else if (digits.length === 12 && digits.startsWith("233")) normalized = digits;
+      
+      if (!normalized) {
+        toast.error("Enter a valid Ghana phone number");
+        setIsSaving(false);
+        return;
+      }
+      
+      const primaryDigits = (user?.phoneNumber || "").replace(/\D/g, "");
+      let primaryNorm = "";
+      if (primaryDigits.length === 10 && primaryDigits.startsWith("0")) primaryNorm = "233" + primaryDigits.substring(1);
+      else if (primaryDigits.length === 9) primaryNorm = "233" + primaryDigits;
+      else if (primaryDigits.length === 12 && primaryDigits.startsWith("233")) primaryNorm = primaryDigits;
+
+      if (normalized === primaryNorm && primaryNorm !== "") {
+        toast.error("Alternate phone cannot be the same as primary phone");
+        setIsSaving(false);
+        return;
+      }
+      altPhoneToSave = normalized;
+    }
+    
+    const payload: any = { fullName: formData.fullName };
+    if (user?.role === "agent" && altPhoneToSave) {
+      payload.alternatePhone = altPhoneToSave;
+    }
+
+    const { success, message } = await updateProfile(payload);
     setIsSaving(false);
-    setIsEditing(false);
-    toast.success("Profile updated successfully");
+    
+    if (success) {
+      setIsEditing(false);
+    }
   };
 
   const handleCancel = () => {

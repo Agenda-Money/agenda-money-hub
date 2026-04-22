@@ -18,7 +18,8 @@ import {
   ExternalLink,
   ChevronRight,
   X,
-  ShieldAlert
+  ShieldAlert,
+  Phone
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { 
@@ -439,6 +440,7 @@ export default function UserDetailsPage() {
                         <DetailItem label="Gender" value={user.metadata?.gender || user.gender} icon={User} />
                         <DetailItem label="Birthday" value={(user.metadata?.dob || user.dob) ? formatDate(user.metadata?.dob || user.dob) : 'N/A'} icon={Calendar} />
                         <DetailItem label="Accomodation" value={user.metadata?.accommodationType || user.metadata?.accomodation || user.accommodationType} icon={MapPin} />
+                        <DetailItem label="Alt Phone" value={user.metadata?.alternatePhone || user.alternatePhone || 'N/A'} icon={Phone} />
                         <DetailItem label="Status" value={user.isBlocked ? 'Blocked' : 'Active'} icon={User} />
                      </div>
                   </Card>
