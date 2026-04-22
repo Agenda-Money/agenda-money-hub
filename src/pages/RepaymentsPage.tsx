@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, PhoneCall, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
@@ -46,7 +46,8 @@ import {
   getRecentRepayments, 
   getAdminLoans, 
   recordManualRepayment,
-  getEligibleLoans
+  getEligibleLoans,
+  getCollectionActivities
 } from "@/lib/api";
 import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
@@ -65,11 +66,12 @@ export default function RepaymentsPage() {
   
   const [period, setPeriod] = useState("monthly");
   const [limit, setLimit] = useState(10);
+  const [source, setSource] = useState<string | undefined>(undefined);
 
   const { data: recentRepayments, isLoading: isLoadingRecent, isFetching: isFetchingMore } = useQuery({
-    queryKey: ["recent-repayments", period, limit],
+    queryKey: ["recent-repayments", period, limit, source],
     queryFn: async () => {
-      const res = await getRecentRepayments({ period, limit });
+      const res = await getRecentRepayments({ period, limit, source });
       return res.data || [];
     },
   });
@@ -210,9 +212,10 @@ export default function RepaymentsPage() {
         </div>
 
         <Tabs defaultValue="record" className="w-full">
-          <TabsList className="mb-6 grid w-full grid-cols-2 max-w-md">
+          <TabsList className="mb-6 grid w-full grid-cols-3 max-w-xl">
             <TabsTrigger value="record">Manual Repayment</TabsTrigger>
             <TabsTrigger value="history">Repayment History</TabsTrigger>
+            <TabsTrigger value="collections">Collection Logs</TabsTrigger>
           </TabsList>
 
           <TabsContent value="record">
@@ -358,21 +361,73 @@ export default function RepaymentsPage() {
 
       <TabsContent value="history" className="mt-0">
          <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 px-1">
-             <h2 className="text-[22px] font-semibold text-foreground leading-tight">
-               Recent<span className="md:hidden"><br /></span> repayments
-             </h2>
-             <Select value={period} onValueChange={setPeriod}>
-               <SelectTrigger className="w-[140px] h-9 rounded-lg bg-card border-border text-[13px]">
-                 <SelectValue placeholder="Select period" />
-               </SelectTrigger>
-               <SelectContent className="rounded-lg">
-                 <SelectItem value="monthly">Last 30 days</SelectItem>
-                 <SelectItem value="weekly">Last 7 days</SelectItem>
-                 <SelectItem value="24h">Last 24 hours</SelectItem>
-               </SelectContent>
-             </Select>
-           </div>
+            <div className="flex flex-col gap-6 py-4 px-1">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <h2 className="text-[22px] font-semibold text-foreground leading-tight">
+                  Recent<span className="md:hidden"><br /></span> repayments
+                </h2>
+                <div className="flex items-center gap-3">
+                  <Select value={period} onValueChange={setPeriod}>
+                    <SelectTrigger className="w-[140px] h-9 rounded-lg bg-card border-border text-[13px]">
+                      <SelectValue placeholder="Select period" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg">
+                      <SelectItem value="monthly">Last 30 days</SelectItem>
+                      <SelectItem value="weekly">Last 7 days</SelectItem>
+                      <SelectItem value="24h">Last 24 hours</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Source Tabs */}
+              <div className="flex items-center gap-1 p-1 bg-muted/30 rounded-xl w-fit border border-border/50">
+                <button
+                  onClick={() => setSource(undefined)}
+                  className={cn(
+                    "px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all",
+                    source === undefined ? "bg-white dark:bg-gray-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  All Repayments
+                </button>
+                <button
+                  onClick={() => setSource("organic")}
+                  className={cn(
+                    "px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all",
+                    source === "organic" ? "bg-white dark:bg-gray-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Organic
+                </button>
+                <button
+                  onClick={() => setSource("collections")}
+                  className={cn(
+                    "px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all",
+                    source === "collections" ? "bg-white dark:bg-gray-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Collections
+                </button>
+              </div>
+
+              {/* Collections Summary Line */}
+              {source === "collections" && recentRepayments && recentRepayments.length > 0 && (
+                <div className="bg-teal-500/5 border border-teal-500/20 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
+                  <div className="w-10 h-10 bg-teal-500/10 rounded-full flex items-center justify-center">
+                    <PhoneCall className="h-5 w-5 text-teal-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-teal-900 dark:text-teal-100">
+                      ₵{recentRepayments.reduce((sum: number, r: any) => sum + (r.amountPaid || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} collected by agents this period
+                    </p>
+                    <p className="text-xs text-teal-600 font-bold uppercase tracking-tight">
+                      {recentRepayments.length} repayments linked to collection calls
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
 
            {isLoadingRecent ? (
              <div className="space-y-4 animate-pulse">
@@ -405,6 +460,18 @@ export default function RepaymentsPage() {
                               <div className="text-sm font-semibold text-foreground mb-0.5 truncate">{rep.userName || "Unknown"}</div>
                               <div className="text-[12px] text-[#6b6b66] mb-0.5">{rep.userMsisdn}</div>
                               <div className="text-[11px] text-[#a0a09a] uppercase">{rep.paidAt ? format(new Date(rep.paidAt), "h:mm a") : "N/A"}</div>
+                              
+                              <div className="mt-2">
+                                {rep.collectionSource === 'collections' ? (
+                                  <Badge variant="outline" className="bg-pink-500/10 text-pink-700 border-pink-500/20 text-[9px] font-black uppercase tracking-widest px-2 py-0">
+                                    {rep.assignedCsaName || 'CSA'}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-gray-100 text-gray-500 border-gray-200 text-[9px] font-black uppercase tracking-widest px-2 py-0">
+                                    Organic
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                             <div className="text-right flex flex-col items-end shrink-0 self-start pt-0.5">
                               <span className="text-[10px] font-medium text-[#0f6e56] tracking-[0.04em]">GHS</span>
@@ -437,6 +504,7 @@ export default function RepaymentsPage() {
                        <TableHead className="pl-6 w-[140px]">Date</TableHead>
                        <TableHead>Reference</TableHead>
                        <TableHead>Customer</TableHead>
+                       <TableHead>Source</TableHead>
                        <TableHead className="text-right">Amount Paid</TableHead>
                        <TableHead className="text-right">Remaining Bal</TableHead>
                        <TableHead className="text-center pr-6 w-[100px]">Status</TableHead>
@@ -468,6 +536,17 @@ export default function RepaymentsPage() {
                                <span className="text-xs text-muted-foreground">{rep.userMsisdn}</span>
                              </div>
                            </div>
+                         </TableCell>
+                         <TableCell>
+                           {rep.collectionSource === 'collections' ? (
+                             <Badge variant="outline" className="bg-pink-500/10 text-pink-700 border-pink-500/20 text-[10px] font-black uppercase tracking-widest max-w-[140px] truncate block">
+                               Collected — {rep.assignedCsaName || 'Agent'}
+                             </Badge>
+                           ) : (
+                             <Badge variant="outline" className="bg-gray-100 text-gray-500 border-gray-200 text-[10px] font-black uppercase tracking-widest">
+                               Organic
+                             </Badge>
+                           )}
                          </TableCell>
                          <TableCell className="text-right">
                            <div className="flex flex-col items-end">
@@ -512,8 +591,151 @@ export default function RepaymentsPage() {
            )}
          </div>
       </TabsContent>
+
+      <TabsContent value="collections" className="mt-0">
+         <CollectionLogsView />
+      </TabsContent>
     </Tabs>
       </div>
     </DashboardLayout>
+  );
+}
+
+function CollectionLogsView() {
+  const [page, setPage] = useState(1);
+  const { data: logsRes, isLoading } = useQuery({
+    queryKey: ["collection-activities", page],
+    queryFn: () => getCollectionActivities({ page, limit: 15 }),
+  });
+
+  const logs = logsRes?.data || [];
+  const total = logsRes?.pagination?.total || 0;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 animate-pulse p-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-20 bg-muted/20 rounded-xl border border-border" />
+        ))}
+      </div>
+    );
+  }
+
+  const getOutcomeStyles = (outcome: string) => {
+    const o = (outcome || '').toLowerCase();
+    if (o.includes('promise')) return 'bg-amber-100 text-amber-700 border-amber-200';
+    if (o.includes('paid') || o.includes('answered')) return 'bg-green-100 text-green-700 border-green-200';
+    if (o.includes('number off') || o.includes('wrong number')) return 'bg-red-100 text-red-700 border-red-200';
+    if (o.includes('other')) return 'bg-blue-100 text-blue-700 border-blue-200';
+    return 'bg-gray-100 text-gray-700 border-gray-200';
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between py-4 px-1">
+        <h2 className="text-[22px] font-semibold text-foreground leading-tight">
+          Collection logs
+        </h2>
+        <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+          Total: {total} items
+        </div>
+      </div>
+
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent border-border">
+              <TableHead className="pl-6">Borrower</TableHead>
+              <TableHead>Outcome</TableHead>
+              <TableHead className="pr-6">Notes</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {logs.length > 0 ? logs.map((log: any) => (
+              <TableRow key={log._id} className="hover:bg-muted/30 border-border group align-top">
+                <TableCell className="pl-6 py-5">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-black text-gray-900 dark:text-gray-100">
+                      {log.borrower?.name || log.userName || 'Unknown'}
+                    </span>
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">
+                      {format(new Date(log.createdAt), "MMM d, h:mm a")}
+                    </span>
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300 mt-1">
+                      {log.borrower?.msisdn || log.userMsisdn}
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-1">
+                       <span className="text-[9px] font-mono font-bold bg-muted/50 px-1.5 py-0.5 rounded text-muted-foreground uppercase tracking-wider">
+                         {log.loanReference}
+                       </span>
+                       <span className="text-[9px] font-bold text-pink-600/70 border-l border-pink-100 pl-1.5 flex items-center gap-1">
+                         <PhoneCall size={10} /> {log.csaName || log.csaAgentName || 'Agent'}
+                       </span>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="py-5">
+                  <div className="flex flex-col items-start gap-1.5">
+                    <Badge variant="outline" className={cn("text-[10px] font-black tracking-widest uppercase border border-none px-2 py-0.5", getOutcomeStyles(log.outcome || log.outcomeCode))}>
+                      {log.outcomeLabel || log.outcome || 'Unknown'}
+                    </Badge>
+                    {log.callDuration && (
+                      <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 uppercase tracking-tighter">
+                        <Clock size={11} /> {log.callDuration}
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="pr-6 py-5 max-w-[320px]">
+                  {log.note || log.notes ? (
+                    <div className="bg-gray-50/50 dark:bg-gray-800/30 border-l-2 border-pink-200 p-3 rounded-r-xl">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 italic leading-relaxed">
+                        "{log.note || log.notes}"
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground/50 uppercase font-black tracking-widest italic opacity-50 px-1">No notes recorded</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            )) : (
+              <TableRow>
+                <TableCell colSpan={3} className="h-40 text-center text-muted-foreground text-xs uppercase tracking-widest font-bold">
+                  No collection logs found
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {total > 0 && (
+        <div className="flex items-center justify-between px-1">
+           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+             Page {page} of {logsRes?.pagination?.pages || 1}
+           </p>
+           <div className="flex gap-2">
+             <Button 
+              variant="outline" 
+              size="sm"
+              className="h-8 text-[11px] font-bold uppercase tracking-widest border-border"
+              onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo(0, 0); }}
+              disabled={page === 1}
+             >
+               Previous
+             </Button>
+             <Button 
+              variant="outline" 
+              size="sm"
+              className="h-8 text-[11px] font-bold uppercase tracking-widest border-border"
+              onClick={() => { setPage(p => p + 1); window.scrollTo(0, 0); }}
+              disabled={page >= (logsRes?.pagination?.pages || 1)}
+             >
+               Next
+             </Button>
+           </div>
+        </div>
+      )}
+    </div>
   );
 }

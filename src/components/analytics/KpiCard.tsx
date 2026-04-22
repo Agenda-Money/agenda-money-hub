@@ -83,7 +83,7 @@ export function KpiCard({ label, value, subtext, trend, badge, status, icon, loa
           {label}
         </h3>
         
-        <div className={`text-[28px] font-black tracking-tighter mb-1 font-mono leading-none ${theme.value}`}>
+        <div className={`text-[24px] sm:text-[28px] font-black tracking-tighter mb-1 font-mono leading-none ${theme.value}`}>
           {value}
         </div>
 

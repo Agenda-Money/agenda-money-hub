@@ -46,11 +46,11 @@ export function MoMDisbursementCard({
           />
         </div>
         
-        <div className="flex flex-col items-end gap-3 mt-4 md:mt-0">
-          <div className="p-1 bg-muted rounded-lg flex border border-border/50 w-fit">
+        <div className="flex flex-col sm:items-end gap-3 mt-4 md:mt-0 w-full md:w-auto">
+          <div className="p-1 bg-muted rounded-lg flex flex-wrap border border-border/50 w-full sm:w-fit">
             <button
               onClick={() => setToggle("value")}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 sm:flex-none px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors ${
                 toggle === "value" ? "bg-background text-foreground shadow" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -58,7 +58,7 @@ export function MoMDisbursementCard({
             </button>
             <button
               onClick={() => setToggle("count")}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 sm:flex-none px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors ${
                 toggle === "count" ? "bg-background text-foreground shadow" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -92,17 +92,42 @@ export function MoMDisbursementCard({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#9CA3AF" }} dy={10} />
+              <XAxis 
+                dataKey="month" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fill: "#9CA3AF", fontWeight: 600 }} 
+                dy={10} 
+                tickFormatter={(val) => {
+                  try {
+                    // Assuming YYYY-MM
+                    const [y, m] = val.split('-');
+                    const date = new Date(parseInt(y), parseInt(m) - 1);
+                    return date.toLocaleString('en-US', { month: 'long' }); 
+                  } catch (e) {
+                    return val;
+                  }
+                }}
+              />
               <YAxis 
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fontSize: 12, fill: "#9CA3AF" }} 
+                tick={{ fontSize: 11, fill: "#9CA3AF", fontWeight: 600 }} 
                 tickFormatter={(value) => toggle === "value" ? formatMoney(value) : formatCount(value)} 
-                width={70}
+                width={65}
               />
               <Tooltip 
                 cursor={{ fill: "rgba(0,0,0,0.05)" }}
                 contentStyle={{ borderRadius: "8px", border: "1px solid #E5E7EB" }}
+                labelFormatter={(label) => {
+                  try {
+                    const [y, m] = label.split('-');
+                    const date = new Date(parseInt(y), parseInt(m) - 1);
+                    return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                  } catch (e) {
+                    return label;
+                  }
+                }}
                 formatter={(val: number) => {
                   return [toggle === "value" ? formatMoney(val) : formatCount(val), toggle === "value" ? "Value Disbursed" : "Loans Disbursed"]
                 }}

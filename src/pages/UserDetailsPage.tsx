@@ -19,7 +19,8 @@ import {
   ChevronRight,
   X,
   ShieldAlert,
-  Phone
+  Phone,
+  PhoneCall
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { 
@@ -95,14 +96,24 @@ const MetricCard = ({ label, value, sub, valueColor = '' }: any) => (
   </div>
 )
 
-const DetailItem = ({ label, value, icon: Icon }: any) => (
-  <div className="flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-gray-800/50 border border-pink-100/40 dark:border-transparent">
+const DetailItem = ({ label, value, icon: Icon, onCall }: any) => (
+  <div className="flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-gray-800/50 border border-pink-100/40 dark:border-transparent group/item">
     <div className="w-8 h-8 rounded-xl bg-pink-50 dark:bg-pink-900/20 flex items-center justify-center text-pink-600 dark:text-pink-400">
       <Icon size={14} />
     </div>
-    <div className="min-w-0">
+    <div className="flex-1 min-w-0">
       <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-0.5">{label}</p>
-      <p className="text-xs font-bold text-gray-900 dark:text-gray-100 break-words line-clamp-2">{value || 'N/A'}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold text-gray-900 dark:text-gray-100 break-words line-clamp-1">{value || 'N/A'}</p>
+        {onCall && value && value !== 'N/A' && (
+          <button 
+            onClick={() => onCall(value)}
+            className="p-1.5 rounded-lg bg-pink-50 text-pink-600 opacity-0 group-hover/item:opacity-100 transition-all hover:bg-pink-600 hover:text-white"
+          >
+            <Phone size={12} />
+          </button>
+        )}
+      </div>
     </div>
   </div>
 )
@@ -237,7 +248,7 @@ const FlagModal = ({ userId, onClose, onSaved }: any) => {
 }
 
 // ─── Main Page Components ────────────────────────────────────────────────────
-const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onRemoveFlag, canWrite }: any) => {
+const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onRemoveFlag, onCall, canWrite }: any) => {
   const activeFlag = user.flags?.slice(-1)[0] || null
   return (
     <Card className="p-8">
@@ -255,7 +266,16 @@ const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onRemoveFlag, canWrite }
               <Pill color="brand" className="font-mono">{user.personalNodeCode || user.nodeCode}</Pill>
             </div>
             <div className="flex gap-4 flex-wrap justify-center md:justify-start text-[13px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide">
-              <span className="font-mono tracking-normal text-gray-900 dark:text-gray-100">{user.msisdn}</span>
+              <div className="flex items-center gap-3">
+                <span className="font-mono tracking-normal text-gray-900 dark:text-gray-100">{user.msisdn}</span>
+                <button 
+                  onClick={() => onCall(user.msisdn)}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-500 text-white hover:bg-pink-600 transition-all shadow-lg shadow-pink-500/20 active:scale-95"
+                >
+                  <PhoneCall size={12} strokeWidth={3} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Call</span>
+                </button>
+              </div>
               <span className="hidden md:inline opacity-30">·</span>
               <span>Joined {formatDate(user.createdAt)}</span>
             </div>
@@ -292,6 +312,10 @@ export default function UserDetailsPage() {
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false)
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false)
   const [blockReason, setBlockReason] = useState('')
+
+  const handleCall = (number: string) => {
+    window.location.href = `tel:${number}`
+  }
 
   // 1) Primary Data Fetch
   const { data: detailRes, isLoading, error } = useQuery({
@@ -375,6 +399,7 @@ export default function UserDetailsPage() {
           onBlock={() => setIsBlockModalOpen(true)}
           onEdit={() => setIsEditDrawerOpen(true)}
           onRemoveFlag={(flagId: string) => removeFlagMutation.mutate(flagId)}
+          onCall={handleCall}
           canWrite={canWrite}
         />
 
@@ -440,7 +465,7 @@ export default function UserDetailsPage() {
                         <DetailItem label="Gender" value={user.metadata?.gender || user.gender} icon={User} />
                         <DetailItem label="Birthday" value={(user.metadata?.dob || user.dob) ? formatDate(user.metadata?.dob || user.dob) : 'N/A'} icon={Calendar} />
                         <DetailItem label="Accomodation" value={user.metadata?.accommodationType || user.metadata?.accomodation || user.accommodationType} icon={MapPin} />
-                        <DetailItem label="Alt Phone" value={user.metadata?.alternatePhone || user.alternatePhone || 'N/A'} icon={Phone} />
+                        <DetailItem label="Alt Phone" value={user.metadata?.alternatePhone || user.alternatePhone || 'N/A'} icon={Phone} onCall={handleCall} />
                         <DetailItem label="Status" value={user.isBlocked ? 'Blocked' : 'Active'} icon={User} />
                      </div>
                   </Card>
@@ -529,29 +554,74 @@ export default function UserDetailsPage() {
 
                   <Card className="p-8">
                     <div className="flex items-center justify-between mb-6">
-                      <SectionHeader>App Session History</SectionHeader>
+                      <SectionHeader>Member Activity History</SectionHeader>
                     </div>
                     <div className="space-y-1">
-                      {sessionsRes?.sessions?.map((s: any, i: any) => (
-                        <div key={s._id} className={`flex gap-4 py-4 items-start px-2 rounded-2xl border-b border-gray-50 dark:border-gray-800/50 last:border-0`}>
-                          <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 shadow-sm ${s.channel === 'app' ? 'bg-teal-500' : 'bg-purple-500'}`} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start gap-2">
-                              <p className="text-sm font-black text-gray-900 dark:text-gray-200 capitalize">
-                                {s.channel === 'app' ? 'App Session' : 'USSD Entry'} · {s.action?.replace(/_/g, ' ')}
-                              </p>
-                              <span className="text-[10px] text-gray-400 font-mono font-black">
-                                {new Date(s.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {formatDate(s.createdAt)}
-                              </span>
+                      {sessionsRes?.sessions?.map((s: any, i: any) => {
+                        if (s.type === 'CALL' || s.action === 'CALL') {
+                          let badgeColor = 'bg-gray-100 text-gray-700 border-gray-200';
+                          const outcomeStr = (s.outcome || '').toLowerCase();
+                          if (outcomeStr.includes('promise')) badgeColor = 'bg-amber-100 text-amber-700 border-amber-200';
+                          else if (outcomeStr.includes('paid') || outcomeStr.includes('answered')) badgeColor = 'bg-green-100 text-green-700 border-green-200';
+                          else if (outcomeStr.includes('number off') || outcomeStr.includes('wrong number')) badgeColor = 'bg-red-100 text-red-700 border-red-200';
+                          else if (outcomeStr.includes('other')) badgeColor = 'bg-blue-100 text-blue-700 border-blue-200';
+                          else if (outcomeStr.includes('no answer') || outcomeStr.includes('unanswered')) badgeColor = 'bg-gray-100 text-gray-700 border-gray-200';
+                          
+                          return (
+                            <div key={s._id || i} className="flex gap-4 py-4 items-start px-2 rounded-2xl border-b border-gray-50 dark:border-gray-800/50 last:border-0">
+                              <div className="w-8 h-8 rounded-full bg-pink-50 dark:bg-pink-900/20 text-pink-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <PhoneCall size={14} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start gap-2">
+                                  <p className="text-sm font-black text-gray-900 dark:text-gray-200">
+                                    {s.csaAgentName || 'Agent'} <span className="font-bold text-gray-400 text-[11px] ml-1 uppercase tracking-widest">logged a call</span>
+                                  </p>
+                                  <span className="text-[10px] text-gray-400 font-mono font-black shrink-0">
+                                    {new Date(s.timestamp || s.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {formatDate(s.timestamp || s.createdAt)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${badgeColor}`}>
+                                    {s.outcome || 'Unknown'}
+                                  </span>
+                                  {s.callDuration && (
+                                    <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1 uppercase tracking-widest">
+                                      <Clock size={12} /> {s.callDuration}
+                                    </span>
+                                  )}
+                                </div>
+                                {s.notes && (
+                                  <div className="mt-3 bg-gray-50 dark:bg-gray-800/50 border-l-2 border-pink-400 p-3 rounded-r-xl">
+                                    <p className="text-xs text-gray-600 dark:text-gray-300 italic">{s.notes}</p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                              <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mt-1">
-                                {s.channel === 'app'
-                                  ? `${s.deviceMeta?.model || 'Unknown'} · ${s.deviceMeta?.os || 'Unknown'}`
-                                  : 'Session originated via *415*102# · USSD Access'}
-                              </p>
+                          );
+                        }
+
+                        return (
+                          <div key={s._id || i} className={`flex gap-4 py-4 items-start px-2 rounded-2xl border-b border-gray-50 dark:border-gray-800/50 last:border-0`}>
+                            <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 shadow-sm ${s.channel === 'app' ? 'bg-teal-500' : 'bg-purple-500'}`} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start gap-2">
+                                <p className="text-sm font-black text-gray-900 dark:text-gray-200 capitalize">
+                                  {s.channel === 'app' ? 'App Session' : 'USSD Entry'} · {s.type || s.action?.replace(/_/g, ' ')}
+                                </p>
+                                <span className="text-[10px] text-gray-400 font-mono font-black">
+                                  {new Date(s.timestamp || s.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {formatDate(s.timestamp || s.createdAt)}
+                                </span>
+                              </div>
+                                <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mt-1">
+                                  {s.channel === 'app'
+                                    ? `${s.deviceMeta?.model || 'Unknown'} · ${s.deviceMeta?.os || 'Unknown'}`
+                                    : 'Session originated via *415*102# · USSD Access'}
+                                </p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       
                       {sessionsRes?.total > sessionsRes?.sessions?.length && (
                         <button 
@@ -559,7 +629,7 @@ export default function UserDetailsPage() {
                           disabled={isFetchingSessions}
                           className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-pink-600 hover:text-pink-700 transition-colors"
                         >
-                          {isFetchingSessions ? 'Loading...' : 'Load more sessions'}
+                          {isFetchingSessions ? 'Loading...' : 'Load more activity'}
                         </button>
                       )}
                     </div>
