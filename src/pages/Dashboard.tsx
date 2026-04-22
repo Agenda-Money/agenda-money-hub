@@ -1,64 +1,69 @@
-import { Users, TrendingDown, BookOpen, AlertTriangle } from "lucide-react";
-import { StatsCard } from "@/components/dashboard/StatsCard";
+import React from "react";
+// Old layout elements to keep:
 import { RecentLoansTable } from "@/components/dashboard/RecentLoansTable";
 import { PendingApprovals } from "@/components/dashboard/PendingApprovals";
-import { LoanTrendsChart } from "@/components/dashboard/LoanTrendsChart";
+import { RecentRepaymentsWidget } from "@/components/dashboard/RecentRepaymentsWidget";
 import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
-import { normalizeStatsResponse, formatAmount, formatNumber } from "@/lib/utils";
 import { useSocket } from "@/hooks/useSocket";
+import { StatsCard } from "@/components/dashboard/StatsCard";
+import { Users, TrendingDown, BookOpen, AlertTriangle } from "lucide-react";
+import { formatAmount, formatNumber } from "@/lib/utils";
 
+// New hooks and types
 import { useQuery } from "@tanstack/react-query";
-import { getAdminDashboardStats } from "@/lib/api";
-import { useAnalyticsDashboard } from "@/hooks/useAnalyticsDashboard";
+import { useDateFilter } from "@/hooks/useDateFilter";
+import api from "@/lib/api";
+import { SummaryData, PerformanceData, VolumeData } from "@/types/analytics";
+
+// New cards
+import { MoMDisbursementCard } from "@/components/dashboard/MoMDisbursementCard";
 
 export default function Dashboard() {
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
+  const { preset, startDate, endDate, applyPreset, setStartDate, setEndDate } = useDateFilter();
 
-  const { data: responseData, isLoading: isStatsLoading, refetch } = useQuery({
-    queryKey: ["dashboard-stats"],
+  // 1. Batch API fetches for Summary and Performance (Mounted once or on refetch)
+  const { data: dashboardData, isLoading: isDashboardLoading, refetch } = useQuery({
+    queryKey: ["dashboard-core"],
     queryFn: async () => {
-      const res = await getAdminDashboardStats();
-      return res;
+      const [summaryRes, perfRes] = await Promise.all([
+        api.get("/api/admin/analytics/summary"),
+        api.get("/api/admin/analytics/performance"),
+      ]);
+
+      return {
+        summary: summaryRes.data.data as SummaryData,
+        performance: perfRes.data.data as PerformanceData,
+      };
     },
   });
 
-  const { data: analyticsData, isLoading: isAnalyticsLoading } = useAnalyticsDashboard();
-
-  const isLoading = isStatsLoading || isAnalyticsLoading;
+  // 2. Volume API triggered by date filter
+  const { data: volumeData } = useQuery({
+    queryKey: ["dashboard-volume", startDate.toISOString(), endDate.toISOString()],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        startDate: startDate.toISOString().split("T")[0],
+        endDate: endDate.toISOString().split("T")[0],
+      });
+      const res = await api.get(`/api/admin/analytics/volume?${params}`);
+      return res.data.data as VolumeData;
+    },
+  });
 
   // WebSocket integration for real-time updates
   useSocket(wsUrl, (message) => {
     if (message?.type === "NEW_APPLICATION" || message?.type === "KYC_VERIFIED_SUCCESS") {
-      // Refetch dashboard stats when new events occur
       refetch();
     }
   });
 
-  if (isLoading) {
+  if (isDashboardLoading || !dashboardData) {
     return <DashboardSkeleton />;
   }
 
-  const stats = normalizeStatsResponse(responseData);
-
-  const data = stats ?? {
-    loanBook: "N/A",
-    activeLoans: "N/A",
-    repaymentEfficiency: "N/A",
-    repaymentRate: "N/A",
-    defaultRate: "N/A",
-    totalLoansCumulative: "N/A",
-    totalDisbursedCumulative: "N/A",
-    disbursedThisMonth: "N/A",
-    avgLoanSize: "N/A",
-    interestIncome: "N/A",
-    feeIncome: "N/A",
-    lossDefaults: "N/A",
-    overdueLoans: "N/A",
-  };
-
-  // Additional stats from the "War Room" requirements
-  const repaymentRate = responseData?.repaymentRate ?? data.repaymentEfficiency;
-  const overdueCount = responseData?.overdueLoans ?? 0;
+  const { summary, performance } = dashboardData;
+  const momGrowth = volumeData?.momDisbursementGrowth || [];
 
   return (
     <div className="space-y-6">
@@ -70,39 +75,52 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Primary Hero Cards - Top 4 Key Metrics for "The War Room" */}
+      {/* Top 4 Hero Metrics (Restored per feedback) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Loan Book"
-          value={`₵ ${formatAmount(data.loanBook ?? 0)}`}
+          value={`₵ ${formatAmount(summary.loanBook.value ?? 0)}`}
           icon={BookOpen}
         />
         <StatsCard
           title="Active Loans"
-          value={formatNumber(data.activeLoans ?? 0)}
+          value={formatNumber(summary.activeLoans?.count ?? 0)}
           icon={Users}
         />
         <StatsCard
           title="Repayment Rate"
-          value={`${formatAmount(data.repaymentRate ?? 0)}%`}
+          value={performance.repaymentRate?.rate != null ? `${performance.repaymentRate.rate.toFixed(1)}%` : "0%"}
           icon={TrendingDown}
         />
         <StatsCard
           title="Overdue"
-          value={formatNumber(data.overdueLoans ?? overdueCount ?? 0)}
+          value={formatNumber(summary.overdueLoans?.count ?? 0)}
           icon={AlertTriangle}
         />
       </div>
 
-      {/* Hero Graph - Disbursement vs Repayment (Liquidity Tracker) */}
-      <LoanTrendsChart />
+      {/* Row 1: MoM Disbursement Growth */}
+      <MoMDisbursementCard 
+        data={momGrowth}
+        preset={preset}
+        startDate={startDate}
+        endDate={endDate}
+        applyPreset={applyPreset}
+        setStartDate={setStartDate}
+        setEndDate={setEndDate}
+      />
 
       {/* Recent Activity Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-4">
           <RecentLoansTable />
         </div>
-        <PendingApprovals />
+        <div className="space-y-4 h-full flex flex-col">
+          <PendingApprovals />
+          <div className="flex-1 min-h-[300px]">
+            <RecentRepaymentsWidget />
+          </div>
+        </div>
       </div>
     </div>
   );

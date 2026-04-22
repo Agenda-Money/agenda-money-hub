@@ -45,12 +45,12 @@ import { LivenessCapture } from "@/components/liveliness/LivenessCapture";
 
 import { UserRewardsTab } from "./UserRewardsTab";
 import { UserNetworkTab } from "./UserNetworkTab";
-import { GENDERS, GHANA_REGIONS, TERMS_LIST } from "@/lib/constants";
 import { parseDecisionError, DecisionError } from "@/lib/api";
 import { EligibilityBlockScreen } from "@/components/eligibility/EligibilityBlockScreen";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
 import { RepaymentPage } from "./RepaymentPage";
 import { LoanStatusCard } from "@/components/dashboard/LoanStatusCard";
+import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import {
   Bell,
   Home,
@@ -417,6 +417,7 @@ export default function ApplyPage() {
   const [direction, setDirection] = useState(0);
   const [msisdnInput, setMsisdnInput] = useState("");
   const [nodeCode, setNodeCode] = useState("");
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [, setNodeName] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [userData, setUserData] = useState<Record<string, unknown> | null>(

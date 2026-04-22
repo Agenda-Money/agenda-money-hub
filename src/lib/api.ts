@@ -57,9 +57,6 @@ if (!baseURL) {
   // Keep the warning; remove in production if you prefer silence.
   // eslint-disable-next-line no-console
   console.warn('VITE_API_URL is not set. API requests will be sent to the same origin.');
-} else {
-  // eslint-disable-next-line no-console
-  console.info('Using VITE_API_URL:', baseURL);
 }
 
 const api = axios.create({
@@ -394,12 +391,22 @@ export const getAdminUserProfile = async (userId: string) => {
   return response.data;
 };
 
+export const getRepayments = async (params?: any) => {
+  const response = await api.get('/api/admin/repayments', { params });
+  return response.data;
+};
+
 export const getRecentRepayments = async (params?: { period?: string; limit?: number }) => {
   const response = await api.get('/api/admin/repayments/recent', { params });
   return response.data;
 };
 
-export const recordManualRepayment = async (data: { msisdn: string; amount: number; method: string; reference: string; notes?: string }) => {
+export const getEligibleLoans = async (msisdn: string) => {
+  const response = await api.get('/api/admin/repayments/eligible-loans', { params: { msisdn } });
+  return response.data;
+};
+
+export const recordManualRepayment = async (data: { msisdn?: string; amount: number; method: string; reference: string; notes?: string; loanReference?: string }) => {
   const response = await api.post('/api/admin/repayments/record', data);
   return response.data;
 };
@@ -479,6 +486,26 @@ export const getKycSignedUrl = async (userId: string, imageType: string) => {
 
 export const getUserActiveLoan = async (phone: string) => {
   const response = await api.get(`/api/admin/loans/active/${phone}`);
+  return response.data;
+};
+
+export const getUserDetail = async (userId: string) => {
+  const response = await api.get(`/api/admin/users/${userId}`);
+  return response.data;
+};
+
+export const getUserSessions = async (userId: string, page = 1, limit = 20) => {
+  const response = await api.get(`/api/admin/users/${userId}/sessions`, { params: { page, limit } });
+  return response.data;
+};
+
+export const addFlag = async (userId: string, level: string, reason: string) => {
+  const response = await api.post(`/api/admin/users/${userId}/flag`, { level, reason });
+  return response.data;
+};
+
+export const deleteFlag = async (userId: string, flagId: string) => {
+  const response = await api.delete(`/api/admin/users/${userId}/flag/${flagId}`);
   return response.data;
 };
 
