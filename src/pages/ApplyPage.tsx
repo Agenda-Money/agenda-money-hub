@@ -50,7 +50,6 @@ import { EligibilityBlockScreen } from "@/components/eligibility/EligibilityBloc
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
 import { RepaymentPage } from "./RepaymentPage";
 import { LoanStatusCard } from "@/components/dashboard/LoanStatusCard";
-import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import {
   Bell,
   Home,
@@ -427,7 +426,6 @@ export default function ApplyPage() {
   const [dobError, setDobError] = useState<string | null>(null); // Validation error message
   const [isRequesting, setIsRequesting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [resendSeconds, setResendSeconds] = useState(0);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [decisionError, setDecisionError] = useState<DecisionError | null>(
