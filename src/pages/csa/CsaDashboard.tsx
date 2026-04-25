@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, SlidersHorizontal, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Search, SlidersHorizontal, RefreshCw, AlertTriangle, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,9 @@ import csaApi from '@/lib/csaApi';
 import { LoanCard } from '@/components/csa/LoanCard';
 import { LoanDrawer } from '@/components/csa/LoanDrawer';
 import { getBucketMeta, formatGHS, BUCKET_ORDER } from '@/lib/bucketUtils';
+import { useAuth } from '@/contexts/AuthContext';
+import { getCsaPerformance } from '@/lib/api';
+import { format } from 'date-fns';
 
 const NETWORKS = [
   { label: 'MTN', value: 'MTN' },
@@ -20,6 +23,7 @@ const NETWORKS = [
 const REGIONS = ['Greater Accra', 'Ashanti', 'Central', 'Eastern', 'Western', 'Northern', 'Upper East', 'Upper West', 'Volta', 'Bono', 'Ahafo', 'Bono East', 'Oti', 'Savannah', 'North East', 'Western North'];
 
 export default function CsaDashboard() {
+  const { user } = useAuth();
   const [activeBucket, setActiveBucket] = useState<number>(8);
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -32,6 +36,15 @@ export default function CsaDashboard() {
     queryFn: () => csaApi.get('/api/csa/collections/buckets').then((r) => r.data),
     refetchInterval: 2 * 60_000,
   });
+  
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const { data: performanceData, isLoading: performanceLoading } = useQuery({
+    queryKey: ['csa-personal-performance', user?.id],
+    queryFn: () => getCsaPerformance({ agentId: user?.id, dateFrom: todayStr }),
+    enabled: !!user?.id
+  });
+
+  const myPerf = performanceData?.[0] || performanceData; // Backend might return array or single object
 
   const { data: loansData, isLoading: loansLoading, isFetching, refetch: refetchLoans } = useQuery({
     queryKey: ['csa-loans', activeBucket, page, search, network, region],
@@ -73,6 +86,48 @@ export default function CsaDashboard() {
           <RefreshCw className={cn("h-3.5 w-3.5 transition-transform", (isFetching || bucketsLoading) && "animate-spin")} />
           {isFetching || bucketsLoading ? "Refreshing..." : "Refresh"}
         </Button>
+      </div>
+
+      {/* Personal Performance Stats */}
+      <div className="bg-[#085041] dark:bg-[#063a2f] text-white rounded-2xl p-4 shadow-md flex flex-wrap items-center justify-between gap-4 border border-[#0F6E56]/30">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center">
+            <TrendingUp className="h-4 w-4 text-[#9FE1CB]" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#9FE1CB]/70">Performance Today</p>
+            <p className="text-xs font-bold">My Personal Effectiveness</p>
+          </div>
+        </div>
+        
+        {performanceLoading ? (
+          <div className="flex gap-6 animate-pulse">
+            <div className="h-4 w-20 bg-white/10 rounded" />
+            <div className="h-4 w-20 bg-white/10 rounded" />
+            <div className="h-4 w-20 bg-white/10 rounded" />
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-x-8 gap-y-2">
+             <div className="flex items-center gap-2">
+               <span className="text-[10px] font-bold text-white/50 uppercase tracking-tighter">Calls made today:</span>
+               <span className="text-sm font-black text-white">{myPerf?.totalCallsMade ?? 0}</span>
+             </div>
+             <div className="flex items-center gap-2 border-l border-white/10 pl-8">
+               <span className="text-[10px] font-bold text-white/50 uppercase tracking-tighter">Successful collections:</span>
+               <span className="text-sm font-black text-white">{myPerf?.successfulCollections ?? 0}</span>
+             </div>
+             <div className="flex items-center gap-2 border-l border-white/10 pl-8">
+               <span className="text-[10px] font-bold text-white/50 uppercase tracking-tighter">My conversion rate:</span>
+               <span className={cn("text-sm font-black px-2 py-0.5 rounded-lg", 
+                  (myPerf?.conversionRate ?? 0) >= 20 ? "bg-green-500/20 text-green-400" :
+                  (myPerf?.conversionRate ?? 0) >= 10 ? "bg-amber-500/20 text-amber-400" :
+                  "bg-red-500/20 text-red-400"
+               )}>
+                 {Number(myPerf?.conversionRate ?? 0).toFixed(1)}%
+               </span>
+             </div>
+          </div>
+        )}
       </div>
 
       {/* Bucket tabs */}
@@ -203,7 +258,7 @@ export default function CsaDashboard() {
               </p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="rounded-xl" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
-                <Button variant="outline" size="sm" className="rounded-xl" disabled={page >= pagination.pages} onClick={() => setPage(p => p + 1)}>Next</Button>
+                <Button variant="outline" size="sm" className="rounded-xl" disabled={!pagination?.hasNextPage} onClick={() => setPage(p => p + 1)}>Next</Button>
               </div>
             </div>
           )}
@@ -211,7 +266,10 @@ export default function CsaDashboard() {
       )}
 
       {/* Loan drawer */}
-      <LoanDrawer loanId={selectedLoanId} onClose={() => setSelectedLoanId(null)} />
+      <LoanDrawer 
+        loanId={selectedLoanId} 
+        onClose={() => setSelectedLoanId(null)} 
+      />
     </div>
   );
 }

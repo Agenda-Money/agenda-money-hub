@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Phone, MapPin, Wifi, UserCheck, Clock, Send, ChevronDown, CheckCircle2, Copy } from 'lucide-react';
+import { X, Phone, MapPin, Wifi, UserCheck, Send, ChevronDown, CheckCircle2, Copy, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import csaApi from '@/lib/csaApi';
@@ -22,6 +22,8 @@ const OUTCOMES = [
   { value: 'PAID', label: 'Paid' },
   { value: 'DISPUTED', label: 'Disputed' },
   { value: 'WRONG_NUMBER', label: 'Wrong Number' },
+  { value: 'NOT_REACHABLE', label: 'Not Reachable' },
+  { value: 'THIRD_PARTY_WILL_DELIVER_MESSAGE', label: 'Third Party (Deliver Message)' },
   { value: 'REFUSED', label: 'Refused' },
   { value: 'GUARANTOR_CALLED', label: 'Guarantor Called' },
   { value: 'SMS_SENT', label: 'SMS Only (no call)' },
@@ -75,11 +77,13 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
   const handleSubmit = () => {
     if (!outcome) { toast.error('Please select an outcome'); return; }
     log.mutate({
+      type: 'CALL',
       outcome, contactTarget, note: note || undefined,
       promisedPaymentDate: promisedDate || undefined,
       promisedAmount: promisedAmount ? Number(promisedAmount) : undefined,
       callbackScheduledAt: callbackAt || undefined,
       sendSms, smsTemplateKey: sendSms ? smsTemplateKey : undefined,
+      callDuration: 0,
     });
   };
 
@@ -90,6 +94,10 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
   const copyPhone = (phone: string) => {
     navigator.clipboard.writeText(phone);
     toast.success('Phone number copied');
+  };
+
+  const handleCall = (number: string) => {
+    window.location.href = `tel:${number}`;
   };
 
   return (
@@ -161,18 +169,26 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-bold text-foreground text-base">
-                              {loan?.user ? `${(loan.user as any).fullName} ${(loan.user as any).surname ?? ''}`.trim() : loan?.userMsisdn}
+                              {loan?.user ? (loan.user as any).fullName : loan?.userMsisdn}
                             </p>
                             <p className="text-xs text-muted-foreground">{(loan?.user as any)?.employmentStatus}</p>
                           </div>
-                          <button
-                            onClick={() => copyPhone(loan?.userMsisdn)}
-                            className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-full transition-colors"
-                          >
-                            <Phone className="h-3.5 w-3.5" />
-                            {loan?.userMsisdn}
-                            <Copy className="h-3 w-3 opacity-60" />
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleCall(loan?.userMsisdn)}
+                              className="flex items-center gap-1.5 text-xs font-bold text-white bg-pink-600 hover:bg-pink-700 px-4 py-2 rounded-full shadow-lg shadow-pink-500/20 transition-all active:scale-95"
+                            >
+                              <Phone className="h-3.5 w-3.5" />
+                              Call
+                            </button>
+                            <button
+                              onClick={() => copyPhone(loan?.userMsisdn)}
+                              className="p-2 text-muted-foreground hover:text-foreground bg-muted/50 rounded-full transition-colors"
+                              title="Copy number"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                           {(loan?.user as any)?.region && (
@@ -211,14 +227,22 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                             </div>
                           </div>
                           {loan.guarantorMsisdn && (
-                            <button
-                              onClick={() => copyPhone(loan.guarantorMsisdn!)}
-                              className="flex items-center gap-1.5 text-xs font-semibold text-purple-700 bg-purple-100 hover:bg-purple-200 px-3 py-1.5 rounded-full transition-colors"
-                            >
-                              <Phone className="h-3.5 w-3.5" />
-                              {loan.guarantorMsisdn}
-                              <Copy className="h-3 w-3 opacity-60" />
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => handleCall(loan.guarantorMsisdn!)}
+                                className="flex items-center gap-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-full shadow-lg shadow-purple-500/20 transition-all active:scale-95"
+                              >
+                                <Phone className="h-3.5 w-3.5" />
+                                Call
+                              </button>
+                              <button
+                                onClick={() => copyPhone(loan.guarantorMsisdn!)}
+                                className="p-2 text-purple-600 hover:bg-purple-100 bg-white rounded-full transition-colors border border-purple-100"
+                                title="Copy number"
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}

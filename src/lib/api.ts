@@ -396,7 +396,7 @@ export const getRepayments = async (params?: any) => {
   return response.data;
 };
 
-export const getRecentRepayments = async (params?: { period?: string; limit?: number }) => {
+export const getRecentRepayments = async (params?: { period?: string; limit?: number; source?: string }) => {
   const response = await api.get('/api/admin/repayments/recent', { params });
   return response.data;
 };
@@ -495,7 +495,17 @@ export const getUserDetail = async (userId: string) => {
 };
 
 export const getUserSessions = async (userId: string, page = 1, limit = 20) => {
-  const response = await api.get(`/api/admin/users/${userId}/sessions`, { params: { page, limit } });
+  const response = await api.get(`/api/admin/users/${userId}/activity`, { params: { page, limit } });
+  return response.data;
+};
+
+export const getCollectionActivities = async (params?: { page?: number; limit?: number; loanReference?: string }) => {
+  const response = await api.get('/api/admin/collections/activities', { params });
+  return response.data;
+};
+
+export const getCsaPerformance = async (params?: { agentId?: string; dateFrom?: string; dateTo?: string; windowHours?: number }) => {
+  const response = await api.get('/api/admin/analytics/csa-performance', { params });
   return response.data;
 };
 

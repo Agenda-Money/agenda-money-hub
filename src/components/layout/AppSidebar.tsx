@@ -17,6 +17,7 @@ import {
   Wallet,
   FileText,
   Send,
+  PhoneCall,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -202,7 +203,16 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
           { to: "/admin/loans/manual-disburse", icon: Send, label: "Manual Disbursement" },
         ]
       : []),
-    { to: "/repayments", icon: Banknote, label: "Repayments" },
+    { 
+      to: "/repayments", 
+      icon: Banknote, 
+      label: "Repayments",
+      subItems: [
+        { to: "/repayments", label: "Repayment Logs" },
+        { to: "/admin/collections/monitoring", label: "Team Monitoring" },
+        { to: "/repayments?tab=collections", label: "Collections List" },
+      ]
+    },
     // Admin/Viewer only items (bottom)
     ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
       ? [

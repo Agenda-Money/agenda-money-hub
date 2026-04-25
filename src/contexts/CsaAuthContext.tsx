@@ -3,10 +3,11 @@ import csaApi from '@/lib/csaApi';
 
 interface CsaUser {
   id: string;
+  _id?: string;
   email: string;
   fullName: string;
   phoneNumber: string;
-  role: 'csa';
+  role: 'agent' | 'supervisor' | 'manager' | 'csa';
   assignedRegions: string[];
   dailyCallTarget: number;
 }
@@ -23,6 +24,15 @@ interface CsaAuthContextType {
 
 const CsaAuthContext = createContext<CsaAuthContextType | undefined>(undefined);
 
+const normalizeCsaUser = (user: any): CsaUser | null => {
+  if (!user) return null;
+  return {
+    ...user,
+    id: user.id || user._id,
+    role: (user.role || 'agent').toLowerCase()
+  };
+};
+
 export const CsaAuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<CsaUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +41,7 @@ export const CsaAuthProvider = ({ children }: { children: React.ReactNode }) => 
     const token = localStorage.getItem('csa_accessToken');
     if (!token) { setLoading(false); return; }
     csaApi.get('/api/csa/auth/me')
-      .then((res) => setUser(res.data.user))
+      .then((res) => setUser(normalizeCsaUser(res.data.user)))
       .catch(() => {
         localStorage.removeItem('csa_accessToken');
         localStorage.removeItem('csa_refreshToken');
@@ -42,10 +52,10 @@ export const CsaAuthProvider = ({ children }: { children: React.ReactNode }) => 
   const login = async (email: string, password: string) => {
     try {
       const res = await csaApi.post('/api/csa/auth/login', { email, password });
-      const { accessToken, refreshToken, user: csaUser } = res.data;
+      const { accessToken, refreshToken, user: csaUserData } = res.data;
       localStorage.setItem('csa_accessToken', accessToken);
       localStorage.setItem('csa_refreshToken', refreshToken);
-      setUser(csaUser);
+      setUser(normalizeCsaUser(csaUserData));
       return { success: true };
     } catch (err: any) {
       return { success: false, message: err.response?.data?.message || 'Login failed' };

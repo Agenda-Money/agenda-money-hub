@@ -183,6 +183,7 @@ export default function UsersPage() {
                   <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">
                     Name
                   </th>
+
                   <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">
                     Tier
                   </th>
@@ -214,6 +215,7 @@ export default function UsersPage() {
                     <td className="px-6 py-4 text-sm text-foreground">
                       {user.name}
                     </td>
+
                     <td className="px-6 py-4">
                       <Badge
                         variant="outline"
@@ -316,7 +318,9 @@ export default function UsersPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-semibold text-foreground">{user.name}</h3>
-                  <p className="text-sm text-muted-foreground">{user.phone}</p>
+                  <div className="flex flex-col">
+                    <p className="text-sm text-muted-foreground">{user.phone}</p>
+                  </div>
                 </div>
                 <Badge
                   variant="outline"
