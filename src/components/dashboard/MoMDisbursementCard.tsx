@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { formatMoney, formatCount } from "@/utils/format";
 import { MomDisbursementPoint } from "@/types/analytics";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { DateRangeFilter } from "./DateRangeFilter";
 import { DatePreset } from "@/hooks/useDateFilter";
 
@@ -83,14 +83,20 @@ export function MoMDisbursementCard({
         </div>
       </div>
 
-      <div className="h-[300px] w-full mt-4">
+      <div className="h-[320px] w-full mt-4">
         {data.length === 0 ? (
           <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
             No data available for the selected period.
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="disbursementGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#14b8a6" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
               <XAxis 
                 dataKey="month" 
@@ -100,10 +106,9 @@ export function MoMDisbursementCard({
                 dy={10} 
                 tickFormatter={(val) => {
                   try {
-                    // Assuming YYYY-MM
                     const [y, m] = val.split('-');
                     const date = new Date(parseInt(y), parseInt(m) - 1);
-                    return date.toLocaleString('en-US', { month: 'long' }); 
+                    return date.toLocaleString('en-US', { month: 'short' }); 
                   } catch (e) {
                     return val;
                   }
@@ -113,12 +118,18 @@ export function MoMDisbursementCard({
                 axisLine={false} 
                 tickLine={false} 
                 tick={{ fontSize: 11, fill: "#9CA3AF", fontWeight: 600 }} 
-                tickFormatter={(value) => toggle === "value" ? formatMoney(value) : formatCount(value)} 
-                width={65}
+                tickFormatter={(value) => toggle === "value" ? `₵${formatCount(value)}` : formatCount(value)} 
+                width={50}
               />
               <Tooltip 
-                cursor={{ fill: "rgba(0,0,0,0.05)" }}
-                contentStyle={{ borderRadius: "8px", border: "1px solid #E5E7EB" }}
+                cursor={{ stroke: '#14b8a6', strokeWidth: 2, strokeDasharray: '4 4' }}
+                contentStyle={{ 
+                  borderRadius: "12px", 
+                  border: "1px solid #E5E7EB",
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                  padding: '12px'
+                }}
+                labelStyle={{ fontWeight: 800, marginBottom: '4px', color: '#111827' }}
                 labelFormatter={(label) => {
                   try {
                     const [y, m] = label.split('-');
@@ -132,8 +143,16 @@ export function MoMDisbursementCard({
                   return [toggle === "value" ? formatMoney(val) : formatCount(val), toggle === "value" ? "Value Disbursed" : "Loans Disbursed"]
                 }}
               />
-              <Bar dataKey={toggle} fill="#14b8a6" radius={[4, 4, 0, 0]} barSize={40} />
-            </BarChart>
+              <Area 
+                type="monotone" 
+                dataKey={toggle} 
+                stroke="#14b8a6" 
+                strokeWidth={3}
+                fillOpacity={1} 
+                fill="url(#disbursementGradient)" 
+                animationDuration={1500}
+              />
+            </AreaChart>
           </ResponsiveContainer>
         )}
       </div>

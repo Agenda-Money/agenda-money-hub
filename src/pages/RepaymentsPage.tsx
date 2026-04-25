@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSearchParams } from "react-router-dom";
 import {
   Select,
   SelectContent,
@@ -67,6 +69,17 @@ export default function RepaymentsPage() {
   const [period, setPeriod] = useState("monthly");
   const [limit, setLimit] = useState(10);
   const [source, setSource] = useState<string | undefined>(undefined);
+  
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") === "collections" ? "agent-collections" : "record";
+  const [activeMainTab, setActiveMainTab] = useState(initialTab);
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "collections") {
+      setActiveMainTab("agent-collections");
+      setSource("collections");
+    }
+  }, [searchParams]);
 
   const { data: recentRepayments, isLoading: isLoadingRecent, isFetching: isFetchingMore } = useQuery({
     queryKey: ["recent-repayments", period, limit, source],
@@ -113,7 +126,7 @@ export default function RepaymentsPage() {
   });
 
   const generateReference = () => {
-    const adminId = user?._id?.substring(0, 4) || "ADM";
+    const adminId = user?.id?.substring(0, 4) || "ADM";
     const dateStr = format(new Date(), "yyyyMMdd");
     const timestamp = Date.now().toString().slice(-4);
     setReference(`MAN-${dateStr}-${adminId.toUpperCase()}-${timestamp}`);
@@ -203,401 +216,200 @@ export default function RepaymentsPage() {
       <div className="max-w-[480px] md:max-w-6xl mx-auto pb-12 transition-all duration-300">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">
-            Loan Repayments
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage loan repayments and view history
-          </p>
+          <h1 className="text-3xl font-bold text-foreground">Loan Repayments</h1>
+          <p className="text-muted-foreground mt-1">Manage loan repayments and view history</p>
         </div>
 
-        <Tabs defaultValue="record" className="w-full">
-          <TabsList className="mb-6 grid w-full grid-cols-3 max-w-xl">
-            <TabsTrigger value="record">Manual Repayment</TabsTrigger>
-            <TabsTrigger value="history">Repayment History</TabsTrigger>
-            <TabsTrigger value="collections">Collection Logs</TabsTrigger>
+        <Tabs value={activeMainTab} onValueChange={(val) => {
+          setActiveMainTab(val);
+          if (val === "organic") setSource("organic");
+          else if (val === "agent-collections") setSource("collections");
+          else setSource(undefined);
+        }} className="w-full">
+          <TabsList className="mb-6 grid w-full grid-cols-4 max-w-2xl">
+            <TabsTrigger value="record">Record Payment</TabsTrigger>
+            <TabsTrigger value="organic">Organic Payments</TabsTrigger>
+            <TabsTrigger value="agent-collections">Agent Collections</TabsTrigger>
+            <TabsTrigger value="logs">Activity Logs</TabsTrigger>
           </TabsList>
 
           <TabsContent value="record">
             <div className="max-w-xl mx-auto lg:mx-0">
               <Card>
-              <CardHeader>
-                <CardTitle>Repayment Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Phone and Reference Inputs */}
-              <div className="grid grid-cols-2 gap-4 mb-2">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    {isCheckingLoans && debouncedPhone.length >= 9 && <span className="text-[10px] text-primary uppercase tracking-wider font-semibold animate-pulse">Checking...</span>}
-                  </div>
-                  <Input
-                    id="phone"
-                    placeholder="e.g. 2335..."
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value);
-                      if (loanReference) setLoanReference("");
-                    }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="loanReference">Loan Reference</Label>
-                  <Input
-                    id="loanReference"
-                    placeholder="e.g. LN-..."
-                    value={loanReference}
-                    onChange={(e) => setLoanReference(e.target.value)}
-                  />
-                </div>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-0 mb-4">Provide at least one of Phone Number or Loan Reference.</p>
-
-              {eligibleLoans.length > 0 && !isCheckingLoans && debouncedPhone.trim().length >= 9 && (
-                <div className="space-y-2 mb-4 animate-fade-in">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Select Eligible Loan</Label>
-                  <div className="flex flex-col gap-2">
-                    {eligibleLoans.map((loan: any) => (
-                      <button
-                        key={loan.loanReference}
-                        type="button"
-                        onClick={() => setLoanReference(loan.loanReference)}
-                        className={cn(
-                          "bg-[#e1f5ee]/30 border rounded-xl p-3 flex justify-between items-center transition-all shadow-sm text-left hover:bg-[#e1f5ee]/70",
-                          loanReference === loan.loanReference ? "ring-2 ring-[#0f6e56] border-[#0f6e56] bg-[#e1f5ee]/80" : "border-[#b2e5d3]"
-                        )}
-                      >
-                        <div>
-                          <p className="text-sm font-bold text-[#0f6e56] mb-0.5">{loan.loanReference}</p>
-                          <p className="text-[11px] text-[#0f6e56]/80 font-medium tracking-tight">
-                            Bal: ₵{Number((loan.totalPayable || 0) - (loan.amountRepaid || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="opacity-70 ml-1">(Due {format(new Date(loan.dueDate), "MMM d")})</span>
-                          </p>
-                        </div>
-                        <Badge className={cn("text-white font-bold text-[9px] uppercase tracking-widest px-2.5 py-0.5 border-none",
-                          loan.status === 'OVERDUE' || loan.status === 'DEFAULTED' ? "bg-red-500 hover:bg-red-600 shadow-md shadow-red-500/20" : "bg-[#0f6e56] hover:bg-[#0f6e56]/90 shadow-md shadow-[#0f6e56]/20"
-                        )}>
-                          {loan.status}
-                        </Badge>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-
-              {/* Amount */}
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (GHS)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  placeholder="Enter repayment amount"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </div>
-
-              {/* Payment Method */}
-              <div className="space-y-2">
-                <Label htmlFor="method">Payment Method</Label>
-                <Select value={method} onValueChange={setMethod}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    <SelectItem value="momo">Mobile Money (MoMo)</SelectItem>
-                    <SelectItem value="bank">Bank Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Reference */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="reference">Reference Number</Label>
-                  <button 
-                    type="button" 
-                    onClick={generateReference}
-                    className="text-xs text-primary hover:underline font-medium"
-                  >
-                    Auto-generate
-                  </button>
-                </div>
-                <Input
-                  id="reference"
-                  placeholder="Enter transaction reference"
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                />
-              </div>
-
-              {/* Notes */}
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes (Optional)</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Add any additional notes..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                />
-              </div>
-
-              {/* Submit */}
-              <Button
-                type="submit"
-                className="w-full bg-primary hover:bg-primary/90"
-                disabled={(!phone && !loanReference) || !amount || !method || !reference || mutation.isPending}
-              >
-                {mutation.isPending ? "Recording..." : "Record Payment"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </TabsContent>
-
-      <TabsContent value="history" className="mt-0">
-         <div className="space-y-6">
-            <div className="flex flex-col gap-6 py-4 px-1">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 className="text-[22px] font-semibold text-foreground leading-tight">
-                  Recent<span className="md:hidden"><br /></span> repayments
-                </h2>
-                <div className="flex items-center gap-3">
-                  <Select value={period} onValueChange={setPeriod}>
-                    <SelectTrigger className="w-[140px] h-9 rounded-lg bg-card border-border text-[13px]">
-                      <SelectValue placeholder="Select period" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-lg">
-                      <SelectItem value="monthly">Last 30 days</SelectItem>
-                      <SelectItem value="weekly">Last 7 days</SelectItem>
-                      <SelectItem value="24h">Last 24 hours</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Source Tabs */}
-              <div className="flex items-center gap-1 p-1 bg-muted/30 rounded-xl w-fit border border-border/50">
-                <button
-                  onClick={() => setSource(undefined)}
-                  className={cn(
-                    "px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all",
-                    source === undefined ? "bg-white dark:bg-gray-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  All Repayments
-                </button>
-                <button
-                  onClick={() => setSource("organic")}
-                  className={cn(
-                    "px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all",
-                    source === "organic" ? "bg-white dark:bg-gray-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Organic
-                </button>
-                <button
-                  onClick={() => setSource("collections")}
-                  className={cn(
-                    "px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all",
-                    source === "collections" ? "bg-white dark:bg-gray-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Collections
-                </button>
-              </div>
-
-              {/* Collections Summary Line */}
-              {source === "collections" && recentRepayments && recentRepayments.length > 0 && (
-                <div className="bg-teal-500/5 border border-teal-500/20 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
-                  <div className="w-10 h-10 bg-teal-500/10 rounded-full flex items-center justify-center">
-                    <PhoneCall className="h-5 w-5 text-teal-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-teal-900 dark:text-teal-100">
-                      ₵{recentRepayments.reduce((sum: number, r: any) => sum + (r.amountPaid || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} collected by agents this period
-                    </p>
-                    <p className="text-xs text-teal-600 font-bold uppercase tracking-tight">
-                      {recentRepayments.length} repayments linked to collection calls
-                    </p>
-                  </div>
-                </div>
-              )}
+                <CardHeader><CardTitle>Repayment Details</CardTitle></CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4 mb-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Phone Number</Label>
+                        <Input id="phone" placeholder="e.g. 2335..." value={phone} onChange={(e) => setPhone(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="loanReference">Loan Reference</Label>
+                        <Input id="loanReference" placeholder="e.g. LN-..." value={loanReference} onChange={(e) => setLoanReference(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                       <Label htmlFor="amount">Amount (GHS)</Label>
+                       <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                       <Label htmlFor="method">Payment Method</Label>
+                       <Select value={method} onValueChange={setMethod}>
+                          <SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger>
+                          <SelectContent><SelectItem value="momo">MoMo</SelectItem><SelectItem value="bank">Bank</SelectItem></SelectContent>
+                       </Select>
+                    </div>
+                    <div className="space-y-2">
+                       <Label htmlFor="reference">Reference</Label>
+                       <Input value={reference} onChange={(e) => setReference(e.target.value)} />
+                       <Button variant="link" size="sm" onClick={generateReference} className="p-0 h-auto">Auto-generate</Button>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={mutation.isPending}>
+                       {mutation.isPending ? "Recording..." : "Record Payment"}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
             </div>
+          </TabsContent>
 
-           {isLoadingRecent ? (
-             <div className="space-y-4 animate-pulse">
-               {[1, 2, 3].map((i) => (
-                 <div key={i} className="h-24 bg-muted/20 rounded-2xl border border-border" />
-               ))}
-             </div>
-           ) : !recentRepayments || recentRepayments.length === 0 ? (
-             <div className="text-center py-12 px-6 bg-card rounded-2xl border border-border">
-               <p className="text-muted-foreground">No recent repayments found.</p>
-             </div>
-           ) : (
-             <div className="space-y-8">
-               {/* Mobile Cards View */}
-               <div className="md:hidden space-y-8">
-                 {Object.entries(groupedRepayments || {}).map(([date, items]: [string, any[]]) => (
-                   <div key={date}>
-                     <div className="text-[11px] font-medium text-[#a0a09a] uppercase tracking-[0.08em] mb-4 ml-0.5">
-                       {date}
-                     </div>
-                     <div className="space-y-2">
-                       {items.map((rep: any) => (
-                          <div 
-                            key={rep.repaymentId} 
-                            className="bg-card border border-border rounded-2xl p-3 sm:p-3.5 grid grid-cols-[40px_1fr_auto] gap-3 items-center hover:border-[#d0d0ca] hover:-translate-y-[1px] transition-all duration-150 cursor-pointer active:translate-y-0"
-                          >
-                            <MoMoAvatar />
-                            <div className="min-w-0">
-                              <div className="text-[11px] font-mono text-[#a0a09a] mb-0.5 truncate uppercase">{rep.loanReference}</div>
-                              <div className="text-sm font-semibold text-foreground mb-0.5 truncate">{rep.userName || "Unknown"}</div>
-                              <div className="text-[12px] text-[#6b6b66] mb-0.5">{rep.userMsisdn}</div>
-                              <div className="text-[11px] text-[#a0a09a] uppercase">{rep.paidAt ? format(new Date(rep.paidAt), "h:mm a") : "N/A"}</div>
-                              
-                              <div className="mt-2">
-                                {rep.collectionSource === 'collections' ? (
-                                  <Badge variant="outline" className="bg-pink-500/10 text-pink-700 border-pink-500/20 text-[9px] font-black uppercase tracking-widest px-2 py-0">
-                                    {rep.assignedCsaName || 'CSA'}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="bg-gray-100 text-gray-500 border-gray-200 text-[9px] font-black uppercase tracking-widest px-2 py-0">
-                                    Organic
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right flex flex-col items-end shrink-0 self-start pt-0.5">
-                              <span className="text-[10px] font-medium text-[#0f6e56] tracking-[0.04em]">GHS</span>
-                              <span className="text-[18px] font-semibold text-[#0f6e56] leading-none mb-1">{Number(rep.amountPaid ?? 0).toFixed(2)}</span>
-                              <div className="text-[11px] text-[#6b6b66]">Bal: GHS {Number(rep.remainingBalance ?? 0).toFixed(2)}</div>
-                              <Badge 
-                                variant="outline" 
-                                className={cn(
-                                  "h-5 px-2 text-[10px] font-medium border-none rounded-full mt-1.5",
-                                  rep.isFullPayment 
-                                    ? "bg-[#e1f5ee] text-[#0f6e56]" 
-                                    : "bg-[#faeeda] text-[#854f0b]"
-                                )}
-                              >
-                                {rep.isFullPayment ? "Full" : "Partial"}
-                              </Badge>
-                            </div>
-                          </div>
-                       ))}
-                     </div>
-                   </div>
-                 ))}
-               </div>
+          <TabsContent value="organic" className="mt-0">
+            <RepaymentHistorySection 
+              title="Organic Repayments" 
+              subtitle="Customer-initiated payments"
+              source="organic"
+              isLoading={isLoadingRecent}
+              repayments={recentRepayments}
+              period={period}
+              setPeriod={setPeriod}
+              limit={limit}
+              setLimit={setLimit}
+              isFetchingMore={isFetchingMore}
+            />
+          </TabsContent>
 
-               {/* Desktop Table View */}
-               <div className="hidden md:block bg-card rounded-2xl border border-border overflow-hidden">
-                 <Table>
-                   <TableHeader>
-                     <TableRow className="hover:bg-transparent border-border">
-                       <TableHead className="pl-6 w-[140px]">Date</TableHead>
-                       <TableHead>Reference</TableHead>
-                       <TableHead>Customer</TableHead>
-                       <TableHead>Source</TableHead>
-                       <TableHead className="text-right">Amount Paid</TableHead>
-                       <TableHead className="text-right">Remaining Bal</TableHead>
-                       <TableHead className="text-center pr-6 w-[100px]">Status</TableHead>
-                     </TableRow>
-                   </TableHeader>
-                   <TableBody>
-                     {recentRepayments.map((rep: any) => (
-                       <TableRow key={rep.repaymentId} className="hover:bg-muted/30 border-border group">
-                         <TableCell className="pl-6 py-4">
-                           <div className="flex flex-col">
-                             <span className="text-sm font-medium text-foreground">
-                               {rep.paidAt ? format(new Date(rep.paidAt), "MMM d, yyyy") : "N/A"}
-                             </span>
-                             <span className="text-[11px] text-muted-foreground uppercase">
-                               {rep.paidAt ? format(new Date(rep.paidAt), "h:mm a") : "—"}
-                             </span>
-                           </div>
-                         </TableCell>
-                         <TableCell>
-                           <span className="font-mono text-xs text-muted-foreground uppercase bg-muted/50 px-2 py-1 rounded">
-                             {rep.loanReference}
-                           </span>
-                         </TableCell>
-                         <TableCell>
-                           <div className="flex items-center gap-3">
-                             <MoMoAvatar />
-                             <div className="flex flex-col">
-                               <span className="text-sm font-semibold">{rep.userName || "Unknown"}</span>
-                               <span className="text-xs text-muted-foreground">{rep.userMsisdn}</span>
-                             </div>
-                           </div>
-                         </TableCell>
-                         <TableCell>
-                           {rep.collectionSource === 'collections' ? (
-                             <Badge variant="outline" className="bg-pink-500/10 text-pink-700 border-pink-500/20 text-[10px] font-black uppercase tracking-widest max-w-[140px] truncate block">
-                               Collected — {rep.assignedCsaName || 'Agent'}
-                             </Badge>
-                           ) : (
-                             <Badge variant="outline" className="bg-gray-100 text-gray-500 border-gray-200 text-[10px] font-black uppercase tracking-widest">
-                               Organic
-                             </Badge>
-                           )}
-                         </TableCell>
-                         <TableCell className="text-right">
-                           <div className="flex flex-col items-end">
-                             <span className="text-xs font-medium text-[#0f6e56] tracking-tight">GHS</span>
-                             <span className="text-base font-bold text-[#0f6e56]">
-                               {Number(rep.amountPaid ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                             </span>
-                           </div>
-                         </TableCell>
-                         <TableCell className="text-right">
-                           <span className="text-sm font-medium text-foreground/80">
-                             GHS {Number(rep.remainingBalance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                           </span>
-                         </TableCell>
-                         <TableCell className="text-center pr-6">
-                           <Badge 
-                             variant="outline" 
-                             className={cn(
-                               "h-6 px-3 text-[10px] font-semibold border-none rounded-full",
-                               rep.isFullPayment 
-                                 ? "bg-[#e1f5ee] text-[#0f6e56]" 
-                                 : "bg-[#faeeda] text-[#854f0b]"
-                             )}
-                           >
-                             {rep.isFullPayment ? "FULL" : "PARTIAL"}
-                           </Badge>
-                         </TableCell>
-                       </TableRow>
-                     ))}
-                   </TableBody>
-                 </Table>
-               </div>
-               <Button 
-                variant="outline" 
-                className="w-full h-11 rounded-xl text-[13px] text-[#6b6b66] border-border bg-card hover:border-[#d0d0ca] hover:text-foreground"
-                onClick={() => setLimit(prev => prev + 10)}
-                disabled={isFetchingMore}
-               >
-                 {isFetchingMore ? "Loading..." : "Load more"}
-               </Button>
-             </div>
-           )}
-         </div>
-      </TabsContent>
+          <TabsContent value="agent-collections" className="mt-0">
+            <RepaymentHistorySection 
+              title="Agent Collections" 
+              subtitle="CSA-driven debt recovery"
+              source="collections"
+              isLoading={isLoadingRecent}
+              repayments={recentRepayments}
+              period={period}
+              setPeriod={setPeriod}
+              limit={limit}
+              setLimit={setLimit}
+              isFetchingMore={isFetchingMore}
+              accentColor="text-pink-600"
+            />
+          </TabsContent>
 
-      <TabsContent value="collections" className="mt-0">
-         <CollectionLogsView />
-      </TabsContent>
-    </Tabs>
+          <TabsContent value="logs" className="mt-0">
+            <CollectionLogsView />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
+  );
+}
+
+function RepaymentHistorySection({ title, subtitle, source, isLoading, repayments, period, setPeriod, limit, setLimit, isFetchingMore, accentColor = "text-foreground" }: any) {
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4">
+        <div>
+          <h2 className={cn("text-2xl font-bold leading-tight", accentColor)}>{title}</h2>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        </div>
+        <Select value={period} onValueChange={setPeriod}>
+          <SelectTrigger className="w-[160px] h-10 rounded-xl bg-card"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="monthly">Last 30 days</SelectItem>
+            <SelectItem value="weekly">Last 7 days</SelectItem>
+            <SelectItem value="24h">Last 24 hours</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {source === "collections" && repayments && repayments.length > 0 && (
+        <div className="bg-pink-500/5 border border-pink-500/10 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
+          <div className="w-12 h-12 bg-pink-500/10 rounded-full flex items-center justify-center"><PhoneCall className="h-6 w-6 text-pink-600" /></div>
+          <div>
+            <p className="text-sm font-bold text-pink-900 dark:text-pink-100">₵{repayments.reduce((sum: number, r: any) => sum + (r.amountPaid || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} recovered</p>
+            <p className="text-[11px] text-pink-600 font-black uppercase tracking-widest mt-0.5">{repayments.length} successful collections</p>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+      ) : !repayments || repayments.length === 0 ? (
+        <div className="text-center py-20 bg-card rounded-[2rem] border-2 border-dashed border-border/50">
+          <p className="text-muted-foreground font-medium">No {title.toLowerCase()} found.</p>
+        </div>
+      ) : (
+        <div className="space-y-8">
+           <div className="hidden md:block bg-card rounded-[2rem] border border-border overflow-hidden shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-border bg-muted/30">
+                  <TableHead className="pl-8 py-4">Beneficiary</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right pr-8">Balance</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {repayments.map((rep: any) => (
+                  <TableRow key={rep.repaymentId} className="hover:bg-muted/30 border-border group">
+                    <TableCell className="pl-8 py-5">
+                      <div className="flex items-center gap-3">
+                        <MoMoAvatar />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold">{rep.userName || "Unknown"}</span>
+                          <span className="text-xs text-muted-foreground font-mono">{rep.userMsisdn}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black uppercase tracking-wider text-muted-foreground/70">{rep.loanReference}</span>
+                        <span className="text-[10px] text-muted-foreground mt-0.5">{rep.paidAt ? format(new Date(rep.paidAt), "MMM d, h:mm a") : "—"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={cn("text-[10px] font-black uppercase tracking-tighter px-2", rep.collectionSource === 'collections' ? "bg-pink-500/10 text-pink-700 border-pink-200" : "bg-gray-100 text-gray-500 border-gray-200")}>
+                        {rep.collectionSource === 'collections' ? (rep.assignedCsaName || 'CSA') : 'Organic'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-base font-bold text-emerald-600">₵{Number(rep.amountPaid ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <Badge variant="outline" className={cn(
+                          "text-[9px] font-black uppercase tracking-widest px-1.5 py-0 h-4 border-none",
+                          (rep.remainingBalance <= 0 || rep.type === 'FULL') ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700"
+                        )}>
+                          {(rep.remainingBalance <= 0 || rep.type === 'FULL') ? 'Full' : 'Partial'}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right pr-8">
+                      <div className="flex flex-col items-end">
+                        <span className="text-sm font-semibold opacity-60">₵{Number(rep.remainingBalance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <span className="text-[9px] text-muted-foreground uppercase font-medium tracking-tighter">Remaining</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+           </div>
+           <Button variant="outline" className="w-full rounded-2xl h-12" onClick={() => setLimit((l: number) => l + 10)} disabled={isFetchingMore}>{isFetchingMore ? "Loading..." : "Load More"}</Button>
+        </div>
+      )}
+    </div>
   );
 }
 

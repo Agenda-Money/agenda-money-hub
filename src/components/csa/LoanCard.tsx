@@ -19,7 +19,7 @@ interface LoanCardProps {
     status: string;
     guarantorName: string | null;
     guarantorMsisdn: string | null;
-    user: { fullName: string; region: string } | null;
+    user: { fullName: string; region: string; onboardingAgent?: { name: string }; isRepeatBorrower?: boolean } | null;
     lastActivity: { outcome: string; createdAt: string; csaName: string } | null;
   };
   onOpen: (loanId: string) => void;
@@ -64,12 +64,19 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
               <span className="text-xs text-muted-foreground font-medium">{loan.userMsisdn}</span>
             </div>
           </div>
-          <span className={cn(
-            'shrink-0 text-[10px] font-extrabold px-2.5 py-1 rounded-full border uppercase tracking-wider',
-            meta.badgeBg,
-          )}>
-            {meta.label}
-          </span>
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <span className={cn(
+              'text-[10px] font-extrabold px-2.5 py-1 rounded-full border uppercase tracking-wider',
+              meta.badgeBg,
+            )}>
+              {meta.label}
+            </span>
+            {loan.user?.onboardingAgent && (
+              <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-bold border-[#378ADD]/20 bg-[#378ADD]/5 text-[#378ADD] whitespace-nowrap">
+                {loan.user.onboardingAgent.name}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Amount */}

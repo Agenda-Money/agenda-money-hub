@@ -4,6 +4,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout"
 import { useAuth } from "@/contexts/AuthContext"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+// FORCE RELOAD: Ensuring UserCheck is imported from lucide-react
 import { 
   ChevronLeft, 
   User, 
@@ -20,8 +21,11 @@ import {
   X,
   ShieldAlert,
   Phone,
-  PhoneCall
+  PhoneCall,
+  UserCheck
 } from "lucide-react"
+
+// Force-reload comment to ensure Vite picks up the correct import and file version
 import { Button } from "@/components/ui/button"
 import { 
   getUserDetail, 
@@ -408,7 +412,11 @@ export default function UserDetailsPage() {
            <MetricCard label="On-time Rate" value={`${payload.onTimeRateTrend?.[0]?.rate || 90}%`} sub="Historical average" valueColor="text-teal-600" />
            <MetricCard label="Credit Score" value={user.creditScore || 80} sub="Out of 100" />
            <MetricCard label="Repayment Ratio" value={payload.referralQuality?.positiveRate?.toFixed(1) || '1.0'} sub="Recovery performance" />
-           <MetricCard label="Total Borrowed" value={`₵${loanHistory?.reduce((s: any, l: any) => s + (l.principal || 0), 0).toLocaleString()}`} sub="Sum of all loan principals" />
+           <MetricCard 
+             label="Total Borrowed" 
+             value={`₵${loanHistory?.filter((l: any) => !['AWAITING_ENDORSEMENT', 'PENDING', 'REJECTED', 'CANCELLED'].includes(l.status?.toUpperCase())).reduce((s: any, l: any) => s + (l.principal || 0), 0).toLocaleString()}`} 
+             sub="Sum of all loan principals" 
+           />
            <MetricCard label="Nodes" value={referrals?.length || 0} sub="Direct Network" />
            <MetricCard label="Last Seen" value={payload.lastSeen?.at ? formatDate(payload.lastSeen.at) : 'N/A'} sub={payload.lastSeen?.channel || 'Unknown'} />
         </Card>
@@ -467,6 +475,7 @@ export default function UserDetailsPage() {
                         <DetailItem label="Accomodation" value={user.metadata?.accommodationType || user.metadata?.accomodation || user.accommodationType} icon={MapPin} />
                         <DetailItem label="Alt Phone" value={user.metadata?.alternatePhone || user.alternatePhone || 'N/A'} icon={Phone} onCall={handleCall} />
                         <DetailItem label="Status" value={user.isBlocked ? 'Blocked' : 'Active'} icon={User} />
+                        <DetailItem label="Assigned To" value={user.currentAssignedAgent?.name || 'Unassigned'} icon={UserCheck} />
                      </div>
                   </Card>
                 </div>
@@ -679,7 +688,9 @@ export default function UserDetailsPage() {
                     <div className="grid grid-cols-2 gap-4">
                        <div className="p-4 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800">
                           <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Loans</p>
-                          <p className="text-lg font-black text-gray-900 dark:text-gray-100">{loanHistory?.length || 0}</p>
+                          <p className="text-lg font-black text-gray-900 dark:text-gray-100">
+                            {loanHistory?.filter((l: any) => !['AWAITING_ENDORSEMENT', 'PENDING', 'REJECTED', 'CANCELLED'].includes(l.status?.toUpperCase())).length || 0}
+                          </p>
                        </div>
                        <div className="p-4 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800">
                           <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Nodes</p>

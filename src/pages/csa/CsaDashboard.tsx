@@ -258,7 +258,7 @@ export default function CsaDashboard() {
               </p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="rounded-xl" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
-                <Button variant="outline" size="sm" className="rounded-xl" disabled={page >= pagination.pages} onClick={() => setPage(p => p + 1)}>Next</Button>
+                <Button variant="outline" size="sm" className="rounded-xl" disabled={!pagination?.hasNextPage} onClick={() => setPage(p => p + 1)}>Next</Button>
               </div>
             </div>
           )}

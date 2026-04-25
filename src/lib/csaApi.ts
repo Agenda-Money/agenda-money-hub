@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getSubdomain } from './domain';
 
 const baseURL = import.meta.env.VITE_API_URL || '';
 
@@ -18,9 +19,12 @@ csaApi.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
+    const sub = getSubdomain();
+
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
       const refreshToken = localStorage.getItem('csa_refreshToken');
+      
       if (refreshToken) {
         try {
           const res = await axios.post(`${baseURL}/api/csa/auth/refresh-token`, { refreshToken });
@@ -31,8 +35,18 @@ csaApi.interceptors.response.use(
         } catch {
           localStorage.removeItem('csa_accessToken');
           localStorage.removeItem('csa_refreshToken');
-          window.location.href = '/login';
+          
+          // Only redirect if we are on the collections subdomain
+          // Admins using CSA components should NOT be redirected
+          if (sub === 'collections' && window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
         }
+      } else {
+         localStorage.removeItem('csa_accessToken');
+         if (sub === 'collections' && window.location.pathname !== '/login') {
+           window.location.href = '/login';
+         }
       }
     }
     return Promise.reject(error);

@@ -76,8 +76,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Top 4 Hero Metrics (Restored per feedback) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Top 3 Hero Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatsCard
           title="Loan Book"
           value={`₵ ${formatAmount(summary.loanBook.value ?? 0)}`}
@@ -92,11 +92,6 @@ export default function Dashboard() {
           title="Repayment Rate"
           value={performance.repaymentRate?.rate != null ? `${performance.repaymentRate.rate.toFixed(1)}%` : "0%"}
           icon={TrendingDown}
-        />
-        <StatsCard
-          title="Overdue"
-          value={formatNumber(summary.overdueLoans?.count ?? 0)}
-          icon={AlertTriangle}
         />
       </div>
 

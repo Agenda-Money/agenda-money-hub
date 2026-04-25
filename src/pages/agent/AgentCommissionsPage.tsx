@@ -106,9 +106,12 @@ export default function AgentCommissionsPage() {
       return getAgentCommissions({ page: pageParam, limit: 10, entryType } as any);
     },
     getNextPageParam: (lastPage: any) => {
+      // Handle potential data wrapping from new backend standard
       const data = lastPage?.data || lastPage;
-      const currentPage = Number(data?.page || 1);
-      const totalPages = Number(data?.totalPages || 1);
+      const pagination = data?.pagination;
+      
+      const currentPage = Number(pagination?.current || data?.page || 1);
+      const totalPages = Number(pagination?.pages || data?.totalPages || 1);
       
       return currentPage < totalPages ? currentPage + 1 : undefined;
     },

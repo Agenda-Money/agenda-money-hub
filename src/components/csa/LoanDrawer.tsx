@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Phone, MapPin, Wifi, UserCheck, Send, ChevronDown, CheckCircle2, Copy } from 'lucide-react';
+import { X, Phone, MapPin, Wifi, UserCheck, Send, ChevronDown, CheckCircle2, Copy, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,8 @@ const OUTCOMES = [
   { value: 'PAID', label: 'Paid' },
   { value: 'DISPUTED', label: 'Disputed' },
   { value: 'WRONG_NUMBER', label: 'Wrong Number' },
+  { value: 'NOT_REACHABLE', label: 'Not Reachable' },
+  { value: 'THIRD_PARTY_WILL_DELIVER_MESSAGE', label: 'Third Party (Deliver Message)' },
   { value: 'REFUSED', label: 'Refused' },
   { value: 'GUARANTOR_CALLED', label: 'Guarantor Called' },
   { value: 'SMS_SENT', label: 'SMS Only (no call)' },
@@ -75,12 +77,13 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
   const handleSubmit = () => {
     if (!outcome) { toast.error('Please select an outcome'); return; }
     log.mutate({
+      type: 'CALL',
       outcome, contactTarget, note: note || undefined,
       promisedPaymentDate: promisedDate || undefined,
       promisedAmount: promisedAmount ? Number(promisedAmount) : undefined,
       callbackScheduledAt: callbackAt || undefined,
       sendSms, smsTemplateKey: sendSms ? smsTemplateKey : undefined,
-      callDuration: undefined,
+      callDuration: 0,
     });
   };
 
@@ -166,7 +169,7 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-bold text-foreground text-base">
-                              {loan?.user ? `${(loan.user as any).fullName} ${(loan.user as any).surname ?? ''}`.trim() : loan?.userMsisdn}
+                              {loan?.user ? (loan.user as any).fullName : loan?.userMsisdn}
                             </p>
                             <p className="text-xs text-muted-foreground">{(loan?.user as any)?.employmentStatus}</p>
                           </div>
