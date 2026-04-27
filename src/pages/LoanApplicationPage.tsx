@@ -60,9 +60,6 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
   const [purpose, setPurpose] = useState<string>(initialPurpose || "Business");
   const [nodeCode, setNodeCode] = useState<string>(initialNodeCode || "");
 
-  const frequencyText = currentTier >= 10 
-    ? "Up to 2 loans in 30 days" 
-    : "Up to 3 loans in 30 days";
 
   return (
     <div className="h-screen bg-white flex flex-col relative overflow-hidden">
@@ -110,9 +107,6 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
            <div className="text-center space-y-1">
              <h2 className="text-lg font-bold text-gray-900">Loan Amount</h2>
              <p className="text-sm text-gray-500">You are eligible for loan up to GHS{tierMax}</p>
-             <p className="text-[11px] font-bold text-[#EC1B84] uppercase tracking-wider bg-pink-50 py-1 px-3 rounded-full inline-block mt-2">
-                {frequencyText}
-             </p>
            </div>
 
            <div className="px-2 space-y-6">
