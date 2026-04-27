@@ -158,7 +158,7 @@ const buildAmountOptions = (tier?: TierConfig) => {
 
 const buildTenureOptions = (tier?: TierConfig) => {
   if (!tier) return [];
-  if (tier.tenures?.length) return tier.tenures;
+  if (tier.tenures && tier.tenures.length > 0) return tier.tenures;
   if (!tier.maxTenure) return [];
   const base = [1, 5, 10, tier.maxTenure];
   return Array.from(new Set(base)).sort((a, b) => a - b);
@@ -2876,27 +2876,27 @@ export default function ApplyPage() {
 
   // Step 4: Loan Application (Full Screen)
   if (onboardingStep === 4) {
-    return (
-      <LoanApplicationPage
-        tierMin={tierMin}
-        tierMax={tierMax}
-        onBack={() => setOnboardingStep(3)}
-        showNodeCode={true}
-        initialNodeCode={nodeCode}
-        initialAmount={loanAmount}
-        initialTenure={loanTenure}
-        initialPurpose={loanPurpose}
-        onContinue={(data) => {
-          setLoanAmount(data.amount);
-          setLoanTenure(data.tenure);
-          setLoanPurpose(data.purpose);
-          if (data.nodeCode) setNodeCode(data.nodeCode);
-          setOnboardingStep(5);
-        }}
-        errorMessage={errorMessage}
-        onErrorDismiss={() => setErrorMessage(null)}
-      />
-    );
+    return <LoanApplicationPage
+                tierMin={tierMin}
+                tierMax={tierMax}
+                currentTier={currentTier}
+                tenureOptions={tenureOptions}
+                onBack={() => {
+                  if (onboardingStep > 0) handleOnboardingBack();
+                  else setView("loan-dashboard");
+                }}
+                onContinue={(data) => {
+                  setLoanApplicationData(data);
+                  handleOnboardingNext();
+                }}
+                initialAmount={loanAmount}
+                initialTenure={loanTenure}
+                initialPurpose={loanPurpose}
+                showNodeCode={!userData?.referredByNodeCode}
+                initialNodeCode={nodeCode}
+                errorMessage={errorMessage}
+                onErrorDismiss={() => setErrorMessage(null)}
+              />
   }
 
   // Step 5: Loan Summary (Full Screen)
