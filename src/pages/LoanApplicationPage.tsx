@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 interface LoanApplicationPageProps {
   tierMin: number;
   tierMax: number;
+  currentTier: number;
+  tenureOptions: number[];
   onBack: () => void;
   onContinue: (data: { amount: number; tenure: number; purpose: string; nodeCode?: string }) => void;
   showNodeCode?: boolean;
@@ -38,11 +40,11 @@ const PURPOSES = [
   { id: "Other", label: "Other", icon: MoreHorizontal },
 ];
 
-const TENURE_OPTIONS = [1, 5, 10, 14];
-
 export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({ 
   tierMin,
   tierMax, 
+  currentTier,
+  tenureOptions,
   onBack, 
   onContinue, 
   showNodeCode, 
@@ -54,9 +56,13 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
   onErrorDismiss
 }) => {
   const [amount, setAmount] = useState<number>(initialAmount || tierMin);
-  const [tenure, setTenure] = useState<number>(initialTenure || 10);
+  const [tenure, setTenure] = useState<number>(initialTenure || (tenureOptions.includes(14) ? 14 : tenureOptions[tenureOptions.length - 1]));
   const [purpose, setPurpose] = useState<string>(initialPurpose || "Business");
   const [nodeCode, setNodeCode] = useState<string>(initialNodeCode || "");
+
+  const frequencyText = currentTier >= 10 
+    ? "Up to 2 loans in 30 days" 
+    : "Up to 3 loans in 30 days";
 
   return (
     <div className="h-screen bg-white flex flex-col relative overflow-hidden">
@@ -104,6 +110,9 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
            <div className="text-center space-y-1">
              <h2 className="text-lg font-bold text-gray-900">Loan Amount</h2>
              <p className="text-sm text-gray-500">You are eligible for loan up to GHS{tierMax}</p>
+             <p className="text-[11px] font-bold text-[#EC1B84] uppercase tracking-wider bg-pink-50 py-1 px-3 rounded-full inline-block mt-2">
+                {frequencyText}
+             </p>
            </div>
 
            <div className="px-2 space-y-6">
@@ -167,7 +176,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
            </div>
            
            <div className="flex justify-between gap-3">
-             {TENURE_OPTIONS.map((days) => {
+             {tenureOptions.map((days) => {
                const isActive = tenure === days;
                return (
                  <button
