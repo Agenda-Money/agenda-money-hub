@@ -19,7 +19,15 @@ interface LoanCardProps {
     status: string;
     guarantorName: string | null;
     guarantorMsisdn: string | null;
-    user: { fullName: string; region: string; onboardingAgent?: { name: string }; isRepeatBorrower?: boolean } | null;
+    user: { 
+      fullName: string; 
+      region: string; 
+      onboardingAgent?: { name: string }; 
+      referredByNodeCode?: string;
+      isRepeatBorrower?: boolean 
+    } | null;
+    onboardingAgent?: { name: string };
+    referredBy?: { name: string; code?: string };
     lastActivity: { outcome: string; createdAt: string; csaName: string } | null;
   };
   onOpen: (loanId: string) => void;
@@ -31,6 +39,13 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
   const outstanding = loan.totalPayable - loan.amountRepaid;
   const name = loan.user?.fullName ?? loan.userMsisdn;
   const region = loan.user?.region;
+
+  // Agent attribution fallback logic
+  const agentName = 
+    loan.user?.onboardingAgent?.name || 
+    loan.referredBy?.name || 
+    loan.onboardingAgent?.name || 
+    loan.user?.referredByNodeCode;
 
   let exactDaysOverdue = loan.ddBucket;
   if (loan.ddBucket >= 8 && loan.dueDate) {
@@ -71,9 +86,9 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
             )}>
               {meta.label}
             </span>
-            {loan.user?.onboardingAgent && (
+            {agentName && (
               <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-bold border-[#378ADD]/20 bg-[#378ADD]/5 text-[#378ADD] whitespace-nowrap">
-                {loan.user.onboardingAgent.name}
+                {agentName}
               </Badge>
             )}
           </div>
