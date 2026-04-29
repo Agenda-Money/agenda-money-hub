@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, SlidersHorizontal, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Search, RefreshCw, AlertTriangle, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -19,8 +19,36 @@ const NETWORKS = [
 ];
 const REGIONS = ['Greater Accra', 'Ashanti', 'Central', 'Eastern', 'Western', 'Northern', 'Upper East', 'Upper West', 'Volta', 'Bono', 'Ahafo', 'Bono East', 'Oti', 'Savannah', 'North East', 'Western North'];
 
+const downloadCsv = (rows: any[]) => {
+  const headers = ['Customer Name', 'MSISDN', 'Loan Amount', 'Total Due', 'Due Date', 'DD Bucket', 'Last Call Outcome'];
+  const escape = (v: any) => {
+    const s = v == null ? '' : String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [
+    headers.join(','),
+    ...rows.map((r) => [
+      r.customerName,
+      r.msisdn,
+      r.loanAmount,
+      r.totalDue,
+      r.dueDate ? new Date(r.dueDate).toLocaleDateString('en-GB') : '',
+      r.ddBucket === 0 ? 'DD0' : `DD${r.ddBucket}`,
+      r.lastCallOutcome ?? '',
+    ].map(escape).join(',')),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `collections-due-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 export default function CsaDashboard() {
   const [activeBucket, setActiveBucket] = useState<number>(8);
+  const [exporting, setExporting] = useState(false);
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [network, setNetwork] = useState('');
@@ -53,6 +81,16 @@ export default function CsaDashboard() {
     setPage(1);
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await csaApi.get('/api/csa/collections/export');
+      downloadCsv(res.data?.data ?? []);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -63,10 +101,16 @@ export default function CsaDashboard() {
             <span className="font-semibold text-red-600">{totalOverdue.toLocaleString()}</span> overdue loans · <span className="font-semibold">{formatGHS(totalOutstanding)}</span> outstanding
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2 self-start" onClick={() => { refetchBuckets(); refetchLoans(); }}>
-          <RefreshCw className="h-3.5 w-3.5" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2 self-start">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => { refetchBuckets(); refetchLoans(); }}>
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExport} disabled={exporting}>
+            <Download className="h-3.5 w-3.5" />
+            {exporting ? 'Exporting…' : 'Export CSV'}
+          </Button>
+        </div>
       </div>
 
       {/* Bucket tabs */}
