@@ -48,6 +48,29 @@ export default function PendingKycPage() {
   const [isApprovingLoan, setIsApprovingLoan] = useState(false);
   const [kycJustVerified, setKycJustVerified] = useState(false);
 
+  const extractLivenessData = (user: any) => {
+    const raw =
+      user?.livenessVerification ||
+      user?.livenessSession ||
+      user?.kycLiveness ||
+      user?.kycData?.livenessVerification ||
+      user?.kycData?.livenessSession ||
+      user?.onboardingData?.livenessVerification ||
+      user?.onboardingData?.livenessSession ||
+      null;
+
+    if (!raw) return null;
+    if (typeof raw === "string") {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+
+    return raw;
+  };
+
   const {
     data: pendingUsers,
     refetch,
@@ -194,6 +217,9 @@ export default function PendingKycPage() {
 
   const pendingList = searchFilteredUsers;
   const failedList = searchFilteredFailedUsers;
+  const selectedUserLiveness = selectedUser
+    ? extractLivenessData(selectedUser)
+    : null;
 
   const renderUserList = (
     users: any[],
@@ -597,6 +623,80 @@ export default function PendingKycPage() {
                       )}
                     </div>
                   </div>
+
+                  {selectedUserLiveness && (
+                    <div className="bg-sky-50/70 border border-sky-100 rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="font-semibold text-lg text-slate-900">
+                          Liveness Verification
+                        </h3>
+                        <Badge className="bg-sky-100 text-sky-800 border-sky-200">
+                          Session Captured
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Session ID</p>
+                          <p className="font-mono text-xs break-all">
+                            {selectedUserLiveness.sessionId || "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Attempts</p>
+                          <p className="font-medium">
+                            {selectedUserLiveness.attemptCount ?? "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Completed</p>
+                          <p className="font-medium">
+                            {selectedUserLiveness.completedAt
+                              ? new Date(selectedUserLiveness.completedAt).toLocaleString("en-GB")
+                              : "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Challenges</p>
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {Object.entries(selectedUserLiveness.challenges || {}).map(([key, passed]) => (
+                              <Badge
+                                key={key}
+                                variant="outline"
+                                className={cn(
+                                  "text-[10px] uppercase",
+                                  passed
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-amber-200 bg-amber-50 text-amber-700",
+                                )}
+                              >
+                                {key}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">Anti-fraud signals</p>
+                        {selectedUserLiveness.antiFraudFlags?.length ? (
+                          <div className="flex flex-wrap gap-2">
+                            {selectedUserLiveness.antiFraudFlags.map((flag: string) => (
+                              <Badge
+                                key={flag}
+                                variant="outline"
+                                className="border-amber-200 bg-amber-50 text-amber-800 text-[10px]"
+                              >
+                                {flag}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm font-medium text-emerald-700">
+                            No anti-fraud flags were recorded for this session.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Additional Info */}
                   <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">

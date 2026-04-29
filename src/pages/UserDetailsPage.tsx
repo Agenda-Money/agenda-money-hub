@@ -428,7 +428,7 @@ export default function UserDetailsPage() {
             <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} className="bg-warning/10 border border-warning/20 p-4 rounded-xl flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Badge variant="outline" className="bg-warning text-warning-foreground animate-pulse">Action Required</Badge>
-                <p className="text-sm font-medium text-warning-800">First-time user awaiting KYC verification</p>
+                <p className="text-sm font-medium text-warning dark:text-warning-foreground">First-time user awaiting KYC verification</p>
               </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => handleVerifyKyc("Identity verification requested via dashboard banner")} disabled={isVerifyingKyc || !canWrite}>Approve Identity</Button>
@@ -437,11 +437,11 @@ export default function UserDetailsPage() {
           )}
 
         {/* Header with Tier Visualizer */}
-        <div className="bg-white rounded-2xl sm:rounded-[2rem] shadow-sm border border-border/50 overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm sm:rounded-[2rem]">
           <div className="bg-gradient-to-r from-primary/5 via-transparent to-transparent p-5 sm:p-8">
             <div className="flex flex-col lg:flex-row justify-between gap-6 sm:gap-8">
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 sm:gap-8 text-center sm:text-left">
-                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl sm:rounded-[2rem] bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary text-3xl sm:text-4xl font-black shadow-inner shrink-0 outline outline-4 outline-white">
+                <div className="h-20 w-20 shrink-0 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-3xl font-black text-primary shadow-inner outline outline-4 outline-background sm:h-24 sm:w-24 sm:rounded-[2rem] sm:text-4xl flex items-center justify-center">
                   {user.name.charAt(0)}
                 </div>
                 <div className="space-y-4 w-full">

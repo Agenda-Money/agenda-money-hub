@@ -22,6 +22,10 @@ const actionBadgeStyles: Record<string, { variant: "default" | "secondary" | "de
   "LOAN_APPROVE": { variant: "default", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-bold" },
   "LOAN_FORCE_APPROVED": { variant: "default", className: "bg-purple-500/10 text-purple-600 border-purple-500/20 font-bold" },
   "USER_EDITED": { variant: "outline", className: "bg-primary/10 text-primary border-primary/20 font-bold" },
+  "LIVENESS_VERIFIED": { variant: "default", className: "bg-sky-500/10 text-sky-700 border-sky-500/20 font-bold" },
+  "LIVENESS_FAILED": { variant: "destructive", className: "bg-amber-500/10 text-amber-700 border-amber-500/20 font-bold" },
+  "AGENT_LIVENESS_VERIFIED": { variant: "default", className: "bg-sky-500/10 text-sky-700 border-sky-500/20 font-bold" },
+  "AGENT_LIVENESS_FAILED": { variant: "destructive", className: "bg-amber-500/10 text-amber-700 border-amber-500/20 font-bold" },
 };
 
 const RenderStateData = ({ data, isAfter }: { data: any, isAfter?: boolean }) => {

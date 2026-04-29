@@ -19,6 +19,7 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { LoanSummaryPage } from "../LoanSummaryPage";
+import { LivenessCapture, type LivenessResult } from "@/components/liveliness/LivenessCapture";
 
 
 const STORAGE_KEY = "agent_onboarding_form";
@@ -45,6 +46,7 @@ interface FormData {
   firstName: string;
   surname: string;
   msisdn: string;
+  alternatePhone: string;
   dob: string;
   gender: string;
   region: string;
@@ -58,6 +60,7 @@ interface FormData {
   ghanaCardFrontUrl: string;
   ghanaCardBackUrl: string;
   selfieUrl: string;
+  livenessSession: LivenessResult | null;
   loanAmount: string;
   loanTenure: string;
   loanPurpose: string;
@@ -67,6 +70,7 @@ const INITIAL_FORM_DATA: FormData = {
   firstName: "",
   surname: "",
   msisdn: "",
+  alternatePhone: "",
   dob: "",
   gender: "",
   region: "",
@@ -80,6 +84,7 @@ const INITIAL_FORM_DATA: FormData = {
   ghanaCardFrontUrl: "",
   ghanaCardBackUrl: "",
   selfieUrl: "",
+  livenessSession: null,
   loanAmount: "100",
   loanTenure: "14",
   loanPurpose: "Business",
@@ -120,6 +125,12 @@ export default function AgentOnboarding() {
       }
     | null
   >(null);
+  const [showLiveness, setShowLiveness] = useState(false);
+  const [livenessStatus, setLivenessStatus] = useState<{
+    tone: "success" | "error";
+    message: string;
+    sessionId?: string;
+  } | null>(null);
 
   // Scroll to top when moving between steps
   useEffect(() => {
@@ -128,7 +139,6 @@ export default function AgentOnboarding() {
 
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
-  const selfieInputRef = useRef<HTMLInputElement>(null);
   const frontUploadRef = useRef<HTMLInputElement>(null);
   const backUploadRef = useRef<HTMLInputElement>(null);
   const selfieIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -224,6 +234,21 @@ export default function AgentOnboarding() {
       toast.error("Upload failed", {
         description: result.error || "Please try again",
       });
+    }
+  };
+
+  const base64ToJpegFile = (base64Data: string, fileName: string): File | null => {
+    try {
+      const cleaned = (base64Data || "").replace(/^data:image\/\w+;base64,/, "");
+      const binary = atob(cleaned);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new File([bytes], fileName, { type: "image/jpeg" });
+    } catch (error) {
+      console.error("Failed to convert liveness frame to file:", error);
+      return null;
     }
   };
 
@@ -350,14 +375,24 @@ export default function AgentOnboarding() {
 
   const validateStep = () => {
     switch (currentStep) {
-      case 1:
+      case 1: {
+        const primaryPhone = parsePhoneNumberFromString(formData.msisdn, "GH");
+        const alternatePhone = formData.alternatePhone
+          ? parsePhoneNumberFromString(formData.alternatePhone, "GH")
+          : null;
+        const normalizedPrimary = primaryPhone?.number;
+        const normalizedAlternate = alternatePhone?.number;
+
         return (
           formData.firstName.trim() &&
           formData.surname.trim() &&
-          Boolean(parsePhoneNumberFromString(formData.msisdn, "GH")?.isValid()) &&
+          Boolean(primaryPhone?.isValid()) &&
+          (!formData.alternatePhone || Boolean(alternatePhone?.isValid())) &&
+          (!normalizedAlternate || normalizedAlternate !== normalizedPrimary) &&
           formData.dob &&
           formData.gender
         );
+      }
       case 2:
         return (
           formData.region &&
@@ -417,6 +452,12 @@ export default function AgentOnboarding() {
       // Format MSISDN using libphonenumber-js for consistent handling
       const parsed = parsePhoneNumberFromString(formData.msisdn, "GH");
       const formattedMsisdn = parsed ? parsed.number.replace("+", "") : formData.msisdn.replace(/\D/g, "");
+      const parsedAlternatePhone = formData.alternatePhone
+        ? parsePhoneNumberFromString(formData.alternatePhone, "GH")
+        : null;
+      const formattedAlternatePhone = parsedAlternatePhone?.isValid()
+        ? parsedAlternatePhone.number.replace("+", "")
+        : undefined;
 
       // Both firstName and surname are required. fullName is optional and should match the combination.
       const payload = {
@@ -424,6 +465,7 @@ export default function AgentOnboarding() {
         surname: formData.surname,
         fullName: `${formData.firstName} ${formData.surname}`.trim(), // optional, backend may construct if not provided
         msisdn: formattedMsisdn,
+        alternatePhone: formattedAlternatePhone,
         dob: formData.dob,
         gender: formData.gender,
         region: formData.region,
@@ -437,6 +479,7 @@ export default function AgentOnboarding() {
         ghanaCardFrontUrl: formData.ghanaCardFrontUrl, // Use public URL
         ghanaCardBackUrl: formData.ghanaCardBackUrl,   // Use public URL
         selfieUrl: formData.selfieUrl,                 // Use public URL
+        livenessVerification: formData.livenessSession,
         initialLoanAmount: Number(formData.loanAmount),
         initialLoanTenure: Number(formData.loanTenure),
         initialLoanPurpose: formData.loanPurpose,
@@ -768,6 +811,38 @@ export default function AgentOnboarding() {
                     )}
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="alternatePhone">Alternate Phone</Label>
+                    <Input
+                      id="alternatePhone"
+                      value={formData.alternatePhone}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        if (val.length <= 10) updateField("alternatePhone", val);
+                      }}
+                      placeholder="Optional backup contact"
+                      maxLength={10}
+                      className={cn(
+                        "h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono",
+                        formData.alternatePhone.length >= 9 && !parsePhoneNumberFromString(formData.alternatePhone, "GH")?.isValid() && "border-2 border-destructive"
+                      )}
+                    />
+                    {formData.alternatePhone && !parsePhoneNumberFromString(formData.alternatePhone, "GH")?.isValid() && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Must be a valid Ghanaian number
+                      </p>
+                    )}
+                    {formData.alternatePhone &&
+                      parsePhoneNumberFromString(formData.alternatePhone, "GH")?.isValid() &&
+                      parsePhoneNumberFromString(formData.alternatePhone, "GH")?.number === parsePhoneNumberFromString(formData.msisdn, "GH")?.number && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          Alternate phone cannot be the same as the MoMo number
+                        </p>
+                      )}
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label htmlFor="dob">Date of Birth *</Label>
@@ -1015,33 +1090,155 @@ export default function AgentOnboarding() {
                       )}
                     </motion.div>
 
-                    {/* Selfie */}
+                    {/* Liveness */}
                     <motion.div
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                       className={cn(
-                        "border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all relative",
+                        "border-2 border-dashed rounded-2xl p-5 text-center transition-all relative",
                         formData.selfieUrl 
                           ? "border-emerald-500 bg-emerald-500/5" 
                           : "border-muted-foreground/30 hover:border-primary hover:bg-primary/5"
                       )}
                     >
-                      <input
-                        ref={selfieInputRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleImageUpload(file, "selfie");
-                        }}
-                        className="hidden"
-                      />
-                      {renderSelfieUploadContent(
-                        uploadProgress.selfie,
-                        formData.selfieUrl,
-                        "Customer Selfie",
-                        () => selfieInputRef.current?.click()
+                      <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-left">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-700">
+                          Verify Customer Identity
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-slate-900">
+                          {formData.firstName || formData.surname
+                            ? `${formData.firstName} ${formData.surname}`.trim()
+                            : "Customer name pending"}
+                        </p>
+                        <p className="mt-1 text-xs font-medium text-slate-600">
+                          Ghana Card: {formData.ghanaCardNumber || "GHA-"}
+                        </p>
+                        <p className="mt-2 text-xs text-slate-600">
+                          Launch the camera only after confirming the customer in front of you matches these details.
+                        </p>
+                      </div>
+
+                      {livenessStatus && (
+                        <Alert
+                          className={cn(
+                            "mb-4 text-left",
+                            livenessStatus.tone === "success"
+                              ? "border-emerald-300 bg-emerald-50"
+                              : "border-amber-300 bg-amber-50",
+                          )}
+                        >
+                          <AlertDescription
+                            className={cn(
+                              "text-sm",
+                              livenessStatus.tone === "success"
+                                ? "text-emerald-800"
+                                : "text-amber-900",
+                            )}
+                          >
+                            {livenessStatus.message}
+                            {livenessStatus.sessionId && (
+                              <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.16em]">
+                                Session {livenessStatus.sessionId}
+                              </span>
+                            )}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {showLiveness ? (
+                        <LivenessCapture
+                          userId={formData.msisdn || "agent-onboarding"}
+                          mode="agent-onboarding"
+                          onSuccess={async (result: LivenessResult) => {
+                            const file = base64ToJpegFile(
+                              result.capturedFrame,
+                              `agent-liveness-${Date.now()}.jpg`,
+                            );
+
+                            if (!file) {
+                              setShowLiveness(false);
+                              setLivenessStatus({
+                                tone: "error",
+                                message: "Liveness passed, but the captured image could not be prepared. Please try again.",
+                              });
+                              return;
+                            }
+
+                            await handleImageUpload(file, "selfie");
+                            setFormData((prev) => {
+                              const nextData = {
+                                ...prev,
+                                livenessSession: result,
+                              };
+                              try {
+                                localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+                              } catch (error) {
+                                console.error("Failed to save liveness session to localStorage:", error);
+                              }
+                              return nextData;
+                            });
+                            setShowLiveness(false);
+                            setLivenessStatus({
+                              tone: "success",
+                              message: "PASS: customer identity was verified and attached to this onboarding session.",
+                              sessionId: result.sessionId,
+                            });
+                          }}
+                          onFailure={(reason) => {
+                            setShowLiveness(false);
+                            if (reason === "max_attempts_reached") {
+                              setFormData((prev) => {
+                                const nextData = {
+                                  ...prev,
+                                  livenessSession: null,
+                                };
+                                try {
+                                  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+                                } catch (error) {
+                                  console.error("Failed to clear liveness session from localStorage:", error);
+                                }
+                                return nextData;
+                              });
+                            }
+                            setLivenessStatus({
+                              tone: "error",
+                              message:
+                                reason === "max_attempts_reached"
+                                  ? "FAIL: maximum liveness attempts reached. Stop onboarding and escalate this customer to manual review."
+                                  : "Liveness was not completed. Review the guidance and try again when the customer is ready.",
+                            });
+                          }}
+                        />
+                      ) : (
+                        <div className="space-y-3">
+                          {renderSelfieUploadContent(
+                            uploadProgress.selfie,
+                            formData.selfieUrl,
+                            formData.selfieUrl ? "Liveness Verified" : "Customer Liveness",
+                            () => {
+                              setFormData((prev) => {
+                                const nextData = {
+                                  ...prev,
+                                  selfieUrl: "",
+                                  livenessSession: null,
+                                };
+                                try {
+                                  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+                                } catch (error) {
+                                  console.error("Failed to reset liveness state in localStorage:", error);
+                                }
+                                return nextData;
+                              });
+                              setLivenessStatus(null);
+                              setShowLiveness(true);
+                            }
+                          )}
+                          {!formData.selfieUrl && (
+                            <p className="text-xs text-muted-foreground">
+                              This replaces the plain selfie step and must be completed before moving on.
+                            </p>
+                          )}
+                        </div>
                       )}
                     </motion.div>
                   </div>

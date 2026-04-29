@@ -185,7 +185,7 @@ export default function AdminDeductionsPage() {
       <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto px-4 sm:px-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-gray-900">Agent Deductions</h1>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground">Agent Deductions</h1>
             <p className="text-muted-foreground mt-1 text-sm sm:text-lg">Manage agent penalties, fraud revocations, and manual corrections.</p>
           </div>
           <Sheet open={isManualSheetOpen} onOpenChange={setIsManualSheetOpen}>
@@ -199,7 +199,7 @@ export default function AdminDeductionsPage() {
               variant="outline"
               onClick={downloadCSV}
               disabled={deductions.length === 0}
-              className="rounded-xl h-12 px-6 font-black border-gray-200 hover:bg-gray-50 gap-2"
+              className="h-12 rounded-xl border-border/60 px-6 font-black gap-2 hover:bg-muted/40"
             >
               <ExternalLink className="w-4 h-4" />
               Export CSV
@@ -213,44 +213,44 @@ export default function AdminDeductionsPage() {
               </SheetHeader>
               <div className="space-y-6 py-8">
                 <div className="space-y-2">
-                  <Label htmlFor="agent-msisdn" className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Agent MSISDN</Label>
+                  <Label htmlFor="agent-msisdn" className="ml-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Agent MSISDN</Label>
                   <Input 
                     id="agent-msisdn" 
                     placeholder="233XXXXXXXXX" 
                     value={manualData.agentMsisdn}
                     onChange={(e) => setManualData({ ...manualData, agentMsisdn: e.target.value })}
-                    className="h-12 rounded-xl border-gray-200 focus:border-primary"
+                    className="h-12 rounded-xl border-border/60 bg-background focus-visible:ring-primary/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Amount (GHS)</Label>
+                  <Label htmlFor="amount" className="ml-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Amount (GHS)</Label>
                   <Input 
                     id="amount" 
                     type="number"
                     placeholder="0.00" 
                     value={manualData.amount}
                     onChange={(e) => setManualData({ ...manualData, amount: e.target.value })}
-                    className="h-12 rounded-xl border-gray-200 focus:border-primary"
+                    className="h-12 rounded-xl border-border/60 bg-background focus-visible:ring-primary/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="loan-ref" className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Loan Reference (Optional)</Label>
+                  <Label htmlFor="loan-ref" className="ml-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Loan Reference (Optional)</Label>
                   <Input 
                     id="loan-ref" 
                     placeholder="LOAN-12345" 
                     value={manualData.loanReference}
                     onChange={(e) => setManualData({ ...manualData, loanReference: e.target.value })}
-                    className="h-12 rounded-xl border-gray-200 focus:border-primary"
+                    className="h-12 rounded-xl border-border/60 bg-background focus-visible:ring-primary/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="reason" className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Reason (Required)</Label>
+                  <Label htmlFor="reason" className="ml-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reason (Required)</Label>
                   <Textarea 
                     id="reason" 
                     placeholder="Describe why this deduction is being made..." 
                     value={manualData.reason}
                     onChange={(e) => setManualData({ ...manualData, reason: e.target.value })}
-                    className="min-h-[120px] rounded-xl border-gray-200 focus:border-primary resize-none"
+                    className="min-h-[120px] resize-none rounded-xl border-border/60 bg-background focus-visible:ring-primary/20"
                   />
                 </div>
               </div>
@@ -282,29 +282,29 @@ export default function AdminDeductionsPage() {
               onOpenChange={setIsDetailOpen} 
             />
           )}
-          <TabsList className="bg-white/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/40 h-14">
-            <TabsTrigger value="pending" className="rounded-xl px-8 h-full font-black text-xs uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-lg active:scale-95 transition-all">
+          <TabsList className="h-14 rounded-2xl border border-border/60 bg-muted/30 p-1.5 backdrop-blur-md">
+            <TabsTrigger value="pending" className="h-full rounded-xl px-8 text-xs font-black uppercase tracking-widest transition-all active:scale-95 data-[state=active]:bg-background data-[state=active]:shadow-lg">
               Pending Confirmation
               {activeTab === "pending" && deductions.length > 0 && (
                 <span className="ml-2 bg-pink-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{deductions.length}</span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="all" className="rounded-xl px-8 h-full font-black text-xs uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-lg active:scale-95 transition-all">
+            <TabsTrigger value="all" className="h-full rounded-xl px-8 text-xs font-black uppercase tracking-widest transition-all active:scale-95 data-[state=active]:bg-background data-[state=active]:shadow-lg">
               All Deductions
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending" className="space-y-4">
              {isLoading ? (
-               <div className="h-64 flex flex-col items-center justify-center gap-3 bg-white/40 rounded-3xl border border-white/40">
+               <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-3xl border border-border/60 bg-card">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Loading pending queue...</p>
+                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Loading pending queue...</p>
                </div>
              ) : deductions.length === 0 ? (
-               <div className="h-64 flex flex-col items-center justify-center gap-3 bg-white/40 rounded-3xl border border-white/40">
+               <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-3xl border border-border/60 bg-card">
                   <CheckCircle2 className="h-10 w-10 text-emerald-400" />
-                  <p className="font-black text-gray-900 uppercase tracking-widest">Queue Clear</p>
-                  <p className="text-sm text-gray-400">No deductions awaiting confirmation.</p>
+                  <p className="font-black uppercase tracking-widest text-foreground">Queue Clear</p>
+                  <p className="text-sm text-muted-foreground">No deductions awaiting confirmation.</p>
                </div>
              ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -326,19 +326,19 @@ export default function AdminDeductionsPage() {
           </TabsContent>
 
           <TabsContent value="all" className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white/40 backdrop-blur-md p-4 rounded-[28px] border border-white/40 shadow-sm">
+            <div className="flex flex-col items-stretch gap-4 rounded-[28px] border border-border/60 bg-muted/30 p-4 shadow-sm backdrop-blur-md sm:flex-row sm:items-center">
                 <div className="flex-1 min-w-[200px] relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
                     placeholder="Filter by Agent MSISDN..." 
-                    className="pl-10 h-12 border-none bg-white rounded-xl shadow-none font-medium"
+                    className="h-12 rounded-xl border border-border/50 bg-background/80 pl-10 font-medium shadow-none"
                     value={msisdnFilter}
                     onChange={(e) => setMsisdnFilter(e.target.value)}
                   />
                 </div>
                 <div className="w-full sm:w-48">
                   <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger className="h-12 border-none bg-white rounded-xl shadow-none font-bold">
+                    <SelectTrigger className="h-12 rounded-xl border border-border/50 bg-background/80 font-bold shadow-none">
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-none shadow-xl">
@@ -351,7 +351,7 @@ export default function AdminDeductionsPage() {
                 </div>
                 <div className="w-full sm:w-48">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="h-12 border-none bg-white rounded-xl shadow-none font-bold">
+                    <SelectTrigger className="h-12 rounded-xl border border-border/50 bg-background/80 font-bold shadow-none">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-none shadow-xl">
@@ -364,9 +364,9 @@ export default function AdminDeductionsPage() {
                 </div>
             </div>
 
-            <div className="bg-white/40 backdrop-blur-xl rounded-[32px] border border-white/40 shadow-xl overflow-hidden">
+            <div className="overflow-hidden rounded-[32px] border border-border/60 bg-card shadow-xl backdrop-blur-xl">
                <Table>
-                  <TableHeader className="bg-gray-50/50 text-[10px] uppercase font-black tracking-widest h-12">
+                  <TableHeader className="h-12 bg-muted/30 text-[10px] uppercase font-black tracking-widest">
                      <TableRow>
                         <TableHead className="pl-8">Date</TableHead>
                         <TableHead>Agent</TableHead>
@@ -386,7 +386,7 @@ export default function AdminDeductionsPage() {
                      ) : deductions.length === 0 ? (
                          <TableRow>
                             <TableCell colSpan={6} className="h-64 text-center">
-                               <p className="font-bold text-gray-400">No deductions found</p>
+                               <p className="font-bold text-muted-foreground">No deductions found</p>
                             </TableCell>
                          </TableRow>
                       ) : (
@@ -405,8 +405,8 @@ export default function AdminDeductionsPage() {
                 </Table>
 
                 {pagination?.pages > 1 && (
-                 <div className="flex items-center justify-between px-8 py-6 bg-white/20 border-t border-white/20">
-                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Page {page} of {pagination.pages}</span>
+                 <div className="flex items-center justify-between border-t border-border/40 bg-muted/10 px-8 py-6">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Page {page} of {pagination.pages}</span>
                    <div className="flex gap-2">
                      <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="rounded-xl h-10 px-4 font-bold">Previous</Button>
                      <Button variant="outline" size="sm" disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)} className="rounded-xl h-10 px-4 font-bold">Next</Button>
@@ -427,15 +427,15 @@ function DeductionActionCard({ item, onConfirm, onReverse, onSelect, isPending }
 
   return (
     <Card 
-      className="border-none bg-white/60 backdrop-blur-md rounded-3xl shadow-sm hover:shadow-md transition-all group border border-white/40 cursor-pointer"
+      className="group cursor-pointer rounded-3xl border border-border/60 bg-card shadow-sm transition-all backdrop-blur-md hover:shadow-md"
       onClick={() => onSelect(item)}
     >
       <CardContent className="p-6">
         <div className="flex justify-between items-start mb-4 text-xs">
-          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-3 py-1 font-black text-[10px] tracking-wider uppercase">
+          <Badge className="border-none bg-amber-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700 hover:bg-amber-500/10 dark:text-amber-300">
              {item.deductionType?.replace('_', ' ') || item.type?.replace('_', ' ')}
           </Badge>
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             {format(new Date(item.createdAt), "MMM d, HH:mm")}
           </span>
         </div>
@@ -443,35 +443,35 @@ function DeductionActionCard({ item, onConfirm, onReverse, onSelect, isPending }
         <div className="space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-               <User className="w-3.5 h-3.5 text-gray-400" />
-               <span className="font-black text-gray-900">{item.agentName || "Unknown Agent"}</span>
+               <User className="h-3.5 w-3.5 text-muted-foreground" />
+               <span className="font-black text-foreground">{item.agentName || "Unknown Agent"}</span>
             </div>
-            <p className="text-[10px] text-gray-400 font-bold tracking-widest pl-5 uppercase">{item.agentMsisdn}</p>
+            <p className="pl-5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{item.agentMsisdn}</p>
           </div>
 
-          <div className="bg-white/80 p-4 rounded-2xl flex justify-between items-center border border-white/40 shadow-sm relative overflow-hidden">
+          <div className="relative flex items-center justify-between overflow-hidden rounded-2xl border border-border/50 bg-muted/10 p-4 shadow-sm">
              <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />
              <div>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Deduction Amount</p>
+                <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Deduction Amount</p>
                 <p className="text-xl font-black text-red-600">-GHS {item.amount.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
              </div>
              {(item.linkedLoanReference || item.loanReference) && (
                <div className="text-right">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Ref</p>
-                  <p className="text-[10px] font-bold text-gray-900">{item.linkedLoanReference || item.loanReference}</p>
+                  <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Ref</p>
+                  <p className="text-[10px] font-bold text-foreground">{item.linkedLoanReference || item.loanReference}</p>
                </div>
              )}
           </div>
 
-          <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Reason</p>
-             <p className="text-xs text-gray-700 font-medium leading-relaxed italic line-clamp-2">"{item.reason || "No reason provided"}"</p>
+          <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+             <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Reason</p>
+             <p className="line-clamp-2 text-xs font-medium italic leading-relaxed text-foreground">"{item.reason || "No reason provided"}"</p>
           </div>
 
           <div className="flex gap-2 pt-2">
             <Button 
               variant="outline" 
-              className="flex-1 rounded-xl h-12 font-bold border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all"
+              className="h-12 flex-1 rounded-xl border-border/60 font-bold text-muted-foreground transition-all hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-300"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsReverseOpen(true);
@@ -557,30 +557,30 @@ function DeductionActionCard({ item, onConfirm, onReverse, onSelect, isPending }
 function DeductionRow({ item, onSelect }: any) {
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "DEFAULT_PENALTY": return "bg-red-100 text-red-700";
+      case "DEFAULT_PENALTY": return "bg-red-500/10 text-red-700 dark:text-red-300";
       case "FRAUD_REVOCATION": return "bg-red-800 text-white";
-      case "MANUAL_CORRECTION": return "bg-amber-100 text-amber-700";
-      default: return "bg-gray-100 text-gray-700";
+      case "MANUAL_CORRECTION": return "bg-amber-500/10 text-amber-700 dark:text-amber-300";
+      default: return "bg-muted text-muted-foreground";
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "PENDING_CONFIRMATION": return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 uppercase text-[9px] font-black">Pending</Badge>;
-      case "CONFIRMED": return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 uppercase text-[9px] font-black">Confirmed</Badge>;
-      case "REVERSED": return <Badge variant="outline" className="bg-gray-50 text-gray-400 border-gray-200 uppercase text-[9px] font-black">Reversed</Badge>;
+      case "PENDING_CONFIRMATION": return <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 uppercase text-[9px] font-black text-amber-700 dark:text-amber-300">Pending</Badge>;
+      case "CONFIRMED": return <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 uppercase text-[9px] font-black text-emerald-700 dark:text-emerald-300">Confirmed</Badge>;
+      case "REVERSED": return <Badge variant="outline" className="border-border bg-muted uppercase text-[9px] font-black text-muted-foreground">Reversed</Badge>;
       default: return <Badge variant="outline" className="text-[9px] font-black">{status}</Badge>;
     }
   };
 
   return (
-      <TableRow className="group border-b border-white/10 hover:bg-white/60 transition-colors cursor-pointer" onClick={() => onSelect(item)}>
-        <TableCell className="pl-8 font-medium text-gray-500">
+      <TableRow className="group cursor-pointer border-b border-border/40 transition-colors hover:bg-muted/30" onClick={() => onSelect(item)}>
+        <TableCell className="pl-8 font-medium text-muted-foreground">
            {format(new Date(item.createdAt), "MMM d, yyyy")}
         </TableCell>
         <TableCell>
-           <div className="font-black text-gray-900">{item.agentName || "Unknown"}</div>
-           <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{item.agentMsisdn}</div>
+           <div className="font-black text-foreground">{item.agentName || "Unknown"}</div>
+           <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{item.agentMsisdn}</div>
         </TableCell>
         <TableCell>
            <Badge className={cn("border-none px-2 py-0.5 font-bold text-[9px] tracking-tight", getTypeColor(item.deductionType || item.type))}>
@@ -592,7 +592,7 @@ function DeductionRow({ item, onSelect }: any) {
         </TableCell>
         <TableCell>{getStatusBadge(item.status)}</TableCell>
         <TableCell className="pr-8 text-right">
-           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-gray-400 hover:text-gray-900">
+           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground">
               <ExternalLink className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
            </Button>
         </TableCell>
@@ -617,13 +617,13 @@ function DeductionDetailDrawer({ item, open, onOpenChange }: any) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-xl overflow-y-auto">
         <SheetHeader className="mb-8">
-          <Badge className="w-fit mb-2 bg-pink-100 text-pink-700 hover:bg-pink-100 border-none px-3 py-1 font-black text-[10px] tracking-wider uppercase">
+          <Badge className="mb-2 w-fit border-none bg-pink-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-pink-700 hover:bg-pink-500/10 dark:text-pink-300">
              {((item.deductionType || item.type || "DEDUCTION") as string)?.replace('_', ' ')}
           </Badge>
-          <SheetTitle className="text-3xl font-black text-gray-900 flex items-center gap-2">
+          <SheetTitle className="flex items-center gap-2 text-3xl font-black text-foreground">
             Deduction Details
           </SheetTitle>
-          <SheetDescription className="text-gray-400 font-bold tracking-tight">
+          <SheetDescription className="font-bold tracking-tight text-muted-foreground">
             Comprehensive audit view for ID: {item._id}
           </SheetDescription>
         </SheetHeader>
@@ -631,10 +631,10 @@ function DeductionDetailDrawer({ item, open, onOpenChange }: any) {
         <div className="space-y-8 pb-12">
            {/* Summary Section */}
            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
-                 <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Agent Name</p>
-                 <p className="font-black text-gray-900">{item.agentName || "Unknown Agent"}</p>
-                 <p className="text-xs font-bold text-gray-400 mt-0.5">{item.agentMsisdn}</p>
+              <div className="rounded-2xl border border-border/50 bg-muted/20 p-4">
+                 <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Agent Name</p>
+                 <p className="font-black text-foreground">{item.agentName || "Unknown Agent"}</p>
+                 <p className="mt-0.5 text-xs font-bold text-muted-foreground">{item.agentMsisdn}</p>
               </div>
               <div className="bg-red-50/50 p-4 rounded-2xl border border-red-100">
                  <p className="text-[10px] font-black uppercase text-red-400 tracking-widest mb-1">Amount</p>
@@ -644,32 +644,32 @@ function DeductionDetailDrawer({ item, open, onOpenChange }: any) {
            </div>
 
            {/* Reason Card */}
-           <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 relative overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gray-200" />
-              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">Detailed Reason</p>
-              <p className="text-sm text-gray-700 font-medium leading-relaxed italic">
+           <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-muted/20 p-6">
+              <div className="absolute bottom-0 left-0 top-0 w-1.5 bg-border" />
+              <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Detailed Reason</p>
+              <p className="text-sm font-medium italic leading-relaxed text-foreground">
                  "{item.reason || "No reason provided."}"
               </p>
            </div>
 
            {/* Financial Context */}
            <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase text-gray-400 tracking-widest flex items-center gap-2">
+              <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
                  <Info className="w-3.5 h-3.5" />
                  Financial Impact
               </h3>
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
+              <div className="divide-y divide-border/40 rounded-2xl border border-border/50 bg-card shadow-sm">
                  <div className="p-4 flex justify-between items-center text-sm">
-                    <span className="text-gray-500 font-bold uppercase text-[10px]">Balance Before</span>
-                    <span className="font-black text-gray-900">GHS {item.balanceBeforeDeduction?.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "0.00"}</span>
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Balance Before</span>
+                    <span className="font-black text-foreground">GHS {item.balanceBeforeDeduction?.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "0.00"}</span>
                  </div>
                  <div className="p-4 flex justify-between items-center text-sm">
-                    <span className="text-gray-500 font-bold uppercase text-[10px]">Balance After</span>
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Balance After</span>
                     <span className="font-black text-emerald-600">GHS {item.balanceAfterDeduction?.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "0.00"}</span>
                  </div>
                  {(item.linkedLoanReference || item.loanReference) && (
                    <div className="p-4 flex justify-between items-center text-sm">
-                      <span className="text-gray-500 font-bold uppercase text-[10px]">Loan Reference</span>
+                      <span className="text-[10px] font-bold uppercase text-muted-foreground">Loan Reference</span>
                       <span className="font-black text-pink-600 underline cursor-pointer">{item.linkedLoanReference || item.loanReference}</span>
                    </div>
                  )}
@@ -677,27 +677,27 @@ function DeductionDetailDrawer({ item, open, onOpenChange }: any) {
            </div>
 
            <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase text-gray-400 tracking-widest flex items-center gap-2">
+              <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
                  <Clock className="w-3.5 h-3.5" />
                  Audit Trail
               </h3>
               <div className="space-y-3">
                  {isLoading ? (
-                    <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-gray-200" /></div>
+                    <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" /></div>
                  ) : audits?.data?.length === 0 ? (
-                    <p className="text-xs text-gray-400 italic text-center py-4">No specific audit entries found for this ID.</p>
+                    <p className="py-4 text-center text-xs italic text-muted-foreground">No specific audit entries found for this ID.</p>
                  ) : (
                     audits?.data?.map((log: any) => (
-                       <div key={log._id} className="flex gap-4 p-4 rounded-2xl border border-gray-50 bg-gray-50/20 group hover:bg-gray-50/50 transition-colors">
-                          <div className="bg-white w-10 h-10 rounded-xl border border-gray-100 flex items-center justify-center flex-shrink-0 shadow-sm">
-                             <Badge variant="outline" className="h-6 w-6 rounded-md p-0 flex items-center justify-center text-[8px] font-black uppercase text-gray-400">{log.action?.[0]}</Badge>
+                       <div key={log._id} className="group flex gap-4 rounded-2xl border border-border/40 bg-muted/10 p-4 transition-colors hover:bg-muted/20">
+                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-border/40 bg-card shadow-sm">
+                             <Badge variant="outline" className="flex h-6 w-6 items-center justify-center rounded-md p-0 text-[8px] font-black uppercase text-muted-foreground">{log.action?.[0]}</Badge>
                           </div>
                           <div className="flex-1">
                              <div className="flex justify-between items-start">
-                                <p className="text-xs font-black text-gray-900">{log.action}</p>
-                                <p className="text-[10px] text-gray-400 font-bold tracking-tighter">{format(new Date(log.createdAt), "MMM d, HH:mm")}</p>
+                                 <p className="text-xs font-black text-foreground">{log.action}</p>
+                                 <p className="text-[10px] font-bold tracking-tighter text-muted-foreground">{format(new Date(log.createdAt), "MMM d, HH:mm")}</p>
                              </div>
-                             <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">{log.resource} • {log.ipAddress || "Internal"}</p>
+                             <p className="mt-0.5 line-clamp-1 text-[10px] text-muted-foreground">{log.resource} • {log.ipAddress || "Internal"}</p>
                              <p className="text-[9px] font-bold text-pink-600 mt-1 uppercase tracking-widest">Actor ID: {log.userId?.substring(0,8)}</p>
                           </div>
                        </div>
