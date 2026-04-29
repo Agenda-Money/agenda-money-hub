@@ -48,7 +48,6 @@ import {
 
 import { UserRewardsTab } from "./UserRewardsTab";
 import { UserNetworkTab } from "./UserNetworkTab";
-import { GENDERS, GHANA_REGIONS, TERMS_LIST } from "@/lib/constants";
 import { parseDecisionError, DecisionError } from "@/lib/api";
 import { EligibilityBlockScreen } from "@/components/eligibility/EligibilityBlockScreen";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
@@ -421,6 +420,7 @@ export default function ApplyPage() {
   const [direction, setDirection] = useState(0);
   const [msisdnInput, setMsisdnInput] = useState("");
   const [nodeCode, setNodeCode] = useState("");
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [, setNodeName] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [userData, setUserData] = useState<Record<string, unknown> | null>(
@@ -430,7 +430,6 @@ export default function ApplyPage() {
   const [dobError, setDobError] = useState<string | null>(null); // Validation error message
   const [isRequesting, setIsRequesting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [resendSeconds, setResendSeconds] = useState(0);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [decisionError, setDecisionError] = useState<DecisionError | null>(

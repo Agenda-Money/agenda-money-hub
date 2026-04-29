@@ -1,0 +1,117 @@
+import React, { useState } from "react";
+import { formatMoney, formatCount } from "@/utils/format";
+import { MomDisbursementPoint } from "@/types/analytics";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { DateRangeFilter } from "./DateRangeFilter";
+import { DatePreset } from "@/hooks/useDateFilter";
+
+interface Props {
+  data: MomDisbursementPoint[];
+  preset: DatePreset;
+  startDate: Date;
+  endDate: Date;
+  applyPreset: (p: DatePreset) => void;
+  setStartDate: (d: Date) => void;
+  setEndDate: (d: Date) => void;
+}
+
+export function MoMDisbursementCard({
+  data,
+  preset,
+  startDate,
+  endDate,
+  applyPreset,
+  setStartDate,
+  setEndDate,
+}: Props) {
+  const [toggle, setToggle] = useState<"value" | "count">("value");
+
+  const latest = data.length > 0 ? data[data.length - 1] : null;
+  const delta = latest ? (toggle === "value" ? latest.momValueGrowth : latest.momCountGrowth) : null;
+  const hasDelta = delta !== null;
+  const isPositive = delta != null && delta >= 0;
+
+  return (
+    <div className="bg-card rounded-xl p-6 shadow-sm border border-border/50 col-span-full">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-foreground mb-4">MoM Disbursement Growth</h2>
+          <DateRangeFilter
+            preset={preset}
+            startDate={startDate}
+            endDate={endDate}
+            applyPreset={applyPreset}
+            setStartDate={setStartDate}
+            setEndDate={setEndDate}
+          />
+        </div>
+        
+        <div className="flex flex-col items-end gap-3 mt-4 md:mt-0">
+          <div className="p-1 bg-muted rounded-lg flex border border-border/50 w-fit">
+            <button
+              onClick={() => setToggle("value")}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                toggle === "value" ? "bg-background text-foreground shadow" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              By Value (GHS)
+            </button>
+            <button
+              onClick={() => setToggle("count")}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                toggle === "count" ? "bg-background text-foreground shadow" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              By Count
+            </button>
+          </div>
+          
+          {hasDelta && (
+            <div className="flex items-center gap-2">
+              {isPositive ? (
+                <div className="flex items-center gap-1.5 bg-success/10 px-2 py-1 rounded">
+                  <span className="text-success text-xs font-bold">▲ {delta.toFixed(2)}%</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 bg-destructive/10 px-2 py-1 rounded">
+                  <span className="text-destructive text-xs font-bold">▼ {Math.abs(delta).toFixed(2)}%</span>
+                </div>
+              )}
+              <span className="text-xs font-medium text-muted-foreground">vs last month</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="h-[300px] w-full mt-4">
+        {data.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+            No data available for the selected period.
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#9CA3AF" }} dy={10} />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 12, fill: "#9CA3AF" }} 
+                tickFormatter={(value) => toggle === "value" ? formatMoney(value) : formatCount(value)} 
+                width={70}
+              />
+              <Tooltip 
+                cursor={{ fill: "rgba(0,0,0,0.05)" }}
+                contentStyle={{ borderRadius: "8px", border: "1px solid #E5E7EB" }}
+                formatter={(val: number) => {
+                  return [toggle === "value" ? formatMoney(val) : formatCount(val), toggle === "value" ? "Value Disbursed" : "Loans Disbursed"]
+                }}
+              />
+              <Bar dataKey={toggle} fill="#14b8a6" radius={[4, 4, 0, 0]} barSize={40} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  );
+}
