@@ -243,6 +243,11 @@ export const getAgentPortfolio = async (params?: any) => {
   return response.data;
 };
 
+export const getAgentDuePayments = async () => {
+  const response = await api.get('/api/agents/due-payments');
+  return response.data;
+};
+
 // --- Admin API ---
 
 export const getAdminPayoutRequests = async (params?: any) => {
