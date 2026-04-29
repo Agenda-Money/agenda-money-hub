@@ -22,8 +22,8 @@ const NETWORKS = [
 ];
 const REGIONS = ['Greater Accra', 'Ashanti', 'Central', 'Eastern', 'Western', 'Northern', 'Upper East', 'Upper West', 'Volta', 'Bono', 'Ahafo', 'Bono East', 'Oti', 'Savannah', 'North East', 'Western North'];
 
-const downloadCsv = (rows: any[]) => {
-  const headers = ['Customer Name', 'MSISDN', 'Loan Amount', 'Total Due', 'Due Date', 'DD Bucket', 'Last Call Outcome'];
+const downloadCsv = (rows: any[], bucketLabel: string) => {
+  const headers = ['Customer Name', 'MSISDN', 'Agent Name', 'Loan Amount', 'Total Due', 'Due Date', 'DD Bucket', 'Last Call Outcome'];
   const escape = (v: any) => {
     const s = v == null ? '' : String(v);
     return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
@@ -33,6 +33,7 @@ const downloadCsv = (rows: any[]) => {
     ...rows.map((r) => [
       r.customerName,
       r.msisdn,
+      r.agentName ?? '',
       r.loanAmount,
       r.totalDue,
       r.dueDate ? new Date(r.dueDate).toLocaleDateString('en-GB') : '',
@@ -44,7 +45,7 @@ const downloadCsv = (rows: any[]) => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `collections-due-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `collections-${bucketLabel}-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 };
@@ -97,8 +98,9 @@ export default function CsaDashboard() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const res = await csaApi.get('/api/csa/collections/export');
-      downloadCsv(res.data?.data ?? []);
+      const res = await csaApi.get('/api/csa/collections/export', { params: { bucket: activeBucket } });
+      const label = getBucketMeta(activeBucket).short.replace(/\s+/g, '');
+      downloadCsv(res.data?.data ?? [], label);
     } finally {
       setExporting(false);
     }
@@ -115,17 +117,22 @@ export default function CsaDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2 self-start">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-2 h-9 rounded-xl shadow-sm hover:bg-muted transition-all active:scale-95" 
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 h-9 rounded-xl shadow-sm hover:bg-muted transition-all active:scale-95"
             onClick={() => { refetchBuckets(); refetchLoans(); }}
             disabled={isFetching || bucketsLoading}
           >
             <RefreshCw className={cn("h-3.5 w-3.5 transition-transform", (isFetching || bucketsLoading) && "animate-spin")} />
             {isFetching || bucketsLoading ? "Refreshing..." : "Refresh"}
           </Button>
-          <Button variant="outline" size="sm" className="gap-2 h-9 rounded-xl shadow-sm hover:bg-muted transition-all active:scale-95" onClick={handleExport} disabled={exporting}>
+          <Button
+            size="sm"
+            className="gap-2 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm active:scale-95 transition-all"
+            onClick={handleExport}
+            disabled={exporting}
+          >
             <Download className="h-3.5 w-3.5" />
             {exporting ? 'Exporting…' : 'Export CSV'}
           </Button>
