@@ -50,7 +50,8 @@ import CsaLoginPage from "./pages/csa/CsaLoginPage";
 import CsaSignupPage from "./pages/csa/CsaSignupPage";
 import CsaActivityPage from "./pages/csa/CsaActivityPage";
 import CsaTemplatesPage from "./pages/csa/CsaTemplatesPage";
-
+import TeamActivityPage from "./pages/csa/TeamActivityPage";
+import { DevEligibilitySandbox } from "./pages/DevEligibilitySandbox";
 import { getSubdomain } from "@/lib/domain";
 
 const queryClient = new QueryClient({
@@ -143,6 +144,7 @@ const App = () => {
                           <Route path="/csa" element={<CsaDashboard />} />
                           <Route path="/csa/activity" element={<CsaActivityPage />} />
                           <Route path="/csa/templates" element={<CsaTemplatesPage />} />
+                          <Route path="/csa/team" element={<TeamActivityPage />} />
                           <Route path="/" element={<Navigate to="/csa" replace />} />
                         </Route>
                       </Route>
@@ -152,6 +154,9 @@ const App = () => {
 
                   {subdomain === "apply" && (
                     <>
+                      {import.meta.env.DEV && (
+                        <Route path="/dev-eligibility" element={<DevEligibilitySandbox />} />
+                      )}
                       <Route path="/" element={<ApplyPage />} />
                       <Route path="*" element={<ApplyPage />} />
                     </>
@@ -210,8 +215,11 @@ const App = () => {
                       <Route path="/analytics" element={<RequireAuth><AdminRoute><AnalyticsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/audit-logs" element={<RequireAuth><AdminRoute><AuditLogs /></AdminRoute></RequireAuth>} />
                       <Route path="/settings" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/settings/:tab" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents" element={<RequireAuth><AdminRoute><AgentsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents/:id" element={<RequireAuth><AdminRoute><AgentDetailsPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/admin/collections/monitoring" element={<RequireAuth><AdminRoute><CsaAuthProvider><TeamActivityPage /></CsaAuthProvider></AdminRoute></RequireAuth>} />
+
 
                       <Route path="*" element={<NotFound />} />
                     </>

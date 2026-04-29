@@ -11,7 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "@/hooks/useSocket";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn, deduplicateWords } from "@/lib/utils";
-import { getPendingKycUsers, getFailedKycUsers, verifyUserKyc, failUserKyc, restoreUserKyc } from "@/lib/api";
+import { getPendingKycUsers, getFailedKycUsers, verifyUserKyc, failUserKyc, restoreUserKyc, getUserDetail } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
 
 export default function PendingKycPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,6 +27,8 @@ export default function PendingKycPage() {
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [showRejectPrompt, setShowRejectPrompt] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [kycSuccessState, setKycSuccessState] = useState<{show: boolean, rawLoan?: any, amount?: number}>({show: false});
+  const [selectedLoanToReview, setSelectedLoanToReview] = useState<any>(null);
   const { canWrite } = useAuth();
   const queryClient = useQueryClient();
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
@@ -53,12 +56,61 @@ export default function PendingKycPage() {
   // Approve mutation
   const { mutate: approveUser, isPending: isApproving } = useMutation({
     mutationFn: ({ msisdn, reason }: { msisdn: string; reason: string }) => verifyUserKyc(msisdn, reason),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("User Verified! 🎉", {
-        description: "User can now apply for loans.",
+        description: "User identity approved.",
       });
       queryClient.invalidateQueries({ queryKey: ["pending-kyc-users"] });
       queryClient.invalidateQueries({ queryKey: ["pending-users-count"] });
+      
+      try {
+        if (selectedUser) {
+           const idToFetch = selectedUser._id || selectedUser.id;
+           const userDetailsRes = await getUserDetail(idToFetch);
+           const loanHistory = userDetailsRes.data?.loanHistory || [];
+           const pendingLoan = loanHistory.find((l: any) => l.status === 'PENDING' || l.status === 'pending');
+           
+           if (pendingLoan) {
+             const mappedLoan = {
+               ...pendingLoan,
+               id: pendingLoan.id ?? pendingLoan._id ?? pendingLoan.loanReference,
+               reference: pendingLoan.loanReference ?? pendingLoan.reference ?? pendingLoan.loanId ?? "N/A",
+               user: {
+                 fullName: selectedUser.fullName,
+                 kycStatus: "VERIFIED",
+                 id: selectedUser._id || selectedUser.id,
+                 currentTier: selectedUser.currentTier
+               },
+               userMsisdn: selectedUser.msisdn,
+               phone: selectedUser.msisdn,
+               amount: pendingLoan.principal ?? pendingLoan.amountBorrowed ?? pendingLoan.amount ?? 0,
+               tier: selectedUser.currentTier || 1,
+               date: pendingLoan.createdAt ?? pendingLoan.requestedAt,
+               tenor: pendingLoan.tenureDays == null ? (pendingLoan.tenure ?? pendingLoan.tenor ?? "N/A") : `${pendingLoan.tenureDays} days`,
+               repaymentDate: pendingLoan.dueDate ?? pendingLoan.repaymentDate,
+               loansToDate: selectedUser.totalLoansRepaid ?? selectedUser.totalLoansTaken ?? selectedUser.totalLoans ?? 0,
+               repaymentRate: pendingLoan.repaymentRate ?? 100,
+               creditScore: selectedUser.creditScore ?? pendingLoan.creditScore ?? "-",
+               nodeCode: selectedUser.referredByNodeCode || selectedUser.nodeCode || pendingLoan.nodeCode || "N/A",
+               userStatus: selectedUser.role === 'NODE' || selectedUser.isGraduatedNode ? "Node" : "Edge",
+               status: "PENDING",
+               kycStatus: "VERIFIED"
+             };
+
+             setKycSuccessState({
+               show: true,
+               rawLoan: mappedLoan,
+               amount: pendingLoan.principal || pendingLoan.amountBorrowed
+             });
+             refetch();
+             refetchFailed();
+             return; // Don't close modal, show success screen
+           }
+        }
+      } catch (e) {
+         console.error("Failed to check pending loan", e);
+      }
+      
       setSelectedUser(null);
       refetch();
       refetchFailed();
@@ -330,7 +382,12 @@ export default function PendingKycPage() {
         </Tabs>
 
         {/* KYC Review Details Modal */}
-        <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
+        <Dialog open={!!selectedUser} onOpenChange={(open) => {
+          if (!open) {
+            setSelectedUser(null);
+            setKycSuccessState({show: false});
+          }
+        }}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             {selectedUser && (
               <>
@@ -341,6 +398,35 @@ export default function PendingKycPage() {
                   </DialogDescription>
                 </DialogHeader>
 
+                {kycSuccessState.show ? (
+                  <div className="space-y-6 py-8 text-center animate-fade-in">
+                    <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-green-200">
+                      <CheckCircle className="w-10 h-10" />
+                    </div>
+                    <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">KYC Approved</h3>
+                    <div className="max-w-md mx-auto space-y-4">
+                       <p className="text-gray-500 text-sm">
+                         This user has a pending loan application waiting for review.
+                       </p>
+                       <div className="p-4 rounded-xl bg-muted/50 border border-border inline-block min-w-[200px]">
+                         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Loan Amount</p>
+                         <p className="text-2xl font-mono font-black">GHS {kycSuccessState.amount}</p>
+                       </div>
+                    </div>
+                    <div className="flex justify-center gap-4 mt-8 pt-4">
+                      <Button variant="outline" onClick={() => { setSelectedUser(null); setKycSuccessState({show: false}); }} size="lg" className="rounded-xl px-6">
+                        Maybe Later
+                      </Button>
+                      <Button 
+                        size="lg"
+                        className="rounded-xl px-6 bg-[#085041] hover:bg-[#0F6E56] text-white shadow-md border border-[#0F6E56] font-bold"
+                        onClick={() => setSelectedLoanToReview(kycSuccessState.rawLoan)}
+                      >
+                        Review Pending Loan
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
                 <div className="space-y-6 py-4">
                   {/* User Profile Header */}
                   <div className="bg-primary/5 rounded-xl p-4 sm:p-5 border border-primary/10">
@@ -508,10 +594,26 @@ export default function PendingKycPage() {
                     </div>
                   )}
                 </div>
+                )}
               </>
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Loan Review Modal Stacked */}
+        {selectedLoanToReview && (
+          <LoanReviewModal
+            loan={selectedLoanToReview}
+            isOpen={!!selectedLoanToReview}
+            onOpenChange={(open: boolean) => {
+              if (!open) {
+                setSelectedLoanToReview(null);
+                setSelectedUser(null);
+                setKycSuccessState({show: false});
+              }
+            }}
+          />
+        )}
 
         {/* Image Zoom Modal */}
         {zoomedImage && (

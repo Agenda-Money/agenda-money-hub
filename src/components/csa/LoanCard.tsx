@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Phone, MapPin, Wifi, UserCheck, MessageSquare, PhoneCall } from 'lucide-react';
+import { differenceInDays, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { getBucketMeta, formatGHS, formatOutcome, outcomeColor, formatNetwork } from '@/lib/bucketUtils';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +19,15 @@ interface LoanCardProps {
     status: string;
     guarantorName: string | null;
     guarantorMsisdn: string | null;
-    user: { fullName: string; region: string } | null;
+    user: { 
+      fullName: string; 
+      region: string; 
+      onboardingAgent?: { name: string }; 
+      referredByNodeCode?: string;
+      isRepeatBorrower?: boolean 
+    } | null;
+    onboardingAgent?: { name: string };
+    referredBy?: { name: string; code?: string };
     lastActivity: { outcome: string; createdAt: string; csaName: string } | null;
   };
   onOpen: (loanId: string) => void;
@@ -30,6 +39,21 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
   const outstanding = loan.totalPayable - loan.amountRepaid;
   const name = loan.user?.fullName ?? loan.userMsisdn;
   const region = loan.user?.region;
+
+  // Agent attribution fallback logic
+  const agentName = 
+    loan.user?.onboardingAgent?.name || 
+    loan.referredBy?.name || 
+    loan.onboardingAgent?.name || 
+    loan.user?.referredByNodeCode;
+
+  let exactDaysOverdue = loan.ddBucket;
+  if (loan.ddBucket >= 8 && loan.dueDate) {
+    const today = startOfDay(new Date());
+    const due = startOfDay(new Date(loan.dueDate));
+    const diff = differenceInDays(today, due);
+    if (diff > 8) exactDaysOverdue = diff;
+  }
 
   return (
     <motion.div
@@ -55,12 +79,19 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
               <span className="text-xs text-muted-foreground font-medium">{loan.userMsisdn}</span>
             </div>
           </div>
-          <span className={cn(
-            'shrink-0 text-[10px] font-extrabold px-2.5 py-1 rounded-full border uppercase tracking-wider',
-            meta.badgeBg,
-          )}>
-            {meta.label}
-          </span>
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <span className={cn(
+              'text-[10px] font-extrabold px-2.5 py-1 rounded-full border uppercase tracking-wider',
+              meta.badgeBg,
+            )}>
+              {meta.label}
+            </span>
+            {agentName && (
+              <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-bold border-[#378ADD]/20 bg-[#378ADD]/5 text-[#378ADD] whitespace-nowrap">
+                {agentName}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Amount */}
@@ -69,11 +100,17 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Outstanding</p>
             <p className="text-base font-extrabold text-foreground">{formatGHS(outstanding)}</p>
           </div>
+          {loan.amountRepaid > 0 && (
+            <div className="text-left px-2 border-l border-border/50 ml-2">
+              <p className="text-[10px] text-emerald-600 uppercase tracking-wider font-semibold">Repaid</p>
+              <p className="text-[13px] font-bold text-emerald-700">{formatGHS(loan.amountRepaid)}</p>
+            </div>
+          )}
           {loan.ddBucket > 0 && (
-            <div className="text-right">
+            <div className="text-right flex-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Overdue</p>
               <p className={cn('text-sm font-bold', loan.ddBucket >= 5 ? 'text-red-600' : 'text-amber-600')}>
-                {loan.ddBucket >= 8 ? '8+ days' : `${loan.ddBucket} day${loan.ddBucket > 1 ? 's' : ''}`}
+                {exactDaysOverdue > 8 ? `${exactDaysOverdue} days` : loan.ddBucket >= 8 ? '8+ days' : `${loan.ddBucket} day${loan.ddBucket > 1 ? 's' : ''}`}
               </p>
             </div>
           )}
@@ -87,7 +124,7 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
             </span>
           )}
           <span className="flex items-center gap-1">
-            <Wifi className="h-3 w-3" />{formatNetwork(loan.network)}
+            <Wifi className="h-3 w-3" />{formatNetwork(loan.network, loan.userMsisdn)}
           </span>
           {loan.guarantorName && (
             <span className="flex items-center gap-1">
@@ -115,16 +152,19 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
         <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
           <Button
             size="sm"
-            className="flex-1 h-8 text-xs font-semibold rounded-lg"
-            onClick={() => onOpen(loan.loanId)}
+            className="flex-1 h-8 text-[11px] font-black uppercase tracking-widest rounded-lg bg-pink-600 hover:bg-pink-700 shadow-sm"
+            onClick={() => {
+              window.location.href = `tel:${loan.userMsisdn}`;
+              onOpen(loan.loanId);
+            }}
           >
-            <PhoneCall className="h-3.5 w-3.5 mr-1.5" />
-            Log Call
+            <PhoneCall className="h-3 w-3 mr-1.5" />
+            Call
           </Button>
           <Button
             size="sm"
             variant="outline"
-            className="h-8 px-3 text-xs rounded-lg"
+            className="h-8 px-3 text-[11px] font-black uppercase tracking-widest rounded-lg border-border"
             onClick={() => onOpen(loan.loanId)}
           >
             <MessageSquare className="h-3.5 w-3.5" />

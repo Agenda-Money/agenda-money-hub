@@ -1,11 +1,9 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
 const data = [
-  { name: "Tier L1", value: 2450, color: "#94A3B8" },
-  { name: "Tier L2", value: 1830, color: "#00B4A6" },
-  { name: "Tier L3", value: 1240, color: "#E91E8C" },
-  { name: "Tier L4", value: 680, color: "#10B981" },
-  { name: "Tier L5", value: 320, color: "#F59E0B" },
+  { name: "L1-L9", value: 3820, color: "#94A3B8" },
+  { name: "L10-L16", value: 2450, color: "#00B4A6" },
+  { name: "L17-L20", value: 890, color: "#EC1B84" },
 ];
 
 export function TierDistributionChart() {

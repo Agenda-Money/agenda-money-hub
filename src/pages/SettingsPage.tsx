@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api, { getVapidPublicKey, subscribeNotification, unsubscribeNotification } from "@/lib/api";
+import api, {
+  getVapidPublicKey,
+  subscribeNotification,
+  unsubscribeNotification,
+} from "@/lib/api";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -10,13 +14,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone } from "lucide-react";
 import { AuthorizeAgentModal } from "@/components/agents/AuthorizeAgentModal";
+import { InviteCsaModal } from "@/components/csa/InviteCsaModal";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
+import { useParams, useNavigate } from "react-router-dom";
 
 function ThemeSelector() {
   const { theme, setTheme } = useTheme();
@@ -37,7 +49,7 @@ function ThemeSelector() {
             "flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all duration-200",
             theme === value
               ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-card hover:border-primary/50"
+              : "border-border bg-card hover:border-primary/50",
           )}
         >
           <Icon className="h-5 w-5" />
@@ -64,7 +76,7 @@ function NotificationPreferences() {
       } catch (e) {
         return { isPushEnabled: false, whatsappNumber: "" };
       }
-    }
+    },
   });
 
   // Check browser-level push status on mount
@@ -82,8 +94,8 @@ function NotificationPreferences() {
         console.error("Failed to check push status:", err);
       }
     };
-    
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
+
+    if ("serviceWorker" in navigator && "PushManager" in window) {
       checkBrowserPushStatus();
     }
   }, []);
@@ -91,15 +103,16 @@ function NotificationPreferences() {
   useEffect(() => {
     if (statusResp) {
       // Prioritize browser state, use backend as backup if not already set or if explicitly different
-      if (statusResp.whatsappNumber) setWhatsappNumber(statusResp.whatsappNumber);
+      if (statusResp.whatsappNumber)
+        setWhatsappNumber(statusResp.whatsappNumber);
     }
   }, [statusResp]);
 
   const urlBase64ToUint8Array = (base64String: string) => {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding)
-      .replace(/\-/g, '+')
-      .replace(/_/g, '/');
+      .replace(/\-/g, "+")
+      .replace(/_/g, "/");
     const rawData = window.atob(base64);
     const outputArray = new Uint8Array(rawData.length);
     for (let i = 0; i < rawData.length; ++i) {
@@ -114,8 +127,17 @@ function NotificationPreferences() {
       try {
         const reg = await navigator.serviceWorker.ready;
         const keyRes = await getVapidPublicKey();
-        const vapidPublicKey = keyRes.publicKey || keyRes.data?.publicKey || keyRes.data || keyRes;
-        
+
+        const vapidPublicKey =
+          keyRes.publicKey || keyRes.data?.publicKey || keyRes.data || keyRes;
+        if (!vapidPublicKey || typeof vapidPublicKey !== "string") {
+          toast.error(
+            "Push notifications are not configured yet. Please contact your administrator.",
+          );
+          setNotificationsEnabled(false);
+          return;
+        }
+
         const subscription = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
@@ -127,7 +149,9 @@ function NotificationPreferences() {
         setNotificationsEnabled(true);
         refetchStatus();
       } catch (err: any) {
-        toast.error(err?.response?.data?.error || "Failed to enable push notifications.");
+        toast.error(
+          err?.response?.data?.error || "Failed to enable push notifications.",
+        );
         console.error(err);
         setNotificationsEnabled(false);
       } finally {
@@ -137,11 +161,12 @@ function NotificationPreferences() {
       setIsSubscribing(true);
       try {
         const reg = await navigator.serviceWorker.ready;
+
         const subscription = await reg.pushManager.getSubscription();
         if (subscription) {
           // Backend expects POST /unsubscribe with { endpoint }
           await unsubscribeNotification({
-            endpoint: subscription.endpoint
+            endpoint: subscription.endpoint,
           });
           await subscription.unsubscribe();
         }
@@ -149,7 +174,9 @@ function NotificationPreferences() {
         toast.success("Push notifications disabled.");
         refetchStatus();
       } catch (err: any) {
-        toast.error(err?.response?.data?.error || "Failed to disable push notifications.");
+        toast.error(
+          err?.response?.data?.error || "Failed to disable push notifications.",
+        );
         console.error(err);
       } finally {
         setIsSubscribing(false);
@@ -159,11 +186,15 @@ function NotificationPreferences() {
 
   const saveWhatsapp = async () => {
     try {
-      await api.post("/api/admin/notifications/whatsapp", { number: whatsappNumber });
+      await api.post("/api/admin/notifications/whatsapp", {
+        number: whatsappNumber,
+      });
       toast.success("WhatsApp number updated.");
       refetchStatus();
     } catch (e: any) {
-      toast.error(e?.response?.data?.error || "Failed to update WhatsApp number.");
+      toast.error(
+        e?.response?.data?.error || "Failed to update WhatsApp number.",
+      );
     }
   };
 
@@ -171,7 +202,10 @@ function NotificationPreferences() {
     <Card className="mb-6 border-primary/20">
       <CardHeader>
         <CardTitle>Admin Notifications</CardTitle>
-        <CardDescription>Receive secure alerts for verification requests, large payouts, and system issues.</CardDescription>
+        <CardDescription>
+          Receive secure alerts for verification requests, large payouts, and
+          system issues.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex items-center justify-between p-4 border rounded-lg bg-card">
@@ -181,13 +215,15 @@ function NotificationPreferences() {
             </div>
             <div>
               <p className="font-semibold">Browser Push Notifications</p>
-              <p className="text-sm text-muted-foreground">Receive instant desktop alerts even when the app is closed.</p>
+              <p className="text-sm text-muted-foreground">
+                Receive instant desktop alerts even when the app is closed.
+              </p>
             </div>
           </div>
-          <Switch 
-            checked={notificationsEnabled} 
-            onCheckedChange={handleTogglePush} 
-            disabled={isSubscribing || !canWrite} 
+          <Switch
+            checked={notificationsEnabled}
+            onCheckedChange={handleTogglePush}
+            disabled={isSubscribing || !canWrite}
           />
         </div>
 
@@ -198,18 +234,28 @@ function NotificationPreferences() {
             </div>
             <div>
               <p className="font-semibold">WhatsApp Alerts</p>
-              <p className="text-sm text-muted-foreground">Receive critical system alerts via WhatsApp directly to your phone.</p>
+              <p className="text-sm text-muted-foreground">
+                Receive critical system alerts via WhatsApp directly to your
+                phone.
+              </p>
             </div>
           </div>
           <div className="flex gap-3 pl-14">
-            <Input 
-              placeholder="e.g. +233200000000" 
-              value={whatsappNumber} 
-              onChange={(e) => setWhatsappNumber(e.target.value)} 
+            <Input
+              placeholder="e.g. +233200000000"
+              value={whatsappNumber}
+              onChange={(e) => setWhatsappNumber(e.target.value)}
               className="max-w-xs"
               disabled={!canWrite}
             />
-            {canWrite && <Button onClick={saveWhatsapp} className="bg-green-600 hover:bg-green-700">Save</Button>}
+            {canWrite && (
+              <Button
+                onClick={saveWhatsapp}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Save
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
@@ -219,11 +265,21 @@ function NotificationPreferences() {
 
 export default function SettingsPage() {
   const { user, updateProfile, canWrite } = useAuth();
-  const [hasChanges, setHasChanges] = useState(false);
+  const { tab } = useParams();
+  const navigate = useNavigate();
+  const validTabs = ["profile", "general", "appearance", "notifications"];
+  const activeTab = validTabs.includes(tab ?? "") ? tab! : "profile";
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
   const [isAuthorizeModalOpen, setIsAuthorizeModalOpen] = useState(false);
+  const [isInviteCsaModalOpen, setIsInviteCsaModalOpen] = useState(false);
+
+  // General settings states
+  const [platformName, setPlatformName] = useState("");
+  const [supportPhone, setSupportPhone] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [generalLoading, setGeneralLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -232,12 +288,6 @@ export default function SettingsPage() {
     }
   }, [user]);
 
-  const handleSave = () => {
-    // Save logic for other settings would go here
-    setHasChanges(false);
-    toast.success("Settings saved successfully");
-  };
-
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileLoading(true);
@@ -245,19 +295,53 @@ export default function SettingsPage() {
       const result = await updateProfile({ fullName, email });
 
       if (!result?.success) {
-        const message = result?.message || "Failed to update profile. Please try again.";
+        const message =
+          result?.message || "Failed to update profile. Please try again.";
         toast.error(message);
         return;
       }
 
       toast.success("Profile updated successfully");
-      setHasChanges(false);
     } catch (error) {
       toast.error(
-        "An unexpected error occurred while updating your profile. Please try again."
+        "An unexpected error occurred while updating your profile. Please try again.",
       );
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  // Fetch general settings
+  useQuery({
+    queryKey: ["general-settings"],
+    queryFn: async () => {
+      const res = await api.get("/api/admin/settings/general");
+      const data = res.data;
+      setPlatformName(data.platformName || "");
+      setSupportPhone(data.supportPhone || "");
+      setSupportEmail(data.supportEmail || "");
+      return data;
+    },
+  });
+
+  // Placeholder for general settings save handler
+  const handleSaveGeneral = async () => {
+    setGeneralLoading(true);
+    try {
+      await api.post("/api/admin/settings/general", {
+        platformName,
+        supportPhone,
+        supportEmail,
+      });
+      toast.success("General settings saved!");
+    } catch (e: any) {
+      if (e?.response?.status === 404) {
+        toast.error("This feature isn't available yet — backend pending.");
+      } else {
+        toast.error("Failed to save general settings.");
+      }
+    } finally {
+      setGeneralLoading(false);
     }
   };
 
@@ -272,26 +356,36 @@ export default function SettingsPage() {
               Configure loan tiers and platform settings
             </p>
           </div>
-          {hasChanges && (
-            <Button onClick={handleSave} className="bg-primary hover:bg-primary/90">
-              Save Changes
-            </Button>
-          )}
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="profile">
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => navigate(`/settings/${val}`)}
+        >
           <TabsList className="bg-muted p-1">
-            <TabsTrigger value="profile" className="data-[state=active]:bg-card">
+            <TabsTrigger
+              value="profile"
+              className="data-[state=active]:bg-card"
+            >
               Profile
             </TabsTrigger>
-            <TabsTrigger value="general" className="data-[state=active]:bg-card">
+            <TabsTrigger
+              value="general"
+              className="data-[state=active]:bg-card"
+            >
               General
             </TabsTrigger>
-            <TabsTrigger value="appearance" className="data-[state=active]:bg-card">
+            <TabsTrigger
+              value="appearance"
+              className="data-[state=active]:bg-card"
+            >
               Appearance
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="data-[state=active]:bg-card">
+            <TabsTrigger
+              value="notifications"
+              className="data-[state=active]:bg-card"
+            >
               Notifications
             </TabsTrigger>
           </TabsList>
@@ -308,21 +402,21 @@ export default function SettingsPage() {
                 <form onSubmit={handleProfileUpdate} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="fullName">Full Name</Label>
-                    <Input 
-                      id="fullName" 
-                      value={fullName} 
-                      onChange={(e) => setFullName(e.target.value)} 
-                      placeholder="Enter your full name" 
+                    <Input
+                      id="fullName"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Enter your full name"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
-                      type="email" 
-                      value={email} 
-                      onChange={(e) => setEmail(e.target.value)} 
-                      placeholder="Enter your email" 
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email"
                     />
                   </div>
                   {canWrite && (
@@ -338,7 +432,8 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle>Admin Privileges</CardTitle>
                 <CardDescription>
-                  Authorize a new admin or higher-level agent to access this platform.
+                  Authorize a new admin or higher-level agent to access this
+                  platform.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -346,6 +441,23 @@ export default function SettingsPage() {
                   <Button onClick={() => setIsAuthorizeModalOpen(true)}>
                     <UserPlus className="h-4 w-4 mr-2" />
                     Authorize Admin
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="mt-6 border-pink-500/20 bg-pink-50/50 dark:bg-pink-950/10">
+              <CardHeader>
+                <CardTitle className="text-pink-600 dark:text-pink-400">CSR Agent Support</CardTitle>
+                <CardDescription>
+                  Invite a new Customer Service Representative to help manage collections and outreach.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {canWrite && (
+                  <Button onClick={() => setIsInviteCsaModalOpen(true)} className="bg-pink-600 hover:bg-pink-700 text-white">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Invite CSR Agent
                   </Button>
                 )}
               </CardContent>
@@ -361,18 +473,40 @@ export default function SettingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label>Platform Name</Label>
-                  <Input defaultValue="Agenda Money" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Support Phone</Label>
-                  <Input defaultValue="+233 55 858 7833" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Support Email</Label>
-                  <Input defaultValue="support@agendamoney.com" />
-                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSaveGeneral();
+                  }}
+                  className="space-y-6"
+                >
+                  <div className="space-y-2">
+                    <Label>Platform Name</Label>
+                    <Input
+                      value={platformName}
+                      onChange={(e) => setPlatformName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Support Phone</Label>
+                    <Input
+                      value={supportPhone}
+                      onChange={(e) => setSupportPhone(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Support Email</Label>
+                    <Input
+                      value={supportEmail}
+                      onChange={(e) => setSupportEmail(e.target.value)}
+                    />
+                  </div>
+                  {canWrite && (
+                    <Button type="submit" disabled={generalLoading}>
+                      {generalLoading ? "Saving..." : "Save Changes"}
+                    </Button>
+                  )}
+                </form>
               </CardContent>
             </Card>
           </TabsContent>
@@ -450,9 +584,13 @@ export default function SettingsPage() {
         </Tabs>
       </div>
 
-      <AuthorizeAgentModal 
-        open={isAuthorizeModalOpen} 
+      <AuthorizeAgentModal
+        open={isAuthorizeModalOpen}
         onOpenChange={setIsAuthorizeModalOpen}
+      />
+      <InviteCsaModal 
+        open={isInviteCsaModalOpen} 
+        onOpenChange={setIsInviteCsaModalOpen}
       />
     </DashboardLayout>
   );

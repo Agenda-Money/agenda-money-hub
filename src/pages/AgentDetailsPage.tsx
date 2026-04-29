@@ -34,6 +34,7 @@ export default function AgentDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [commPage, setCommPage] = useState(1);
 
   // Fetch Agent Profile
   const { data: agentDataResponse, isLoading: isAgentLoading, error: agentError } = useQuery({
@@ -47,8 +48,8 @@ export default function AgentDetailsPage() {
 
   // Fetch Agent Commissions
   const { data: commissionResponse, isLoading: isCommissionLoading } = useQuery({
-    queryKey: ["agent-commissions", id],
-    queryFn: () => getAdminAgentCommissions(id!),
+    queryKey: ["agent-commissions", id, commPage],
+    queryFn: () => getAdminAgentCommissions(id!, { page: commPage, limit: 50 }),
     enabled: !!id,
   });
 
@@ -64,6 +65,7 @@ export default function AgentDetailsPage() {
     phone: agentDataRaw.phoneNumber || agentDataRaw.phone || agentDataRaw.msisdn || "—",
     nodeCode: agentDataRaw.agentCode || agentDataRaw.nodeCode || "—",
     status: agentDataRaw.status === "inactive" || agentDataRaw.isActive === false ? "inactive" : "active",
+    role: agentDataRaw.role || "agent",
     joinedAt: agentDataRaw.createdAt ? new Date(agentDataRaw.createdAt).toLocaleDateString('en-GB') : "—",
     address: agentDataRaw.address || "—",
     location: agentDataRaw.location || agentDataRaw.region || "—",
@@ -137,6 +139,7 @@ export default function AgentDetailsPage() {
     return fullName.includes(term) || phone.toLowerCase().includes(term);
   });
 
+
   return (
     <DashboardLayout>
       <div className="space-y-6 pb-24 lg:pb-6">
@@ -184,26 +187,37 @@ export default function AgentDetailsPage() {
                     <Badge variant={agent.status === "active" ? "default" : "secondary"} className={cn("px-2.5 py-0.5", agent.status === "active" ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm text-white" : "")}>
                        {agent.status}
                     </Badge>
+                    <Badge variant="outline" className={cn(
+                      "px-2.5 py-0.5 font-bold uppercase tracking-widest text-[10px]",
+                      agent.role === 'manager' ? "bg-purple-50 text-purple-700 border-purple-200" :
+                      agent.role === 'supervisor' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                      "bg-slate-50 text-slate-700 border-slate-200"
+                    )}>
+                      {agent.role}
+                    </Badge>
                     <Badge variant="secondary" className="bg-muted/60 text-muted-foreground px-2.5 py-0.5">Joined {agent.joinedAt}</Badge>
                   </div>
                 </div>
               </div>
 
-               <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:w-[350px] shrink-0">
-                   <div className="p-4 sm:p-3 rounded-xl sm:rounded-lg border bg-muted/20 flex flex-col justify-center">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1.5 sm:mb-1">
-                        <UserPlus className="h-4 w-4" />
-                        <span className="text-xs font-medium uppercase tracking-wider">Total Signups</span>
-                      </div>
-                       <p className="text-2xl sm:text-xl font-bold text-foreground">{formatNumber(agent.signUpsAllTime)}</p>
-                   </div>
-                   <div className="p-4 sm:p-3 rounded-xl sm:rounded-lg border bg-muted/20 flex flex-col justify-center">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1.5 sm:mb-1">
-                        <Clock className="h-4 w-4" />
-                        <span className="text-xs font-medium uppercase tracking-wider">This Month</span>
-                      </div>
-                       <p className="text-2xl sm:text-xl font-bold text-foreground">{formatNumber(agent.signUpsThisMonth)}</p>
-                   </div>
+               <div className="flex flex-col gap-4 shrink-0 lg:w-[350px]">
+
+                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div className="p-4 sm:p-3 rounded-xl sm:rounded-lg border bg-muted/20 flex flex-col justify-center">
+                       <div className="flex items-center gap-2 text-muted-foreground mb-1.5 sm:mb-1">
+                         <UserPlus className="h-4 w-4" />
+                         <span className="text-xs font-medium uppercase tracking-wider">Total Signups</span>
+                       </div>
+                        <p className="text-2xl sm:text-xl font-bold text-foreground">{formatNumber(agent.signUpsAllTime)}</p>
+                    </div>
+                    <div className="p-4 sm:p-3 rounded-xl sm:rounded-lg border bg-muted/20 flex flex-col justify-center">
+                       <div className="flex items-center gap-2 text-muted-foreground mb-1.5 sm:mb-1">
+                         <Clock className="h-4 w-4" />
+                         <span className="text-xs font-medium uppercase tracking-wider">This Month</span>
+                       </div>
+                        <p className="text-2xl sm:text-xl font-bold text-foreground">{formatNumber(agent.signUpsThisMonth)}</p>
+                    </div>
+                 </div>
                </div>
             </div>
           </div>
@@ -404,25 +418,25 @@ export default function AgentDetailsPage() {
             {/* Main Summary Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                {/* Available Balance Card */}
-               <Card className="bg-[#EC1B84]/5 border-[#EC1B84]/20 shadow-sm relative overflow-hidden group">
-                  <div className="absolute right-[-10px] top-[-10px] opacity-10 transition-transform group-hover:scale-110 duration-500">
-                    <Banknote className="w-24 h-24 text-[#EC1B84]" />
-                  </div>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xs font-black uppercase tracking-widest text-[#EC1B84] flex items-center gap-2">
-                      <Banknote className="w-3.5 h-3.5" />
-                      Net Balance (Available)
-                    </CardTitle>
-                  </CardHeader>
+                <Card className="bg-[#EC1B84]/5 dark:bg-[#EC1B84]/10 border-[#EC1B84]/20 dark:border-[#EC1B84]/30 shadow-sm relative overflow-hidden group">
+                   <div className="absolute right-[-10px] top-[-10px] opacity-10 transition-transform group-hover:scale-110 duration-500">
+                     <Banknote className="w-24 h-24 text-[#EC1B84]" />
+                   </div>
+                   <CardHeader className="pb-2">
+                     <CardTitle className="text-xs font-black uppercase tracking-widest text-[#EC1B84] flex items-center gap-2">
+                       <Banknote className="w-3.5 h-3.5" />
+                       Net Balance (Available)
+                     </CardTitle>
+                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
                       <p className={cn(
                         "text-3xl font-black tracking-tight",
-                        toNumber(commissionResponse?.data?.summary?.netBalance) >= 0 ? "text-gray-900" : "text-red-600"
+                        toNumber(commissionResponse?.data?.summary?.netBalance) >= 0 ? "text-gray-900 dark:text-gray-100" : "text-red-600 dark:text-red-400"
                       )}>
                         GHS {formatGHS(commissionResponse?.data?.summary?.netBalance ?? (agent.signUpsAllTime * 10 - agent.loansOverdue * 10))}
                       </p>
-                      <p className="text-[10px] font-bold text-gray-500 mt-1 uppercase tracking-tight">Current account value</p>
+                      <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-tight">Current account value</p>
                     </div>
                   </CardContent>
                </Card>
@@ -431,41 +445,41 @@ export default function AgentDetailsPage() {
                <Card className="flex flex-col justify-center">
                   <CardContent className="pt-6 space-y-4">
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Earned</p>
-                        <p className="text-2xl font-bold text-gray-900">GHS {formatGHS(commissionResponse?.data?.summary?.totalEarned ?? agent.signUpsAllTime * 10)}</p>
+                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Total Earned</p>
+                        <p className="text-2xl font-black text-gray-900 dark:text-gray-100 font-mono">GHS {formatGHS(commissionResponse?.data?.summary?.totalEarned ?? agent.signUpsAllTime * 10)}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+                    <div className="grid grid-cols-2 gap-4 border-t border-gray-100 dark:border-gray-800 pt-4">
                        <div className="space-y-1">
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Signups</p>
-                          <p className="text-sm font-bold text-emerald-600">+GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.signupCommission ?? agent.signUpsAllTime * 10)}</p>
+                          <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tight">Signups</p>
+                          <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">+GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.signupCommission ?? agent.signUpsAllTime * 10)}</p>
                        </div>
                        <div className="space-y-1">
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Repayments</p>
-                          <p className="text-sm font-bold text-blue-600">+GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.repaymentCommission ?? 0)}</p>
+                          <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tight">Repayments</p>
+                          <p className="text-sm font-black text-blue-600 dark:text-blue-400 font-mono">+GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.repaymentCommission ?? 0)}</p>
                        </div>
                     </div>
                   </CardContent>
                </Card>
 
                {/* Deductions Card */}
-               <Card className="flex flex-col justify-center bg-red-50/20 border-red-100">
+               <Card className="flex flex-col justify-center bg-red-50/20 dark:bg-red-950/10 border-red-100 dark:border-red-900">
                   <CardContent className="pt-6 space-y-4">
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Deductions</p>
-                        <p className="text-2xl font-bold text-red-600">GHS {formatGHS(commissionResponse?.data?.summary?.totalDeducted ?? agent.loansOverdue * 10)}</p>
+                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Total Deductions</p>
+                        <p className="text-2xl font-black text-red-600 dark:text-red-400 font-mono">GHS {formatGHS(commissionResponse?.data?.summary?.totalDeducted ?? agent.loansOverdue * 10)}</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 border-t border-red-50 pt-4">
+                    <div className="grid grid-cols-3 gap-2 border-t border-red-50 dark:border-red-900/50 pt-4">
                        <div className="space-y-1">
-                          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Defaults</p>
-                          <p className="text-[11px] font-bold text-red-700">GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.defaultDeductions ?? agent.loansOverdue * 10)}</p>
+                          <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tight">Defaults</p>
+                          <p className="text-[11px] font-black text-red-700 dark:text-red-400 font-mono">GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.defaultDeductions ?? agent.loansOverdue * 10)}</p>
                        </div>
                        <div className="space-y-1">
-                          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Fraud</p>
-                          <p className="text-[11px] font-bold text-red-700">GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.fraudRevocations ?? 0)}</p>
+                          <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tight">Fraud</p>
+                          <p className="text-[11px] font-black text-red-700 dark:text-red-400 font-mono">GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.fraudRevocations ?? 0)}</p>
                        </div>
                        <div className="space-y-1">
-                          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Manual</p>
-                          <p className="text-[11px] font-bold text-red-700">GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.manualCorrections ?? 0)}</p>
+                          <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tight">Manual</p>
+                          <p className="text-[11px] font-black text-red-700 dark:text-red-400 font-mono">GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.manualCorrections ?? 0)}</p>
                        </div>
                     </div>
                   </CardContent>
@@ -482,7 +496,11 @@ export default function AgentDetailsPage() {
                   <div className="flex justify-center py-12">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                   </div>
-                ) : commissionResponse?.data?.ledger?.length > 0 ? (
+                ) : (() => {
+                  const data = commissionResponse?.data || commissionResponse;
+                  const ledger = data?.ledger || data?.items || [];
+                  return ledger.length > 0;
+                })() ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
                       <thead className="text-xs text-muted-foreground uppercase bg-muted/30">
@@ -494,17 +512,21 @@ export default function AgentDetailsPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y border-t">
-                        {(commissionResponse?.data?.ledger || []).map((item: any) => (
-                          <tr key={item._id} className="hover:bg-muted/30 transition-colors">
+                        {(() => {
+                           const data = commissionResponse?.data || commissionResponse;
+                           const ledger = data?.ledger || data?.items || [];
+                           return ledger;
+                        })().map((item: any) => (
+                          <tr key={item._id || item.id} className="hover:bg-muted/30 transition-colors">
                             <td className="px-4 py-3 whitespace-nowrap">
                               {new Date(item.createdAt).toLocaleDateString("en-GB")}
                             </td>
                             <td className="px-4 py-3">
                               <Badge variant="outline" className={cn(
                                 "capitalize text-[10px] px-1.5 py-0",
-                                item.type === 'SIGNUP' ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                item.type === 'REPAYMENT' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                "bg-red-50 text-red-700 border-red-200"
+                                item.type === 'SIGNUP' ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800" :
+                                item.type === 'REPAYMENT' ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" :
+                                "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"
                               )}>
                                 {item.type.replace('_', ' ')}
                               </Badge>
@@ -518,8 +540,8 @@ export default function AgentDetailsPage() {
                               )}
                             </td>
                             <td className={cn(
-                              "px-4 py-3 text-right font-black",
-                              item.amount >= 0 ? "text-emerald-600" : "text-red-600"
+                              "px-4 py-3 text-right font-black font-mono",
+                              item.amount >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                             )}>
                               {item.amount >= 0 ? "+" : "-"}GHS {formatGHS(Math.abs(item.amount))}
                             </td>
@@ -531,12 +553,60 @@ export default function AgentDetailsPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-xl bg-muted/20">
                     <Banknote className="h-10 w-10 text-muted-foreground mb-3 opacity-40" />
-                    <p className="text-sm font-medium text-foreground">No commission history</p>
+                    <p className="text-[sm] font-medium text-foreground">No commission history</p>
                     <p className="text-xs text-muted-foreground max-w-[250px] mt-1">
                       Earnings and deductions will appear here once transactions are recorded.
                     </p>
                   </div>
                 )}
+
+                {/* Unified Pagination Logic */}
+                {(() => {
+                  const data = commissionResponse?.data || commissionResponse;
+                  const pagination = data?.pagination;
+                  
+                  // Support both nested pagination object and flat metadata
+                  const totalPages = Number(pagination?.pages || data?.totalPages || data?.pages || 1);
+                  const currentPage = Number(pagination?.current || data?.page || commPage);
+                  
+                  if (totalPages <= 1) return null;
+                  
+                  return (
+                    <div className="flex items-center justify-center gap-3 pt-6 border-t mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage <= 1 || isCommissionLoading}
+                        onClick={() => {
+                          setCommPage(p => Math.max(1, p - 1));
+                          // Scroll to top of the list when page changes
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="h-9 px-4 rounded-lg font-bold text-xs"
+                      >
+                        ← Previous
+                      </Button>
+                      
+                      <div className="flex items-center px-4 h-9 bg-muted/30 rounded-lg border text-xs font-mono font-bold">
+                        {currentPage} / {totalPages}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage >= totalPages || isCommissionLoading}
+                        onClick={() => {
+                          setCommPage(p => p + 1);
+                          // Scroll to top of the list when page changes
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="h-9 px-4 rounded-lg font-bold text-xs"
+                      >
+                        Next →
+                      </Button>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

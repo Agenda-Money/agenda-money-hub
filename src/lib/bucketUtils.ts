@@ -86,9 +86,25 @@ export function getBucketMeta(bucket: number): BucketMeta {
 
 export const BUCKET_ORDER = [8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3];
 
-export function formatNetwork(network: string) {
+export function formatNetwork(network: string, msisdn?: string) {
+  // 1. If we have an MSISDN, use heuristic detection to verify/fallback
+  if (msisdn) {
+    const cleanNum = msisdn.replace(/\D/g, '');
+    const local = cleanNum.startsWith('0') ? cleanNum.slice(0, 3) : '';
+    const intl = cleanNum.startsWith('233') ? cleanNum.slice(0, 5) : '';
+
+    // Telecel detection
+    if (['020', '050'].includes(local) || ['23320', '23350'].includes(intl)) return 'Telecel';
+    // AT detection
+    if (['027', '057', '026', '056'].includes(local) || ['23327', '23357', '23326', '23356'].includes(intl)) return 'AirtelTigo';
+    // MTN detection
+    if (['024', '054', '055', '059', '025', '053'].includes(local) || ['23324', '23354', '23355', '23359', '23325', '23353'].includes(intl)) return 'MTN';
+  }
+
+  // 2. Fallback to provided network field
   if (network === 'VODAFONE') return 'Telecel';
   if (network === 'ARTLTIGO') return 'AirtelTigo';
+  if (network === 'UNKNOWN' || !network) return 'Unknown';
   return network;
 }
 
@@ -106,6 +122,8 @@ export function formatOutcome(outcome: string) {
     DISPUTED: 'Disputed',
     WRONG_NUMBER: 'Wrong Number',
     REFUSED: 'Refused',
+    NOT_REACHABLE: 'Not Reachable',
+    THIRD_PARTY_WILL_DELIVER_MESSAGE: 'Third Party (Deliver Message)',
     GUARANTOR_CALLED: 'Guarantor Called',
     SMS_SENT: 'SMS Sent',
     OTHER: 'Other',
@@ -122,6 +140,8 @@ export function outcomeColor(outcome: string) {
     CALLED_BACK_LATER: 'bg-amber-100 text-amber-700 border-amber-200',
     REFUSED: 'bg-red-100 text-red-700 border-red-200',
     WRONG_NUMBER: 'bg-red-100 text-red-600 border-red-200',
+    NOT_REACHABLE: 'bg-zinc-100 text-zinc-600 border-zinc-200',
+    THIRD_PARTY_WILL_DELIVER_MESSAGE: 'bg-blue-50 text-blue-600 border-blue-100',
     DISPUTED: 'bg-orange-100 text-orange-700 border-orange-200',
     GUARANTOR_CALLED: 'bg-purple-100 text-purple-700 border-purple-200',
     SMS_SENT: 'bg-sky-100 text-sky-700 border-sky-200',
