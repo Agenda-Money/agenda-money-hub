@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -53,6 +54,24 @@ import CsaTemplatesPage from "./pages/csa/CsaTemplatesPage";
 import TeamActivityPage from "./pages/csa/TeamActivityPage";
 import { DevEligibilitySandbox } from "./pages/DevEligibilitySandbox";
 import { getSubdomain } from "@/lib/domain";
+import { ReportingGuard } from "./components/ReportingGuard";
+import { ReportingLayout } from "./components/layout/ReportingLayout";
+import ReportingDashboard from "./pages/reporting/ReportingDashboard";
+import ReportingLoginPage from "./pages/reporting/ReportingLoginPage";
+import ReportingInviteAccept from "./pages/reporting/ReportingInviteAccept";
+
+const ReportingDomainRedirect = () => {
+  useEffect(() => {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalhost) {
+      window.location.href = `http://${window.location.hostname}:8085${window.location.pathname}${window.location.search}`;
+    } else {
+      const host = window.location.host.replace(/^admin\./, 'report.');
+      window.location.href = `${window.location.protocol}//${host}${window.location.pathname}${window.location.search}`;
+    }
+  }, []);
+  return null;
+};
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -161,7 +180,19 @@ const App = () => {
                       <Route path="*" element={<ApplyPage />} />
                     </>
                   )}
-
+                  {subdomain === "report" && (
+                    <>
+                      <Route path="/reporting/login" element={<ReportingLoginPage />} />
+                      <Route path="/reporting/invite" element={<ReportingInviteAccept />} />
+                      <Route element={<ReportingGuard />}>
+                        <Route element={<ReportingLayout><Outlet /></ReportingLayout>}>
+                          <Route path="/reporting/dashboard" element={<ReportingDashboard />} />
+                          <Route path="/" element={<Navigate to="/reporting/dashboard" replace />} />
+                        </Route>
+                      </Route>
+                      <Route path="*" element={<Navigate to="/reporting/login" replace />} />
+                    </>
+                  )}
                   {subdomain === "agent" && (
                     <>
                       {/* Public Agent Routes */}
@@ -197,6 +228,9 @@ const App = () => {
                       <Route path="/check-email" element={<CheckEmailPage />} />
                       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                       <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+                      {/* Redirect Reporting Email Links to Reporting Domain */}
+                      <Route path="/reporting/*" element={<ReportingDomainRedirect />} />
 
                       {/* Protected Admin Routes */}
                       <Route path="/admin" element={<RequireAuth><AdminRoute><Index /></AdminRoute></RequireAuth>} />

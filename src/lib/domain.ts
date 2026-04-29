@@ -3,7 +3,7 @@
  * Utility to extract and identify the current active subdomain.
  */
 
-export type Subdomain = "admin" | "agent" | "apply" | "collections";
+export type Subdomain = "admin" | "agent" | "apply" | "collections" | "report";
 
 export function getSubdomain(): Subdomain {
   const hostname = window.location.hostname;
@@ -16,6 +16,7 @@ export function getSubdomain(): Subdomain {
   ) {
     // Determine based on port (e.g., 8081 = admin, 8082 = agent)
     const port = window.location.port;
+    if (port === "8085") return "report";
     if (port === "8084") return "collections";
     if (port === "8083") return "apply";
     if (port === "8082") return "agent";
@@ -36,7 +37,8 @@ export function getSubdomain(): Subdomain {
       sub === "admin" ||
       sub === "agent" ||
       sub === "apply" ||
-      sub === "collections"
+      sub === "collections" ||
+      sub === "report"
     ) {
       return sub as Subdomain;
     }
@@ -49,6 +51,7 @@ export function getSubdomain(): Subdomain {
   const pathname = window.location.pathname || "/";
   if (pathname.startsWith("/collections") || pathname.startsWith("/csa"))
     return "collections";
+  if (pathname.startsWith("/report")) return "report";
   if (pathname.startsWith("/apply")) return "apply";
   if (pathname.startsWith("/agent")) return "agent";
   if (pathname.startsWith("/admin")) return "admin";
