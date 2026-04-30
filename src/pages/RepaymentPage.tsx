@@ -12,6 +12,7 @@ interface RepaymentPageProps {
   dueDate: string;
   msisdn: string;
   userName?: string;
+  loanStatus?: string;
   onBack: () => void;
   onRepay: (amount: number, method: string) => void;
 }
@@ -26,6 +27,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
   dueDate, 
   msisdn, 
   userName,
+  loanStatus,
   onBack, 
   onRepay 
 }) => {
@@ -117,11 +119,11 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
           try {
               const userData = await getMe();
               const currentBalance = userData.activeLoan?.outstandingBalance || 0;
-              const loanStatus = userData.activeLoan?.status;
+              const currentStatus = userData.activeLoan?.status;
               
               // Success Conditions: Balance decreased OR Status is REPAID
               // Note: using < initialBalanceRef.current - 1 to handle small float diffs if any
-              if (currentBalance < initialBalanceRef.current || loanStatus === 'REPAID') {
+              if (currentBalance < initialBalanceRef.current || currentStatus === 'REPAID') {
                   if (pollingRef.current) clearInterval(pollingRef.current);
                   setViewState("success");
               } else if (attemptsRef.current >= maxAttempts) {
@@ -217,6 +219,7 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
 
   // 3. SUCCESS VIEW
   if (viewState === "success") {
+      const isDefaulted = String(loanStatus).toUpperCase() === "DEFAULTED";
       return (
         <div className="fixed inset-0 bg-white z-[60] flex flex-col items-center justify-center p-6 text-center animate-in zoom-in-95 duration-300">
              <div className="w-28 h-28 mb-8 relative flex items-center justify-center">
@@ -228,7 +231,9 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
             </div>
             
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful</h2>
-            <p className="text-base text-gray-500 max-w-xs mb-14">Your repayment has been received. Your updated balance will be available in your account overview shortly.</p>
+            <p className="text-base text-gray-500 max-w-xs mb-14">
+               {isDefaulted ? "Loan repaid. Your account is now in good standing." : "Your repayment has been received. Your updated balance will be available in your account overview shortly."}
+            </p>
 
             <div className="w-full max-w-xs">
                 <Button 
