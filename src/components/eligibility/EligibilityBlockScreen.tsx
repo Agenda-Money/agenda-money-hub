@@ -24,6 +24,12 @@ export const EligibilityBlockScreen: React.FC<EligibilityBlockScreenProps> = ({
   const [isApplyingCapped, setIsApplyingCapped] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && (window as any).telemetry) {
+      (window as any).telemetry.track("eligibility_block_seen", { reasonCode: decision.reasonCode });
+    }
+  }, [decision.reasonCode]);
+
   const handleCappedApply = async (amount: number) => {
     try {
       setIsApplyingCapped(true);
@@ -69,10 +75,10 @@ export const EligibilityBlockScreen: React.FC<EligibilityBlockScreenProps> = ({
             </div>
             
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
-               Application under review
+               Application submitted
             </h2>
             <p className="text-gray-500 mb-10 text-sm max-w-[280px] mx-auto">
-               Your capped loan application has been submitted and is currently under review.
+               Application submitted at your current eligible amount.
             </p>
             
             <Button 
@@ -99,10 +105,10 @@ export const EligibilityBlockScreen: React.FC<EligibilityBlockScreenProps> = ({
 
   const renderTitle = () => {
     switch (decision.uiState) {
-        case 'soft_block': return "Limited offer available";
-        case 'cap_state': return "Limited offer available";
-        case 'hard_block': return "Limit reached";
-        case 'hard_block_date': return "Not available yet";
+        case 'soft_block': return "Not available at this time.";
+        case 'cap_state': return "A lower amount is available right now.";
+        case 'hard_block': return "Not eligible at this time.";
+        case 'hard_block_date': return "Not available at this time.";
         case 'blacklisted': return "Account restricted";
         default: return "Application Paused";
     }
@@ -111,14 +117,15 @@ export const EligibilityBlockScreen: React.FC<EligibilityBlockScreenProps> = ({
   const renderMessage = () => {
     switch (decision.uiState) {
         case 'soft_block':
+           return `Try again in ${decision.unusedDays || 'a few'} days.`;
         case 'cap_state': 
-           return "You have a pre-approved offer right now.";
+           return "";
         case 'hard_block_date': 
-           return "Your next loan will be ready on";
+           return "Your next application window will open later.";
         case 'hard_block': 
-           return "Try again on the specified date.";
+           return "Please try again later.";
         case 'blacklisted': 
-           return "Please contact support for more details.";
+           return "Your account is currently restricted. Contact support for assistance.";
         default: 
            return decision.message;
     }

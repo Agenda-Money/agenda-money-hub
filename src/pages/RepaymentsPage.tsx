@@ -126,7 +126,7 @@ export default function RepaymentsPage() {
   });
 
   const generateReference = () => {
-    const adminId = user?.id?.substring(0, 4) || "ADM";
+    const adminId = user?.id ? String(user.id).substring(0, 4) : "ADM";
     const dateStr = format(new Date(), "yyyyMMdd");
     const timestamp = Date.now().toString().slice(-4);
     setReference(`MAN-${dateStr}-${adminId.toUpperCase()}-${timestamp}`);
@@ -249,6 +249,45 @@ export default function RepaymentsPage() {
                         <Input id="loanReference" placeholder="e.g. LN-..." value={loanReference} onChange={(e) => setLoanReference(e.target.value)} />
                       </div>
                     </div>
+                    {isCheckingLoans ? (
+                      <div className="text-xs text-muted-foreground animate-pulse">Checking eligible loans...</div>
+                    ) : eligibleLoans.length > 0 ? (
+                      <div className="bg-muted/30 border border-border rounded-xl p-3 space-y-2">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Select Eligible Loan</p>
+                        <div className="space-y-2">
+                          {eligibleLoans.map((loan: any) => {
+                            const ref = loan.loanCode || loan.loanReference || loan._id;
+                            const balance = loan.outstandingBalance ?? loan.remainingBalance ?? loan.amount ?? loan.principal ?? 0;
+                            return (
+                              <div 
+                                key={ref}
+                                className={cn(
+                                  "flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors",
+                                  loanReference === ref
+                                    ? "bg-pink-50 border-pink-200 text-pink-900"
+                                    : "bg-background border-border hover:border-pink-200"
+                                )}
+                                onClick={() => {
+                                  setLoanReference(ref);
+                                  setAmount(balance.toString());
+                                }}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-bold">{ref}</span>
+                                  <span className="text-xs text-muted-foreground">Status: {loan.status || 'UNKNOWN'}</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-sm font-bold text-emerald-600">GHS {Number(balance).toFixed(2)}</span>
+                                  <p className="text-[10px] text-muted-foreground uppercase">Balance</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      debouncedPhone.length >= 9 && <div className="text-xs text-amber-600 font-medium">No eligible active/overdue loans found.</div>
+                    )}
                     <div className="space-y-2">
                        <Label htmlFor="amount">Amount (GHS)</Label>
                        <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />

@@ -6,6 +6,7 @@ export interface DecisionError {
   uiState: 'soft_block' | 'hard_block' | 'hard_block_date' | 'cap_state' | 'blacklisted';
   reasonCode: string;
   displayDate?: string;
+  unusedDays?: number;
   capAmount?: number;
   message: string;
   isDecision: boolean; // Flag to easily identify parsed decision errors
@@ -19,7 +20,7 @@ export const parseDecisionError = (error: any): DecisionError | null => {
   
   switch (code) {
     case 'COOLING_OFF_HIGHER':
-      return { uiState: 'soft_block', reasonCode: code, message, isDecision: true, capAmount: data.capAmount };
+      return { uiState: 'soft_block', reasonCode: code, message, isDecision: true, capAmount: data.capAmount, unusedDays: data.unusedDays };
     case 'ROLLING_WINDOW_LIMIT':
       return { uiState: 'hard_block', reasonCode: code, message, isDecision: true, displayDate: data.displayDate || data.availableDate };
     case 'SHORT_TENOR_COOLDOWN':
