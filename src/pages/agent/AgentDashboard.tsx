@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Users, CreditCard, TrendingUp, UserPlus, Activity, Clock, ChevronRight, CalendarClock, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -378,17 +379,34 @@ export default function AgentDashboard() {
                     recentSignups.slice(0, 6).map((signup) => (
                       <div key={signup._id} className="p-4 sm:p-5 flex items-center justify-between hover:bg-muted/30 transition-all group">
                          <div className="flex items-center gap-4">
-                            <div className="relative">
-                               <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-pink flex items-center justify-center text-primary-foreground font-black text-sm border-2 border-white shadow-sm shrink-0">
-                                 {signup.fullName?.charAt(0) || "?"}
-                               </div>
-                               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-card rounded-full flex items-center justify-center p-0.5 shadow-sm border border-border/20">
-                                 <div className={cn(
-                                   "w-full h-full rounded-full",
-                                   signup.kycStatus?.toLowerCase() === "verified" ? "bg-emerald-500" : "bg-amber-500"
-                                 )} />
-                               </div>
-                            </div>
+                            <Dialog>
+                               <DialogTrigger asChild>
+                                 <div className="relative cursor-pointer hover:opacity-80 transition-opacity">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-pink flex items-center justify-center text-primary-foreground font-black text-sm border-2 border-white shadow-sm shrink-0">
+                                      {signup.selfieUrl ? (
+                                        <img src={signup.selfieUrl} alt={signup.fullName} className="w-full h-full object-cover" />
+                                      ) : (
+                                        signup.fullName?.charAt(0) || "?"
+                                      )}
+                                    </div>
+                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-card rounded-full flex items-center justify-center p-0.5 shadow-sm border border-border/20">
+                                      <div className={cn(
+                                        "w-full h-full rounded-full",
+                                        signup.kycStatus?.toLowerCase() === "verified" ? "bg-emerald-500" : "bg-amber-500"
+                                      )} />
+                                    </div>
+                                 </div>
+                               </DialogTrigger>
+                               <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden bg-transparent border-none shadow-none flex justify-center">
+                                 {signup.selfieUrl ? (
+                                   <img src={signup.selfieUrl} alt={signup.fullName} className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+                                 ) : (
+                                   <div className="w-64 h-64 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-6xl shadow-xl">
+                                     {signup.fullName?.charAt(0) || "?"}
+                                   </div>
+                                 )}
+                               </DialogContent>
+                             </Dialog>
                             <div>
                                <p className="font-bold text-base text-foreground flex items-center gap-2">
                                  {signup.fullName}

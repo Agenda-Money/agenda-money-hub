@@ -20,6 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface OnboardedUser {
   id: string;
@@ -32,6 +37,7 @@ interface OnboardedUser {
   loanAmount?: number;
   onboardedDate: string;
   lastPayment?: string;
+  selfieUrl?: string;
 }
 
 interface PortfolioResponse {
@@ -197,6 +203,7 @@ export default function AgentPortfolio() {
           loanAmount: u.loanAmount as number | undefined,
           onboardedDate: u.onboardedDate as string,
           lastPayment: u.lastPayment as string | undefined,
+          selfieUrl: u.selfieUrl as string | undefined,
         }));
 
         return { users: mappedUsers, pagination };
@@ -221,7 +228,15 @@ export default function AgentPortfolio() {
 
   const { users = [], pagination = { total: 0, page: 1, pages: 1 } } = data || {};
 
-  const filteredUsers = users; // Results are now filtered server-side
+  const recentSignups = myStatsData?.recentSignups || [];
+
+  const filteredUsers = users.map(user => {
+    const recentMatch = recentSignups.find((rs: any) => rs._id === user.id || rs.msisdn === user.phoneNumber);
+    return {
+      ...user,
+      selfieUrl: user.selfieUrl || recentMatch?.selfieUrl
+    };
+  });
 
   const stats = {
     total: myStatsData?.stats?.totalSignups || 
@@ -384,9 +399,26 @@ export default function AgentPortfolio() {
                     <div className="md:hidden space-y-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-sm">
-                            {customer.fullName.charAt(0)}
-                          </div>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <div className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-sm overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                                {customer.selfieUrl ? (
+                                  <img src={customer.selfieUrl} alt={customer.fullName} className="w-full h-full object-cover" />
+                                ) : (
+                                  customer.fullName.charAt(0)
+                                )}
+                              </div>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden bg-transparent border-none shadow-none flex justify-center">
+                              {customer.selfieUrl ? (
+                                <img src={customer.selfieUrl} alt={customer.fullName} className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+                              ) : (
+                                <div className="w-64 h-64 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-6xl">
+                                  {customer.fullName.charAt(0)}
+                                </div>
+                              )}
+                            </DialogContent>
+                          </Dialog>
                           <div>
                             <p className="font-semibold text-foreground">{customer.fullName}</p>
                             <p className="text-xs text-muted-foreground font-mono">{maskGhanaCard(customer.ghanaCardNumber)}</p>
@@ -412,9 +444,26 @@ export default function AgentPortfolio() {
                     {/* Desktop Layout */}
                     <div className="hidden md:grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-3 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
-                          {customer.fullName.charAt(0)}
-                        </div>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <div className="w-10 h-10 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity">
+                              {customer.selfieUrl ? (
+                                <img src={customer.selfieUrl} alt={customer.fullName} className="w-full h-full object-cover" />
+                              ) : (
+                                customer.fullName.charAt(0)
+                              )}
+                            </div>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden bg-transparent border-none shadow-none flex justify-center">
+                            {customer.selfieUrl ? (
+                              <img src={customer.selfieUrl} alt={customer.fullName} className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+                            ) : (
+                              <div className="w-64 h-64 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-6xl">
+                                {customer.fullName.charAt(0)}
+                              </div>
+                            )}
+                          </DialogContent>
+                        </Dialog>
                         <div className="min-w-0">
                           <p className="font-semibold text-foreground truncate">{customer.fullName}</p>
                           <p className="text-xs text-muted-foreground font-mono truncate">{maskGhanaCard(customer.ghanaCardNumber)}</p>
