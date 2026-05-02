@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { DashboardLayout } from "@/components/layout/DashboardLayout"
 import { useAuth } from "@/contexts/AuthContext"
@@ -101,14 +101,14 @@ const MetricCard = ({ label, value, sub, valueColor = '' }: any) => (
 )
 
 const DetailItem = ({ label, value, icon: Icon, onCall }: any) => (
-  <div className="flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-gray-800/50 border border-pink-100/40 dark:border-transparent group/item">
+  <div className="flex items-center gap-4 p-4 rounded-[1.25rem] bg-white dark:bg-gray-800/40 border border-pink-100/50 dark:border-gray-700/30 group/item hover:border-pink-300 dark:hover:border-pink-500/30 hover:shadow-md hover:shadow-pink-500/5 transition-all duration-300">
     <div className="w-8 h-8 rounded-xl bg-pink-50 dark:bg-pink-900/20 flex items-center justify-center text-pink-600 dark:text-pink-400">
       <Icon size={14} />
     </div>
     <div className="flex-1 min-w-0">
-      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-0.5">{label}</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-gray-400 dark:text-gray-500 mb-1">{label}</p>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-bold text-gray-900 dark:text-gray-100 break-words line-clamp-1">{value || 'N/A'}</p>
+        <p className="text-[13px] font-bold text-gray-900 dark:text-gray-100 break-words leading-relaxed">{value || 'N/A'}</p>
         {onCall && value && value !== 'N/A' && (
           <button 
             onClick={() => onCall(value)}
@@ -336,9 +336,32 @@ export default function UserDetailsPage() {
   const { data: sessionsRes, isFetching: isFetchingSessions } = useQuery({
     queryKey: ['user-sessions', id, sessionPage],
     queryFn: () => getUserSessions(id!, sessionPage),
-    enabled: activeTab === 'Activity' && !!id,
-    placeholderData: (prev) => prev
-  })
+    enabled: !!id,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60000, // Poll every minute for live status
+  });
+
+  const lastSeenInfo = useMemo(() => {
+    const latestFromQuery = sessionsRes?.sessions?.[0];
+    const payloadLastSeen = payload?.lastSeen;
+
+    if (!latestFromQuery && !payloadLastSeen?.at) return { at: 'N/A', channel: 'Unknown' };
+
+    const queryTime = latestFromQuery ? new Date(latestFromQuery.createdAt).getTime() : 0;
+    const payloadTime = payloadLastSeen?.at ? new Date(payloadLastSeen.at).getTime() : 0;
+
+    if (queryTime >= payloadTime && latestFromQuery) {
+      return {
+        at: formatDate(latestFromQuery.createdAt),
+        channel: latestFromQuery.channel?.toUpperCase() === 'APP' ? 'App' : 'USSD'
+      };
+    }
+
+    return {
+      at: payloadLastSeen?.at ? formatDate(payloadLastSeen.at) : 'N/A',
+      channel: payloadLastSeen?.channel || 'Unknown'
+    };
+  }, [sessionsRes, payload?.lastSeen]);
 
   // 3) Mutations
   const removeFlagMutation = useMutation({
@@ -418,7 +441,7 @@ export default function UserDetailsPage() {
              sub="Sum of all loan principals" 
            />
            <MetricCard label="Nodes" value={referrals?.length || 0} sub="Direct Network" />
-           <MetricCard label="Last Seen" value={payload.lastSeen?.at ? formatDate(payload.lastSeen.at) : 'N/A'} sub={payload.lastSeen?.channel || 'Unknown'} />
+           <MetricCard label="Last Seen" value={lastSeenInfo.at} sub={lastSeenInfo.channel} valueColor="text-teal-600 dark:text-teal-400" />
         </Card>
 
         {/* 3. Content Tabs */}
@@ -458,25 +481,25 @@ export default function UserDetailsPage() {
                       </InnerCard>
                       <InnerCard className="p-4">
                         <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Card Name</p>
-                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 truncate">{resolvedIdentity.ghanaCardName}</p>
+                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 break-words">{resolvedIdentity.ghanaCardName}</p>
                       </InnerCard>
                     </div>
                   </Card>
 
                   <Card className="p-8">
                      <SectionHeader>User Personal Metadata</SectionHeader>
-                     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         <DetailItem label="Employment" value={user.metadata?.employmentStatus || user.employmentStatus} icon={Briefcase} />
                         <DetailItem label="Monthly Income" value={user.metadata?.monthlyIncome || user.monthlyIncome} icon={Hash} />
                         <DetailItem label="Location" value={user.metadata?.location || user.region} icon={MapPin} />
                         <DetailItem label="Address" value={user.metadata?.address || user.address} icon={MapPin} />
                         <DetailItem label="Gender" value={user.metadata?.gender || user.gender} icon={User} />
                         <DetailItem label="Birthday" value={(user.metadata?.dob || user.dob) ? formatDate(user.metadata?.dob || user.dob) : 'N/A'} icon={Calendar} />
-                        <DetailItem label="Accomodation" value={user.metadata?.accommodationType || user.metadata?.accomodation || user.accommodationType} icon={MapPin} />
+                        <DetailItem label="Accommodation" value={user.metadata?.accommodationType || user.metadata?.accomodation || user.accommodationType} icon={MapPin} />
                         <DetailItem label="Alt Phone" value={user.metadata?.alternatePhone || user.alternatePhone || 'N/A'} icon={Phone} onCall={handleCall} />
                         <DetailItem label="Status" value={user.isBlocked ? 'Blocked' : 'Active'} icon={User} />
                         <DetailItem label="Assigned To" value={user.currentAssignedAgent?.name || 'Unassigned'} icon={UserCheck} />
-                     </div>
+                      </div>
                   </Card>
                 </div>
               )}
@@ -610,22 +633,23 @@ export default function UserDetailsPage() {
                           );
                         }
 
+                        const isApp = s.channel?.toLowerCase() === 'app';
                         return (
                           <div key={s._id || i} className={`flex gap-4 py-4 items-start px-2 rounded-2xl border-b border-gray-50 dark:border-gray-800/50 last:border-0`}>
-                            <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 shadow-sm ${s.channel === 'app' ? 'bg-teal-500' : 'bg-purple-500'}`} />
+                            <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 shadow-sm ${isApp ? 'bg-teal-500' : 'bg-purple-500'}`} />
                             <div className="flex-1 min-w-0">
                               <div className="flex justify-between items-start gap-2">
                                 <p className="text-sm font-black text-gray-900 dark:text-gray-200 capitalize">
-                                  {s.channel === 'app' ? 'App Session' : 'USSD Entry'} · {s.type || s.action?.replace(/_/g, ' ')}
+                                  {isApp ? 'App Session' : 'USSD Entry'} · {s.type || s.action?.replace(/_/g, ' ')}
                                 </p>
                                 <span className="text-[10px] text-gray-400 font-mono font-black">
                                   {new Date(s.timestamp || s.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {formatDate(s.timestamp || s.createdAt)}
                                 </span>
                               </div>
                                 <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mt-1">
-                                  {s.channel === 'app'
-                                    ? `${s.deviceMeta?.model || 'Unknown'} · ${s.deviceMeta?.os || 'Unknown'}`
-                                    : 'Session originated via *415*102# · USSD Access'}
+                                  {isApp
+                                    ? `${s.deviceMeta?.model || 'Unknown Device'} · ${s.deviceMeta?.os || 'Unknown OS'}`
+                                    : 'Session originated via *713# · Direct Network Access'}
                                 </p>
                             </div>
                           </div>

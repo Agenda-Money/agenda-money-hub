@@ -501,7 +501,7 @@ export const getUserDetail = async (userId: string) => {
 };
 
 export const getUserSessions = async (userId: string, page = 1, limit = 20) => {
-  const response = await api.get(`/api/admin/users/${userId}/activity`, { params: { page, limit } });
+  const response = await api.get(`/api/admin/users/${userId}/sessions`, { params: { page, limit } });
   return response.data;
 };
 

@@ -43,6 +43,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           variant="ghost"
           size="icon"
           className="lg:hidden"
+          aria-label="Open sidebar"
           onClick={onMenuClick}
         >
           <Menu className="h-5 w-5" />

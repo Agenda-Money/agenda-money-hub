@@ -61,6 +61,7 @@ interface FormData {
   loanAmount: string;
   loanTenure: string;
   loanPurpose: string;
+  alternatePhone?: string;
 }
 
 const INITIAL_FORM_DATA: FormData = {
@@ -83,6 +84,7 @@ const INITIAL_FORM_DATA: FormData = {
   loanAmount: "100",
   loanTenure: "14",
   loanPurpose: "Business",
+  alternatePhone: "",
 };
 
 const slideVariants = {
@@ -355,6 +357,7 @@ export default function AgentOnboarding() {
           formData.firstName.trim() &&
           formData.surname.trim() &&
           Boolean(parsePhoneNumberFromString(formData.msisdn, "GH")?.isValid()) &&
+          Boolean(formData.alternatePhone && parsePhoneNumberFromString(formData.alternatePhone, "GH")?.isValid()) &&
           formData.dob &&
           formData.gender
         );
@@ -418,12 +421,16 @@ export default function AgentOnboarding() {
       const parsed = parsePhoneNumberFromString(formData.msisdn, "GH");
       const formattedMsisdn = parsed ? parsed.number.replace("+", "") : formData.msisdn.replace(/\D/g, "");
 
+      const parsedAlt = formData.alternatePhone ? parsePhoneNumberFromString(formData.alternatePhone, "GH") : null;
+      const formattedAltMsisdn = parsedAlt ? parsedAlt.number.replace("+", "") : (formData.alternatePhone ? formData.alternatePhone.replace(/\D/g, "") : undefined);
+
       // Both firstName and surname are required. fullName is optional and should match the combination.
       const payload = {
         firstName: formData.firstName,
         surname: formData.surname,
         fullName: `${formData.firstName} ${formData.surname}`.trim(), // optional, backend may construct if not provided
         msisdn: formattedMsisdn,
+        alternatePhone: formattedAltMsisdn,
         dob: formData.dob,
         gender: formData.gender,
         region: formData.region,
@@ -761,6 +768,30 @@ export default function AgentOnboarding() {
                       )}
                     />
                     {formData.msisdn && !parsePhoneNumberFromString(formData.msisdn, "GH")?.isValid() && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Must be a valid Ghanaian number
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="alternatePhone">Alternate Phone Number *</Label>
+                    <Input
+                      id="alternatePhone"
+                      value={formData.alternatePhone}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        if (val.length <= 10) updateField("alternatePhone", val);
+                      }}
+                      placeholder="0244123456"
+                      maxLength={10}
+                      className={cn(
+                        "h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono",
+                        formData.alternatePhone && formData.alternatePhone.length >= 9 && !parsePhoneNumberFromString(formData.alternatePhone, "GH")?.isValid() && "border-2 border-destructive"
+                      )}
+                    />
+                    {formData.alternatePhone && !parsePhoneNumberFromString(formData.alternatePhone, "GH")?.isValid() && (
                       <p className="text-xs text-destructive flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
                         Must be a valid Ghanaian number
