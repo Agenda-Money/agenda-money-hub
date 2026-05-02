@@ -226,11 +226,11 @@ export default function RepaymentsPage() {
           else if (val === "agent-collections") setSource("collections");
           else setSource(undefined);
         }} className="w-full">
-          <TabsList className="mb-6 grid w-full grid-cols-4 max-w-2xl">
-            <TabsTrigger value="record">Record Payment</TabsTrigger>
-            <TabsTrigger value="organic">Organic Payments</TabsTrigger>
-            <TabsTrigger value="agent-collections">Agent Collections</TabsTrigger>
-            <TabsTrigger value="logs">Activity Logs</TabsTrigger>
+          <TabsList className="mb-6 h-auto flex flex-wrap md:grid md:grid-cols-4 w-full max-w-2xl bg-muted/50 p-1">
+            <TabsTrigger value="record" className="flex-1 py-2.5">Record Payment</TabsTrigger>
+            <TabsTrigger value="organic" className="flex-1 py-2.5">Organic Payments</TabsTrigger>
+            <TabsTrigger value="agent-collections" className="flex-1 py-2.5">Agent Collections</TabsTrigger>
+            <TabsTrigger value="logs" className="flex-1 py-2.5">Activity Logs</TabsTrigger>
           </TabsList>
 
           <TabsContent value="record">
@@ -301,8 +301,8 @@ export default function RepaymentsPage() {
                     </div>
                     <div className="space-y-2">
                        <Label htmlFor="reference">Reference</Label>
-                       <Input value={reference} onChange={(e) => setReference(e.target.value)} />
-                       <Button variant="link" size="sm" onClick={generateReference} className="p-0 h-auto">Auto-generate</Button>
+                       <Input id="reference" value={reference} onChange={(e) => setReference(e.target.value)} />
+                       <Button type="button" variant="link" size="sm" onClick={generateReference} className="p-0 h-auto text-pink-600 hover:text-pink-700 font-bold">Auto-generate</Button>
                     </div>
                     <Button type="submit" className="w-full" disabled={mutation.isPending}>
                        {mutation.isPending ? "Recording..." : "Record Payment"}

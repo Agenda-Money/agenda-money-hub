@@ -2231,6 +2231,8 @@ export default function ApplyPage() {
                 <LoanApplicationPage
                   tierMin={tierMin}
                   tierMax={tierMax}
+                  currentTier={currentTier}
+                  tenureOptions={tenureOptions}
                   onBack={() => setActiveTab("home")}
                   onContinue={(data) => {
                     setLoanApplicationData(data);
