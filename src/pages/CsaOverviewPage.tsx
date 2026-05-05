@@ -383,8 +383,10 @@ export default function CsaOverviewPage() {
 
   // Local mirror of the search input so keystrokes feel instant
   const [inputSearch, setInputSearch] = useState(search);
+  // Local mirror of the custom day input
+  const [customDayInput, setCustomDayInput] = useState("");
 
-  // Keep the input in sync if the URL changes externally (back/forward)
+  // Keep the search input in sync if the URL changes externally (back/forward)
   useEffect(() => {
     setInputSearch(searchParams.get("search") ?? "");
   }, [searchParams]);
@@ -444,6 +446,13 @@ export default function CsaOverviewPage() {
   const handleBucketSelect = (bucket: number) => {
     setSearchParams({ bucket: String(bucket) }, { replace: false });
     setInputSearch("");
+    setCustomDayInput("");
+  };
+
+  const handleCustomDay = () => {
+    const val = parseInt(customDayInput, 10);
+    if (isNaN(val) || Math.abs(val) > 3650) return;
+    handleBucketSelect(val);
   };
 
   const handleExport = async () => {
@@ -507,6 +516,38 @@ export default function CsaOverviewPage() {
                 onClick={() => handleBucketSelect(b)}
               />
             ))}
+          </div>
+
+          {/* Custom day query */}
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
+              <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">DD</span>
+              <Input
+                type="number"
+                className="h-7 w-24 text-sm border-0 bg-transparent px-1 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                placeholder="e.g. −10"
+                value={customDayInput}
+                onChange={(e) => setCustomDayInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCustomDay()}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 px-3 text-xs"
+                onClick={handleCustomDay}
+                disabled={customDayInput === "" || isNaN(parseInt(customDayInput, 10))}
+              >
+                Query
+              </Button>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              Any day — negative for pre-due, positive for overdue. Press Enter or Query.
+            </span>
+            {selectedBucket !== null && (selectedBucket < -3 || selectedBucket > 15) && (
+              <Badge variant="outline" className="text-xs border-primary text-primary ml-auto">
+                Custom: {bucketLabel(selectedBucket)}
+              </Badge>
+            )}
           </div>
 
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
