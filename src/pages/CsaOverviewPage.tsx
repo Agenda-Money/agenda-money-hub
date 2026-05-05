@@ -1,7 +1,8 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useQuery } from "@tanstack/react-query";
 import { getCsaBuckets, getCsaLoans, exportCsaLoans } from "@/lib/api";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -368,21 +369,44 @@ function AgentGroup({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CsaOverviewPage() {
-  const [selectedBucket, setSelectedBucket] = useState<number | null>(null);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [network, setNetwork] = useState<string>("");
-  const [region, setRegion] = useState<string>("");
+  const [searchParams, setSearchParams] = useSearchParams();
   const [exporting, setExporting] = useState(false);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounce search
+  // All volatile state lives in the URL so refresh / back / forward restores it
+  const selectedBucket = searchParams.get("bucket") !== null
+    ? Number(searchParams.get("bucket"))
+    : null;
+  const page   = Math.max(1, Number(searchParams.get("page") ?? 1));
+  const search  = searchParams.get("search") ?? "";
+  const network = searchParams.get("network") ?? "";
+
+  // Local mirror of the search input so keystrokes feel instant
+  const [inputSearch, setInputSearch] = useState(search);
+
+  // Keep the input in sync if the URL changes externally (back/forward)
+  useEffect(() => {
+    setInputSearch(searchParams.get("search") ?? "");
+  }, [searchParams]);
+
+  function setParam(key: string, value: string | null) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (!value) next.delete(key); else next.set(key, value);
+      return next;
+    }, { replace: true });
+  }
+
   const handleSearchChange = (value: string) => {
-    setSearch(value);
-    clearTimeout((window as any).__csaSearchTimer);
-    (window as any).__csaSearchTimer = setTimeout(() => {
-      setDebouncedSearch(value);
-      setPage(1);
+    setInputSearch(value);
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("search", value); else next.delete("search");
+        next.delete("page");
+        return next;
+      }, { replace: true });
     }, 400);
   };
 
@@ -399,15 +423,14 @@ export default function CsaOverviewPage() {
     isLoading: loansLoading,
     isFetching: loansFetching,
   } = useQuery({
-    queryKey: ["csa-loans", selectedBucket, page, debouncedSearch, network, region],
+    queryKey: ["csa-loans", selectedBucket, page, search, network],
     queryFn: () =>
       getCsaLoans({
         bucket: selectedBucket!,
         page,
         limit: 50,
-        search: debouncedSearch || undefined,
+        search: search || undefined,
         network: network || undefined,
-        region: region || undefined,
       }),
     enabled: selectedBucket !== null,
     placeholderData: (prev) => prev,
@@ -419,12 +442,8 @@ export default function CsaOverviewPage() {
   const groupedLoans = useMemo(() => groupByAgent(loans), [loans]);
 
   const handleBucketSelect = (bucket: number) => {
-    setSelectedBucket(bucket);
-    setPage(1);
-    setSearch("");
-    setDebouncedSearch("");
-    setNetwork("");
-    setRegion("");
+    setSearchParams({ bucket: String(bucket) }, { replace: false });
+    setInputSearch("");
   };
 
   const handleExport = async () => {
@@ -539,12 +558,12 @@ export default function CsaOverviewPage() {
                   <Input
                     className="pl-9 h-9 text-sm"
                     placeholder="Search name, phone, ref..."
-                    value={search}
+                    value={inputSearch}
                     onChange={(e) => handleSearchChange(e.target.value)}
                   />
                 </div>
 
-                <Select value={network} onValueChange={(v) => { setNetwork(v === "all" ? "" : v); setPage(1); }}>
+                <Select value={network || "all"} onValueChange={(v) => { setParam("network", v === "all" ? null : v); setParam("page", null); }}>
                   <SelectTrigger className="h-9 w-[110px] text-sm">
                     <SelectValue placeholder="Network" />
                   </SelectTrigger>
@@ -580,7 +599,7 @@ export default function CsaOverviewPage() {
               <div className="bg-card rounded-xl border border-border p-12 text-center">
                 <p className="text-muted-foreground">
                   No accounts found in this bucket
-                  {debouncedSearch ? " matching your search" : ""}
+                  {search ? " matching your search" : ""}
                 </p>
               </div>
             ) : (
@@ -607,7 +626,7 @@ export default function CsaOverviewPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    onClick={() => setParam("page", String(Math.max(1, page - 1)))}
                     disabled={page === 1 || loansFetching}
                   >
                     Previous
@@ -615,7 +634,7 @@ export default function CsaOverviewPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+                    onClick={() => setParam("page", String(Math.min(pagination.pages, page + 1)))}
                     disabled={page >= pagination.pages || loansFetching}
                   >
                     Next
