@@ -13,16 +13,59 @@ export const CappedApplyCard: React.FC<CappedApplyCardProps> = ({ capAmount, onA
   const minAmount = TIERS[0]?.minAmount || 50;
   const safeMin = Math.min(minAmount, capAmount); 
   const [selectedAmount, setSelectedAmount] = useState<number>(capAmount);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleInitialClick = () => {
+    if (typeof window !== "undefined" && (window as any).telemetry) {
+      (window as any).telemetry.track("capped_apply_clicked", { amount: selectedAmount });
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = () => {
+    onApply(selectedAmount);
+  };
+
+  if (showConfirm) {
+    return (
+      <div className="bg-white rounded-[24px] border border-pink-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 space-y-5 animate-in slide-in-from-bottom-4 duration-500">
+         <div className="text-center">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Application</h3>
+            <p className="text-sm text-gray-500">You will receive <strong className="text-[#EC1B84]">GHS {selectedAmount}</strong> if you continue.</p>
+         </div>
+         <div className="space-y-3 pt-2">
+           <Button 
+              onClick={handleConfirm}
+              disabled={isLoading}
+              className="w-full h-14 rounded-full bg-[#EC1B84] hover:bg-[#D41472] text-white font-bold text-lg shadow-lg shadow-pink-200 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2"
+           >
+              {isLoading ? (
+                 <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Applying...
+                 </>
+              ) : (
+                 "Confirm"
+              )}
+           </Button>
+           <Button 
+              onClick={() => setShowConfirm(false)}
+              disabled={isLoading}
+              variant="outline"
+              className="w-full h-14 rounded-full border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-all bg-white"
+           >
+              Cancel
+           </Button>
+         </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-[24px] border border-pink-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 space-y-5 animate-in slide-in-from-bottom-4 duration-500">
        <div className="text-center">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Available Offer</p>
-          <div className="flex items-baseline justify-center gap-1 text-[#EC1B84]">
-             <span className="text-lg font-bold">GHS</span>
-             <span className="text-4xl font-extrabold tracking-tighter">{selectedAmount}</span>
-          </div>
-          <p className="text-xs text-gray-400 mt-2">Pre-approved up to GHS {capAmount}. Apply instantly.</p>
+          <p className="text-sm text-gray-500 mb-2">A lower amount is available right now. Want to borrow <strong className="text-[#EC1B84]">GHS {capAmount}</strong> instead?</p>
        </div>
 
        <div className="px-2">
@@ -45,21 +88,11 @@ export const CappedApplyCard: React.FC<CappedApplyCardProps> = ({ capAmount, onA
        <div className="border-t border-dashed border-gray-100"></div>
 
        <Button 
-          onClick={() => onApply(selectedAmount)}
+          onClick={handleInitialClick}
           disabled={isLoading}
           className="w-full h-14 rounded-full bg-[#EC1B84] hover:bg-[#D41472] text-white font-bold text-lg shadow-lg shadow-pink-200 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2"
        >
-          {isLoading ? (
-             <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Applying...
-             </>
-          ) : (
-             <>
-                Apply for GHS {selectedAmount}
-                <ArrowRight className="w-5 h-5 ml-1" />
-             </>
-          )}
+          Still want to apply
        </Button>
     </div>
   );

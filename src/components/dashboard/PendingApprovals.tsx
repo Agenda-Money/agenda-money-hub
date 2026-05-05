@@ -78,8 +78,6 @@ import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
 
 export function PendingApprovals() {
   const [selectedLoan, setSelectedLoan] = useState<PendingLoan | null>(null);
-  const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
-  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
   const { data: responseData } = useQuery({
@@ -118,23 +116,16 @@ export function PendingApprovals() {
   });
 
   const pendingLoans = (responseData || [])
-    .filter((loan: any) => !approvedIds.has(loan.id) && !rejectedIds.has(loan.id))
     .sort((a: any, b: any) => getTierConfig(a.tier).order - getTierConfig(b.tier).order);
 
   const handleApprove = (e: React.MouseEvent, loanId: string) => {
     e.stopPropagation();
-    setApprovedIds(new Set([...approvedIds, loanId]));
     toast.info("Quick-approve is preview only. Final approval happens in the full loan details view.");
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    // Future: Implement API call to approve loan
   };
 
   const handleReject = (e: React.MouseEvent, loanId: string) => {
     e.stopPropagation();
-    setRejectedIds(new Set([...rejectedIds, loanId]));
     toast.info("Quick-reject is preview only. Final rejection happens in the full loan details view.");
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    // Future: Implement API call to reject loan
   };
 
   const totalPending = (responseData || []).length;
@@ -247,11 +238,7 @@ export function PendingApprovals() {
         <LoanReviewModal
           loan={selectedLoan}
           isOpen={!!selectedLoan}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSelectedLoan(null);
-            }
-          }}
+          onOpenChange={(open) => !open && setSelectedLoan(null)}
         />
       )}
     </div>

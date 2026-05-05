@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, SlidersHorizontal, RefreshCw, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Search, SlidersHorizontal, RefreshCw, AlertTriangle, TrendingUp, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,9 +22,38 @@ const NETWORKS = [
 ];
 const REGIONS = ['Greater Accra', 'Ashanti', 'Central', 'Eastern', 'Western', 'Northern', 'Upper East', 'Upper West', 'Volta', 'Bono', 'Ahafo', 'Bono East', 'Oti', 'Savannah', 'North East', 'Western North'];
 
+const downloadCsv = (rows: any[], bucketLabel: string) => {
+  const headers = ['Customer Name', 'MSISDN', 'Agent Name', 'Loan Amount', 'Total Due', 'Due Date', 'DD Bucket', 'Last Call Outcome'];
+  const escape = (v: any) => {
+    const s = v == null ? '' : String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [
+    headers.join(','),
+    ...rows.map((r) => [
+      r.customerName,
+      r.msisdn,
+      r.agentName ?? '',
+      r.loanAmount,
+      r.totalDue,
+      r.dueDate ? new Date(r.dueDate).toLocaleDateString('en-GB') : '',
+      r.ddBucket === 0 ? 'DD0' : `DD${r.ddBucket}`,
+      r.lastCallOutcome ?? '',
+    ].map(escape).join(',')),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `collections-${bucketLabel}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 export default function CsaDashboard() {
   const { user } = useAuth();
   const [activeBucket, setActiveBucket] = useState<number>(8);
+  const [exporting, setExporting] = useState(false);
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [network, setNetwork] = useState('');
@@ -66,6 +95,17 @@ export default function CsaDashboard() {
     setPage(1);
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await csaApi.get('/api/csa/collections/export', { params: { bucket: activeBucket } });
+      const label = getBucketMeta(activeBucket).short.replace(/\s+/g, '');
+      downloadCsv(res.data?.data ?? [], label);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -76,16 +116,27 @@ export default function CsaDashboard() {
             <span className="font-semibold text-red-600">{totalOverdue.toLocaleString()}</span> overdue loans · <span className="font-semibold">{formatGHS(totalOutstanding)}</span> outstanding
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="gap-2 self-start h-9 rounded-xl shadow-sm hover:bg-muted transition-all active:scale-95" 
-          onClick={() => { refetchBuckets(); refetchLoans(); }}
-          disabled={isFetching || bucketsLoading}
-        >
-          <RefreshCw className={cn("h-3.5 w-3.5 transition-transform", (isFetching || bucketsLoading) && "animate-spin")} />
-          {isFetching || bucketsLoading ? "Refreshing..." : "Refresh"}
-        </Button>
+        <div className="flex items-center gap-2 self-start">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 h-9 rounded-xl shadow-sm hover:bg-muted transition-all active:scale-95"
+            onClick={() => { refetchBuckets(); refetchLoans(); }}
+            disabled={isFetching || bucketsLoading}
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5 transition-transform", (isFetching || bucketsLoading) && "animate-spin")} />
+            {isFetching || bucketsLoading ? "Refreshing..." : "Refresh"}
+          </Button>
+          <Button
+            size="sm"
+            className="gap-2 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm active:scale-95 transition-all"
+            onClick={handleExport}
+            disabled={exporting}
+          >
+            <Download className="h-3.5 w-3.5" />
+            {exporting ? 'Exporting…' : 'Export CSV'}
+          </Button>
+        </div>
       </div>
 
       {/* Personal Performance Stats */}
