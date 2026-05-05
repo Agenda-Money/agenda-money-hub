@@ -16,6 +16,7 @@ import {
   CheckCircle,
   Wallet,
   FileText,
+  PhoneCall,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -201,6 +202,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
       ? [
           { to: "/payouts", icon: Wallet, label: "Payouts" },
+          { to: "/collection", icon: PhoneCall, label: "Collection" },
           { to: "/analytics", icon: BarChart3, label: "Analytics" },
           { to: "/audit-logs", icon: FileText, label: "Audit Logs" },
         ]
