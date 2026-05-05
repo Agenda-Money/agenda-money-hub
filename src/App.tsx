@@ -39,6 +39,7 @@ import AgentEndorsementsPage from "./pages/agent/AgentEndorsementsPage";
 import AdminPayoutsPage from './pages/AdminPayoutsPage';
 import PendingKycPage from "./pages/PendingKycPage";
 import AuditLogs from "./pages/AuditLogs";
+import CsaOverviewPage from "./pages/CsaOverviewPage";
 import { SessionManager } from "./components/auth/SessionManager";
 import InstallPWA from "./components/InstallPWA";
 
@@ -165,6 +166,7 @@ const App = () => {
                       <Route path="/payouts" element={<RequireAuth><AdminRoute><AdminPayoutsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/analytics" element={<RequireAuth><AdminRoute><AnalyticsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/audit-logs" element={<RequireAuth><AdminRoute><AuditLogs /></AdminRoute></RequireAuth>} />
+                      <Route path="/collection" element={<RequireAuth><AdminRoute><CsaOverviewPage /></AdminRoute></RequireAuth>} />
                       <Route path="/settings" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents" element={<RequireAuth><AdminRoute><AgentsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents/:id" element={<RequireAuth><AdminRoute><AgentDetailsPage /></AdminRoute></RequireAuth>} />
