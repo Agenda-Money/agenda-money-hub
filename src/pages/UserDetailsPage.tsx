@@ -251,6 +251,47 @@ const FlagModal = ({ userId, onClose, onSaved }: any) => {
   )
 }
 
+// ─── Block Modal Component ───────────────────────────────────────────────────
+const BlockModal = ({ user, onClose, onConfirm, loading }: any) => {
+  const [reason, setReason] = useState('')
+  const isBlocking = !user.isBlocked
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isBlocking ? 'Block User' : 'Unblock User'}</DialogTitle>
+          <DialogDescription>
+            {isBlocking 
+              ? 'Are you sure you want to block this user? This will reject any pending loans and prevent them from using the service.' 
+              : 'Are you sure you want to unblock this user?'}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Reason (optional)</Label>
+            <Input 
+              value={reason} 
+              onChange={e => setReason(e.target.value)} 
+              placeholder="e.g. Suspected fraud, multiple accounts..."
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button 
+            variant={isBlocking ? "destructive" : "default"} 
+            onClick={() => onConfirm(reason)} 
+            disabled={loading}
+          >
+            {loading ? (isBlocking ? 'Blocking...' : 'Unblocking...') : (isBlocking ? 'Block' : 'Unblock')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ─── Main Page Components ────────────────────────────────────────────────────
 const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onRemoveFlag, onCall, canWrite }: any) => {
   const activeFlag = user.flags?.slice(-1)[0] || null
@@ -375,10 +416,16 @@ export default function UserDetailsPage() {
 
   const blockMutation = useMutation({
     mutationFn: (reason: string) => user.isBlocked ? unblockUser(user.msisdn, reason) : blockUser(user.msisdn, reason),
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['user-detail', id] })
-      toast.success(user.isBlocked ? "User unblocked" : "User blocked")
+      const action = user.isBlocked ? "unblocked" : "blocked";
+      let message = `User ${action}`;
+      if (res.pendingLoansRejected > 0) {
+        message += `. ${res.pendingLoansRejected} pending loans rejected.`;
+      }
+      toast.success(message)
       setIsBlockModalOpen(false)
+      setBlockReason('')
     },
     onError: (err) => toast.error(getFriendlyErrorMessage(err))
   })
@@ -777,6 +824,14 @@ export default function UserDetailsPage() {
         {/* Modals & Controls */}
         {flagModalOpen && <FlagModal userId={id} onClose={() => setFlagModalOpen(false)} onSaved={() => queryClient.invalidateQueries({ queryKey: ['user-detail', id] })} />}
         
+        {isBlockModalOpen && (
+          <BlockModal 
+            user={user} 
+            onClose={() => setIsBlockModalOpen(false)} 
+            onConfirm={(reason: string) => blockMutation.mutate(reason)}
+            loading={blockMutation.isPending}
+          />
+        )}
         {isEditDrawerOpen && (
           <EditUserSheet 
             isOpen={isEditDrawerOpen} 
