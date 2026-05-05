@@ -153,7 +153,6 @@ function downloadCSV(rows: any[], filename: string) {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 const OVERDUE_BUCKETS = Array.from({ length: 15 }, (_, i) => i + 1);
-const ALL_BUCKETS = [-3, -2, -1, 0, ...OVERDUE_BUCKETS];
 
 function BucketCard({
   bucket,
@@ -434,7 +433,7 @@ export default function CsaOverviewPage() {
     try {
       const response = await exportCsaLoans(selectedBucket);
       const rows = response?.data ?? [];
-      const label = bucketLabel(selectedBucket).replace("+", "plus");
+      const label = bucketLabel(selectedBucket).replace(/\+/g, "plus");
       downloadCSV(rows, `csa-export-${label}-${new Date().toISOString().split("T")[0]}.csv`);
     } finally {
       setExporting(false);
@@ -495,7 +494,7 @@ export default function CsaOverviewPage() {
             Overdue — click any bucket to load accounts
           </p>
           {bucketsLoading ? (
-            <div className="grid grid-cols-5 sm:grid-cols-8 gap-2" style={{ gridTemplateColumns: "repeat(15, minmax(0, 1fr))" }}>
+            <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))" }}>
               {OVERDUE_BUCKETS.map((b) => (
                 <Skeleton key={b} className="h-20 rounded-xl" />
               ))}
