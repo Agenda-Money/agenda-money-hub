@@ -8,11 +8,16 @@ export function useReportingDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true); setError(null);
+    setLoading(true); 
+    setError(null);
     try {
-      setData(await fetchReportingDashboard());
-    } catch {
-      setError('Failed to load dashboard data.');
+      const response = await fetchReportingDashboard();
+      // Handle wrapped responses: { success: true, data: { ... } } or just { ... }
+      const dashboardData = response?.data || response;
+      setData(dashboardData);
+    } catch (err: any) {
+      console.error('Reporting Dashboard Error:', err);
+      setError(err?.response?.data?.message || 'Failed to load dashboard data.');
     } finally {
       setLoading(false);
     }

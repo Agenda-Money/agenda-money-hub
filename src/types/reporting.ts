@@ -1,13 +1,20 @@
+export interface Snapshot {
+  total: number;
+  count: number;
+}
+
 export interface ReportingDashboard {
-  allTimeDisbursement: number;
+  loanBook: Snapshot;
+  allTimeDisbursement: Snapshot;
+  todayDisbursement: Snapshot;
+  weekDisbursement: Snapshot;
   repaymentRate: number;
   defaultRate: number;
   retentionRate: number;
-  disbursementToday: number;
-  disbursementThisWeek: number;
   momDisbursements: {
-    month: string;
-    amount: number;
+    year: number;
+    month: number;
+    total: number;
     count: number;
   }[];
 }
