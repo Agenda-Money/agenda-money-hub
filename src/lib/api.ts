@@ -419,4 +419,28 @@ export const getAdminAgentDetails = async (id: string) => {
   return response.data;
 };
 
+// --- CSA Collection API ---
+
+export const getCsaBuckets = async () => {
+  const response = await api.get('/api/csa/buckets');
+  return response.data;
+};
+
+export const getCsaLoans = async (params: {
+  bucket: number;
+  page?: number;
+  limit?: number;
+  region?: string;
+  network?: string;
+  search?: string;
+}) => {
+  const response = await api.get('/api/csa/loans', { params });
+  return response.data;
+};
+
+export const exportCsaLoans = async (bucket: number) => {
+  const response = await api.get('/api/csa/export', { params: { bucket } });
+  return response.data;
+};
+
 export default api;
