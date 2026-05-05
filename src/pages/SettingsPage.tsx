@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone } from "lucide-react";
 import { AuthorizeAgentModal } from "@/components/agents/AuthorizeAgentModal";
 import { InviteCsaModal } from "@/components/csa/InviteCsaModal";
+import { InviteReportingModal } from "@/components/reporting/InviteReportingModal";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import { useParams, useNavigate } from "react-router-dom";
@@ -274,6 +275,7 @@ export default function SettingsPage() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [isAuthorizeModalOpen, setIsAuthorizeModalOpen] = useState(false);
   const [isInviteCsaModalOpen, setIsInviteCsaModalOpen] = useState(false);
+  const [isInviteReportingModalOpen, setIsInviteReportingModalOpen] = useState(false);
 
   // General settings states
   const [platformName, setPlatformName] = useState("");
@@ -462,6 +464,23 @@ export default function SettingsPage() {
                 )}
               </CardContent>
             </Card>
+
+            <Card className="mt-6 border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-950/10">
+              <CardHeader>
+                <CardTitle className="text-indigo-600 dark:text-indigo-400">Reporting Portal Access</CardTitle>
+                <CardDescription>
+                  Invite a new Reporting Viewer to access the read-only reporting dashboard.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {canWrite && (
+                  <Button onClick={() => setIsInviteReportingModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Invite Reporting Viewer
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="general" className="mt-4">
@@ -591,6 +610,10 @@ export default function SettingsPage() {
       <InviteCsaModal 
         open={isInviteCsaModalOpen} 
         onOpenChange={setIsInviteCsaModalOpen}
+      />
+      <InviteReportingModal
+        open={isInviteReportingModalOpen}
+        onOpenChange={setIsInviteReportingModalOpen}
       />
     </DashboardLayout>
   );
