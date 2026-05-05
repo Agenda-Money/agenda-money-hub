@@ -217,7 +217,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
             loanRef={activeLoanDetails?.loanCode || activeLoanDetails?.id?.slice(-8)?.toUpperCase() || (applicant?.activeLoan as any)?.loanCode}
             step={feedStatus === "awaiting_endorsement" ? 1 : feedStatus === "review" ? 2 : 1}
             totalSteps={3}
-            onAction={onAction}
+            onAction={(action) => {
+              if (action === "repay" && currentLoanStatus === 'DEFAULTED') {
+                if (typeof window !== "undefined" && (window as any).telemetry) {
+                  (window as any).telemetry.track("defaulted_banner_clicked");
+                }
+              }
+              onAction?.(action);
+            }}
             className="shadow-sm"
           />
         </motion.div>

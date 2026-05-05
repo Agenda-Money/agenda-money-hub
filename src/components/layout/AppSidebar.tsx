@@ -267,6 +267,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
             variant="ghost"
             size="icon"
             className="lg:hidden"
+            aria-label="Close sidebar"
             onClick={onToggle}
           >
             <X className="h-5 w-5" />

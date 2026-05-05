@@ -90,7 +90,7 @@ export function MoMDisbursementCard({
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 10, right: 10, left: 20, bottom: 0 }}>
               <defs>
                 <linearGradient id="disbursementGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.3}/>
@@ -119,7 +119,7 @@ export function MoMDisbursementCard({
                 tickLine={false} 
                 tick={{ fontSize: 11, fill: "#9CA3AF", fontWeight: 600 }} 
                 tickFormatter={(value) => toggle === "value" ? `₵${formatCount(value)}` : formatCount(value)} 
-                width={50}
+                width={80}
               />
               <Tooltip 
                 cursor={{ stroke: '#14b8a6', strokeWidth: 2, strokeDasharray: '4 4' }}

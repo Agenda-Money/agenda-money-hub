@@ -126,7 +126,7 @@ export default function RepaymentsPage() {
   });
 
   const generateReference = () => {
-    const adminId = user?.id?.substring(0, 4) || "ADM";
+    const adminId = user?.id ? String(user.id).substring(0, 4) : "ADM";
     const dateStr = format(new Date(), "yyyyMMdd");
     const timestamp = Date.now().toString().slice(-4);
     setReference(`MAN-${dateStr}-${adminId.toUpperCase()}-${timestamp}`);
@@ -226,11 +226,11 @@ export default function RepaymentsPage() {
           else if (val === "agent-collections") setSource("collections");
           else setSource(undefined);
         }} className="w-full">
-          <TabsList className="mb-6 grid w-full grid-cols-4 max-w-2xl">
-            <TabsTrigger value="record">Record Payment</TabsTrigger>
-            <TabsTrigger value="organic">Organic Payments</TabsTrigger>
-            <TabsTrigger value="agent-collections">Agent Collections</TabsTrigger>
-            <TabsTrigger value="logs">Activity Logs</TabsTrigger>
+          <TabsList className="mb-6 h-auto flex flex-wrap md:grid md:grid-cols-4 w-full max-w-2xl bg-muted/50 p-1">
+            <TabsTrigger value="record" className="flex-1 py-2.5">Record Payment</TabsTrigger>
+            <TabsTrigger value="organic" className="flex-1 py-2.5">Organic Payments</TabsTrigger>
+            <TabsTrigger value="agent-collections" className="flex-1 py-2.5">Agent Collections</TabsTrigger>
+            <TabsTrigger value="logs" className="flex-1 py-2.5">Activity Logs</TabsTrigger>
           </TabsList>
 
           <TabsContent value="record">
@@ -249,6 +249,45 @@ export default function RepaymentsPage() {
                         <Input id="loanReference" placeholder="e.g. LN-..." value={loanReference} onChange={(e) => setLoanReference(e.target.value)} />
                       </div>
                     </div>
+                    {isCheckingLoans ? (
+                      <div className="text-xs text-muted-foreground animate-pulse">Checking eligible loans...</div>
+                    ) : eligibleLoans.length > 0 ? (
+                      <div className="bg-muted/30 border border-border rounded-xl p-3 space-y-2">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Select Eligible Loan</p>
+                        <div className="space-y-2">
+                          {eligibleLoans.map((loan: any) => {
+                            const ref = loan.loanCode || loan.loanReference || loan._id;
+                            const balance = loan.outstandingBalance ?? loan.remainingBalance ?? loan.amount ?? loan.principal ?? 0;
+                            return (
+                              <div 
+                                key={ref}
+                                className={cn(
+                                  "flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors",
+                                  loanReference === ref
+                                    ? "bg-pink-50 border-pink-200 text-pink-900"
+                                    : "bg-background border-border hover:border-pink-200"
+                                )}
+                                onClick={() => {
+                                  setLoanReference(ref);
+                                  setAmount(balance.toString());
+                                }}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-bold">{ref}</span>
+                                  <span className="text-xs text-muted-foreground">Status: {loan.status || 'UNKNOWN'}</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-sm font-bold text-emerald-600">GHS {Number(balance).toFixed(2)}</span>
+                                  <p className="text-[10px] text-muted-foreground uppercase">Balance</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      debouncedPhone.length >= 9 && <div className="text-xs text-amber-600 font-medium">No eligible active/overdue loans found.</div>
+                    )}
                     <div className="space-y-2">
                        <Label htmlFor="amount">Amount (GHS)</Label>
                        <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
@@ -262,8 +301,8 @@ export default function RepaymentsPage() {
                     </div>
                     <div className="space-y-2">
                        <Label htmlFor="reference">Reference</Label>
-                       <Input value={reference} onChange={(e) => setReference(e.target.value)} />
-                       <Button variant="link" size="sm" onClick={generateReference} className="p-0 h-auto">Auto-generate</Button>
+                       <Input id="reference" value={reference} onChange={(e) => setReference(e.target.value)} />
+                       <Button type="button" variant="link" size="sm" onClick={generateReference} className="p-0 h-auto text-pink-600 hover:text-pink-700 font-bold">Auto-generate</Button>
                     </div>
                     <Button type="submit" className="w-full" disabled={mutation.isPending}>
                        {mutation.isPending ? "Recording..." : "Record Payment"}
