@@ -1053,7 +1053,7 @@ export default function AgentOnboarding() {
                   <Alert className="bg-emerald-500/10 border-emerald-500/30">
                     <TrendingUp className="h-4 w-4 text-emerald-600" />
                     <AlertDescription className="text-emerald-800 dark:text-emerald-200">
-                      <strong>Tier 1 Limits:</strong> GHS 50 - GHS 300 | Max tenure: 14 days
+                      <strong>Loan Limits:</strong> GHS 50 - GHS 300 | Max tenure: 14 days
                     </AlertDescription>
                   </Alert>
 

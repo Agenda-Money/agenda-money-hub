@@ -4,7 +4,7 @@ import { ArrowLeft, ChevronRight, CheckSquare, Square, Send, Loader2, AlertCircl
 import { Button } from "@/components/ui/button";
 import { cn, getApplicantName } from "@/lib/utils";
 import { getNetwork, getNetworkStyles } from "@/lib/momo";
-import api from "@/lib/api";
+import api, { parseDecisionError, DecisionError } from "@/lib/api";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { EligibilityBlockScreen } from "@/components/eligibility/EligibilityBlockScreen";
 
 interface LoanSummaryPageProps {
   loanData: {
@@ -33,6 +34,7 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
   const [isSuccess, setIsSuccess] = useState(false);
   const [loanStatus, setLoanStatus] = useState<string>("PENDING");
   const [error, setError] = useState<string | null>(null);
+  const [decisionError, setDecisionError] = useState<DecisionError | null>(null);
 
   // Calculations
   const { interest, fee, totalRepayment, disbursementAmount, dueDate } = useMemo(() => {
@@ -114,6 +116,13 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
         if (process.env.NODE_ENV !== "production") {
           console.error("Loan submission failed:", error);
         }
+        
+        const decision = parseDecisionError(error);
+        if (decision) {
+            setDecisionError(decision);
+            return;
+        }
+
         const message = error.response?.data?.message || "Failed to submit loan application. Please try again.";
         setError(message);
     } finally {
@@ -147,6 +156,19 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                 Go to Home
             </Button>
         </div>
+      );
+  }
+
+  // ELIGIBILITY BLOCK SCREEN
+  if (decisionError) {
+      return (
+         <EligibilityBlockScreen
+            decision={decisionError}
+            onHome={onHome}
+            onBack={() => setDecisionError(null)}
+            loanData={loanData}
+            applicantAuthToken={localStorage.getItem("agenda_token") || sessionStorage.getItem("agenda_token") || undefined}
+         />
       );
   }
 

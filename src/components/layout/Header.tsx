@@ -10,6 +10,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ShieldAlert } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -19,14 +20,20 @@ import { useSocketContext } from "@/contexts/SocketContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function Header({ onMenuClick }: HeaderProps) {
+  const navigate = useNavigate();
   const { user, logout, isViewer } = useAuth();
   const { notifications } = useSocketContext();
-  
-  const initials = user?.fullName 
-    ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() 
+
+  const initials = user?.fullName
+    ? user.fullName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase()
     : "AD";
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <header className="h-20 bg-card border-b border-border flex items-center justify-between px-6">
@@ -42,7 +49,10 @@ export function Header({ onMenuClick }: HeaderProps) {
         </Button>
 
         {isViewer && (
-          <Badge variant="outline" className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 bg-amber-500/10 text-amber-600 border-amber-500/20 font-black text-[10px] uppercase tracking-widest animate-pulse">
+          <Badge
+            variant="outline"
+            className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 bg-amber-500/10 text-amber-600 border-amber-500/20 font-black text-[10px] uppercase tracking-widest animate-pulse"
+          >
             <ShieldAlert className="h-3 w-3" />
             View-only admin
           </Badge>
@@ -55,9 +65,9 @@ export function Header({ onMenuClick }: HeaderProps) {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-             <span className="absolute top-1 right-1 flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-card">
-               {unreadCount > 9 ? '9+' : unreadCount}
-             </span>
+            <span className="absolute top-1 right-1 flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-card">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
           )}
         </Button>
 
@@ -71,17 +81,28 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </AvatarFallback>
               </Avatar>
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium">{user?.fullName || "Admin User"}</p>
-                <p className="text-xs text-muted-foreground capitalize">{user?.role || "Administrator"}</p>
+                <p className="text-sm font-medium">
+                  {user?.fullName || "Admin User"}
+                </p>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {user?.role || "Administrator"}
+                </p>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48 bg-popover">
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings/profile")}>
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings/general")}>
+              Settings
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive" onClick={() => logout()}>
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={() => logout()}
+            >
               Logout
             </DropdownMenuItem>
           </DropdownMenuContent>

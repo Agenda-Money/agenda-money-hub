@@ -96,21 +96,21 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       label: "My Rewards", 
       action: canShareNodeFeatures ? onRewards : undefined,
       locked: !canShareNodeFeatures,
-      lockedMessage: "Unlock Tier 2 to access rewards"
+      lockedMessage: "Unlock Level 2 to access rewards"
     }] : []),
     ...(isNodeUser ? [{ 
       icon: Users, 
       label: "My Network", 
       action: canShareNodeFeatures ? onNetwork : undefined,
       locked: !canShareNodeFeatures,
-      lockedMessage: "Unlock Tier 2 to build network"
+      lockedMessage: "Unlock Level 2 to build network"
     }] : []),
     ...(isNodeUser ? [{ 
       icon: Clock, 
       label: "Pending Endorsements", 
       action: canShareNodeFeatures ? onEndorsements : undefined,
       locked: !canShareNodeFeatures,
-      lockedMessage: "Unlock Tier 2 to endorse"
+      lockedMessage: "Unlock Level 2 to endorse"
     }] : []),
     { icon: FileText, label: "Terms & Conditions", action: onShowTerms },
     { icon: Lock, label: "Privacy Policy", action: onShowPrivacy },
@@ -202,7 +202,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
                <Lock className="h-4 w-4 text-gray-400" />
             </div>
             <h3 className="text-gray-900 font-bold text-sm">Node Sharing Locked</h3>
-            <p className="text-gray-500 text-xs mt-1 max-w-[200px]">Unlock Tier 2 to share your Node Code and earn rewards.</p>
+            <p className="text-gray-500 text-xs mt-1 max-w-[200px]">Unlock Level 2 to share your Node Code and earn rewards.</p>
          </div>
       )}
 

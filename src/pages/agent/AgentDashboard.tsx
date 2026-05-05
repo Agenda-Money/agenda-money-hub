@@ -1,29 +1,39 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, CreditCard, TrendingUp, UserPlus, Activity, Clock, ChevronRight } from "lucide-react";
+import { Users, CreditCard, TrendingUp, UserPlus, Activity, Clock, ChevronRight, CalendarClock, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { 
-  getAgentPortfolio, 
-  getAgentMyStats, 
-  getAgentCommissionSummary, 
-  getAgentPendingEndorsements, 
-  getAgentCommissions 
+import {
+  getAgentPortfolio,
+  getAgentMyStats,
+  getAgentCommissionSummary,
+  getAgentPendingEndorsements,
+  getAgentCommissions,
+  getAgentDuePayments,
 } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, toNumber } from "@/lib/utils";
 import { useSocket } from "@/hooks/useSocket";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { startOfWeek, endOfWeek } from "date-fns";
 
 interface AgentDashboardData {
-  agentName: string;
+  agentName?: string;
+  fullName?: string;
   agentCode: string;
+  totalSignups?: number;
+  signupsThisMonth?: number;
+  activeLoans?: number;
+  data?: any;
+  portfolio?: any;
   stats: {
     totalSignups: number;
+    signups_this_month?: number;
+    total_signups?: number;
     signupsThisMonth: number;
     activeLoans: number;
+    active_loans?: number;
     totalCommission: number | string;
     portfolioHealth: number;
   };
@@ -128,6 +138,19 @@ export default function AgentDashboard() {
 
   const earningsThisWeek = (weeklyCommissions || []).reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
 
+  const { data: duePayments } = useQuery({
+    queryKey: ["agent-due-payments", user?.email],
+    queryFn: async () => {
+      const res = await getAgentDuePayments();
+      return res.data || res;
+    },
+    enabled: !!user?.email,
+    refetchInterval: 5 * 60_000,
+  });
+
+  const dueToday: any[] = duePayments?.dueToday ?? [];
+  const upcoming: any[] = duePayments?.upcoming ?? [];
+
   useSocket(wsUrl, (message) => {
     if (message?.type === "KYC_VERIFIED_SUCCESS" || message?.type === "LOAN_ENDORSED") {
       refetchDashboard();
@@ -135,9 +158,9 @@ export default function AgentDashboard() {
   });
 
   const stats = {
-    totalSignups: typeof portfolioStats?.total === 'number' ? portfolioStats.total : (dashboardData?.stats?.totalSignups ?? 0),
-    signupsThisMonth: dashboardData?.stats?.signupsThisMonth ?? 0,
-    activeLoans: typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : (dashboardData?.stats?.activeLoans ?? 0),
+    totalSignups: toNumber(dashboardData?.totalSignups || dashboardData?.stats?.totalSignups || dashboardData?.stats?.total_signups || dashboardData?.data?.stats?.totalSignups || (typeof portfolioStats?.total === 'number' ? portfolioStats.total : 0)),
+    signupsThisMonth: toNumber(dashboardData?.signupsThisMonth || dashboardData?.stats?.signupsThisMonth || dashboardData?.stats?.signups_this_month || 0),
+    activeLoans: typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : toNumber(dashboardData?.activeLoans || dashboardData?.stats?.activeLoans || dashboardData?.stats?.active_loans || dashboardData?.portfolio?.loansActive || dashboardData?.data?.stats?.activeLoans || 0),
     pendingEndorsements: pendingEndorsementsCount ?? 0,
     portfolioHealth: dashboardData?.stats?.portfolioHealth ?? 100,
   };
@@ -194,7 +217,7 @@ export default function AgentDashboard() {
             Dashboard
           </h1>
           <p className="text-muted-foreground mt-1 text-sm font-medium">
-            Welcome back, <span className="text-foreground font-bold">{dashboardData?.agentName?.split(' ')[0] || user?.fullName?.split(' ')[0] || "Pearson"}</span>. You have {stats.pendingEndorsements} approvals waiting.
+            Welcome back, <span className="text-foreground font-bold">{dashboardData?.agentName?.split(' ')[0] || dashboardData?.fullName?.split(' ')[0] || user?.fullName?.split(' ')[0] || "Pearson"}</span>. You have {stats.pendingEndorsements} approvals waiting.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -254,6 +277,82 @@ export default function AgentDashboard() {
           </motion.div>
         ))}
       </motion.div>
+
+      {/* Due Payments Section */}
+      {(dueToday.length > 0 || upcoming.length > 0) && (
+        <motion.div variants={itemVariants} className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <CalendarClock className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-black tracking-tight">Due Payments</h3>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Due Today */}
+            <Card className="border-none shadow-xl shadow-black/5 bg-card/50 backdrop-blur-xl overflow-hidden border border-white/20">
+              <CardHeader className="pb-2 pt-4 px-5">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">Due Today (DD0)</CardTitle>
+                  <Badge className="bg-red-100 text-red-700 border-red-200 font-black text-xs">{dueToday.length}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {dueToday.length === 0 ? (
+                  <p className="text-sm text-muted-foreground px-5 pb-4 opacity-60">No loans due today.</p>
+                ) : (
+                  <div className="divide-y divide-border/50">
+                    {dueToday.map((loan: any) => (
+                      <div key={loan.loanId} className="flex items-center justify-between px-5 py-3 hover:bg-muted/30 transition-colors">
+                        <div>
+                          <p className="text-sm font-bold text-foreground">{loan.fullName || loan.userMsisdn}</p>
+                          <p className="text-xs text-muted-foreground">{loan.userMsisdn} · {loan.loanReference}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black text-foreground">GHS {(loan.outstanding ?? loan.totalPayable).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          <Badge variant="outline" className="text-[10px] font-black border-red-300 text-red-600 mt-0.5">TODAY</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Upcoming Reminders (DD-2 and DD-3) */}
+            <Card className="border-none shadow-xl shadow-black/5 bg-card/50 backdrop-blur-xl overflow-hidden border border-white/20">
+              <CardHeader className="pb-2 pt-4 px-5">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                    <Bell className="h-3.5 w-3.5" /> Upcoming Reminders (DD-2 / DD-3)
+                  </CardTitle>
+                  <Badge className="bg-amber-100 text-amber-700 border-amber-200 font-black text-xs">{upcoming.length}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {upcoming.length === 0 ? (
+                  <p className="text-sm text-muted-foreground px-5 pb-4 opacity-60">No upcoming payments in 2–3 days.</p>
+                ) : (
+                  <div className="divide-y divide-border/50">
+                    {upcoming.map((loan: any) => (
+                      <div key={loan.loanId} className="flex items-center justify-between px-5 py-3 hover:bg-muted/30 transition-colors">
+                        <div>
+                          <p className="text-sm font-bold text-foreground">{loan.fullName || loan.userMsisdn}</p>
+                          <p className="text-xs text-muted-foreground">{loan.userMsisdn} · {loan.loanReference}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black text-foreground">GHS {(loan.outstanding ?? loan.totalPayable).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          <Badge variant="outline" className={cn("text-[10px] font-black mt-0.5", loan.ddBucket === -2 ? "border-amber-300 text-amber-600" : "border-emerald-300 text-emerald-600")}>
+                            {loan.ddBucket === -2 ? "in 2 days" : "in 3 days"}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </motion.div>
+      )}
 
       {/* Main 3-Column Layout (Logic: Grid 12 cols, center 8, right 4) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

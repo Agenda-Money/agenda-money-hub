@@ -174,8 +174,8 @@ export default function AgentEndorsementsPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-             <div className="p-2 bg-amber-50 rounded-lg">
-                <Clock className="w-5 h-5 text-amber-600" />
+             <div className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
+                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
              </div>
              <h1 className="text-2xl sm:text-4xl font-black text-foreground tracking-tight">
                Pending Endorsements
@@ -187,7 +187,7 @@ export default function AgentEndorsementsPage() {
         </div>
         <div className="flex items-center gap-4">
            {endorsements.length > 0 && (
-             <Badge variant="outline" className="h-8 px-4 border-amber-200 bg-amber-50 text-amber-700 font-bold rounded-full">
+             <Badge variant="outline" className="h-8 px-4 border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 font-bold rounded-full">
                {endorsements.length} PENDING REQUESTS
              </Badge>
            )}
@@ -219,11 +219,11 @@ export default function AgentEndorsementsPage() {
       </div>
 
       {/* Why Section */}
-      <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex items-start gap-4 text-blue-800">
+      <div className="bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-xl p-4 flex items-start gap-4 text-blue-800 dark:text-blue-300">
         <Info className="w-6 h-6 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="font-semibold">Why do I need to endorse these?</p>
-          <p className="text-sm opacity-90 max-w-3xl leading-relaxed">
+          <p className="font-semibold text-blue-900 dark:text-blue-200">Why do I need to endorse these?</p>
+          <p className="text-sm opacity-90 max-w-3xl leading-relaxed text-blue-800 dark:text-blue-300">
             As an Agent, you are vouching for the trustworthiness of your network. First-time borrowers must be endorsed by you before the admin will review their application. 
           </p>
         </div>
@@ -265,7 +265,7 @@ export default function AgentEndorsementsPage() {
     const isRejecting = inlineRejectId === req.loanId;
     
     return (
-      <Card key={req.loanId} className="border border-border/40 shadow-none rounded-xl overflow-hidden bg-white mb-3">
+      <Card key={req.loanId} className="border border-border/40 shadow-none rounded-xl overflow-hidden bg-card mb-3">
         {/* Top Row: Selfie/Initials + Name/Phone + Amount */}
         <div className="p-4 flex items-center gap-3.5">
           <button 
@@ -292,10 +292,10 @@ export default function AgentEndorsementsPage() {
             )}
           </button>
           <div>
-            <div className="text-[15px] font-bold text-slate-900">{b.name}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{b.phone}</div>
+            <div className="text-[15px] font-bold text-foreground">{b.name}</div>
+            <div className="text-xs text-muted-foreground dark:text-gray-400 mt-0.5">{b.phone}</div>
           </div>
-          <div className="ml-auto text-[15px] font-bold text-slate-900">GHS {req.amount.toLocaleString()}</div>
+          <div className="ml-auto text-[15px] font-bold text-foreground">GHS {req.amount.toLocaleString()}</div>
         </div>
 
         <div className="h-[0.5px] bg-border/40 mx-4" />
@@ -303,12 +303,12 @@ export default function AgentEndorsementsPage() {
         {/* Meta Row: Purpose + Submitted */}
         <div className="px-4 py-2.5 flex items-center">
            <div className="flex-1 flex flex-col gap-0.5">
-             <span className="text-[11px] text-muted-foreground/80 font-medium">Purpose</span>
-             <span className="text-[13px] text-muted-foreground font-medium">{req.purpose}</span>
+             <span className="text-[11px] text-muted-foreground/80 dark:text-gray-500 font-medium">Purpose</span>
+             <span className="text-[13px] text-muted-foreground dark:text-gray-300 font-medium">{req.purpose}</span>
            </div>
            <div className="flex-1 flex flex-col gap-0.5">
-             <span className="text-[11px] text-muted-foreground/80 font-medium">Submitted</span>
-             <span className="text-[13px] text-muted-foreground font-medium">
+             <span className="text-[11px] text-muted-foreground/80 dark:text-gray-500 font-medium">Submitted</span>
+             <span className="text-[13px] text-muted-foreground dark:text-gray-300 font-medium">
                {req.createdAt ? format(new Date(req.createdAt), "'Today', h:mm a") : "N/A"}
              </span>
            </div>
@@ -321,7 +321,7 @@ export default function AgentEndorsementsPage() {
               <Button 
                 onClick={() => handleApprove(req.loanId)}
                 disabled={isProcessing}
-                className="flex-1 h-9 rounded-lg bg-[#EAF3DE] hover:bg-[#DCECBA] text-[#3B6D11] border border-[#C0DD97] font-medium text-xs shadow-none group"
+                className="flex-1 h-9 rounded-lg bg-[#EAF3DE] dark:bg-emerald-950/40 hover:bg-[#DCECBA] dark:hover:bg-emerald-900/60 text-[#3B6D11] dark:text-emerald-400 border border-[#C0DD97] dark:border-emerald-900/50 font-medium text-xs shadow-none group transition-colors"
               >
                 {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Endorse"}
               </Button>
@@ -331,7 +331,7 @@ export default function AgentEndorsementsPage() {
                   setRejectReason("");
                 }}
                 variant="outline"
-                className="flex-1 h-9 rounded-lg bg-muted/20 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-muted-foreground border-border/60 text-xs font-medium"
+                className="flex-1 h-9 rounded-lg bg-muted/20 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-900/50 text-muted-foreground dark:text-gray-300 border-border/60 text-xs font-medium transition-colors"
               >
                 Decline
               </Button>
@@ -342,21 +342,21 @@ export default function AgentEndorsementsPage() {
                 placeholder="Reason (optional)" 
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                className="h-10 rounded-lg bg-white text-xs border-border/60"
+                className="h-10 rounded-lg bg-background text-xs border-border/60"
                 autoFocus
               />
               <div className="flex gap-2">
                 <Button 
                   onClick={() => handleRejectConfirm(req.loanId)}
                   disabled={isProcessing}
-                  className="h-8 px-4 rounded-lg bg-[#FCEBEB] hover:bg-red-100 text-[#A32D2D] border border-[#F7C1C1] text-xs font-medium"
+                  className="h-8 px-4 rounded-lg bg-[#FCEBEB] dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-[#A32D2D] dark:text-red-400 border border-[#F7C1C1] dark:border-red-900/50 text-xs font-medium transition-colors"
                 >
                   Confirm decline
                 </Button>
                 <Button 
                   onClick={() => setInlineRejectId(null)}
                   variant="ghost"
-                  className="h-8 px-4 rounded-lg text-xs font-medium text-muted-foreground"
+                  className="h-8 px-4 rounded-lg text-xs font-medium text-muted-foreground dark:text-gray-300 hover:text-foreground"
                 >
                   Cancel
                 </Button>
@@ -388,12 +388,12 @@ export default function AgentEndorsementsPage() {
             />
           ) : initialsName}
         </div>
-        <div className="text-[13px] text-slate-700 font-bold">
+        <div className="text-[13px] text-foreground font-bold">
           {b.name} · GHS {req.amount.toLocaleString()}
         </div>
         <div className={cn(
           "ml-auto text-[11px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider",
-          status === 'endorsed' ? "bg-[#EAF3DE] text-[#3B6D11]" : "bg-[#FCEBEB] text-[#A32D2D]"
+          status === 'endorsed' ? "bg-[#EAF3DE] dark:bg-emerald-950/40 text-[#3B6D11] dark:text-emerald-400" : "bg-[#FCEBEB] dark:bg-red-950/40 text-[#A32D2D] dark:text-red-400"
         )}>
           {status}
         </div>

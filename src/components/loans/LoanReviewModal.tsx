@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Loader2, RefreshCcw, User, X, Clock, AlertTriangle } from "lucide-react";
+import { Check, Loader2, RefreshCcw, User, X, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   Sheet,
@@ -30,6 +30,9 @@ type LoanReviewUser = {
   selfieUrl?: string;
   currentTier?: string | number;
   endorsedAt?: string;
+  totalLoans?: number;
+  totalLoansRepaid?: number;
+  totalLoansTaken?: number;
 };
 
 type LoanReviewData = {
@@ -55,6 +58,14 @@ type LoanReviewData = {
   creditScore?: number;
   loansToDate?: number;
   repaymentRate?: number;
+  totalLoans?: number;
+  totalLoansRepaid?: number;
+  totalLoansTaken?: number;
+  referredBy?: {
+    agentId?: string;
+    name?: string;
+    code?: string;
+  };
   kycStatus?: string;
   selfieUrl?: string;
   guaranteedBy?: string;
@@ -63,6 +74,7 @@ type LoanReviewData = {
   guaranteedAt?: string;
   guarantorApprovedAt?: string;
   createdAt?: string;
+  loanDetails?: any;
 };
 
 interface LoanReviewModalProps {
@@ -77,6 +89,23 @@ const tierColors: Record<string, string> = {
   L3: "bg-primary/10 text-primary",
   L4: "bg-success/10 text-success",
   L5: "bg-warning/10 text-warning",
+  // High Tiers (L6-L10)
+  L6: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L7: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L8: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L9: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L10: "bg-emerald-600 text-white font-bold",
+  // Elite Tiers (L11-L20)
+  L11: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L12: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L13: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L14: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L15: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L16: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L17: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L18: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L19: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L20: "bg-slate-900 text-white font-black shadow-lg",
 };
 
 export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanReviewModalProps>) {
@@ -103,10 +132,14 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   });
 
   const userDetails = userResponse?.data?.user || userResponse?.data || userResponse || {};
+  const activeFlag = userDetails?.flags?.slice(-1)[0] || (loanUser as any)?.flags?.slice(-1)[0] || null;
   
-  // Prioritize fetched personalNodeCode -> fetched nodeCode -> loan prop nodeCode -> N/A
-  const displayNodeCode = userDetails.personalNodeCode || userDetails.nodeCode || loan?.nodeCode || "N/A";
-  const displayTier = loan?.tier || loanUser?.currentTier || userDetails?.currentTier || 1;
+  const actualLoan = loan?.loanDetails || loan;
+  const displayNodeCode = userDetails.personalNodeCode || userDetails.nodeCode || actualLoan?.nodeCode || "N/A";
+  const rawTier = userDetails?.currentTier || loanUser?.currentTier || actualLoan?.tier || 1;
+  const tierNum = typeof rawTier === "string" ? rawTier.replace(/\D/g, "") || "1" : rawTier;
+  const displayTier = `Tier ${tierNum}`;
+  const displayTierKey = `L${tierNum}`;
   const kycStatus = (userDetails?.kycStatus || loan?.kycStatus || loanUser?.kycStatus || userDetails?.onboardingData?.kycStatus || userDetails?.kyc?.status || "Unknown") as string;
   const status = (loan?.status || "PENDING").toString().toUpperCase();
   const isPending = status === "PENDING";
@@ -119,7 +152,6 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
         setMomoCheckLoading(true);
         try {
           const res = await resolveMomoName(loanId);
-          console.log("MoMo Check Response for loan", loanId, ":", res);
           setMomoCheck(res.data || res);
         } catch (err: any) {
           console.error("MoMo Check Error for loan", loanId, ":", err);
@@ -254,10 +286,17 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-lg font-semibold text-foreground">{deduplicateWords(loanUser?.fullName || userNameString || "Unknown User")}</p>
-                <p className="text-sm text-muted-foreground">{loan.userMsisdn || loan.phone}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">{loan.userMsisdn || loan.phone}</p>
+                  {actualLoan?.referredBy?.name && (
+                    <Badge variant="secondary" className="px-2 py-0 h-5 text-[10px] bg-primary/10 text-primary border-primary/20 uppercase font-black">
+                      Ref by: {actualLoan.referredBy.name}
+                    </Badge>
+                  )}
+                </div>
               </div>
-              <Badge variant="outline" className={tierColors[`L${displayTier}`] || tierColors.L1}>
-                Tier {displayTier}
+              <Badge variant="outline" className={tierColors[displayTierKey] || tierColors.L1}>
+                {displayTier}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
@@ -277,6 +316,30 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-14">
+            {activeFlag && (
+              <div className={cn(
+                "rounded-xl border p-4 text-sm font-medium flex flex-col gap-2 shadow-sm animate-fade-in",
+                activeFlag.level === 'high' 
+                  ? "border-red-200 bg-red-50 text-red-900 dark:bg-red-900/10 dark:border-red-800"
+                  : "border-amber-200 bg-amber-50 text-amber-900 dark:bg-amber-900/10 dark:border-amber-800"
+              )}>
+                <div className="flex items-center gap-2 uppercase tracking-widest text-[#000] font-black text-[11px]">
+                  <ShieldAlert className={activeFlag.level === 'high' ? "text-red-600" : "text-amber-600"} size={16} />
+                  <span className={activeFlag.level === 'high' ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"}>
+                    {activeFlag.level} Severity User Flag
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 leading-relaxed max-w-[90%] pl-6">
+                  {activeFlag.reason}
+                </p>
+                {activeFlag.adminName && (
+                  <p className="text-[10px] text-gray-500 pl-6 mt-1 font-mono uppercase">
+                    By: {activeFlag.adminName}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="rounded-xl border border-border bg-muted/60 p-4">
               <p className="text-sm font-semibold text-muted-foreground mb-3">KYC Verification</p>
               <Badge variant="outline" className={kycBadgeClass}>
@@ -410,8 +473,25 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">No. Loans to Date</p>
-                <p className="font-medium">{loan.loansToDate || 0}</p>
+                <p className="font-medium">
+                  {userDetails?.totalLoans ?? 
+                   userDetails?.totalLoansRepaid ?? 
+                   userDetails?.totalLoansTaken ?? 
+                   loanUser?.totalLoans ?? 
+                   loanUser?.totalLoansRepaid ?? 
+                   loanUser?.totalLoansTaken ?? 
+                   actualLoan?.totalLoans ?? 
+                   actualLoan?.totalLoansRepaid ?? 
+                   actualLoan?.totalLoansTaken ?? 
+                   actualLoan?.loansToDate ?? 0}
+                </p>
               </div>
+              {Number(tierNum) >= 2 && (
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Guaranteed By</p>
+                  <p className="font-medium">{actualLoan?.guaranteedByName || actualLoan?.guarantorName || "Pending Guarantor"}</p>
+                </div>
+              )}
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Repayment Rate</p>
                 <p className="font-medium">{loan.repaymentRate || 100}%</p>

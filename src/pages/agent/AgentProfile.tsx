@@ -9,11 +9,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "next-themes";
-import { cn } from "@/lib/utils";
+import { cn, toNumber } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { getAgentMyStats } from "@/lib/api";
+import { getAgentMyStats, getAgentPortfolio } from "@/lib/api";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -26,7 +26,7 @@ const itemVariants = {
 };
 
 export default function AgentProfile() {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const { theme, setTheme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -40,6 +40,24 @@ export default function AgentProfile() {
     queryFn: async () => {
       const res = await getAgentMyStats();
       return res.data || res;
+    },
+    enabled: !!user?.email,
+  });
+  
+  // Also fetch portfolio for a more reliable fallback count
+  const { data: portfolioStats } = useQuery({
+    queryKey: ["agent-portfolio-profile", user?.email],
+    queryFn: async () => {
+      const res = await getAgentPortfolio({ page: 1, limit: 1000 });
+      let directory = [];
+      const data = res.data || res;
+      if (data?.directory) directory = data.directory;
+      else if (Array.isArray(data?.data)) directory = data.data;
+      else if (Array.isArray(data)) directory = data;
+      
+      const total = directory.length;
+      const activeLoans = directory.filter((u) => (u.loanStatus || '').toLowerCase() === 'active').length;
+      return { total, activeLoans };
     },
     enabled: !!user?.email,
   });
@@ -57,10 +75,46 @@ export default function AgentProfile() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    let altPhoneToSave = undefined;
+    if (formData.alternatePhone && formData.alternatePhone.trim() !== "") {
+      const digits = formData.alternatePhone.replace(/\D/g, "");
+      let normalized = "";
+      if (digits.length === 10 && digits.startsWith("0")) normalized = "233" + digits.substring(1);
+      else if (digits.length === 9) normalized = "233" + digits;
+      else if (digits.length === 12 && digits.startsWith("233")) normalized = digits;
+      
+      if (!normalized) {
+        toast.error("Enter a valid Ghana phone number");
+        setIsSaving(false);
+        return;
+      }
+      
+      const primaryDigits = (user?.phoneNumber || "").replace(/\D/g, "");
+      let primaryNorm = "";
+      if (primaryDigits.length === 10 && primaryDigits.startsWith("0")) primaryNorm = "233" + primaryDigits.substring(1);
+      else if (primaryDigits.length === 9) primaryNorm = "233" + primaryDigits;
+      else if (primaryDigits.length === 12 && primaryDigits.startsWith("233")) primaryNorm = primaryDigits;
+
+      if (normalized === primaryNorm && primaryNorm !== "") {
+        toast.error("Alternate phone cannot be the same as primary phone");
+        setIsSaving(false);
+        return;
+      }
+      altPhoneToSave = normalized;
+    }
+    
+    const payload: any = { fullName: formData.fullName };
+    if (user?.role === "agent" && altPhoneToSave) {
+      payload.alternatePhone = altPhoneToSave;
+    }
+
+    const { success, message } = await updateProfile(payload);
     setIsSaving(false);
-    setIsEditing(false);
-    toast.success("Profile updated successfully");
+    
+    if (success) {
+      setIsEditing(false);
+    }
   };
 
   const handleCancel = () => {
@@ -84,8 +138,8 @@ export default function AgentProfile() {
   };
 
   const stats = {
-    totalSignups: dashboardStats?.metrics?.signUpsAllTime ?? 0,
-    activeLoans: dashboardStats?.portfolio?.loansActive ?? 0,
+    totalSignups: toNumber(dashboardStats?.totalSignups || dashboardStats?.stats?.totalSignups || dashboardStats?.stats?.total_signups || dashboardStats?.data?.stats?.totalSignups || (typeof portfolioStats?.total === 'number' ? portfolioStats.total : 0)),
+    activeLoans: toNumber(dashboardStats?.activeLoans || dashboardStats?.stats?.activeLoans || dashboardStats?.stats?.active_loans || dashboardStats?.portfolio?.loansActive || dashboardStats?.data?.stats?.activeLoans || (typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : 0)),
   };
 
   const themes = [

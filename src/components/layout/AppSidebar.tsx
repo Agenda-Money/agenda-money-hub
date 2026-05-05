@@ -16,6 +16,7 @@ import {
   CheckCircle,
   Wallet,
   FileText,
+  Send,
   PhoneCall,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -197,14 +198,36 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         { to: "/loans/overdue", label: "Overdue" },
       ],
     },
-    { to: "/repayments", icon: Banknote, label: "Repayments" },
+    ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
+      ? [
+          { to: "/admin/loans/manual-disburse", icon: Send, label: "Manual Disbursement" },
+        ]
+      : []),
+    { 
+      to: "/repayments", 
+      icon: Banknote, 
+      label: "Repayments",
+      subItems: [
+        { to: "/repayments", label: "Repayment Logs" },
+        { to: "/admin/collections/monitoring", label: "Team Monitoring" },
+        { to: "/repayments?tab=collections", label: "Collections List" },
+      ]
+    },
     // Admin/Viewer only items (bottom)
     ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
       ? [
-          { to: "/payouts", icon: Wallet, label: "Payouts" },
-          { to: "/collection", icon: PhoneCall, label: "Collection" },
+          {
+            to: "/admin/commissions",
+            icon: Banknote,
+            label: "Commissions",
+            subItems: [
+              { to: "/payouts", label: "Withdrawals" },
+              { to: "/admin/commissions/deductions", label: "Deductions" },
+            ],
+          },
           { to: "/analytics", icon: BarChart3, label: "Analytics" },
           { to: "/audit-logs", icon: FileText, label: "Audit Logs" },
+          { to: "/collection", icon: PhoneCall, label: "Collection" },
         ]
       : []),
     { to: "/settings", icon: Settings, label: "Settings" },

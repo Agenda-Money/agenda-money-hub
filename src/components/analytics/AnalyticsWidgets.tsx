@@ -1,4 +1,9 @@
 import React, { useState } from 'react';
+import { useCsaPerformance } from './analytics.hooks';
+import { DateRange } from './analytics.types';
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { PhoneCall, Clock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { 
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, ComposedChart 
@@ -9,8 +14,8 @@ import { fPct, safeNum, fGHS } from './analytics.helpers';
 export function SectionHead({ title }: { title: string }) {
   return (
     <div className="flex items-center gap-3 mb-6 mt-12">
-      <h2 className="text-sm font-semibold uppercase tracking-widest text-neutral-800 m-0">{title}</h2>
-      <div className="flex-1 h-px bg-border" />
+      <h2 className="text-sm font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 m-0">{title}</h2>
+      <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
     </div>
   );
 }
@@ -18,10 +23,10 @@ export function SectionHead({ title }: { title: string }) {
 /* ── Section Error ───────────────────────────────────── */
 export function SectionError({ section, onRetry }: { section: string; onRetry?: () => void }) {
   return (
-    <Card className="bg-[#FCEBEB] border-[#F7C1C1] rounded-xl p-4 flex items-center justify-between mb-6 shadow-sm">
-      <p className="text-[13px] font-medium text-[#A32D2D] m-0">Could not load {section} — try refreshing</p>
+    <Card className="bg-red-50 dark:bg-red-950/10 border-red-100 dark:border-red-900 rounded-xl p-4 flex items-center justify-between mb-6 shadow-sm">
+      <p className="text-[13px] font-bold text-red-700 dark:text-red-400 m-0">Could not load {section} — try refreshing</p>
       {onRetry && (
-        <button onClick={onRetry} className="text-[12px] font-semibold px-4 py-1.5 rounded-lg bg-white border border-[#F7C1C1] text-[#791F1F] hover:bg-neutral-50 transition-colors shadow-sm">
+        <button onClick={onRetry} className="text-[12px] font-black uppercase tracking-widest px-4 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-neutral-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
           Refresh
         </button>
       )}
@@ -33,17 +38,17 @@ export function SectionError({ section, onRetry }: { section: string; onRetry?: 
 export function PanelHead({ title, right }: { title: string, right?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <h3 className="text-[12px] font-semibold uppercase tracking-widest text-neutral-500 m-0">{title}</h3>
-      {right && <div className="text-[11px] text-muted-foreground">{right}</div>}
+      <h3 className="text-[12px] font-black uppercase tracking-[0.15em] text-gray-500 dark:text-gray-400 m-0">{title}</h3>
+      {right && <div className="text-[11px] font-bold text-muted-foreground">{right}</div>}
     </div>
   );
 }
 
 /* ── Section 2: Tier Breakdown Tables ───────────────── */
 const tierBarColor = (rate: number) => {
-  if (rate >= 80) return 'bg-[#1D9E75]'; // green
-  if (rate >= 50) return 'bg-[#FAC775]'; // amber
-  return 'bg-[#A32D2D]';                 // red
+  if (rate >= 80) return 'bg-emerald-500'; // green
+  if (rate >= 50) return 'bg-amber-400';   // amber
+  return 'bg-red-500';                    // red
 };
 
 function TierTable({ title, data, valueKey }: { title: string, data: any[], valueKey: string }) {
@@ -51,22 +56,22 @@ function TierTable({ title, data, valueKey }: { title: string, data: any[], valu
   const sorted = [...data].sort((a, b) => safeNum(a.tier) - safeNum(b.tier));
   
   return (
-    <div className="flex-1 bg-white border rounded-[14px] p-5 shadow-sm">
-      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-4">{title}</h4>
+    <div className="flex-1 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[14px] p-5 shadow-sm">
+      <h4 className="text-[11px] font-black uppercase tracking-wider text-gray-400 mb-4">{title}</h4>
       <div className="space-y-3">
         {sorted.map(row => {
           const rate = safeNum(row[valueKey] || row.rate);
           return (
             <div key={row.tier} className="flex items-center justify-between gap-3 text-[12px]">
-              <span className="font-semibold text-neutral-800 w-6">T{row.tier}</span>
-              <div className="flex-1 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+              <span className="font-black text-gray-900 dark:text-gray-100 w-6">T{row.tier}</span>
+              <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                 <div className={`h-full rounded-full ${tierBarColor(rate)}`} style={{ width: `${Math.min(rate, 100)}%` }} />
               </div>
-              <span className="font-semibold tabular-nums text-neutral-700 w-10 text-right">{rate.toFixed(1)}%</span>
+              <span className="font-black tabular-nums text-gray-700 dark:text-gray-300 w-10 text-right font-mono">{rate.toFixed(1)}%</span>
             </div>
           );
         })}
-        {sorted.length === 0 && <p className="text-xs text-muted-foreground py-2">No data available</p>}
+        {sorted.length === 0 && <p className="text-xs text-muted-foreground py-2 font-bold italic">No data available</p>}
       </div>
     </div>
   );
@@ -113,13 +118,13 @@ export function ChartSignupGrowth({ data }: { data: any[] }) {
     <div className="h-[260px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1EFE8" />
-          <XAxis dataKey="monthFormat" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888780' }} dy={10} />
-          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888780' }} />
-          <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E8E6E0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: 12 }} />
-          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-          <Line type="monotone" dataKey="edgeCount" name="Edge users" stroke="#378ADD" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-          <Line type="monotone" dataKey="graduatedCount" name="Graduated nodes" stroke="#1D9E75" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-gray-100 dark:text-gray-800/50" />
+          <XAxis dataKey="monthFormat" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: 'currentColor' }} className="text-gray-400 dark:text-gray-500" dy={10} />
+          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: 'currentColor' }} className="text-gray-400 dark:text-gray-500" />
+          <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: 12, backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)' }} itemStyle={{ fontWeight: 800 }} />
+          <Legend wrapperStyle={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', paddingTop: 10 }} />
+          <Line type="monotone" dataKey="edgeCount" name="Edge users" stroke="#378ADD" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 5 }} />
+          <Line type="monotone" dataKey="graduatedCount" name="Graduated nodes" stroke="#10b981" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 5 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -142,15 +147,15 @@ export function ChartTierDistribution({ data }: { data: any[] }) {
         return (
           <div key={i} className="flex flex-col gap-1.5 w-full">
             <div className="flex justify-between items-center w-full mb-1">
-              <span className="font-bold text-[12px] text-neutral-800">T{d.tier}</span>
+              <span className="font-black text-[12px] text-gray-900 dark:text-gray-100">T{d.tier}</span>
               <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px]">
-                <span className="font-semibold text-neutral-700">{pct.toFixed(1)}%</span>
-                <span className="text-neutral-500">{safeNum(d.userCount).toLocaleString()} users</span>
-                <span className="text-neutral-500 bg-neutral-100 rounded px-1.5 py-0.5">Avg {fGHS(d.avgLoanSize)}</span>
+                <span className="font-black text-gray-700 dark:text-gray-300 font-mono">{pct.toFixed(1)}%</span>
+                <span className="text-gray-400 dark:text-gray-500 font-bold uppercase text-[9px] tracking-wide">{safeNum(d.userCount).toLocaleString()} members</span>
+                <span className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 rounded px-1.5 py-0.5 font-bold uppercase text-[9px]">Avg {fGHS(d.avgLoanSize)}</span>
               </div>
             </div>
-            <div className="w-full bg-neutral-100 h-2.5 rounded-full overflow-hidden">
-              <div className="bg-[#1D9E75] h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(pct, 100)}%` }} />
+            <div className="w-full bg-gray-100 dark:bg-gray-800 h-2.5 rounded-full overflow-hidden">
+              <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(pct, 100)}%` }} />
             </div>
           </div>
         );
@@ -158,7 +163,7 @@ export function ChartTierDistribution({ data }: { data: any[] }) {
       {hasMore && (
         <button 
           onClick={() => setExpanded(!expanded)} 
-          className="mt-2 w-full py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors"
+          className="mt-2 w-full py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg transition-colors"
         >
           {expanded ? "Show Less" : "Show More"}
         </button>
@@ -191,23 +196,23 @@ export function GeographicList({ data }: { data: any[] }) {
 
   return (
     <div className="flex flex-col flex-1">
-      <div className="flex items-center justify-between px-1 sm:px-2 pb-2 border-b text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-2">
+      <div className="flex items-center justify-between px-1 sm:px-2 pb-2 border-b border-gray-100 dark:border-gray-800 text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
         <span>Region</span>
         <div className="flex items-center gap-4 sm:gap-10">
-          <span>Users</span>
-          <span>Repayment R.</span>
+          <span>Members</span>
+          <span>Repayment</span>
         </div>
       </div>
       <div className="space-y-1">
         {displayData.map((row, i) => {
           const rate = safeNum(row.repaymentRate);
           return (
-            <div key={i} className="flex items-center justify-between py-2 sm:py-2.5 px-1 sm:px-2 hover:bg-neutral-50 rounded-lg transition-colors overflow-hidden">
-              <span className="text-[11px] sm:text-[12px] font-medium text-neutral-800 truncate pr-2 flex-1">{row.region || "Unknown"}</span>
+            <div key={i} className="flex items-center justify-between py-2 sm:py-2.5 px-1 sm:px-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors overflow-hidden group">
+              <span className="text-[11px] sm:text-[12px] font-black text-gray-700 dark:text-gray-300 truncate pr-2 flex-1">{row.region || "Unknown"}</span>
               <div className="flex items-center justify-end gap-2 sm:gap-6 shrink-0">
-                <span className="text-[11px] sm:text-[12px] font-semibold tabular-nums w-8 sm:w-12 text-right">{safeNum(row.userCount).toLocaleString()}</span>
-                <span className={`text-[10px] sm:text-[11px] font-bold tabular-nums px-2 py-1 rounded-full w-12 sm:w-14 text-center ${getRepaymentPill(rate)}`}>
-                  {rate.toFixed(1)}%
+                <span className="text-[11px] sm:text-[12px] font-black tabular-nums w-8 sm:w-12 text-right text-gray-900 dark:text-gray-100">{safeNum(row.userCount).toLocaleString()}</span>
+                <span className={`text-[9px] sm:text-[10px] font-black tabular-nums px-2.5 py-1 rounded-full w-12 sm:w-14 text-center uppercase tracking-wider ${getRepaymentPill(rate)}`}>
+                  {rate.toFixed(0)}%
                 </span>
               </div>
             </div>
@@ -234,22 +239,22 @@ export function ChartDisbColl({ data }: { data: any[] }) {
     ...d,
     monthShort: d.month?.slice(0, 3) || '', // "Jan", "Feb" etc per spec. Assuming backend sends full string or YYYY-MM. 
     // Fallback if it's YYYY-MM
-    displayMonth: d.month?.includes('-') ? new Date(d.month + '-01').toLocaleString('en-US', { month: 'short' }) : (d.month || '').slice(0,3)
+    displayMonth: d.month?.includes('-') ? new Date(d.month + '-01').toLocaleString('en-US', { month: 'long' }) : (d.month || '').slice(0,3)
   }));
 
   return (
     <div className="h-[280px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={formattedData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }} barGap={2} barSize={20}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1EFE8" />
-          <XAxis dataKey="displayMonth" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888780' }} dy={10} />
-          <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888780' }} />
-          <Tooltip cursor={{ fill: '#F5F4F0' }} contentStyle={{ borderRadius: 12, border: '1px solid #E8E6E0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: 12 }} />
-          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-gray-100 dark:text-gray-800/50" />
+          <XAxis dataKey="displayMonth" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: 'currentColor' }} className="text-gray-400 dark:text-gray-500" dy={10} />
+          <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: 'currentColor' }} className="text-gray-400 dark:text-gray-500" />
+          <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: 12, backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)' }} />
+          <Legend wrapperStyle={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', paddingTop: 10 }} />
           
-          <Bar yAxisId="left" dataKey="disbursed" name="Disbursed (GHS)" fill="#1D9E75" radius={[4, 4, 0, 0]} />
-          <Bar yAxisId="left" dataKey="collected" name="Collected (GHS)" fill="#378ADD" radius={[4, 4, 0, 0]} />
-          <Line yAxisId="left" type="monotone" dataKey="net" name="Net Flow" stroke="#2C2C2A" strokeWidth={1.5} dot={{ r: 2, fill: '#2C2C2A' }} />
+          <Bar yAxisId="left" dataKey="disbursed" name="Disbursed" fill="#10b981" radius={[4, 4, 0, 0]} />
+          <Bar yAxisId="left" dataKey="collected" name="Collected" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+          <Line yAxisId="left" type="monotone" dataKey="net" name="Net Flow" stroke="currentColor" strokeWidth={2} dot={{ r: 0 }} className="text-gray-900 dark:text-gray-100" />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
@@ -267,46 +272,117 @@ export function RepaymentChannels({ data }: { data: any }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {/* APP Card */}
-      <div className="bg-[#E1F5EE] border border-[#9FE1CB] rounded-[14px] p-5">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-[#0F6E56] mb-3">Mobile App</h4>
+      <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 rounded-[14px] p-5">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 mb-3">Mobile App</h4>
         <div className="mb-4">
-          <span className="text-[24px] font-semibold text-[#085041] tabular-nums leading-none">
+          <span className="text-[24px] font-black text-emerald-900 dark:text-emerald-100 tabular-nums leading-none font-mono">
             {fPct(app.percentage)}
           </span>
-          <span className="text-[12px] text-[#0F6E56] ml-2 font-medium">of total</span>
+          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 ml-2 uppercase tracking-tight">of total</span>
         </div>
-        <div className="space-y-1">
-          <div className="flex justify-between text-[12px] text-[#0F6E56]">
+        <div className="space-y-1.5 pt-4 border-t border-emerald-100/50 dark:border-emerald-900/50">
+          <div className="flex justify-between text-[11px] text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-tight">
             <span>Volume</span>
-            <span className="font-semibold">{fGHS(app.volumeGHS)}</span>
+            <span className="font-black font-mono">₵{fGHS(app.volumeGHS)}</span>
           </div>
-          <div className="flex justify-between text-[12px] text-[#0F6E56]">
-            <span>Transactions</span>
-            <span className="font-semibold">{safeNum(app.transactionCount).toLocaleString()}</span>
+          <div className="flex justify-between text-[11px] text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-tight">
+            <span>Entries</span>
+            <span className="font-black font-mono">{safeNum(app.transactionCount).toLocaleString()}</span>
           </div>
         </div>
       </div>
 
       {/* USSD Card */}
-      <div className="bg-[#E6F1FB] border border-[#B5D4F4] rounded-[14px] p-5">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-[#185FA5] mb-3">USSD</h4>
+      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50 rounded-[14px] p-5">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400 mb-3">USSD Protocol</h4>
         <div className="mb-4">
-          <span className="text-[24px] font-semibold text-[#0C447C] tabular-nums leading-none">
+          <span className="text-[24px] font-black text-blue-900 dark:text-blue-100 tabular-nums leading-none font-mono">
             {fPct(ussd.percentage)}
           </span>
-          <span className="text-[12px] text-[#185FA5] ml-2 font-medium">of total</span>
+          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-500 ml-2 uppercase tracking-tight">of total</span>
         </div>
-        <div className="space-y-1">
-          <div className="flex justify-between text-[12px] text-[#185FA5]">
+        <div className="space-y-1.5 pt-4 border-t border-blue-100/50 dark:border-blue-900/50">
+          <div className="flex justify-between text-[11px] text-blue-700 dark:text-blue-400 font-bold uppercase tracking-tight">
             <span>Volume</span>
-            <span className="font-semibold">{fGHS(ussd.volumeGHS)}</span>
+            <span className="font-black font-mono">₵{fGHS(ussd.volumeGHS)}</span>
           </div>
-          <div className="flex justify-between text-[12px] text-[#185FA5]">
-            <span>Transactions</span>
-            <span className="font-semibold">{safeNum(ussd.transactionCount).toLocaleString()}</span>
+          <div className="flex justify-between text-[11px] text-blue-700 dark:text-blue-400 font-bold uppercase tracking-tight">
+            <span>Entries</span>
+            <span className="font-black font-mono">{safeNum(ussd.transactionCount).toLocaleString()}</span>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+/* ── Section 6: CSA Performance Table ───────────────── */
+export function CsaPerformanceTable({ range }: { range?: DateRange }) {
+  const { data, loading, error, refetch } = useCsaPerformance(range);
+
+  if (error) return <SectionError section="CSA Performance" onRetry={refetch} />;
+  
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[14px] p-5 shadow-sm space-y-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-12 bg-gray-50 dark:bg-gray-800 animate-pulse rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  const agents = Array.isArray(data) ? data : [];
+
+  const getConvColor = (rate: number) => {
+    if (rate >= 20) return "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900";
+    if (rate >= 10) return "text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-900";
+    return "text-red-600 bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900";
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[14px] overflow-hidden shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Agent Name</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Calls Made</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Success Coll.</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Conv. Rate</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right pr-10">Amt Collected</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            {agents.length > 0 ? agents.map((agent: any, i: number) => (
+              <tr key={agent.agentId || i} className="group hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                <td className="px-6 py-4">
+                  <span className="text-[13px] font-black text-gray-900 dark:text-gray-100">{agent.agentName || 'Unknown Agent'}</span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <span className="text-[13px] font-bold text-gray-600 dark:text-gray-400 font-mono">{agent.totalCallsMade ?? 0}</span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <span className="text-[13px] font-bold text-gray-600 dark:text-gray-400 font-mono">{agent.successfulCollections ?? 0}</span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <Badge variant="outline" className={cn("font-black px-3 py-1 text-[11px] border-none", getConvColor(agent.conversionRate ?? 0))}>
+                    {(agent.conversionRate ?? 0).toFixed(1)}%
+                  </Badge>
+                </td>
+                <td className="px-6 py-4 text-right pr-10">
+                  <span className="text-[13px] font-black text-emerald-600 dark:text-emerald-400 font-mono">{fGHS(agent.totalAmountCollected ?? 0)}</span>
+                </td>
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan={5} className="px-6 py-12 text-center text-sm font-bold text-gray-400 italic">No CSA performance data found in this period</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+

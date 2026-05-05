@@ -34,6 +34,23 @@ const tierColors: Record<string, string> = {
   L3: "bg-primary/10 text-primary border-primary/20",
   L4: "bg-success/10 text-success border-success/20",
   L5: "bg-warning/10 text-warning border-warning/20",
+  // High Tiers (L6-L10)
+  L6: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L7: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L8: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L9: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  L10: "bg-emerald-600 text-white font-bold",
+  // Elite Tiers (L11-L20)
+  L11: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L12: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L13: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L14: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L15: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L16: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L17: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L18: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L19: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  L20: "bg-slate-900 text-white font-black shadow-lg",
 };
 
 import { useQuery } from "@tanstack/react-query";
@@ -166,6 +183,7 @@ export default function UsersPage() {
                   <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">
                     Name
                   </th>
+
                   <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">
                     Tier
                   </th>
@@ -197,6 +215,7 @@ export default function UsersPage() {
                     <td className="px-6 py-4 text-sm text-foreground">
                       {user.name}
                     </td>
+
                     <td className="px-6 py-4">
                       <Badge
                         variant="outline"
@@ -299,7 +318,9 @@ export default function UsersPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-semibold text-foreground">{user.name}</h3>
-                  <p className="text-sm text-muted-foreground">{user.phone}</p>
+                  <div className="flex flex-col">
+                    <p className="text-sm text-muted-foreground">{user.phone}</p>
+                  </div>
                 </div>
                 <Badge
                   variant="outline"

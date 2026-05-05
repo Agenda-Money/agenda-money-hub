@@ -1,5 +1,42 @@
 import axios from 'axios';
 import { toast } from 'sonner';
+import { ManualDisbursementRequest } from "@/types/disbursement";
+
+export interface DecisionError {
+  uiState: 'soft_block' | 'hard_block' | 'hard_block_date' | 'cap_state' | 'blacklisted';
+  reasonCode: string;
+  displayDate?: string;
+  capAmount?: number;
+  message: string;
+  isDecision: boolean; // Flag to easily identify parsed decision errors
+}
+
+export const parseDecisionError = (error: any): DecisionError | null => {
+  if (!error.response?.data) return null;
+  const data = error.response.data;
+  const code = data.errorCode || data.code || data.reasonCode || '';
+  const message = data.message || "Your application could not be processed at this time.";
+  
+  switch (code) {
+    case 'COOLING_OFF_HIGHER':
+      return { uiState: 'soft_block', reasonCode: code, message, isDecision: true, capAmount: data.capAmount };
+    case 'ROLLING_WINDOW_LIMIT':
+      return { uiState: 'hard_block', reasonCode: code, message, isDecision: true, displayDate: data.displayDate || data.availableDate };
+    case 'SHORT_TENOR_COOLDOWN':
+      return { uiState: 'hard_block_date', reasonCode: code, message, isDecision: true, displayDate: data.displayDate || data.nextDate };
+    case 'TIER_CAPPED':
+      return { uiState: 'cap_state', reasonCode: code, message, isDecision: true, capAmount: data.capAmount || data.approvedAmount };
+    case 'BLACKLISTED_TEMP':
+    case 'BLACKLISTED_PERMANENT':
+      return { uiState: 'blacklisted', reasonCode: code, message, isDecision: true, displayDate: data.displayDate || data.endDate };
+    default:
+      if (error.response.status === 409 || code === 'ACTIVE_LOAN_EXISTS') {
+         return { uiState: 'hard_block', reasonCode: 'ACTIVE_LOAN_EXISTS', message: "You already have an active loan. Please repay it to apply for another.", isDecision: true };
+      }
+      // If none matched, return null
+      return null;
+  }
+};
 
 // Helper to generate a unique request ID
 const generateId = () => Math.random().toString(36).substring(2, 15);
@@ -20,9 +57,6 @@ if (!baseURL) {
   // Keep the warning; remove in production if you prefer silence.
   // eslint-disable-next-line no-console
   console.warn('VITE_API_URL is not set. API requests will be sent to the same origin.');
-} else {
-  // eslint-disable-next-line no-console
-  console.info('Using VITE_API_URL:', baseURL);
 }
 
 const api = axios.create({
@@ -209,6 +243,11 @@ export const getAgentPortfolio = async (params?: any) => {
   return response.data;
 };
 
+export const getAgentDuePayments = async () => {
+  const response = await api.get('/api/agents/due-payments');
+  return response.data;
+};
+
 // --- Admin API ---
 
 export const getAdminPayoutRequests = async (params?: any) => {
@@ -296,6 +335,31 @@ export const getAdminDashboardStats = async () => {
   return response.data;
 };
 
+export const getAdminDeductions = async (params?: any) => {
+  const response = await api.get('/api/admin/commissions/deductions', { params });
+  return response.data;
+};
+
+export const confirmDeduction = async (id: string) => {
+  const response = await api.post(`/api/admin/commissions/deductions/${id}/confirm`);
+  return response.data;
+};
+
+export const reverseDeduction = async (id: string) => {
+  const response = await api.post(`/api/admin/commissions/deductions/${id}/reverse`);
+  return response.data;
+};
+
+export const createManualDeduction = async (data: any) => {
+  const response = await api.post('/api/admin/commissions/manual-deduction', data);
+  return response.data;
+};
+
+export const revokeFraud = async (borrowerMsisdn: string, reason: string) => {
+  const response = await api.post(`/api/admin/commissions/revoke-fraud/${borrowerMsisdn}`, { reason });
+  return response.data;
+};
+
 export const resolveMomoName = async (id: string) => {
   const response = await api.get(`/api/admin/loans/${id}/resolve-momo`);
   return response.data;
@@ -308,6 +372,12 @@ export const getAdminLoans = async (params?: any) => {
 
 export const approveLoan = async (id: string) => {
   const response = await api.post(`/api/admin/loans/${id}/approve`);
+  return response.data;
+};
+
+export const manualDisburseLoan = async (id: string, data: ManualDisbursementRequest, idempotencyKey?: string) => {
+  const headers = idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {};
+  const response = await api.post(`/api/admin/loans/${id}/manual-disbursement`, data, { headers });
   return response.data;
 };
 
@@ -326,12 +396,22 @@ export const getAdminUserProfile = async (userId: string) => {
   return response.data;
 };
 
-export const getRecentRepayments = async (params?: { period?: string; limit?: number }) => {
+export const getRepayments = async (params?: any) => {
+  const response = await api.get('/api/admin/repayments', { params });
+  return response.data;
+};
+
+export const getRecentRepayments = async (params?: { period?: string; limit?: number; source?: string }) => {
   const response = await api.get('/api/admin/repayments/recent', { params });
   return response.data;
 };
 
-export const recordManualRepayment = async (data: { msisdn: string; amount: number; method: string; reference: string; notes?: string }) => {
+export const getEligibleLoans = async (msisdn: string) => {
+  const response = await api.get('/api/admin/repayments/eligible-loans', { params: { msisdn } });
+  return response.data;
+};
+
+export const recordManualRepayment = async (data: { msisdn?: string; amount: number; method: string; reference: string; notes?: string; loanReference?: string }) => {
   const response = await api.post('/api/admin/repayments/record', data);
   return response.data;
 };
@@ -414,32 +494,38 @@ export const getUserActiveLoan = async (phone: string) => {
   return response.data;
 };
 
+export const getUserDetail = async (userId: string) => {
+  const response = await api.get(`/api/admin/users/${userId}`);
+  return response.data;
+};
+
+export const getUserSessions = async (userId: string, page = 1, limit = 20) => {
+  const response = await api.get(`/api/admin/users/${userId}/activity`, { params: { page, limit } });
+  return response.data;
+};
+
+export const getCollectionActivities = async (params?: { page?: number; limit?: number; loanReference?: string }) => {
+  const response = await api.get('/api/admin/collections/activities', { params });
+  return response.data;
+};
+
+export const getCsaPerformance = async (params?: { agentId?: string; dateFrom?: string; dateTo?: string; windowHours?: number }) => {
+  const response = await api.get('/api/admin/analytics/csa-performance', { params });
+  return response.data;
+};
+
+export const addFlag = async (userId: string, level: string, reason: string) => {
+  const response = await api.post(`/api/admin/users/${userId}/flag`, { level, reason });
+  return response.data;
+};
+
+export const deleteFlag = async (userId: string, flagId: string) => {
+  const response = await api.delete(`/api/admin/users/${userId}/flag/${flagId}`);
+  return response.data;
+};
+
 export const getAdminAgentDetails = async (id: string) => {
   const response = await api.get(`/api/admin/agents/${id}`);
-  return response.data;
-};
-
-// --- CSA Collection API ---
-
-export const getCsaBuckets = async () => {
-  const response = await api.get('/api/csa/buckets');
-  return response.data;
-};
-
-export const getCsaLoans = async (params: {
-  bucket: number;
-  page?: number;
-  limit?: number;
-  region?: string;
-  network?: string;
-  search?: string;
-}) => {
-  const response = await api.get('/api/csa/loans', { params });
-  return response.data;
-};
-
-export const exportCsaLoans = async (bucket: number) => {
-  const response = await api.get('/api/csa/export', { params: { bucket } });
   return response.data;
 };
 

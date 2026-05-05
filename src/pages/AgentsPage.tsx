@@ -10,7 +10,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, UserPlus, FileText, AlertCircle, CheckCircle2, Clock, MapPin, Phone, Mail, User, Camera, IdCard, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, UserPlus, FileText, AlertCircle, CheckCircle2, Clock, MapPin, Phone, Mail, User, Camera, IdCard, XCircle, ChevronDown, ChevronUp, MoreVertical, Plus, AlertTriangle, Filter } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -50,6 +53,10 @@ interface Agent {
   loansPending: number;
   loansClosed: number;
   loansOverdue: number;
+  highDefaultRisk?: boolean;
+  fullName?: string;
+  msisdn?: string;
+  selfieUrl?: string;
 }
 
 interface PendingAgent {
@@ -77,7 +84,9 @@ const ImagePlaceholder = ({ icon: Icon, label }: { icon: React.ElementType; labe
 const baseApiUrl = import.meta.env.VITE_API_URL || "";
 
 export default function AgentsPage() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showHighRiskOnly, setShowHighRiskOnly] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [rejectReason, setRejectReason] = useState("");
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [selectedAgentIdForReject, setSelectedAgentIdForReject] = useState<string | null>(null);
@@ -106,10 +115,11 @@ export default function AgentsPage() {
 
   // All Agents Query
   const { data: responseData } = useQuery({
-    queryKey: ["agents", searchTerm],
+    queryKey: ["agents", searchQuery, showHighRiskOnly, currentPage],
     queryFn: async () => {
-      const params: any = { limit: 100 }; 
-      if (searchTerm) params.search = searchTerm;
+      const params: any = { page: currentPage, limit: 10 };
+      if (searchQuery) params.search = searchQuery;
+      if (showHighRiskOnly) params.highDefaultRisk = true;
       const res = await getAdminAgents(params);
       return res;
     },
@@ -130,7 +140,7 @@ export default function AgentsPage() {
     onSuccess: () => {
       toast.success("Agent application successfully approved!");
       queryClient.invalidateQueries({ queryKey: ["agents", "pending"] });
-      queryClient.invalidateQueries({ queryKey: ["agents", searchTerm] });
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
     },
     onError: (error: any) => {
       toast.error(getFriendlyErrorMessage(error));
@@ -181,24 +191,31 @@ export default function AgentsPage() {
     
     // Enriched data from individual portfolio query
     const detailData: any = agentDetailsQueries[index]?.data;
-    const agentData = detailData?.agent || agentBase;
-    const portfolioData = detailData?.portfolio || null;
-    const metricsData = detailData?.metrics || portfolioData?.metrics || null;
+    const resData = detailData?.data || detailData || {};
+    const agentData = resData.agent || detailData?.agent || agentBase;
+    const portfolioData = resData.portfolio || detailData?.portfolio || null;
+    const metricsData = resData.metrics || resData.stats || portfolioData?.metrics || detailData?.metrics || null;
+    
+    const statsData = resData.stats || agentData?.stats || {};
     
     return {
       id: agentData.id ?? agentData._id,
       name: agentData.agentName ?? agentData.fullName ?? (agentData.firstName ? `${agentData.firstName} ${agentData.surname || ""}`.trim() : "Unknown"),
-      email: agentData.email ?? "—",
+      fullName: agentData.fullName ?? agentData.agentName ?? "Unknown",
+      msisdn: agentData.phone ?? agentData.msisdn ?? agentData.user?.msisdn ?? agentData.user?.phone ?? "—",
+      email: agentData.email ?? agentData.user?.email ?? "—",
       nodeCode: agentData.agentCode ?? agentData.nodeCode ?? "—",
       status: agentData.isActive === false || agentData.status === "inactive" ? "inactive" : "active",
       location: agentData.region ?? agentData.location ?? "—",
       totalTransactions: metricsData?.totalTransactions ?? portfolioData?.totalTransactions ?? agentData.totalTransactions ?? 0,
-      signUpsAllTime: metricsData?.signUpsAllTime ?? portfolioData?.metrics?.signUpsAllTime ?? agentData.totalSignUps ?? agentData.signUpsAllTime ?? agentData.activeUsers ?? 0,
-      signUpsThisMonth: metricsData?.signUpsThisMonth ?? portfolioData?.metrics?.signUpsThisMonth ?? agentData.signUpsThisMonth ?? 0,
-      loansActive: metricsData?.loansActive ?? portfolioData?.portfolio?.loansActive ?? portfolioData?.loansActive ?? agentData.loansActive ?? 0,
-      loansPending: metricsData?.loansPending ?? portfolioData?.portfolio?.loansPending ?? portfolioData?.loansPending ?? agentData.loansPending ?? 0,
-      loansClosed: metricsData?.loansClosed ?? portfolioData?.portfolio?.loansClosed ?? portfolioData?.loansClosed ?? agentData.loansClosed ?? 0,
-      loansOverdue: metricsData?.loansOverdue ?? portfolioData?.portfolio?.loansOverdue ?? portfolioData?.loansOverdue ?? agentData.loansOverdue ?? 0,
+      signUpsAllTime: statsData.totalSignups ?? agentData.totalSignups ?? metricsData?.signUpsAllTime ?? portfolioData?.metrics?.signUpsAllTime ?? agentData.totalSignUps ?? agentData.signUpsAllTime ?? agentData.activeUsers ?? 0,
+      signUpsThisMonth: statsData.signupsThisMonth ?? metricsData?.signUpsThisMonth ?? portfolioData?.metrics?.signUpsThisMonth ?? agentData.signUpsThisMonth ?? agentData.signUpsThisMonth ?? 0,
+      loansActive: statsData.activeLoans ?? agentData.loansActiveCount ?? metricsData?.loansActive ?? portfolioData?.portfolio?.loansActive ?? portfolioData?.loansActive ?? metricsData?.counts?.activeLoans ?? agentData.loansActive ?? 0,
+      loansPending: statsData.pendingLoans ?? agentData.loansPendingCount ?? metricsData?.loansPending ?? portfolioData?.portfolio?.loansPending ?? portfolioData?.loansPending ?? agentData.loansPending ?? 0,
+      loansClosed: statsData.closedLoans ?? metricsData?.loansClosed ?? portfolioData?.portfolio?.loansClosed ?? portfolioData?.loansClosed ?? agentData.loansClosed ?? 0,
+      loansOverdue: statsData.overdueLoans ?? agentData.loansOverdueCount ?? metricsData?.loansOverdue ?? portfolioData?.portfolio?.loansOverdue ?? portfolioData?.loansOverdue ?? agentData.loansOverdue ?? 0,
+      highDefaultRisk: agentData.highDefaultRisk ?? false,
+      selfieUrl: agentData.selfieUrl ?? agentData.selfie ?? agentData.user?.selfieUrl ?? agentData.user?.selfie ?? null,
     };
   });
 
@@ -239,14 +256,29 @@ export default function AgentsPage() {
                       List of registered agents and their node codes
                     </CardDescription>
                   </div>
-                  <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search agents..."
-                      className="pl-8"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                  <div className="bg-white/40 dark:bg-gray-900/40 backdrop-blur-md p-4 rounded-3xl border border-white/40 dark:border-gray-800 shadow-sm flex-1">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative flex-1 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 transition-colors group-focus-within:text-primary" />
+                        <Input
+                          placeholder="Search by name, code or phone..."
+                          className="pl-11 bg-white/80 dark:bg-gray-800/80 border-none rounded-2xl shadow-none font-medium focus:ring-2 focus:ring-primary/20 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
+                      
+                      <div className="flex items-center gap-3 bg-white/80 dark:bg-gray-800/80 h-12 px-4 rounded-2xl border border-gray-100/50 dark:border-gray-700">
+                        <Switch 
+                          id="high-risk-filter" 
+                          checked={showHighRiskOnly} 
+                          onCheckedChange={setShowHighRiskOnly}
+                        />
+                        <Label htmlFor="high-risk-filter" className="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-widest cursor-pointer whitespace-nowrap">
+                          High Risk Only
+                        </Label>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -273,12 +305,43 @@ export default function AgentsPage() {
                           className="cursor-pointer hover:bg-muted/50 transition-colors"
                           onClick={() => navigate(`/agents/${agent.id}`)}
                         >
-                          <TableCell className="font-medium">
-                            <div className="flex flex-col">
-                              <span>{agent.name}</span>
-                              <span className="text-xs text-muted-foreground font-normal">
-                                {agent.email}
-                              </span>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center shrink-0 font-black text-gray-400 dark:text-gray-500 text-xs overflow-hidden border border-gray-100 dark:border-gray-700">
+                                {agent.selfieUrl ? (
+                                  <img 
+                                    src={agent.selfieUrl.startsWith('http') ? agent.selfieUrl : `${baseApiUrl}/api/assets/${agent.selfieUrl}`} 
+                                    alt={agent.fullName} 
+                                    className="w-full h-full object-cover"
+                                    onError={(e: any) => {
+                                      e.target.style.display = 'none';
+                                      e.target.parentElement.innerHTML = agent.fullName?.substring(0, 2).toUpperCase();
+                                    }}
+                                  />
+                                ) : (
+                                  agent.fullName?.substring(0, 2).toUpperCase()
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <div className="font-black text-gray-900 dark:text-gray-100">{agent.fullName}</div>
+                                  {agent.highDefaultRisk && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge variant="destructive" className="h-5 px-1.5 text-[8px] font-black tracking-widest uppercase bg-red-600">
+                                            High Risk
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p className="text-xs font-bold font-mono">Default rate exceeds 10% threshold — review recommended</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground font-black tracking-widest uppercase">{agent.msisdn}</div>
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -327,7 +390,12 @@ export default function AgentsPage() {
                     >
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="font-semibold text-foreground">{agent.name}</h3>
+                          <div className="flex items-center gap-2">
+                             <h3 className="font-semibold text-foreground">{agent.name}</h3>
+                             {agent.highDefaultRisk && (
+                               <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase bg-red-600">High Risk</Badge>
+                             )}
+                          </div>
                           <p className="text-sm text-muted-foreground">{agent.email}</p>
                         </div>
                         <Badge variant="outline" className="font-mono">
@@ -357,7 +425,18 @@ export default function AgentsPage() {
                       </div>
                     </div>
                   ))}
-                </div>
+                 </div>
+
+                 {/* Pagination */}
+                 {responseData?.pagination?.pages > 1 && (
+                   <div className="flex items-center justify-between px-4 py-6 mt-4 border-t border-border/50 bg-muted/20 rounded-b-xl">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Page {currentPage} of {responseData.pagination.pages}</span>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="h-9 px-4 font-bold rounded-lg text-xs transition-all active:scale-95">Previous</Button>
+                        <Button variant="outline" size="sm" disabled={currentPage === responseData.pagination.pages} onClick={() => setCurrentPage(p => p + 1)} className="h-9 px-4 font-bold rounded-lg text-xs transition-all active:scale-95">Next</Button>
+                      </div>
+                   </div>
+                 )}
               </CardContent>
             </Card>
           </TabsContent>

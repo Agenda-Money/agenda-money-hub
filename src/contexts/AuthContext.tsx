@@ -34,7 +34,7 @@ interface AuthContextType {
   logout: (showToast?: boolean) => Promise<void>;
   forgotPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
   resetPassword: (token: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  updateProfile: (data: { fullName?: string; email?: string }) => Promise<{ success: boolean; message?: string }>;
+  updateProfile: (data: { fullName?: string; email?: string; alternatePhone?: string }) => Promise<{ success: boolean; message?: string }>;
   isAuthenticated: boolean;
   isViewer: boolean;
   canWrite: boolean;
@@ -268,7 +268,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const updateProfile = async (data: { fullName?: string; email?: string }): Promise<{ success: boolean; message?: string }> => {
+  const updateProfile = async (data: { fullName?: string; email?: string; alternatePhone?: string }): Promise<{ success: boolean; message?: string }> => {
     try {
       const response = await api.patch("/api/admin/auth/profile", data);
       if (response.data.success) {
