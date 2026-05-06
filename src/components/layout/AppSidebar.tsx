@@ -11,12 +11,11 @@ import {
   Settings,
   LogOut,
   ChevronDown,
-  ChevronRight,
   X,
   CheckCircle,
-  Wallet,
   FileText,
   Send,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -36,8 +35,13 @@ interface NavItemProps {
 const NavItem = ({ to, icon: Icon, label, subItems, badge }: NavItemProps) => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const isActive = location.pathname === to || location.pathname.startsWith(to + "/");
   const hasSubItems = subItems && subItems.length > 0;
+  const isChildActive = hasSubItems ? subItems.some((item) => location.pathname === item.to || location.pathname.startsWith(item.to + "/")) : false;
+  const isActive = location.pathname === to || location.pathname.startsWith(to + "/") || isChildActive;
+
+  useEffect(() => {
+    if (isChildActive) setIsOpen(true);
+  }, [isChildActive]);
 
   if (hasSubItems) {
     return (
@@ -47,7 +51,9 @@ const NavItem = ({ to, icon: Icon, label, subItems, badge }: NavItemProps) => {
           className={cn(
             "w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
             isActive
-              ? "bg-accent text-accent-foreground"
+              ? isChildActive
+                ? "bg-primary/10 text-primary"
+                : "bg-accent text-accent-foreground"
               : "text-sidebar-foreground hover:bg-muted"
           )}
         >
@@ -60,11 +66,7 @@ const NavItem = ({ to, icon: Icon, label, subItems, badge }: NavItemProps) => {
               </Badge>
             )}
           </div>
-          {isOpen ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
+          <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen ? "rotate-0" : "-rotate-90")} />
         </button>
         {isOpen && (
           <div className="ml-8 space-y-1">
@@ -113,6 +115,12 @@ const NavItem = ({ to, icon: Icon, label, subItems, badge }: NavItemProps) => {
   );
 };
 
+const getBundleStatus = (count: number) => {
+  if (count > 500) return { label: "Healthy", dotClass: "bg-emerald-500", textClass: "text-emerald-700" };
+  if (count >= 100) return { label: "Low", dotClass: "bg-amber-500", textClass: "text-amber-700" };
+  return { label: "Critical", dotClass: "bg-red-500", textClass: "text-red-700" };
+};
+
 interface AppSidebarProps {
   readonly isOpen: boolean;
   readonly onToggle: () => void;
@@ -124,6 +132,8 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
   const { logout, user } = useAuth();
   const [pendingCount, setPendingCount] = useState(0);
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
+  const mockSmsBundleCredits = 1240; // TODO: Fetch SMS bundle balance from the rewards/comms API.
+  const smsBundleStatus = getBundleStatus(mockSmsBundleCredits);
 
 
   // Support both camelCase and snake_case or fallback for KYC paths, using type assertions to avoid TS errors
@@ -200,6 +210,18 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
       ? [
           { to: "/admin/loans/manual-disburse", icon: Send, label: "Manual Disbursement" },
+          {
+            to: "/admin/rewards",
+            icon: Gift,
+            label: "Rewards & Comms",
+            subItems: [
+              { to: "/admin/rewards/send-airtime", label: "Send airtime" },
+              { to: "/admin/rewards/send-sms", label: "Send SMS" },
+              { to: "/admin/rewards/momo-disbursement", label: "MoMo disbursement" },
+              { to: "/admin/rewards/otp-settings", label: "OTP settings" },
+              { to: "/admin/rewards/campaign-history", label: "Campaign history" },
+            ],
+          },
         ]
       : []),
     { to: "/repayments", icon: Banknote, label: "Repayments" },
@@ -219,8 +241,8 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
           { to: "/audit-logs", icon: FileText, label: "Audit Logs" },
         ]
       : []),
-    { to: "/settings", icon: Settings, label: "Settings" },
   ];
+  const settingsItem: NavItemProps = { to: "/settings", icon: Settings, label: "Settings" };
 
   return (
     <>
@@ -286,8 +308,23 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
             </div>
           </div>
         )}
-        {/* Logout - Fixed at bottom */}
+        {/* Footer status and actions */}
         <div className="border-t border-sidebar-border p-4 pb-8 flex-shrink-0 bg-sidebar/50 backdrop-blur-sm">
+          {user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin") && (
+            <div className="mb-3 rounded-lg border border-sidebar-border bg-background/65 p-3 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">SMS bundle</p>
+                  <p className="mt-1 text-lg font-black text-foreground">{mockSmsBundleCredits.toLocaleString()} credits</p>
+                </div>
+                <span className={cn("h-3 w-3 rounded-full", smsBundleStatus.dotClass)} aria-label={smsBundleStatus.label} />
+              </div>
+              <p className={cn("mt-1 text-xs font-semibold", smsBundleStatus.textClass)}>{smsBundleStatus.label}</p>
+            </div>
+          )}
+          <div className="mb-2">
+            <NavItem {...settingsItem} />
+          </div>
           <button 
             onClick={() => logout()}
             className="flex items-center justify-start text-left gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-all duration-200"

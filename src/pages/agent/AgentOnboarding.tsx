@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Upload, CreditCard, TrendingUp } from "lucide-react";
+import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Upload, CreditCard, TrendingUp, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { uploadToSupabase } from "@/lib/supabase";
@@ -136,6 +136,17 @@ export default function AgentOnboarding() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentStep]);
+
+  useEffect(() => {
+    if (!showLiveness) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showLiveness]);
 
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
@@ -531,6 +542,94 @@ export default function AgentOnboarding() {
     { number: 4, title: "Loan Request", icon: CreditCard, description: "Initial loan" },
   ];
 
+  const livenessOverlay = showLiveness ? (
+    <div className="fixed inset-0 z-[100] flex items-stretch justify-center overflow-y-auto bg-slate-950/88 p-0 text-left backdrop-blur-md sm:items-center sm:p-4">
+      <div className="relative flex min-h-dvh w-full max-w-3xl items-stretch sm:min-h-0">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            setShowLiveness(false);
+            setLivenessStatus({
+              tone: "error",
+              message: "Liveness was cancelled. Start again when the customer is ready.",
+            });
+          }}
+          className="absolute right-3 top-3 z-20 h-10 w-10 rounded-full border border-white/15 bg-black/40 text-white shadow-lg backdrop-blur-md hover:bg-white/15 hover:text-white"
+          aria-label="Close liveness check"
+        >
+          <X className="h-5 w-5" />
+        </Button>
+        <div className="w-full">
+          <LivenessCapture
+            userId={formData.msisdn || "agent-onboarding"}
+            mode="agent-onboarding"
+            onSuccess={async (result: LivenessResult) => {
+              const file = base64ToJpegFile(
+                result.capturedFrame,
+                `agent-liveness-${Date.now()}.jpg`,
+              );
+
+              if (!file) {
+                setShowLiveness(false);
+                setLivenessStatus({
+                  tone: "error",
+                  message: "Liveness passed, but the captured image could not be prepared. Please try again.",
+                });
+                return;
+              }
+
+              await handleImageUpload(file, "selfie");
+              setFormData((prev) => {
+                const nextData = {
+                  ...prev,
+                  livenessSession: result,
+                };
+                try {
+                  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+                } catch (error) {
+                  console.error("Failed to save liveness session to localStorage:", error);
+                }
+                return nextData;
+              });
+              setShowLiveness(false);
+              setLivenessStatus({
+                tone: "success",
+                message: "PASS: customer identity was verified and attached to this onboarding session.",
+                sessionId: result.sessionId,
+              });
+            }}
+            onFailure={(reason) => {
+              setShowLiveness(false);
+              if (reason === "max_attempts_reached") {
+                setFormData((prev) => {
+                  const nextData = {
+                    ...prev,
+                    livenessSession: null,
+                  };
+                  try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
+                  } catch (error) {
+                    console.error("Failed to clear liveness session from localStorage:", error);
+                  }
+                  return nextData;
+                });
+              }
+              setLivenessStatus({
+                tone: "error",
+                message:
+                  reason === "max_attempts_reached"
+                    ? "FAIL: maximum liveness attempts reached. Stop onboarding and escalate this customer to manual review."
+                    : "Liveness was not completed. Review the guidance and try again when the customer is ready.",
+              });
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   // Result Screen (Success or Error)
   if (submissionResult) {
     if ('error' in submissionResult) {
@@ -675,6 +774,8 @@ export default function AgentOnboarding() {
 
   return (
     <div className="space-y-6 pb-28">
+      {livenessOverlay}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -1145,101 +1246,35 @@ export default function AgentOnboarding() {
                         </Alert>
                       )}
 
-                      {showLiveness ? (
-                        <LivenessCapture
-                          userId={formData.msisdn || "agent-onboarding"}
-                          mode="agent-onboarding"
-                          onSuccess={async (result: LivenessResult) => {
-                            const file = base64ToJpegFile(
-                              result.capturedFrame,
-                              `agent-liveness-${Date.now()}.jpg`,
-                            );
-
-                            if (!file) {
-                              setShowLiveness(false);
-                              setLivenessStatus({
-                                tone: "error",
-                                message: "Liveness passed, but the captured image could not be prepared. Please try again.",
-                              });
-                              return;
-                            }
-
-                            await handleImageUpload(file, "selfie");
+                      <div className="space-y-3">
+                        {renderSelfieUploadContent(
+                          uploadProgress.selfie,
+                          formData.selfieUrl,
+                          formData.selfieUrl ? "Liveness Verified" : "Customer Liveness",
+                          () => {
                             setFormData((prev) => {
                               const nextData = {
                                 ...prev,
-                                livenessSession: result,
+                                selfieUrl: "",
+                                livenessSession: null,
                               };
                               try {
                                 localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
                               } catch (error) {
-                                console.error("Failed to save liveness session to localStorage:", error);
+                                console.error("Failed to reset liveness state in localStorage:", error);
                               }
                               return nextData;
                             });
-                            setShowLiveness(false);
-                            setLivenessStatus({
-                              tone: "success",
-                              message: "PASS: customer identity was verified and attached to this onboarding session.",
-                              sessionId: result.sessionId,
-                            });
-                          }}
-                          onFailure={(reason) => {
-                            setShowLiveness(false);
-                            if (reason === "max_attempts_reached") {
-                              setFormData((prev) => {
-                                const nextData = {
-                                  ...prev,
-                                  livenessSession: null,
-                                };
-                                try {
-                                  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
-                                } catch (error) {
-                                  console.error("Failed to clear liveness session from localStorage:", error);
-                                }
-                                return nextData;
-                              });
-                            }
-                            setLivenessStatus({
-                              tone: "error",
-                              message:
-                                reason === "max_attempts_reached"
-                                  ? "FAIL: maximum liveness attempts reached. Stop onboarding and escalate this customer to manual review."
-                                  : "Liveness was not completed. Review the guidance and try again when the customer is ready.",
-                            });
-                          }}
-                        />
-                      ) : (
-                        <div className="space-y-3">
-                          {renderSelfieUploadContent(
-                            uploadProgress.selfie,
-                            formData.selfieUrl,
-                            formData.selfieUrl ? "Liveness Verified" : "Customer Liveness",
-                            () => {
-                              setFormData((prev) => {
-                                const nextData = {
-                                  ...prev,
-                                  selfieUrl: "",
-                                  livenessSession: null,
-                                };
-                                try {
-                                  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData));
-                                } catch (error) {
-                                  console.error("Failed to reset liveness state in localStorage:", error);
-                                }
-                                return nextData;
-                              });
-                              setLivenessStatus(null);
-                              setShowLiveness(true);
-                            }
-                          )}
-                          {!formData.selfieUrl && (
-                            <p className="text-xs text-muted-foreground">
-                              This replaces the plain selfie step and must be completed before moving on.
-                            </p>
-                          )}
-                        </div>
-                      )}
+                            setLivenessStatus(null);
+                            setShowLiveness(true);
+                          }
+                        )}
+                        {!formData.selfieUrl && (
+                          <p className="text-xs text-muted-foreground">
+                            This replaces the plain selfie step and must be completed before moving on.
+                          </p>
+                        )}
+                      </div>
                     </motion.div>
                   </div>
                 </div>

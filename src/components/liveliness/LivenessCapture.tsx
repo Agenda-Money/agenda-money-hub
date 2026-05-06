@@ -66,7 +66,7 @@ const CHALLENGES: ChallengeConfig[] = [
   {
     key: "blink",
     label: "Blink",
-    instruction: "Quick blink once — light blink is OK",
+    instruction: "Close your eyes slowly, then open",
     icon: <Eye className="w-8 h-8" />,
     color: "#3B82F6",
   },
@@ -88,20 +88,21 @@ const CHALLENGES: ChallengeConfig[] = [
 
 const MAX_ATTEMPTS = 3;
 const MODELS_PATH = "/models";
-const DETECTION_INTERVAL_MS = 72;
+const DETECTION_INTERVAL_MS = 50;
 const CHALLENGE_TIMEOUT_MS = 12000;
 
 // Blink: detect a dip in EAR from a recent “open” peak — catches partial / quick blinks.
-const BLINK_MIN_OPEN_EAR = 0.2; // need some baseline before we trust a dip
-const BLINK_DIP_FROM_PEAK = 0.07; // small drop counts (partial blink)
-const BLINK_RECOVER_WITHIN = 0.06; // recovered = back near peak → one blink
-const BLINK_WARMUP_FRAMES = 8;
+const BLINK_MIN_OPEN_EAR = 0.17; // need some baseline before we trust a dip
+const BLINK_DIP_FROM_PEAK = 0.04; // small drop counts (partial blink)
+const BLINK_RECOVER_WITHIN = 0.04; // recovered = back near peak → one blink
+const BLINK_WARMUP_FRAMES = 5;
 const BLINKS_REQUIRED = 1;
 /** Only update on-screen hints when EAR suggests eyes are open enough to read text */
 const EAR_FEEDBACK_VISIBLE_MIN = 0.26;
 
 // Head: blend yaw (nose vs eye mid) + jaw metric; min/max range — order & mirror agnostic.
 const HEAD_SWING_THRESHOLD = 0.035; // each way from neutral — very small turn passes
+const HEAD_WARMUP_FRAMES = 10;
 const HEAD_BLEND_YAW = 0.62;
 const HEAD_BLEND_JAW = 0.38;
 
@@ -288,6 +289,7 @@ export function LivenessCapture({
 
   const headScoreMinRef = useRef(Number.POSITIVE_INFINITY);
   const headScoreMaxRef = useRef(Number.NEGATIVE_INFINITY);
+  const headWarmupFramesRef = useRef(0);
 
   const mouthMotionFramesRef = useRef(0);
   const baselineMouthRef = useRef<number | null>(null);
@@ -350,6 +352,7 @@ export function LivenessCapture({
     if (currentChallenge.key === "headTurn") {
       headScoreMinRef.current = Number.POSITIVE_INFINITY;
       headScoreMaxRef.current = Number.NEGATIVE_INFINITY;
+      headWarmupFramesRef.current = 0;
       setHeadTurnProgress(0);
     }
 
@@ -362,7 +365,7 @@ export function LivenessCapture({
 
     if (currentChallenge.key === "blink") {
       setFeedbackMessage(
-        "Look at the circle — blink once (a light blink is fine)",
+        "Slowly close your eyes, then reopen — don't rush it",
       );
       return;
     }
@@ -586,6 +589,7 @@ export function LivenessCapture({
       blinkStuckFramesRef.current = 0;
       headScoreMinRef.current = Number.POSITIVE_INFINITY;
       headScoreMaxRef.current = Number.NEGATIVE_INFINITY;
+      headWarmupFramesRef.current = 0;
       mouthMotionFramesRef.current = 0;
       baselineMouthRef.current = null;
       mouthBaselineSamplesRef.current = [];
@@ -596,7 +600,7 @@ export function LivenessCapture({
       const nextChallenge = CHALLENGES[challengeIdxRef.current];
       if (nextChallenge?.key === "blink") {
         setFeedbackMessage(
-          "Look at the circle — blink once (a light blink is fine)",
+          "Slowly close your eyes, then reopen — don't rush it",
         );
       } else if (nextChallenge?.key === "headTurn") {
         setFeedbackMessage("Turn gently both ways — small movements count");
@@ -733,7 +737,7 @@ export function LivenessCapture({
           if (blinkCountRef.current >= BLINKS_REQUIRED) {
             setFeedbackMessage("Got it");
           } else if (!blinkInDipRef.current) {
-            setFeedbackMessage("Light blink once — a small flicker is enough");
+            setFeedbackMessage("Slowly close your eyes, then open");
           }
         }
 
@@ -753,6 +757,9 @@ export function LivenessCapture({
       // â”€â”€ Head: track min/max blend score — both directions required; mirror / order independent
       if (currentKey === "headTurn") {
         const score = getCombinedHeadTurnScore(landmarks);
+        if (headWarmupFramesRef.current < HEAD_WARMUP_FRAMES) {
+          headWarmupFramesRef.current += 1;
+        } else {
         headScoreMinRef.current = Math.min(headScoreMinRef.current, score);
         headScoreMaxRef.current = Math.max(headScoreMaxRef.current, score);
 
@@ -802,6 +809,7 @@ export function LivenessCapture({
             }
           }, 250);
           return;
+        }
         }
       }
 
@@ -916,6 +924,7 @@ export function LivenessCapture({
     blinkStuckFramesRef.current = 0;
     headScoreMinRef.current = Number.POSITIVE_INFINITY;
     headScoreMaxRef.current = Number.NEGATIVE_INFINITY;
+    headWarmupFramesRef.current = 0;
     mouthMotionFramesRef.current = 0;
     baselineMouthRef.current = null;
     mouthBaselineSamplesRef.current = [];
@@ -1189,13 +1198,6 @@ export function LivenessCapture({
                 }}
               >
                 <div className="absolute inset-[10px] rounded-[999px] border border-white/15" />
-                <motion.div
-                  className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-md"
-                  animate={{ scale: [0.95, 1.06, 0.95], opacity: [0.7, 1, 0.7] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <span className="h-9 w-9">{currentChallenge.icon}</span>
-                </motion.div>
                 <motion.div
                   className="absolute -inset-[8px] rounded-[999px] border-[3px] border-[#EC1B84]/85"
                   animate={{
