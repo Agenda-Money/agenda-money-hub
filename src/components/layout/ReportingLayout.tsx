@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ReportingSidebar } from "./ReportingSidebar";
-import { Header } from "./Header";
+import { ReportingHeader } from "./ReportingHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReportingAuthStore } from "@/store/reportingAuth.store";
 
@@ -19,7 +19,7 @@ export function ReportingLayout({ children }: ReportingLayoutProps) {
       <ReportingSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       
       <div className="flex-1 flex flex-col min-h-0 h-full">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
+        <ReportingHeader onMenuClick={() => setSidebarOpen(true)} />
         
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto min-w-0">
           {children}

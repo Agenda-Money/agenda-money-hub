@@ -88,8 +88,9 @@ export function PendingApprovals() {
       
       // Map API fields strictly
       const mappedLoans = (Array.isArray(rawData) ? rawData : []).map((l: any) => {
-        const rawTier = l.user?.currentTier ?? l.currentTier ?? l.tier ?? "L1";
-        const normalizedTier = String(rawTier).startsWith("L") ? String(rawTier) : `L${rawTier}`;
+        const rawTier = l.currentTier ?? l.user?.currentTier ?? l.tier ?? l.user?.tier ?? 1;
+        const tierNum = typeof rawTier === "string" ? rawTier.replace(/\D/g, "") || "1" : rawTier;
+        const normalizedTier = `L${tierNum}`;
         
         return {
           ...l,
