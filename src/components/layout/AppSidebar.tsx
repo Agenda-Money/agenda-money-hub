@@ -15,6 +15,7 @@ import {
   CheckCircle,
   FileText,
   Send,
+  PhoneCall,
   Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -224,7 +225,16 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
           },
         ]
       : []),
-    { to: "/repayments", icon: Banknote, label: "Repayments" },
+    { 
+      to: "/repayments", 
+      icon: Banknote, 
+      label: "Repayments",
+      subItems: [
+        { to: "/repayments", label: "Repayment Logs" },
+        { to: "/admin/collections/monitoring", label: "Team Monitoring" },
+        { to: "/repayments?tab=collections", label: "Collections List" },
+      ]
+    },
     // Admin/Viewer only items (bottom)
     ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
       ? [
@@ -278,6 +288,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
             variant="ghost"
             size="icon"
             className="lg:hidden"
+            aria-label="Close sidebar"
             onClick={onToggle}
           >
             <X className="h-5 w-5" />

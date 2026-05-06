@@ -27,8 +27,8 @@ export function DateRangeFilter({
   ];
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border/50 shadow-sm">
-      <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card p-2 sm:p-4 rounded-xl border border-border/50 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
         {presets.map((p) => (
           <button
             key={p.value}

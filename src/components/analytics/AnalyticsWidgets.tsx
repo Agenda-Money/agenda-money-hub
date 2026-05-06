@@ -1,4 +1,9 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
+import { useCsaPerformance } from './analytics.hooks';
+import { DateRange } from './analytics.types';
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { PhoneCall, Clock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   LineChart,
@@ -233,10 +238,9 @@ export function ChartDisbColl({ data }: { data: any[] }) {
 
   const formattedData = data.map((d) => ({
     ...d,
-    monthShort: d.month?.slice(0, 3) || "",
-    displayMonth: d.month?.includes("-")
-      ? new Date(d.month + "-01").toLocaleString("en-US", { month: "short" })
-      : (d.month || "").slice(0, 3),
+    monthShort: d.month?.slice(0, 3) || '', // "Jan", "Feb" etc per spec. Assuming backend sends full string or YYYY-MM. 
+    // Fallback if it's YYYY-MM
+    displayMonth: d.month?.includes('-') ? new Date(d.month + '-01').toLocaleString('en-US', { month: 'long' }) : (d.month || '').slice(0,3)
   }));
 
   return (
@@ -304,3 +308,74 @@ export function RepaymentChannels({ data }: { data: any }) {
     </div>
   );
 }
+
+/* ── Section 6: CSA Performance Table ───────────────── */
+export function CsaPerformanceTable({ range }: { range?: DateRange }) {
+  const { data, loading, error, refetch } = useCsaPerformance(range);
+
+  if (error) return <SectionError section="CSA Performance" onRetry={refetch} />;
+  
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[14px] p-5 shadow-sm space-y-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-12 bg-gray-50 dark:bg-gray-800 animate-pulse rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  const agents = Array.isArray(data) ? data : [];
+
+  const getConvColor = (rate: number) => {
+    if (rate >= 20) return "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900";
+    if (rate >= 10) return "text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-900";
+    return "text-red-600 bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900";
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[14px] overflow-hidden shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Agent Name</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Calls Made</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Success Coll.</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Conv. Rate</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right pr-10">Amt Collected</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            {agents.length > 0 ? agents.map((agent: any, i: number) => (
+              <tr key={agent.agentId || i} className="group hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                <td className="px-6 py-4">
+                  <span className="text-[13px] font-black text-gray-900 dark:text-gray-100">{agent.agentName || 'Unknown Agent'}</span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <span className="text-[13px] font-bold text-gray-600 dark:text-gray-400 font-mono">{agent.totalCallsMade ?? 0}</span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <span className="text-[13px] font-bold text-gray-600 dark:text-gray-400 font-mono">{agent.successfulCollections ?? 0}</span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <Badge variant="outline" className={cn("font-black px-3 py-1 text-[11px] border-none", getConvColor(agent.conversionRate ?? 0))}>
+                    {(agent.conversionRate ?? 0).toFixed(1)}%
+                  </Badge>
+                </td>
+                <td className="px-6 py-4 text-right pr-10">
+                  <span className="text-[13px] font-black text-emerald-600 dark:text-emerald-400 font-mono">{fGHS(agent.totalAmountCollected ?? 0)}</span>
+                </td>
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan={5} className="px-6 py-12 text-center text-sm font-bold text-gray-400 italic">No CSA performance data found in this period</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+

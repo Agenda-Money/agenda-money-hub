@@ -81,8 +81,8 @@ export function KpiCard({ label, value, subtext, trend, badge, status, icon, loa
         <h3 className={`mb-2 max-w-[calc(100%-40px)] text-[11px] font-medium uppercase tracking-[0.06em] ${labelToneMap[status]}`}>
           {label}
         </h3>
-
-        <div className={`mb-1 text-[28px] font-semibold leading-none ${valueToneMap[status]}`}>
+        
+        <div className={`text-[24px] sm:text-[28px] font-black tracking-tighter mb-1 font-mono leading-none ${theme.value}`}>
           {value}
         </div>
 

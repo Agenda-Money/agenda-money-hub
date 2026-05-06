@@ -11,13 +11,15 @@ import {
   GeographicList, 
   ChartDisbColl, 
   RepaymentChannels,
-  PanelHead
+  PanelHead,
+  CsaPerformanceTable
 } from "@/components/analytics/AnalyticsWidgets";
 import { 
   useSummary, 
   usePerformance, 
   useDistribution, 
-  useVolume 
+  useVolume,
+  useCsaPerformance
 } from "@/components/analytics/analytics.hooks";
 import { 
   safeNum, 
@@ -96,7 +98,7 @@ export default function AnalyticsPage() {
         <KpiCard
           label="Weekly disbursement"
           value={fGHS(s?.disbursements?.thisWeek?.totalGHS)}
-          subtext="Last 7 days"
+          subtext="Disbursement this week"
           {...getWeeklyDisbursementStatus(safeNum(s?.disbursements?.thisWeek?.totalGHS))}
           icon={<CalendarDays className="w-5 h-5" />}
         />
@@ -214,15 +216,21 @@ export default function AnalyticsPage() {
         <div>
           <SectionHead title="Performance metrics" />
           
-          <div className="mb-4 flex w-full max-w-full flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 shadow-sm sm:w-fit">
-            <span className="shrink-0 px-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Date Filter</span>
-            <input type="date" className="min-w-[110px] flex-1 rounded border border-border/60 bg-background px-2 py-1 text-xs text-foreground outline-none" value={fromInput} onChange={e => setFromInput(e.target.value)} />
-            <span className="shrink-0 text-[11px] text-muted-foreground">to</span>
-            <input type="date" className="min-w-[110px] flex-1 rounded border border-border/60 bg-background px-2 py-1 text-xs text-foreground outline-none" value={toInput} onChange={e => setToInput(e.target.value)} />
-            <div className="hidden sm:block h-4 w-px bg-border mx-2" />
-            <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-              <button onClick={applyRange} className="flex-1 sm:flex-none text-xs font-semibold px-4 py-1.5 bg-[#085041] text-white rounded-md hover:bg-[#0F6E56] transition-colors">Apply</button>
-              <button onClick={clearRange} className="flex-1 rounded-md bg-muted px-4 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/80 sm:flex-none">Clear</button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 bg-white dark:bg-gray-900 border border-border dark:border-gray-800 rounded-xl p-3 shadow-sm w-full lg:w-fit">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1">
+              <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1 shrink-0">Filter By Date Range</span>
+              <div className="flex items-center gap-2 flex-1">
+                <input type="date" className="text-xs bg-transparent border border-gray-100 dark:border-gray-800 rounded-lg px-2 py-1.5 outline-none text-gray-700 dark:text-gray-200 flex-1 min-w-0 font-bold" value={fromInput} onChange={e => setFromInput(e.target.value)} />
+                <span className="text-[10px] font-black text-gray-300 dark:text-gray-600 shrink-0 uppercase">to</span>
+                <input type="date" className="text-xs bg-transparent border border-gray-100 dark:border-gray-800 rounded-lg px-2 py-1.5 outline-none text-gray-700 dark:text-gray-200 flex-1 min-w-0 font-bold" value={toInput} onChange={e => setToInput(e.target.value)} />
+              </div>
+            </div>
+            
+            <div className="hidden sm:block h-6 w-px bg-gray-100 dark:bg-gray-800 mx-1" />
+            
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button onClick={applyRange} className="flex-1 sm:flex-none text-[10px] font-black uppercase tracking-widest px-6 py-2 bg-[#085041] text-white rounded-lg hover:bg-[#0F6E56] transition-colors shadow-sm">Apply</button>
+              <button onClick={clearRange} className="flex-1 sm:flex-none text-[10px] font-black uppercase tracking-widest px-6 py-2 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm">Clear</button>
             </div>
           </div>
 
@@ -235,6 +243,12 @@ export default function AnalyticsPage() {
               collection={p?.collectionRate?.byTier} 
             />
           )}
+        </div>
+
+        {/* Section 2.5: CSA Performance */}
+        <div>
+          <SectionHead title="CSA Performance" />
+          <CsaPerformanceTable range={range} />
         </div>
 
         {/* Section 3: Distribution */}

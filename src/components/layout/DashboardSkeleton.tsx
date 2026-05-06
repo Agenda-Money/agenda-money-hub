@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function DashboardSkeleton() {
   return (
-    <div className="min-h-screen flex w-full bg-background-secondary">
+    <div data-testid="dashboard-skeleton" className="min-h-screen flex w-full bg-background-secondary">
       {/* Sidebar Skeleton */}
       <div className="hidden lg:block">
         <SidebarSkeleton />

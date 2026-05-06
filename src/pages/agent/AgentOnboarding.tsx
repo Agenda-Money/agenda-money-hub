@@ -64,6 +64,7 @@ interface FormData {
   loanAmount: string;
   loanTenure: string;
   loanPurpose: string;
+  alternatePhone?: string;
 }
 
 const INITIAL_FORM_DATA: FormData = {
@@ -88,6 +89,7 @@ const INITIAL_FORM_DATA: FormData = {
   loanAmount: "100",
   loanTenure: "14",
   loanPurpose: "Business",
+  alternatePhone: "",
 };
 
 const slideVariants = {
@@ -397,9 +399,8 @@ export default function AgentOnboarding() {
         return (
           formData.firstName.trim() &&
           formData.surname.trim() &&
-          Boolean(primaryPhone?.isValid()) &&
-          (!formData.alternatePhone || Boolean(alternatePhone?.isValid())) &&
-          (!normalizedAlternate || normalizedAlternate !== normalizedPrimary) &&
+          Boolean(parsePhoneNumberFromString(formData.msisdn, "GH")?.isValid()) &&
+          Boolean(formData.alternatePhone && parsePhoneNumberFromString(formData.alternatePhone, "GH")?.isValid()) &&
           formData.dob &&
           formData.gender
         );
@@ -470,13 +471,16 @@ export default function AgentOnboarding() {
         ? parsedAlternatePhone.number.replace("+", "")
         : undefined;
 
+      const parsedAlt = formData.alternatePhone ? parsePhoneNumberFromString(formData.alternatePhone, "GH") : null;
+      const formattedAltMsisdn = parsedAlt ? parsedAlt.number.replace("+", "") : (formData.alternatePhone ? formData.alternatePhone.replace(/\D/g, "") : undefined);
+
       // Both firstName and surname are required. fullName is optional and should match the combination.
       const payload = {
         firstName: formData.firstName,
         surname: formData.surname,
         fullName: `${formData.firstName} ${formData.surname}`.trim(), // optional, backend may construct if not provided
         msisdn: formattedMsisdn,
-        alternatePhone: formattedAlternatePhone,
+        alternatePhone: formattedAltMsisdn,
         dob: formData.dob,
         gender: formData.gender,
         region: formData.region,
@@ -944,6 +948,30 @@ export default function AgentOnboarding() {
                       )}
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="alternatePhone">Alternate Phone Number *</Label>
+                    <Input
+                      id="alternatePhone"
+                      value={formData.alternatePhone}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        if (val.length <= 10) updateField("alternatePhone", val);
+                      }}
+                      placeholder="0244123456"
+                      maxLength={10}
+                      className={cn(
+                        "h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono",
+                        formData.alternatePhone && formData.alternatePhone.length >= 9 && !parsePhoneNumberFromString(formData.alternatePhone, "GH")?.isValid() && "border-2 border-destructive"
+                      )}
+                    />
+                    {formData.alternatePhone && !parsePhoneNumberFromString(formData.alternatePhone, "GH")?.isValid() && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Must be a valid Ghanaian number
+                      </p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label htmlFor="dob">Date of Birth *</Label>
@@ -1285,7 +1313,7 @@ export default function AgentOnboarding() {
                   <Alert className="bg-emerald-500/10 border-emerald-500/30">
                     <TrendingUp className="h-4 w-4 text-emerald-600" />
                     <AlertDescription className="text-emerald-800 dark:text-emerald-200">
-                      <strong>Tier 1 Limits:</strong> GHS 50 - GHS 300 | Max tenure: 14 days
+                      <strong>Loan Limits:</strong> GHS 50 - GHS 300 | Max tenure: 14 days
                     </AlertDescription>
                   </Alert>
 

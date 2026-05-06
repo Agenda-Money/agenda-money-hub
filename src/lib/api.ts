@@ -6,6 +6,7 @@ export interface DecisionError {
   uiState: 'soft_block' | 'hard_block' | 'hard_block_date' | 'cap_state' | 'blacklisted';
   reasonCode: string;
   displayDate?: string;
+  unusedDays?: number;
   capAmount?: number;
   message: string;
   isDecision: boolean; // Flag to easily identify parsed decision errors
@@ -19,7 +20,7 @@ export const parseDecisionError = (error: any): DecisionError | null => {
   
   switch (code) {
     case 'COOLING_OFF_HIGHER':
-      return { uiState: 'soft_block', reasonCode: code, message, isDecision: true, capAmount: data.capAmount };
+      return { uiState: 'soft_block', reasonCode: code, message, isDecision: true, capAmount: data.capAmount, unusedDays: data.unusedDays };
     case 'ROLLING_WINDOW_LIMIT':
       return { uiState: 'hard_block', reasonCode: code, message, isDecision: true, displayDate: data.displayDate || data.availableDate };
     case 'SHORT_TENOR_COOLDOWN':
@@ -243,6 +244,11 @@ export const getAgentPortfolio = async (params?: any) => {
   return response.data;
 };
 
+export const getAgentDuePayments = async () => {
+  const response = await api.get('/api/agents/due-payments');
+  return response.data;
+};
+
 // --- Admin API ---
 
 export const getAdminPayoutRequests = async (params?: any) => {
@@ -396,7 +402,7 @@ export const getRepayments = async (params?: any) => {
   return response.data;
 };
 
-export const getRecentRepayments = async (params?: { period?: string; limit?: number }) => {
+export const getRecentRepayments = async (params?: { period?: string; limit?: number; source?: string }) => {
   const response = await api.get('/api/admin/repayments/recent', { params });
   return response.data;
 };
@@ -496,6 +502,16 @@ export const getUserDetail = async (userId: string) => {
 
 export const getUserSessions = async (userId: string, page = 1, limit = 20) => {
   const response = await api.get(`/api/admin/users/${userId}/sessions`, { params: { page, limit } });
+  return response.data;
+};
+
+export const getCollectionActivities = async (params?: { page?: number; limit?: number; loanReference?: string }) => {
+  const response = await api.get('/api/admin/collections/activities', { params });
+  return response.data;
+};
+
+export const getCsaPerformance = async (params?: { agentId?: string; dateFrom?: string; dateTo?: string; windowHours?: number }) => {
+  const response = await api.get('/api/admin/analytics/csa-performance', { params });
   return response.data;
 };
 

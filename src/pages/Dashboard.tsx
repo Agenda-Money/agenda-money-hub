@@ -68,15 +68,16 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Compact Page Header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Compact Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Real-time portfolio health & live pipeline</p>
+          <h1 className="text-2xl lg:text-3xl font-black text-foreground">Admin Dashboard</h1>
+          <p className="text-sm font-bold text-muted-foreground mt-1 uppercase tracking-tight italic">Real-time portfolio health & live pipeline</p>
         </div>
       </div>
 
-      {/* Top 4 Hero Metrics (Restored per feedback) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Top 3 Hero Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatsCard
           title="Loan Book"
           value={`₵ ${formatAmount(summary.loanBook.value ?? 0)}`}
@@ -91,11 +92,6 @@ export default function Dashboard() {
           title="Repayment Rate"
           value={performance.repaymentRate?.rate != null ? `${performance.repaymentRate.rate.toFixed(1)}%` : "0%"}
           icon={TrendingDown}
-        />
-        <StatsCard
-          title="Overdue"
-          value={formatNumber(summary.overdueLoans?.count ?? 0)}
-          icon={AlertTriangle}
         />
       </div>
 

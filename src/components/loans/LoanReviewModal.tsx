@@ -81,6 +81,7 @@ interface LoanReviewModalProps {
   loan: LoanReviewData | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  onActionSuccess?: (type: 'approve' | 'reject' | 'sync', loanId: string) => void;
 }
 
 const tierColors: Record<string, string> = {
@@ -108,7 +109,7 @@ const tierColors: Record<string, string> = {
   L20: "bg-slate-900 text-white font-black shadow-lg",
 };
 
-export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanReviewModalProps>) {
+export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }: Readonly<LoanReviewModalProps>) {
   const queryClient = useQueryClient();
   const { canWrite } = useAuth();
   const [momoCheck, setMomoCheck] = useState<{ resolvedName: string | null; registeredName: string; match: boolean; score: number; cached?: boolean; error?: string } | null>(null);
@@ -189,12 +190,13 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   const approveMutation = useMutation({
     mutationFn: (id: string) => approveLoan(id),
     onSuccess: () => {
-      toast.success("Loan approved successfully");
+      onOpenChange(false);
+      toast.success("Loan approved successfully", { duration: 1000 });
       queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
       queryClient.invalidateQueries({ queryKey: ["loans"] }); 
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["loans-count"] }); 
-      onOpenChange(false);
+      if (loanId) onActionSuccess?.('approve', loanId);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to approve loan");
@@ -204,12 +206,13 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
   const rejectMutation = useMutation({
     mutationFn: (id: string) => rejectLoan(id),
     onSuccess: () => {
-      toast.success("Loan rejected");
+      onOpenChange(false);
+      toast.success("Loan rejected", { duration: 1000 });
       queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
       queryClient.invalidateQueries({ queryKey: ["loans"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["loans-count"] });
-      onOpenChange(false);
+      if (loanId) onActionSuccess?.('reject', loanId);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to reject loan");
@@ -223,14 +226,15 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange }: Readonly<LoanRev
       const responseMessage = data?.responseMessage || data?.data?.responseMessage || "";
 
       if (responseCode === "01") {
-        toast.success("Disbursement Successful! Loan is now Active.");
+        onOpenChange(false);
+        toast.success("Disbursement Successful! Loan is now Active.", { duration: 1000 });
         queryClient.invalidateQueries({ queryKey: ["loans"] });
         queryClient.invalidateQueries({ queryKey: ["admin-loans"] });
         queryClient.invalidateQueries({ queryKey: ["admin-analytics"] });
         queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
         queryClient.invalidateQueries({ queryKey: ["loans-count"] });
-        onOpenChange(false);
+        if (loanId) onActionSuccess?.('sync', loanId);
         return;
       }
 

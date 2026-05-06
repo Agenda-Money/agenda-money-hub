@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, PhoneCall, LogOut, X, ChevronRight, Landmark, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, PhoneCall, LogOut, X, ChevronRight, Landmark, MessageSquare, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useCsaAuth } from '@/contexts/CsaAuthContext';
@@ -77,7 +77,10 @@ export function CsaSidebar({ isOpen, onToggle }: CsaSidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-1.5">
-          {navItems.map((item, i) => {
+          {((['supervisor', 'manager', 'admin'].includes((user?.role as string)?.toLowerCase())) ? [
+            ...navItems,
+            { to: '/csa/team', icon: Users, label: 'Team Activity', description: 'Monitor performance' }
+          ] : navItems).map((item, i) => {
             const isActive = item.to === '/csa'
               ? location.pathname === '/csa'
               : location.pathname.startsWith(item.to);

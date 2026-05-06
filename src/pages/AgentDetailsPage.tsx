@@ -34,6 +34,7 @@ export default function AgentDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [commPage, setCommPage] = useState(1);
 
   // Fetch Agent Profile
   const { data: agentDataResponse, isLoading: isAgentLoading, error: agentError } = useQuery({
@@ -47,8 +48,8 @@ export default function AgentDetailsPage() {
 
   // Fetch Agent Commissions
   const { data: commissionResponse, isLoading: isCommissionLoading } = useQuery({
-    queryKey: ["agent-commissions", id],
-    queryFn: () => getAdminAgentCommissions(id!),
+    queryKey: ["agent-commissions", id, commPage],
+    queryFn: () => getAdminAgentCommissions(id!, { page: commPage, limit: 50 }),
     enabled: !!id,
   });
 
@@ -64,6 +65,7 @@ export default function AgentDetailsPage() {
     phone: agentDataRaw.phoneNumber || agentDataRaw.phone || agentDataRaw.msisdn || "—",
     nodeCode: agentDataRaw.agentCode || agentDataRaw.nodeCode || "—",
     status: agentDataRaw.status === "inactive" || agentDataRaw.isActive === false ? "inactive" : "active",
+    role: agentDataRaw.role || "agent",
     joinedAt: agentDataRaw.createdAt ? new Date(agentDataRaw.createdAt).toLocaleDateString('en-GB') : "—",
     address: agentDataRaw.address || "—",
     location: agentDataRaw.location || agentDataRaw.region || "—",
@@ -137,6 +139,7 @@ export default function AgentDetailsPage() {
     return fullName.includes(term) || phone.toLowerCase().includes(term);
   });
 
+
   return (
     <DashboardLayout>
       <div className="space-y-6 pb-24 lg:pb-6">
@@ -184,26 +187,37 @@ export default function AgentDetailsPage() {
                     <Badge variant={agent.status === "active" ? "default" : "secondary"} className={cn("px-2.5 py-0.5", agent.status === "active" ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm text-white" : "")}>
                        {agent.status}
                     </Badge>
+                    <Badge variant="outline" className={cn(
+                      "px-2.5 py-0.5 font-bold uppercase tracking-widest text-[10px]",
+                      agent.role === 'manager' ? "bg-purple-50 text-purple-700 border-purple-200" :
+                      agent.role === 'supervisor' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                      "bg-slate-50 text-slate-700 border-slate-200"
+                    )}>
+                      {agent.role}
+                    </Badge>
                     <Badge variant="secondary" className="bg-muted/60 text-muted-foreground px-2.5 py-0.5">Joined {agent.joinedAt}</Badge>
                   </div>
                 </div>
               </div>
 
-               <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:w-[350px] shrink-0">
-                   <div className="p-4 sm:p-3 rounded-xl sm:rounded-lg border bg-muted/20 flex flex-col justify-center">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1.5 sm:mb-1">
-                        <UserPlus className="h-4 w-4" />
-                        <span className="text-xs font-medium uppercase tracking-wider">Total Signups</span>
-                      </div>
-                       <p className="text-2xl sm:text-xl font-bold text-foreground">{formatNumber(agent.signUpsAllTime)}</p>
-                   </div>
-                   <div className="p-4 sm:p-3 rounded-xl sm:rounded-lg border bg-muted/20 flex flex-col justify-center">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1.5 sm:mb-1">
-                        <Clock className="h-4 w-4" />
-                        <span className="text-xs font-medium uppercase tracking-wider">This Month</span>
-                      </div>
-                       <p className="text-2xl sm:text-xl font-bold text-foreground">{formatNumber(agent.signUpsThisMonth)}</p>
-                   </div>
+               <div className="flex flex-col gap-4 shrink-0 lg:w-[350px]">
+
+                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div className="p-4 sm:p-3 rounded-xl sm:rounded-lg border bg-muted/20 flex flex-col justify-center">
+                       <div className="flex items-center gap-2 text-muted-foreground mb-1.5 sm:mb-1">
+                         <UserPlus className="h-4 w-4" />
+                         <span className="text-xs font-medium uppercase tracking-wider">Total Signups</span>
+                       </div>
+                        <p className="text-2xl sm:text-xl font-bold text-foreground">{formatNumber(agent.signUpsAllTime)}</p>
+                    </div>
+                    <div className="p-4 sm:p-3 rounded-xl sm:rounded-lg border bg-muted/20 flex flex-col justify-center">
+                       <div className="flex items-center gap-2 text-muted-foreground mb-1.5 sm:mb-1">
+                         <Clock className="h-4 w-4" />
+                         <span className="text-xs font-medium uppercase tracking-wider">This Month</span>
+                       </div>
+                        <p className="text-2xl sm:text-xl font-bold text-foreground">{formatNumber(agent.signUpsThisMonth)}</p>
+                    </div>
+                 </div>
                </div>
             </div>
           </div>
@@ -482,7 +496,11 @@ export default function AgentDetailsPage() {
                   <div className="flex justify-center py-12">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                   </div>
-                ) : commissionResponse?.data?.ledger?.length > 0 ? (
+                ) : (() => {
+                  const data = commissionResponse?.data || commissionResponse;
+                  const ledger = data?.ledger || data?.items || [];
+                  return ledger.length > 0;
+                })() ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
                       <thead className="text-xs text-muted-foreground uppercase bg-muted/30">
@@ -494,8 +512,12 @@ export default function AgentDetailsPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y border-t">
-                        {(commissionResponse?.data?.ledger || []).map((item: any) => (
-                          <tr key={item._id} className="hover:bg-muted/30 transition-colors">
+                        {(() => {
+                           const data = commissionResponse?.data || commissionResponse;
+                           const ledger = data?.ledger || data?.items || [];
+                           return ledger;
+                        })().map((item: any) => (
+                          <tr key={item._id || item.id} className="hover:bg-muted/30 transition-colors">
                             <td className="px-4 py-3 whitespace-nowrap">
                               {new Date(item.createdAt).toLocaleDateString("en-GB")}
                             </td>
@@ -531,12 +553,60 @@ export default function AgentDetailsPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-xl bg-muted/20">
                     <Banknote className="h-10 w-10 text-muted-foreground mb-3 opacity-40" />
-                    <p className="text-sm font-medium text-foreground">No commission history</p>
+                    <p className="text-[sm] font-medium text-foreground">No commission history</p>
                     <p className="text-xs text-muted-foreground max-w-[250px] mt-1">
                       Earnings and deductions will appear here once transactions are recorded.
                     </p>
                   </div>
                 )}
+
+                {/* Unified Pagination Logic */}
+                {(() => {
+                  const data = commissionResponse?.data || commissionResponse;
+                  const pagination = data?.pagination;
+                  
+                  // Support both nested pagination object and flat metadata
+                  const totalPages = Number(pagination?.pages || data?.totalPages || data?.pages || 1);
+                  const currentPage = Number(pagination?.current || data?.page || commPage);
+                  
+                  if (totalPages <= 1) return null;
+                  
+                  return (
+                    <div className="flex items-center justify-center gap-3 pt-6 border-t mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage <= 1 || isCommissionLoading}
+                        onClick={() => {
+                          setCommPage(p => Math.max(1, p - 1));
+                          // Scroll to top of the list when page changes
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="h-9 px-4 rounded-lg font-bold text-xs"
+                      >
+                        ← Previous
+                      </Button>
+                      
+                      <div className="flex items-center px-4 h-9 bg-muted/30 rounded-lg border text-xs font-mono font-bold">
+                        {currentPage} / {totalPages}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage >= totalPages || isCommissionLoading}
+                        onClick={() => {
+                          setCommPage(p => p + 1);
+                          // Scroll to top of the list when page changes
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="h-9 px-4 rounded-lg font-bold text-xs"
+                      >
+                        Next →
+                      </Button>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 interface LoanApplicationPageProps {
   tierMin: number;
   tierMax: number;
+  currentTier: number;
+  tenureOptions: number[];
   onBack: () => void;
   onContinue: (data: { amount: number; tenure: number; purpose: string; nodeCode?: string }) => void;
   showNodeCode?: boolean;
@@ -38,11 +40,11 @@ const PURPOSES = [
   { id: "Other", label: "Other", icon: MoreHorizontal },
 ];
 
-const TENURE_OPTIONS = [1, 5, 10, 14];
-
 export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({ 
   tierMin,
   tierMax, 
+  currentTier,
+  tenureOptions,
   onBack, 
   onContinue, 
   showNodeCode, 
@@ -54,9 +56,10 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
   onErrorDismiss
 }) => {
   const [amount, setAmount] = useState<number>(initialAmount || tierMin);
-  const [tenure, setTenure] = useState<number>(initialTenure || 10);
+  const [tenure, setTenure] = useState<number>(initialTenure || (tenureOptions.includes(14) ? 14 : tenureOptions[tenureOptions.length - 1]));
   const [purpose, setPurpose] = useState<string>(initialPurpose || "Business");
   const [nodeCode, setNodeCode] = useState<string>(initialNodeCode || "");
+
 
   return (
     <div className="h-screen bg-white flex flex-col relative overflow-hidden">
@@ -167,7 +170,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
            </div>
            
            <div className="flex justify-between gap-3">
-             {TENURE_OPTIONS.map((days) => {
+             {tenureOptions.map((days) => {
                const isActive = tenure === days;
                return (
                  <button

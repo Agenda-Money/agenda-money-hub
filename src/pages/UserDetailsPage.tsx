@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+﻿import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,13 +14,16 @@ import { FinancialHealthSection } from "@/components/user/FinancialHealthSection
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ActionCenter } from "@/components/user/ActionCenter";
 import { EditUserSheet } from "@/components/user/EditUserSheet";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api, { 
+  addFlag,
+  deleteFlag,
   getAdminUserProfile, 
+  getUserSessions,
   getUserActiveLoan, 
   blockUser, 
   unblockUser, 
@@ -70,6 +73,13 @@ const getKycImageUrl = (path: string | undefined | null) => {
   return `${baseUrl}/storage/v1/object/public/${bucket}/${path}`;
 };
 
+function formatDate(value: string | Date | undefined | null): string {
+  if (!value) return "N/A";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "N/A";
+  return parsed.toLocaleDateString("en-GB");
+}
+
 export default function UserDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -78,8 +88,11 @@ export default function UserDetailsPage() {
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [isUnblockModalOpen, setIsUnblockModalOpen] = useState(false);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+  const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
   const [blockReason, setBlockReason] = useState("");
   const [unblockReason, setUnblockReason] = useState("");
+  const [flagLevel, setFlagLevel] = useState("normal");
+  const [flagReason, setFlagReason] = useState("");
 
   // Fetch User Profile
   const { data: userDataResponse, isLoading: isUserLoading, error: userError, refetch } = useQuery({
@@ -157,6 +170,13 @@ export default function UserDetailsPage() {
     retry: false
   });
 
+  const { data: sessionsResponse } = useQuery({
+    queryKey: ["user-sessions", id],
+    queryFn: async () => getUserSessions(id!, 1, 20),
+    enabled: !!id,
+    refetchOnWindowFocus: true,
+  });
+
   const rawWalletHistory = walletHistoryResponse?.data || (Array.isArray(walletHistoryResponse) ? walletHistoryResponse : []) || [];
   const rawLoanHistory = loanHistoryResponse?.data || loanHistoryResponse?.loans || [];
   const activeLoanData = activeLoanResponse?.data || activeLoanResponse;
@@ -178,6 +198,7 @@ export default function UserDetailsPage() {
     nodeCode: userData.personalNodeCode || userData.nodeCode || listUser.personalNodeCode || listUser.nodeCode || "N/A",
     referredBy: userData.referredByNodeCode || userData.onboardingData?.referredByNodeCode || userData.kyc?.referredByNodeCode || userData.onboardingData?.referredBy || userData.referredByEmail || userData.referredByMsisdn || userData.referredByName || listUser.referredByNodeCode || listUser.onboardingData?.referredByNodeCode || listUser.kyc?.referredByNodeCode || listUser.onboardingData?.referredBy || listUser.referredByEmail || listUser.referredByName || "Direct Signup",
     status: userData.isBlocked || listUser.isBlocked ? "blocked" : "active",
+    flags: userData.flags || listUser.flags || [],
     joinedAt: (userData.createdAt || listUser.createdAt || userData.joinedAt || userData.dateJoined || userData.onboardingData?.createdAt || userDataRaw.createdAt) 
       ? new Date(userData.createdAt || listUser.createdAt || userData.joinedAt || userData.dateJoined || userData.onboardingData?.createdAt || userDataRaw.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) 
       : "N/A",
@@ -262,6 +283,27 @@ export default function UserDetailsPage() {
       reference: activeLoanData.loanDetails?.loanReference || activeLoanData.loanReference || "N/A"
     };
   })() : null;
+
+  const activeFlag = user.flags?.length ? user.flags[user.flags.length - 1] : null;
+  const lastSeenInfo = useMemo(() => {
+    const latestSession = sessionsResponse?.sessions?.[0];
+    const payloadLastSeen = (userDataRaw as any)?.lastSeen || (userData as any)?.lastSeen;
+    if (!latestSession && !payloadLastSeen?.at) {
+      return { at: "N/A", channel: "Unknown" };
+    }
+    const sessionTime = latestSession?.createdAt ? new Date(latestSession.createdAt).getTime() : 0;
+    const payloadTime = payloadLastSeen?.at ? new Date(payloadLastSeen.at).getTime() : 0;
+    if (sessionTime >= payloadTime && latestSession) {
+      return {
+        at: formatDate(latestSession.createdAt),
+        channel: (latestSession.channel || "unknown").toUpperCase(),
+      };
+    }
+    return {
+      at: formatDate(payloadLastSeen?.at),
+      channel: payloadLastSeen?.channel || "Unknown",
+    };
+  }, [sessionsResponse, userDataRaw, userData]);
 
   // Render immediately when ANY user data is ready instead of waiting for all sub-queries
   const isLoading = isUserLoading || isListUserLoading;
@@ -367,6 +409,28 @@ export default function UserDetailsPage() {
     onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
   });
 
+  const addFlagMutation = useMutation({
+    mutationFn: ({ level, reason }: { level: string; reason: string }) =>
+      addFlag(id!, level, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user", id] });
+      setIsFlagModalOpen(false);
+      setFlagReason("");
+      setFlagLevel("normal");
+      toast.success("Flag added successfully");
+    },
+    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
+  });
+
+  const removeFlagMutation = useMutation({
+    mutationFn: (flagId: string) => deleteFlag(id!, flagId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user", id] });
+      toast.success("Flag removed successfully");
+    },
+    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
+  });
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -436,6 +500,27 @@ export default function UserDetailsPage() {
             </motion.div>
           )}
 
+          {activeFlag && (
+            <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-amber-700">
+                  {activeFlag.level || "Normal"} severity flag active
+                </p>
+                <p className="mt-1 text-sm text-amber-900">{activeFlag.reason}</p>
+              </div>
+              {canWrite && activeFlag._id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-300 text-amber-800 hover:bg-amber-100"
+                  onClick={() => removeFlagMutation.mutate(activeFlag._id)}
+                >
+                  Remove Flag
+                </Button>
+              )}
+            </motion.div>
+          )}
+
         {/* Header with Tier Visualizer */}
         <div className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm sm:rounded-[2rem]">
           <div className="bg-gradient-to-r from-primary/5 via-transparent to-transparent p-5 sm:p-8">
@@ -450,16 +535,26 @@ export default function UserDetailsPage() {
                       <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground break-words">{user.name}</h1>
                       <Badge className={cn("px-4 py-1 text-xs font-bold rounded-full h-fit", tierColors[user.tier] ?? tierColors.L1)}>{user.tier}</Badge>
                     </div>
-                     {canWrite && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest border-primary/20 hover:bg-primary/10 text-primary transition-all sm:ml-auto"
-                        onClick={() => setIsEditDrawerOpen(true)}
-                      >
-                        <Edit3 className="h-3.5 w-3.5 mr-2" />
-                        Edit Profile
-                      </Button>
+                    {canWrite && (
+                      <div className="sm:ml-auto flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest border-amber-300 hover:bg-amber-100 text-amber-800 transition-all"
+                          onClick={() => setIsFlagModalOpen(true)}
+                        >
+                          Flag
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest border-primary/20 hover:bg-primary/10 text-primary transition-all"
+                          onClick={() => setIsEditDrawerOpen(true)}
+                        >
+                          <Edit3 className="h-3.5 w-3.5 mr-2" />
+                          Edit Profile
+                        </Button>
+                      </div>
                     )}
                   </div>
                   
@@ -471,6 +566,9 @@ export default function UserDetailsPage() {
                     <div className="flex items-center gap-2 bg-muted/50 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-bold text-muted-foreground border border-border/40">
                       <Calendar className="h-3 w-3" />
                       {user.joinedAt}
+                    </div>
+                    <div className="flex items-center gap-2 bg-muted/50 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-bold text-muted-foreground border border-border/40">
+                      Last Seen: {lastSeenInfo.at} ({lastSeenInfo.channel})
                     </div>
                     <div className="flex items-center gap-2 bg-primary/10 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-black text-primary border border-primary/10">
                       Ref by: {user.referredBy}
@@ -759,6 +857,57 @@ export default function UserDetailsPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Flag User Modal */}
+        <Dialog open={isFlagModalOpen} onOpenChange={setIsFlagModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-amber-700 flex items-center gap-2">
+                <span className="text-2xl">🚩</span> Add User Flag
+              </DialogTitle>
+              <DialogDescription>
+                Flag this user for monitoring. Add a clear reason for the next admin to review.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="flagLevel">Severity Level</Label>
+                <select
+                  id="flagLevel"
+                  value={flagLevel}
+                  onChange={(e) => setFlagLevel(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="normal">Normal</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="flagReason">Reason</Label>
+                <Input
+                  id="flagReason"
+                  placeholder="e.g. Suspicious repayment pattern observed..."
+                  value={flagReason}
+                  onChange={(e) => setFlagReason(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsFlagModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={() => addFlagMutation.mutate({ level: flagLevel, reason: flagReason })}
+                disabled={!flagReason.trim() || addFlagMutation.isPending || !canWrite}
+              >
+                {addFlagMutation.isPending ? "Saving..." : "Add Flag"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Edit User Sheet */}
         <EditUserSheet
           isOpen={isEditDrawerOpen}
@@ -779,3 +928,4 @@ export default function UserDetailsPage() {
     </DashboardLayout>
   );
 }
+
