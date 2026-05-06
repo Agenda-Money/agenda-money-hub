@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Phone, MapPin, Wifi, UserCheck, MessageSquare, PhoneCall } from 'lucide-react';
-import { differenceInDays, startOfDay } from 'date-fns';
+import { differenceInDays, startOfDay, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { getBucketMeta, formatGHS, formatOutcome, outcomeColor, formatNetwork } from '@/lib/bucketUtils';
 import { Badge } from '@/components/ui/badge';
@@ -110,7 +110,7 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
             <div className="text-right flex-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Overdue</p>
               <p className={cn('text-sm font-bold', loan.ddBucket >= 5 ? 'text-red-600' : 'text-amber-600')}>
-                {exactDaysOverdue > 8 ? `${exactDaysOverdue} days` : loan.ddBucket >= 8 ? '8+ days' : `${loan.ddBucket} day${loan.ddBucket > 1 ? 's' : ''}`}
+                {exactDaysOverdue > 15 ? `${exactDaysOverdue} days` : loan.ddBucket >= 15 ? '15+ days' : `${loan.ddBucket} day${loan.ddBucket > 1 ? 's' : ''}`}
               </p>
             </div>
           )}
@@ -141,7 +141,7 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
               {formatOutcome(loan.lastActivity.outcome)}
             </span>
             <span className="text-[10px] text-muted-foreground truncate">
-              by {loan.lastActivity.csaName}
+              by {loan.lastActivity.csaName} • {format(new Date(loan.lastActivity.createdAt), 'MMM d, h:mm a')}
             </span>
           </div>
         ) : (
