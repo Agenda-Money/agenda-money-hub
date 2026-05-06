@@ -358,6 +358,10 @@ export default function LoansPage() {
       }
     }
 
+    const rawTier = l.currentTier ?? l.user?.currentTier ?? l.tier ?? l.user?.tier ?? 1;
+    const tierNum = typeof rawTier === "string" ? rawTier.replace(/\D/g, "") || "1" : rawTier;
+    const tier = `L${tierNum}`;
+
     const mappedLoan = {
     id: l.id ?? l._id ?? l.loanReference, // Prioritize DB ID for API calls, only falling back when null/undefined
     reference: l.loanReference ?? "N/A",
@@ -372,7 +376,7 @@ export default function LoansPage() {
     nodeCode: l.user?.personalNodeCode || l.user?.nodeCode || "N/A",
     kycStatus: l.user?.kycStatus || l.user?.kyc?.kycStatus || l.user?.onboardingData?.kycStatus || "Unknown",
     selfieUrl: l.user?.selfieUrl || l.user?.kyc?.selfieUrl || l.user?.kycData?.selfieUrl || l.user?.onboardingData?.selfieUrl || "",
-    tier: l.user?.currentTier || l.user?.tier || 1,
+    tier,
     guaranteedBy: l.guaranteedBy,
     guaranteedByName: l.guaranteedByName,
     guaranteedByMsisdn: l.guaranteedByMsisdn,

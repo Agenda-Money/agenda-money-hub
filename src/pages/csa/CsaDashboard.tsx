@@ -1,11 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, SlidersHorizontal, RefreshCw, AlertTriangle, TrendingUp, Download } from 'lucide-react';
+import { Search, SlidersHorizontal, RefreshCw, AlertTriangle, TrendingUp, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import csaApi from '@/lib/csaApi';
 import { LoanCard } from '@/components/csa/LoanCard';
@@ -23,7 +27,7 @@ const NETWORKS = [
 const REGIONS = ['Greater Accra', 'Ashanti', 'Central', 'Eastern', 'Western', 'Northern', 'Upper East', 'Upper West', 'Volta', 'Bono', 'Ahafo', 'Bono East', 'Oti', 'Savannah', 'North East', 'Western North'];
 
 const downloadCsv = (rows: any[], bucketLabel: string) => {
-  const headers = ['Customer Name', 'MSISDN', 'Agent Name', 'Loan Amount', 'Total Due', 'Due Date', 'DD Bucket', 'Last Call Outcome'];
+  const headers = ['Customer Name', 'MSISDN', 'Assigned Agent', 'Loan Amount', 'Outstanding', 'Total Due', 'Due Date', 'DD Bucket', 'Last Call Outcome', 'Last Updated Date'];
   const escape = (v: any) => {
     const s = v == null ? '' : String(v);
     return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
@@ -33,12 +37,14 @@ const downloadCsv = (rows: any[], bucketLabel: string) => {
     ...rows.map((r) => [
       r.customerName,
       r.msisdn,
-      r.agentName ?? '',
+      r.assignedAgent ?? r.agentName ?? '',
       r.loanAmount,
+      r.outstanding ?? '',
       r.totalDue,
       r.dueDate ? new Date(r.dueDate).toLocaleDateString('en-GB') : '',
       r.ddBucket === 0 ? 'DD0' : `DD${r.ddBucket}`,
       r.lastCallOutcome ?? '',
+      r.lastUpdatedDate ? new Date(r.lastUpdatedDate).toLocaleString('en-GB') : ''
     ].map(escape).join(',')),
   ];
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
@@ -52,13 +58,37 @@ const downloadCsv = (rows: any[], bucketLabel: string) => {
 
 export default function CsaDashboard() {
   const { user } = useAuth();
-  const [activeBucket, setActiveBucket] = useState<number>(8);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const activeBucket = searchParams.has('bucket') ? Number(searchParams.get('bucket')) : 15;
+  const search = searchParams.get('search') || '';
+  const network = searchParams.get('network') || '';
+  const region = searchParams.get('region') || '';
+  const page = Number(searchParams.get('page')) || 1;
+
+  const setActiveBucket = (b: number) => {
+    setSearchParams(prev => { prev.set('bucket', b.toString()); prev.set('page', '1'); return prev; });
+  };
+  const setSearch = (s: string) => {
+    setSearchParams(prev => { if (s) prev.set('search', s); else prev.delete('search'); prev.set('page', '1'); return prev; });
+  };
+  const setNetwork = (n: string) => {
+    setSearchParams(prev => { if (n) prev.set('network', n); else prev.delete('network'); prev.set('page', '1'); return prev; });
+  };
+  const setRegion = (r: string) => {
+    setSearchParams(prev => { if (r) prev.set('region', r); else prev.delete('region'); prev.set('page', '1'); return prev; });
+  };
+  const setPage = (updater: number | ((p: number) => number)) => {
+    setSearchParams(prev => {
+      const current = Number(prev.get('page')) || 1;
+      const next = typeof updater === 'function' ? updater(current) : updater;
+      prev.set('page', next.toString());
+      return prev;
+    });
+  };
+
   const [exporting, setExporting] = useState(false);
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [network, setNetwork] = useState('');
-  const [region, setRegion] = useState('');
-  const [page, setPage] = useState(1);
 
   const { data: bucketsData, isLoading: bucketsLoading, refetch: refetchBuckets } = useQuery({
     queryKey: ['csa-buckets'],
@@ -87,13 +117,27 @@ export default function CsaDashboard() {
   const loans = (loansData as any)?.data ?? [];
   const pagination = (loansData as any)?.pagination;
 
+  const groupedLoans = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    loans.forEach((loan: any) => {
+      const agentName = 
+        loan.currentAssignedAgent?.fullName ||
+        loan.currentAssignedAgent?.agentName ||
+        loan.user?.onboardingAgent?.name || 
+        loan.referredBy?.name || 
+        loan.onboardingAgent?.name || 
+        loan.user?.referredByNodeCode || 
+        'Unassigned';
+      if (!groups[agentName]) groups[agentName] = [];
+      groups[agentName].push(loan);
+    });
+    return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+  }, [loans]);
+
   const totalOverdue = BUCKET_ORDER.filter(b => b > 0).reduce((sum, b) => sum + (buckets[b]?.count ?? 0), 0);
   const totalOutstanding = BUCKET_ORDER.filter(b => b > 0).reduce((sum, b) => sum + (buckets[b]?.totalOutstanding ?? 0), 0);
 
-  const handleBucketChange = (b: number) => {
-    setActiveBucket(b);
-    setPage(1);
-  };
+
 
   const handleExport = async () => {
     setExporting(true);
@@ -182,8 +226,27 @@ export default function CsaDashboard() {
       </div>
 
       {/* Bucket tabs */}
-      <div className="overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
-        <div className="flex gap-2 pb-2 min-w-max">
+      <div className="flex items-stretch gap-2 mb-2 h-[76px]">
+        <CustomBucketPopover onSearch={setActiveBucket} />
+
+        <ScrollArea className="flex-1 whitespace-nowrap rounded-2xl bg-card border border-border/50 shadow-sm p-1">
+          <div className="flex w-max space-x-2 px-2 py-1 items-center h-full">
+
+          {!BUCKET_ORDER.includes(activeBucket) && (
+            <motion.button
+              key={activeBucket}
+              className={cn(
+                'relative flex flex-col items-center px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all duration-200 min-w-[72px]',
+                `${getBucketMeta(activeBucket).color} ${getBucketMeta(activeBucket).textColor} border-transparent shadow-md shrink-0`
+              )}
+            >
+              <span className="font-extrabold text-sm">{getBucketMeta(activeBucket).short}</span>
+              <span className="text-[10px] font-semibold mt-0.5 opacity-80">
+                {loansLoading ? '...' : pagination?.total ?? 0}
+              </span>
+            </motion.button>
+          )}
+
           {BUCKET_ORDER.map((bucket) => {
             const meta = getBucketMeta(bucket);
             const count = buckets[bucket]?.count ?? 0;
@@ -192,13 +255,13 @@ export default function CsaDashboard() {
             return (
               <motion.button
                 key={bucket}
-                onClick={() => handleBucketChange(bucket)}
+                onClick={() => setActiveBucket(bucket)}
                 whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
                 className={cn(
                   'relative flex flex-col items-center px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all duration-200 min-w-[72px]',
                   isActive
                     ? `${meta.color} ${meta.textColor} border-transparent shadow-md`
-                    : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground',
+                    : 'bg-transparent border-border text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-muted/50',
                 )}
               >
                 <span className="font-extrabold text-sm">{meta.short}</span>
@@ -216,6 +279,8 @@ export default function CsaDashboard() {
             );
           })}
         </div>
+        <ScrollBar orientation="horizontal" className="h-2" />
+      </ScrollArea>
       </div>
 
       {/* Selected bucket info bar */}
@@ -233,8 +298,14 @@ export default function CsaDashboard() {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm font-extrabold text-foreground">{(buckets[activeBucket]?.count ?? 0).toLocaleString()} loans</p>
-            <p className="text-xs text-muted-foreground">{formatGHS(buckets[activeBucket]?.totalOutstanding ?? 0)}</p>
+            <p className="text-sm font-extrabold text-foreground">
+              {(!BUCKET_ORDER.includes(activeBucket) ? pagination?.total ?? 0 : buckets[activeBucket]?.count ?? 0).toLocaleString()} loans
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {!BUCKET_ORDER.includes(activeBucket) 
+                ? formatGHS(loans.reduce((sum: number, l: any) => sum + (l.totalPayable - l.amountRepaid), 0))
+                : formatGHS(buckets[activeBucket]?.totalOutstanding ?? 0)}
+            </p>
           </div>
         </motion.div>
       </AnimatePresence>
@@ -295,9 +366,15 @@ export default function CsaDashboard() {
         </motion.div>
       ) : (
         <>
-          <div className={cn('grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4', isFetching && 'opacity-60 pointer-events-none transition-opacity')}>
-            {loans.map((loan: any, i: number) => (
-              <LoanCard key={loan.loanId} loan={loan} onOpen={setSelectedLoanId} index={i} />
+          <div className="space-y-2">
+            {groupedLoans.map(([agentName, agentLoans]) => (
+              <AgentLoanGroup 
+                key={agentName} 
+                agentName={agentName} 
+                loans={agentLoans} 
+                onOpenLoan={setSelectedLoanId} 
+                isFetching={isFetching} 
+              />
             ))}
           </div>
 
@@ -322,5 +399,102 @@ export default function CsaDashboard() {
         onClose={() => setSelectedLoanId(null)} 
       />
     </div>
+  );
+}
+
+function AgentLoanGroup({ agentName, loans, onOpenLoan, isFetching }: { agentName: string, loans: any[], onOpenLoan: (id: string) => void, isFetching: boolean }) {
+  const [isOpen, setIsOpen] = useState(true);
+  
+  return (
+    <div className="space-y-3 mb-6 bg-card/50 p-2 rounded-2xl border border-border/50">
+      <div 
+        className="flex items-center justify-between bg-muted/60 p-3 rounded-xl cursor-pointer hover:bg-muted/80 transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center gap-3">
+          <h3 className="font-bold text-foreground text-sm">{agentName}</h3>
+          <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
+            {loans.length}
+          </span>
+        </div>
+        {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+      </div>
+      
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }} 
+            animate={{ height: 'auto', opacity: 1 }} 
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className={cn('grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 pt-1 pb-2', isFetching && 'opacity-60 pointer-events-none transition-opacity')}>
+              {loans.map((loan: any, i: number) => (
+                <LoanCard key={loan.loanId} loan={loan} onOpen={onOpenLoan} index={i} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function CustomBucketPopover({ onSearch }: { onSearch: (bucket: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'overdue' | 'upcoming'>('overdue');
+  const [days, setDays] = useState<string>('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!days) return;
+    const num = Number(days);
+    const bucket = mode === 'overdue' ? Math.abs(num) : -Math.abs(num);
+    onSearch(bucket);
+    setOpen(false);
+    setDays('');
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="h-full rounded-2xl border-dashed border-2 px-6 flex flex-col items-center justify-center shrink-0 min-h-[68px] min-w-[90px] hover:bg-muted/50 transition-colors bg-transparent border-primary/40 text-primary">
+          <SlidersHorizontal className="h-4 w-4 mb-1" />
+          <span className="text-[10px] font-extrabold uppercase tracking-wider">Custom</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-4 rounded-2xl" align="start">
+        <div className="space-y-4">
+          <div>
+            <h4 className="font-bold text-sm text-foreground">Custom Range</h4>
+            <p className="text-xs text-muted-foreground">Search for a specific day</p>
+          </div>
+          
+          <Tabs value={mode} onValueChange={(v) => setMode(v as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 h-9 rounded-xl">
+              <TabsTrigger value="overdue" className="text-xs rounded-lg">Overdue</TabsTrigger>
+              <TabsTrigger value="upcoming" className="text-xs rounded-lg">Upcoming</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <div className="relative flex-1">
+              <Input 
+                type="number" 
+                min="0"
+                placeholder="e.g. 20" 
+                value={days}
+                onChange={(e) => setDays(e.target.value)}
+                className="h-9 rounded-xl pr-10 text-sm"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold">days</span>
+            </div>
+            <Button type="submit" size="sm" className="h-9 rounded-xl bg-primary text-primary-foreground font-bold shrink-0 px-4">
+              Go
+            </Button>
+          </form>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

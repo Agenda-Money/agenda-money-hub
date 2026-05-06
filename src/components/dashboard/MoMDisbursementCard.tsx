@@ -27,7 +27,10 @@ export function MoMDisbursementCard({
   const [toggle, setToggle] = useState<"value" | "count">("value");
 
   const latest = data.length > 0 ? data[data.length - 1] : null;
-  const delta = latest ? (toggle === "value" ? latest.momValueGrowth : latest.momCountGrowth) : null;
+  // Only show growth delta if we have at least 2 months to compare
+  const delta = (data.length > 1 && latest) 
+    ? (toggle === "value" ? latest.momValueGrowth : latest.momCountGrowth) 
+    : null;
   const hasDelta = delta !== null;
   const isPositive = delta != null && delta >= 0;
 

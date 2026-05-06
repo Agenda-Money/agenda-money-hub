@@ -13,7 +13,9 @@ export default function ReportingDashboard() {
   const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date());
 
   React.useEffect(() => {
-    if (data) setLastUpdated(new Date());
+    if (data) {
+      setLastUpdated(new Date());
+    }
   }, [data]);
 
   if (loading || !data) {
@@ -130,13 +132,39 @@ export default function ReportingDashboard() {
       {/* MoM Disbursement Line Chart */}
       <div className="rounded-3xl overflow-hidden shadow-2xl border border-border/40">
         <MoMDisbursementCard
-          data={(momDisbursements || []).map((d: any) => ({
-              month: `${d.year}-${String(d.month).padStart(2, '0')}`,
-              value: d.total,
-              count: d.count,
-              momValueGrowth: d.momValueGrowth ?? 0,
-              momCountGrowth: d.momCountGrowth ?? 0
-          }))}
+          data={(momDisbursements || [])
+            .filter((d: any, idx: number, arr: any[]) => {
+              // Start the graph from the first month that has actual disbursement data
+              const firstDataIndex = arr.findIndex(m => (m.total || 0) > 0);
+              return firstDataIndex === -1 ? true : idx >= firstDataIndex;
+            })
+            .map((d: any, idx: number, arr: any[]) => {
+              // If growth is not provided or is exactly 0, try calculating it manually from the filtered array
+              let calculatedValueGrowth = d.momValueGrowth ?? 0;
+              let calculatedCountGrowth = d.momCountGrowth ?? 0;
+              
+              if (idx > 0 && calculatedValueGrowth === 0) {
+                const prev = arr[idx - 1];
+                if (prev.total > 0) {
+                  calculatedValueGrowth = ((d.total - prev.total) / prev.total) * 100;
+                }
+              }
+              
+              if (idx > 0 && calculatedCountGrowth === 0) {
+                const prev = arr[idx - 1];
+                if (prev.count > 0) {
+                  calculatedCountGrowth = ((d.count - prev.count) / prev.count) * 100;
+                }
+              }
+
+              return {
+                month: `${d.year}-${String(d.month).padStart(2, '0')}`,
+                value: d.total,
+                count: d.count,
+                momValueGrowth: calculatedValueGrowth,
+                momCountGrowth: calculatedCountGrowth
+              };
+          })}
           preset={preset}
           startDate={startDate}
           endDate={endDate}
