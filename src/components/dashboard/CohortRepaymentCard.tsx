@@ -69,20 +69,13 @@ export function CohortRepaymentCard({
         <div className="flex flex-col sm:items-end gap-3 w-full md:w-auto">
           {/* Toggle removed as per request */}
           
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Avg Lifetime</span>
-              <span className="text-sm font-black text-foreground">
-                {summary?.averageRepaymentRate?.toFixed(1) ?? "0.0"}%
-              </span>
-            </div>
+          {/* Average lifetime display removed as per request */}
             <button 
               onClick={onRefresh}
               className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
             >
               <RefreshCcw className={cn("h-4 w-4", isLoading && "animate-spin")} />
             </button>
-          </div>
         </div>
       </div>
 
@@ -128,11 +121,6 @@ export function CohortRepaymentCard({
                           <div className="flex items-center justify-between gap-8">
                             <span className="text-xs font-bold">Repayment Rate:</span>
                             <span className="text-xs font-black text-success">{d.repaymentRate.toFixed(1)}%</span>
-                          </div>
-                          <div className="pt-1 mt-1 border-t border-border/50">
-                            <p className="text-[10px] font-bold text-muted-foreground">
-                              {formatNumber(d.repaid)} of {formatNumber(d.totalDisbursed)} loans repaid
-                            </p>
                           </div>
                         </div>
                       </div>

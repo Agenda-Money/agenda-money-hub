@@ -73,7 +73,7 @@ export default function ReportingDashboard() {
             </div>
           </div>
           <p className="text-xs sm:text-sm font-bold text-muted-foreground tracking-tight italic opacity-70">
-            Read-only portfolio metrics • Last updated {lastUpdated.toLocaleTimeString()}
+            Last updated {lastUpdated.toLocaleTimeString()}
           </p>
         </div>
         
@@ -155,11 +155,6 @@ export default function ReportingDashboard() {
       <div className="rounded-3xl overflow-hidden shadow-2xl border border-border/40">
         <MoMDisbursementCard
           data={(momDisbursements || [])
-            .filter((d: any, idx: number, arr: any[]) => {
-              // Start the graph from the first month that has actual disbursement data
-              const firstDataIndex = arr.findIndex(m => (m.total || 0) > 0);
-              return firstDataIndex === -1 ? true : idx >= firstDataIndex;
-            })
             .map((d: any, idx: number, arr: any[]) => {
               // If growth is not provided or is exactly 0, try calculating it manually from the filtered array
               let calculatedValueGrowth = d.momValueGrowth ?? 0;
