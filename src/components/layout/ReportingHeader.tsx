@@ -32,7 +32,7 @@ export function ReportingHeader({ onMenuClick }: ReportingHeaderProps) {
   };
 
   return (
-    <header className="h-20 bg-card border-b border-border flex items-center justify-between px-6">
+    <header className="h-16 sm:h-20 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30">
       {/* Left Side */}
       <div className="flex items-center gap-4">
         <Button
@@ -56,22 +56,22 @@ export function ReportingHeader({ onMenuClick }: ReportingHeaderProps) {
         {/* User Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-3 px-2 h-auto py-1.5 hover:bg-muted/50 rounded-xl transition-all">
-              <Avatar className="h-9 w-9 border-2 border-primary/10">
-                <AvatarFallback className="bg-gradient-pink text-primary-foreground text-xs font-black">
+            <button className="flex items-center gap-2 sm:gap-3 px-1.5 sm:px-2 h-auto py-1.5 hover:bg-muted/50 rounded-xl transition-all outline-none group">
+              <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border-2 border-primary/10 group-hover:border-primary/30 transition-colors">
+                <AvatarFallback className="bg-gradient-pink text-primary-foreground text-[10px] sm:text-xs font-black">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <div className="hidden md:block text-left">
-                <p className="text-sm font-black text-foreground tracking-tight">
+              <div className="hidden sm:block text-left">
+                <p className="text-sm font-black text-foreground tracking-tight leading-none mb-1">
                   {displayName || "Reporting Partner"}
                 </p>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">
                   {role === 'reporting_viewer' ? 'View Only' : role || "Partner"}
                 </p>
               </div>
-              <ChevronDown className="h-4 w-4 text-muted-foreground ml-1" />
-            </Button>
+              <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground ml-0.5 sm:ml-1 group-hover:text-foreground transition-colors" />
+            </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-xl border-border/50">
             <div className="px-3 py-2 mb-2 bg-muted/30 rounded-xl">

@@ -24,6 +24,7 @@ import {
   PhoneCall,
   UserCheck
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 // Force-reload comment to ensure Vite picks up the correct import and file version
 import { Button } from "@/components/ui/button"
@@ -840,6 +841,59 @@ export default function UserDetailsPage() {
             userId={id!} 
             initialData={user} 
           />
+        )}
+
+        {isBlockModalOpen && (
+          <Dialog open={isBlockModalOpen} onOpenChange={setIsBlockModalOpen}>
+            <DialogContent className="max-w-md rounded-3xl p-6">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <ShieldAlert className={user.isBlocked ? "text-teal-600" : "text-red-600"} size={20} />
+                  {user.isBlocked ? 'Unblock Account' : 'Block Account'}
+                </DialogTitle>
+                <DialogDescription className="text-xs font-bold text-gray-500 uppercase tracking-tight mt-2">
+                  {user.isBlocked 
+                    ? `You are about to restore access for ${user.fullName}. They will be able to apply for loans again.`
+                    : `You are about to suspend all activity for ${user.fullName}. This will prevent them from applying for or receiving loans.`
+                  }
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="py-6 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Reason for {user.isBlocked ? 'unblocking' : 'blocking'}</Label>
+                  <Input 
+                    value={blockReason}
+                    onChange={(e) => setBlockReason(e.target.value)}
+                    placeholder={user.isBlocked ? "e.g. Account issues resolved..." : "e.g. Suspicious activity detected..."}
+                    className="rounded-xl border-pink-100/50 focus:ring-pink-500"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsBlockModalOpen(false)}
+                  className="rounded-xl border-pink-100 text-gray-500 font-bold uppercase text-[10px] tracking-widest"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => blockMutation.mutate(blockReason)}
+                  disabled={blockMutation.isPending || (!user.isBlocked && !blockReason.trim())}
+                  className={cn(
+                    "rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg",
+                    user.isBlocked 
+                      ? "bg-teal-600 hover:bg-teal-700 text-white shadow-teal-900/20" 
+                      : "bg-red-600 hover:bg-red-700 text-white shadow-red-900/20"
+                  )}
+                >
+                  {blockMutation.isPending ? "Processing..." : (user.isBlocked ? "Confirm Unblock" : "Confirm Block")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </DashboardLayout>

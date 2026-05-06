@@ -276,6 +276,11 @@ export const getAdminAnalytics = async (params?: any) => {
   return response.data;
 };
 
+export const getCohortRepayment = async () => {
+  const response = await api.get('/api/analytics/cohort-repayment');
+  return response.data;
+};
+
 export const getAdminAuditLogs = async (params?: any) => {
   const response = await api.get('/api/admin/audit-logs', { params });
   return response.data;

@@ -6,6 +6,7 @@ export interface Snapshot {
 export interface ReportingDashboard {
   loanBook: Snapshot;
   allTimeDisbursement: Snapshot;
+  activeUsers: { count: number; period?: string };
   todayDisbursement: Snapshot;
   weekDisbursement: Snapshot;
   repaymentRate: number;
@@ -18,3 +19,4 @@ export interface ReportingDashboard {
     count: number;
   }[];
 }
+

@@ -17,6 +17,8 @@ import {
   PanelHead,
   CsaPerformanceTable
 } from "@/components/analytics/AnalyticsWidgets";
+import { useCohortRepayment } from "@/hooks/useCohortRepayment";
+import { CohortRepaymentCard } from "@/components/dashboard/CohortRepaymentCard";
 import { 
   useSummary, 
   usePerformance, 
@@ -58,6 +60,16 @@ export default function AnalyticsPage() {
   const perf = usePerformance(range);
   const dist = useDistribution();
   const vol = useVolume(range);
+
+  const [cohortRange, setCohortRange] = useState<'3' | '6' | 'all'>('all');
+
+  const { data: cohortRes, isLoading: cohortLoading, refetch: refetchCohort } = useCohortRepayment({
+    platform: 'admin',
+    monthsBack: cohortRange === 'all' ? undefined : parseInt(cohortRange)
+  });
+
+  const cohortData = cohortRes?.data?.cohorts || (Array.isArray(cohortRes?.data) ? cohortRes.data : []);
+  const cohortSummary = cohortRes?.data?.summary || null;
 
   const applyRange = () => setRange({ from: fromInput, to: toInput });
   const clearRange = () => { setRange({}); setFromInput(''); setToInput(''); };
@@ -109,13 +121,6 @@ export default function AnalyticsPage() {
           subtext="Disbursement this week"
           {...getWeeklyDisbursementStatus(safeNum(s?.disbursements?.thisWeek?.totalGHS))}
           icon={<CalendarDays className="w-5 h-5" />}
-        />
-        <KpiCard
-          label="Repayment Rate"
-          value={fPct(p?.repaymentRate?.rate ?? p?.repaymentRate?.overall)}
-          subtext={p?.repaymentRate?.dueLoanCount ? `${fCount(p?.repaymentRate?.repaidCount)} of ${fCount(p?.repaymentRate?.dueLoanCount)} loans repaid` : "On-time performance"}
-          {...getRepaymentRateStatus(safeNum(p?.repaymentRate?.rate ?? p?.repaymentRate?.overall))}
-          icon={<TrendingUp className="w-5 h-5" />}
         />
         <KpiCard
           label="Recovery rate"
@@ -259,6 +264,19 @@ export default function AnalyticsPage() {
               collection={p?.collectionRate?.byTier} 
             />
           )}
+        </div>
+
+        {/* Repayment Rate Analysis */}
+        <div className="space-y-4">
+          <SectionHead title="Repayment Rate" />
+          <CohortRepaymentCard 
+            data={cohortData} 
+            summary={cohortSummary as any} 
+            isLoading={cohortLoading}
+            onRefresh={() => refetchCohort()}
+            timeRange={cohortRange}
+            onTimeRangeChange={setCohortRange}
+          />
         </div>
 
         {/* Section 2.5: CSA Performance */}
