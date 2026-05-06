@@ -149,12 +149,14 @@ export function MoMDisbursementCard({
                 }}
               />
               <Area 
-                type="monotone" 
+                type="linear" 
                 dataKey={toggle} 
                 stroke="#14b8a6" 
                 strokeWidth={3}
-                fillOpacity={1} 
+                fillOpacity={0.15} 
                 fill="url(#disbursementGradient)" 
+                dot={{ r: 4, fill: "#14b8a6", strokeWidth: 2, stroke: "#fff" }}
+                activeDot={{ r: 6, strokeWidth: 0 }}
                 animationDuration={1500}
               />
             </AreaChart>

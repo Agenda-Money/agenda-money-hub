@@ -142,12 +142,14 @@ export function CohortRepaymentCard({
                 }}
               />
               <Area 
-                type="monotone" 
+                type="linear" 
                 dataKey="repaymentRate" 
                 stroke="#10b981" 
                 strokeWidth={3}
-                fillOpacity={1} 
+                fillOpacity={0.15} 
                 fill="url(#rateGradient)" 
+                dot={{ r: 4, fill: "#10b981", strokeWidth: 2, stroke: "#fff" }}
+                activeDot={{ r: 6, strokeWidth: 0 }}
                 animationDuration={1500}
               />
             </AreaChart>
