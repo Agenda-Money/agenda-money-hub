@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
-import { motion, useSpring, useTransform, animate } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 
 interface StatsCardProps {
   title: string;
@@ -16,38 +15,27 @@ interface StatsCardProps {
 }
 
 export function StatsCard({ title, value, icon: Icon, trend, className, isLive, description }: Readonly<StatsCardProps>) {
-  const [displayValue, setDisplayValue] = useState<string>("");
   const numericValue = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.-]/g, '')) : value;
   const isNumeric = !isNaN(numericValue) && typeof numericValue === 'number';
 
-  useEffect(() => {
-    if (!isNumeric) {
-      setDisplayValue(String(value));
-      return;
+  const formatDisplayValue = (val: number | string) => {
+    if (typeof val === 'string') return val;
+    if (typeof value === 'string' && value.includes('GH₵')) {
+      return `GH₵ ${val.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    } else if (typeof value === 'string' && value.includes('%')) {
+      return `${val.toFixed(1)}%`;
+    } else {
+      return val.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     }
+  };
 
-    const controls = animate(0, numericValue, {
-      duration: 1.5,
-      ease: "easeOut",
-      onUpdate: (latest) => {
-        if (typeof value === 'string' && value.includes('GH₵')) {
-          setDisplayValue(`GH₵ ${latest.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`);
-        } else if (typeof value === 'string' && value.includes('%')) {
-          setDisplayValue(`${latest.toFixed(1)}%`);
-        } else {
-          setDisplayValue(latest.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
-        }
-      }
-    });
-
-    return () => controls.stop();
-  }, [numericValue, value, isNumeric]);
+  const displayValue = isNumeric ? formatDisplayValue(numericValue) : String(value);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.3 }}
       className={cn(
         "group relative overflow-hidden bg-card/60 backdrop-blur-xl rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-500 border border-border/40 hover:border-primary/30",
         className

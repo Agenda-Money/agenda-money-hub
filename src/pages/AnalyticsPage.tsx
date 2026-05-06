@@ -106,7 +106,7 @@ export default function AnalyticsPage() {
         <KpiCard
           label="Weekly disbursement"
           value={fGHS(s?.disbursements?.thisWeek?.totalGHS)}
-          subtext="Last 7 days"
+          subtext="Disbursement this week"
           {...getWeeklyDisbursementStatus(safeNum(s?.disbursements?.thisWeek?.totalGHS))}
           icon={<CalendarDays className="w-5 h-5" />}
         />
