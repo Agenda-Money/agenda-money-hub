@@ -32,17 +32,50 @@ describe('Tier V3 Logic', () => {
   });
 
   test('Tenor options align with V3 rules', () => {
-    const l1_l9 = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const l1_l6 = [1, 2, 3, 4, 5, 6];
+    const l7_l9 = [7, 8, 9];
     const l10_l20 = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
-    l1_l9.forEach(level => {
+    l1_l6.forEach(level => {
       const tier = getTierByLevel(level);
       expect(tier?.tenures).toEqual([1, 5, 10, 14]);
     });
 
+    l7_l9.forEach(level => {
+      const tier = getTierByLevel(level);
+      expect(tier?.tenures).toEqual([1, 5, 10, 14, 20]);
+    });
+
     l10_l20.forEach(level => {
       const tier = getTierByLevel(level);
-      expect(tier?.tenures).toEqual([1, 5, 10, 14, 30]);
+      expect(tier?.tenures).toEqual([1, 5, 10, 14, 20, 30]);
+    });
+  });
+
+  test('Processing fees align with V3 rules', () => {
+    const l1_l4 = [1, 2, 3, 4];
+    const l5_l9 = [5, 6, 7, 8, 9];
+    const l10_l14 = [10, 11, 12, 13, 14];
+    const l15_l20 = [15, 16, 17, 18, 19, 20];
+
+    l1_l4.forEach(level => {
+      const tier = getTierByLevel(level);
+      expect(tier?.processingFee).toBe(30);
+    });
+
+    l5_l9.forEach(level => {
+      const tier = getTierByLevel(level);
+      expect(tier?.processingFee).toBe(25);
+    });
+
+    l10_l14.forEach(level => {
+      const tier = getTierByLevel(level);
+      expect(tier?.processingFee).toBe(20);
+    });
+
+    l15_l20.forEach(level => {
+      const tier = getTierByLevel(level);
+      expect(tier?.processingFee).toBe(15);
     });
   });
 });
