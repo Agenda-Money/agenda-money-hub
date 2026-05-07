@@ -91,7 +91,7 @@ export default function ReportingDashboard() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <StatsCard
           title="Loan Book"
           value={`GHS ${formatAmount(loanBook?.total)}`}
@@ -145,12 +145,6 @@ export default function ReportingDashboard() {
           title="Retention Rate"
           value={`${retentionRate.toFixed(1)}%`}
           icon={RefreshCcw}
-          isLive
-        />
-        <StatsCard
-          title="Repayment Rate"
-          value={`${repaymentRate.toFixed(1)}%`}
-          icon={TrendingUp}
           isLive
         />
       </div>
