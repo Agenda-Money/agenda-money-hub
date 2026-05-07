@@ -63,11 +63,8 @@ export function ReportingHeader({ onMenuClick }: ReportingHeaderProps) {
                 </AvatarFallback>
               </Avatar>
               <div className="hidden sm:block text-left">
-                <p className="text-sm font-black text-foreground tracking-tight leading-none mb-1">
+                <p className="text-sm font-black text-foreground tracking-tight leading-none">
                   {displayName || "Reporting Partner"}
-                </p>
-                <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">
-                  {role === 'reporting_viewer' ? 'View Only' : role || "Partner"}
                 </p>
               </div>
               <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground ml-0.5 sm:ml-1 group-hover:text-foreground transition-colors" />

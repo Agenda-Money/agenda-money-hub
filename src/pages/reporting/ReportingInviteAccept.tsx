@@ -44,7 +44,7 @@ const ReportingInviteAccept = () => {
     
     try {
       const result = await reportingAcceptInvite(token, password, displayName);
-      login(result.token, result.user?.name || displayName || "Reporting Viewer");
+      login(result.token, result.displayName || result.user?.name || displayName || "Reporting Viewer");
       navigate("/reporting/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to accept invitation. The link may have expired.");
