@@ -4,7 +4,7 @@ import { MoMDisbursementCard } from "@/components/dashboard/MoMDisbursementCard"
 import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
 import { formatAmount, formatNumber, cn } from "@/lib/utils";
 import { useReportingDashboard } from "@/hooks/useReportingDashboard";
-import { BookOpen, TrendingDown, Users, AlertTriangle, Calendar, RefreshCcw, TrendingUp } from "lucide-react";
+import { BookOpen, TrendingDown, Users, UserPlus, AlertTriangle, Calendar, RefreshCcw, TrendingUp } from "lucide-react";
 import { useDateFilter } from "@/hooks/useDateFilter";
 import { fetchCohortRepayment } from "@/lib/reportingApi";
 import { useQuery } from "@tanstack/react-query";
@@ -54,6 +54,8 @@ export default function ReportingDashboard() {
     activeUsers = { count: 0 },
     todayDisbursement = { total: 0, count: 0 },
     weekDisbursement = { total: 0, count: 0 },
+    newSignupsToday = { count: 0 },
+    newSignupsThisWeek = { count: 0 },
     repaymentRate = 0,
     defaultRate = 0,
     retentionRate = 0,
@@ -89,7 +91,7 @@ export default function ReportingDashboard() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatsCard
           title="Loan Book"
           value={`GHS ${formatAmount(loanBook?.total)}`}
@@ -118,9 +120,20 @@ export default function ReportingDashboard() {
           icon={Calendar}
           isLive
         />
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
+        <StatsCard
+          title="New Signups Today"
+          value={formatNumber(newSignupsToday?.count)}
+          description={newSignupsToday?.period || "Users registered today"}
+          icon={UserPlus}
+          isLive
+        />
+        <StatsCard
+          title="New Signups This Week"
+          value={formatNumber(newSignupsThisWeek?.count)}
+          description={newSignupsThisWeek?.period || "Users registered this week"}
+          icon={UserPlus}
+          isLive
+        />
         <StatsCard
           title="Default Rate"
           value={`${defaultRate.toFixed(1)}%`}
@@ -132,6 +145,12 @@ export default function ReportingDashboard() {
           title="Retention Rate"
           value={`${retentionRate.toFixed(1)}%`}
           icon={RefreshCcw}
+          isLive
+        />
+        <StatsCard
+          title="Repayment Rate"
+          value={`${repaymentRate.toFixed(1)}%`}
+          icon={TrendingUp}
           isLive
         />
       </div>
