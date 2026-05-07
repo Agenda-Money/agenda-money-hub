@@ -95,7 +95,6 @@ export default function ReportingDashboard() {
         <StatsCard
           title="Loan Book"
           value={`GHS ${formatAmount(loanBook?.total)}`}
-          description={`${formatNumber(loanBook?.count)} active loans`}
           icon={TrendingDown}
           isLive
         />
