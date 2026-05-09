@@ -38,6 +38,7 @@ import AgentProfile from "./pages/agent/AgentProfile";
 import AgentCommissionsPage from "./pages/agent/AgentCommissionsPage";
 import AgentEndorsementsPage from "./pages/agent/AgentEndorsementsPage";
 import AdminPayoutsPage from './pages/AdminPayoutsPage';
+import RewardTiersPage from "./pages/reward-tiers/RewardTiersPage";
 import PendingKycPage from "./pages/PendingKycPage";
 import AuditLogs from "./pages/AuditLogs";
 import AdminDeductionsPage from "./pages/AdminDeductionsPage";
@@ -259,6 +260,7 @@ const App = () => {
                       <Route path="/admin/rewards/momo-disbursement" element={<RequireAuth><AdminRoute><MomoDisbursementPage /></AdminRoute></RequireAuth>} />
                       <Route path="/admin/rewards/otp-settings" element={<RequireAuth><AdminRoute><OtpSettingsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/admin/rewards/campaign-history" element={<RequireAuth><AdminRoute><CampaignHistoryPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/admin/reward-tiers" element={<RequireAuth><AdminRoute><RewardTiersPage /></AdminRoute></RequireAuth>} />
                       <Route path="/analytics" element={<RequireAuth><AdminRoute><AnalyticsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/audit-logs" element={<RequireAuth><AdminRoute><AuditLogs /></AdminRoute></RequireAuth>} />
                       <Route path="/settings" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />

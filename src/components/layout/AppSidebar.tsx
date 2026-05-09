@@ -23,7 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSocket } from "@/hooks/useSocket";
 import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+import sidebarApi from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface NavItemProps {
   to: string;
@@ -116,25 +117,19 @@ const NavItem = ({ to, icon: Icon, label, subItems, badge }: NavItemProps) => {
   );
 };
 
-const getBundleStatus = (count: number) => {
-  if (count > 500) return { label: "Healthy", dotClass: "bg-emerald-500", textClass: "text-emerald-700" };
-  if (count >= 100) return { label: "Low", dotClass: "bg-amber-500", textClass: "text-amber-700" };
-  return { label: "Critical", dotClass: "bg-red-500", textClass: "text-red-700" };
-};
+
 
 interface AppSidebarProps {
   readonly isOpen: boolean;
   readonly onToggle: () => void;
 }
 
-import { useAuth } from "@/contexts/AuthContext";
+
 
 export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
   const { logout, user } = useAuth();
   const [pendingCount, setPendingCount] = useState(0);
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
-  const mockSmsBundleCredits = 1240; // TODO: Fetch SMS bundle balance from the rewards/comms API.
-  const smsBundleStatus = getBundleStatus(mockSmsBundleCredits);
 
 
   // Support both camelCase and snake_case or fallback for KYC paths, using type assertions to avoid TS errors
@@ -162,7 +157,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
   const { data: pendingData, refetch: refetchPending } = useQuery({
     queryKey: ["pending-users-count"],
     queryFn: async () => {
-      const res = await api.get("/api/admin/users/pending?limit=1000");
+      const res = await sidebarApi.get("/api/admin/users/pending?limit=1000");
       const users = res.data?.data || res.data || [];
       return Array.isArray(users) ? users : [];
     },
@@ -208,23 +203,6 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         { to: "/loans/overdue", label: "Overdue" },
       ],
     },
-    ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
-      ? [
-          { to: "/admin/loans/manual-disburse", icon: Send, label: "Manual Disbursement" },
-          {
-            to: "/admin/rewards",
-            icon: Gift,
-            label: "Rewards & Comms",
-            subItems: [
-              { to: "/admin/rewards/send-airtime", label: "Send airtime" },
-              { to: "/admin/rewards/send-sms", label: "Send SMS" },
-              { to: "/admin/rewards/momo-disbursement", label: "MoMo disbursement" },
-              { to: "/admin/rewards/otp-settings", label: "OTP settings" },
-              { to: "/admin/rewards/campaign-history", label: "Campaign history" },
-            ],
-          },
-        ]
-      : []),
     { 
       to: "/repayments", 
       icon: Banknote, 
@@ -238,6 +216,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     // Admin/Viewer only items (bottom)
     ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
       ? [
+          { to: "/admin/loans/manual-disburse", icon: Send, label: "Manual Disbursement" },
           {
             to: "/admin/commissions",
             icon: Banknote,
@@ -249,6 +228,17 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
           },
           { to: "/analytics", icon: BarChart3, label: "Analytics" },
           { to: "/audit-logs", icon: FileText, label: "Audit Logs" },
+          {
+            to: "/admin/rewards",
+            icon: Gift,
+            label: "Rewards & Comms",
+            subItems: [
+              { to: "/admin/rewards/send-airtime", label: "Send airtime" },
+              { to: "/admin/rewards/send-sms", label: "Send SMS" },
+              { to: "/admin/rewards/momo-disbursement", label: "MoMo disbursement" },
+              { to: "/admin/rewards/campaign-history", label: "Campaign history" },
+            ],
+          },
         ]
       : []),
   ];
@@ -296,7 +286,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         </div>
 
         {/* Navigation - Scrollable */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2 custom-scrollbar">
           {navItems.map((item) => (
             <NavItem key={item.to} {...item} />
           ))}
@@ -319,20 +309,9 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
             </div>
           </div>
         )}
-        {/* Footer status and actions */}
+
+        {/* Footer status and actions - PERSISTENT */}
         <div className="border-t border-sidebar-border p-4 pb-8 flex-shrink-0 bg-sidebar/50 backdrop-blur-sm">
-          {user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin") && (
-            <div className="mb-3 rounded-lg border border-sidebar-border bg-background/65 p-3 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">SMS bundle</p>
-                  <p className="mt-1 text-lg font-black text-foreground">{mockSmsBundleCredits.toLocaleString()} credits</p>
-                </div>
-                <span className={cn("h-3 w-3 rounded-full", smsBundleStatus.dotClass)} aria-label={smsBundleStatus.label} />
-              </div>
-              <p className={cn("mt-1 text-xs font-semibold", smsBundleStatus.textClass)}>{smsBundleStatus.label}</p>
-            </div>
-          )}
           <div className="mb-2">
             <NavItem {...settingsItem} />
           </div>
