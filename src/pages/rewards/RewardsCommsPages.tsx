@@ -911,26 +911,6 @@ export function MomoDisbursementPage() {
   );
 }
 
-export function OtpSettingsPage() {
-  const [expiry, setExpiry] = useState(() => readJson("rewards_comms_otp_settings", { expiry: 10 }).expiry);
-  const [maxAttempts, setMaxAttempts] = useState(() => readJson("rewards_comms_otp_settings", { maxAttempts: 3 }).maxAttempts || 3);
-  const save = () => {
-    writeJson("rewards_comms_otp_settings", { expiry, maxAttempts });
-    toast.success("OTP settings saved locally");
-  };
-  return (
-    <PageShell title="OTP Settings" description="Local controls for the next OTP integration sprint." icon={Settings2}>
-      <Card className="max-w-2xl">
-        <CardHeader><CardTitle>Verification Controls</CardTitle><CardDescription>Mock settings persisted in localStorage.</CardDescription></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2"><Label>OTP expiry minutes</Label><Input type="number" min={1} max={60} value={expiry} onChange={(event) => setExpiry(Number(event.target.value))} /></div>
-          <div className="space-y-2"><Label>Maximum attempts</Label><Input type="number" min={1} max={10} value={maxAttempts} onChange={(event) => setMaxAttempts(Number(event.target.value))} /></div>
-          <Button onClick={save}>Save Settings</Button>
-        </CardContent>
-      </Card>
-    </PageShell>
-  );
-}
 
 export function CampaignHistoryPage() {
   const [typeFilter, setTypeFilter] = useState("");

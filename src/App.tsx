@@ -46,7 +46,6 @@ import AdminManualDisbursePage from "./pages/AdminManualDisbursePage";
 import {
   CampaignHistoryPage,
   MomoDisbursementPage,
-  OtpSettingsPage,
   SendAirtimePage,
   SendSmsPage,
 } from "./pages/rewards/RewardsCommsPages";
@@ -258,7 +257,6 @@ const App = () => {
                       <Route path="/admin/rewards/send-airtime" element={<RequireAuth><AdminRoute><SendAirtimePage /></AdminRoute></RequireAuth>} />
                       <Route path="/admin/rewards/send-sms" element={<RequireAuth><AdminRoute><SendSmsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/admin/rewards/momo-disbursement" element={<RequireAuth><AdminRoute><MomoDisbursementPage /></AdminRoute></RequireAuth>} />
-                      <Route path="/admin/rewards/otp-settings" element={<RequireAuth><AdminRoute><OtpSettingsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/admin/rewards/campaign-history" element={<RequireAuth><AdminRoute><CampaignHistoryPage /></AdminRoute></RequireAuth>} />
                       <Route path="/admin/reward-tiers" element={<RequireAuth><AdminRoute><RewardTiersPage /></AdminRoute></RequireAuth>} />
                       <Route path="/analytics" element={<RequireAuth><AdminRoute><AnalyticsPage /></AdminRoute></RequireAuth>} />

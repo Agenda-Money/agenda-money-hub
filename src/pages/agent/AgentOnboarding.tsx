@@ -64,7 +64,6 @@ interface FormData {
   loanAmount: string;
   loanTenure: string;
   loanPurpose: string;
-  alternatePhone?: string;
 }
 
 const INITIAL_FORM_DATA: FormData = {
@@ -89,7 +88,6 @@ const INITIAL_FORM_DATA: FormData = {
   loanAmount: "100",
   loanTenure: "14",
   loanPurpose: "Business",
-  alternatePhone: "",
 };
 
 const slideVariants = {
