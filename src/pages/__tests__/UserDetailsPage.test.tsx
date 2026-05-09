@@ -12,6 +12,8 @@ import { useAuth } from "@/contexts/AuthContext";
 vi.mock("@/lib/api", () => ({
   getUserDetail: vi.fn(),
   getUserSessions: vi.fn(() => Promise.resolve({ sessions: [], total: 0 })),
+  blockUser: vi.fn(),
+  unblockUser: vi.fn(),
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -202,8 +204,9 @@ describe("UserDetailsPage", () => {
     fireEvent.change(reasonInput, { target: { value: "Test reason" } });
 
     // 5. Click Block in modal
-    const confirmBtn = screen.getByRole("button", { name: /^Block$/ });
-    fireEvent.click(confirmBtn);
+    const confirmBtn = screen.getAllByRole("button", { name: /^Block$/, hidden: true }).at(-1);
+    expect(confirmBtn).toBeDefined();
+    fireEvent.click(confirmBtn!);
 
     // 6. Verify API call
     await waitFor(() => {

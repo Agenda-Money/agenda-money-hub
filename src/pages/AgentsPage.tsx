@@ -256,28 +256,26 @@ export default function AgentsPage() {
                       List of registered agents and their node codes
                     </CardDescription>
                   </div>
-                  <div className="bg-white/40 dark:bg-gray-900/40 backdrop-blur-md p-4 rounded-3xl border border-white/40 dark:border-gray-800 shadow-sm flex-1">
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <div className="relative flex-1 group">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 transition-colors group-focus-within:text-primary" />
-                        <Input
-                          placeholder="Search by name, code or phone..."
-                          className="pl-11 bg-white/80 dark:bg-gray-800/80 border-none rounded-2xl shadow-none font-medium focus:ring-2 focus:ring-primary/20 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                      </div>
-                      
-                      <div className="flex items-center gap-3 bg-white/80 dark:bg-gray-800/80 h-12 px-4 rounded-2xl border border-gray-100/50 dark:border-gray-700">
-                        <Switch 
-                          id="high-risk-filter" 
-                          checked={showHighRiskOnly} 
-                          onCheckedChange={setShowHighRiskOnly}
-                        />
-                        <Label htmlFor="high-risk-filter" className="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-widest cursor-pointer whitespace-nowrap">
-                          High Risk Only
-                        </Label>
-                      </div>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 rounded-3xl border border-border/60 bg-muted/30 p-4 shadow-sm backdrop-blur-md flex-1">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name, MSISDN or node code..."
+                        className="h-12 rounded-2xl border border-border/50 bg-background/80 pl-12 font-medium shadow-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="flex h-12 items-center gap-3 rounded-2xl border border-border/50 bg-background/80 px-4">
+                      <Switch 
+                        id="high-risk-filter" 
+                        checked={showHighRiskOnly} 
+                        onCheckedChange={setShowHighRiskOnly}
+                      />
+                      <Label htmlFor="high-risk-filter" className="cursor-pointer whitespace-nowrap text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        High Risk Only
+                      </Label>
                     </div>
                   </div>
                 </div>
@@ -307,7 +305,7 @@ export default function AgentsPage() {
                         >
                           <TableCell>
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center shrink-0 font-black text-gray-400 dark:text-gray-500 text-xs overflow-hidden border border-gray-100 dark:border-gray-700">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-muted/40 text-xs font-black text-muted-foreground">
                                 {agent.selfieUrl ? (
                                   <img 
                                     src={agent.selfieUrl.startsWith('http') ? agent.selfieUrl : `${baseApiUrl}/api/assets/${agent.selfieUrl}`} 
@@ -324,7 +322,7 @@ export default function AgentsPage() {
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <div className="font-black text-gray-900 dark:text-gray-100">{agent.fullName}</div>
+                                  <div className="font-black text-foreground">{agent.fullName}</div>
                                   {agent.highDefaultRisk && (
                                     <TooltipProvider>
                                       <Tooltip>
@@ -355,7 +353,7 @@ export default function AgentsPage() {
                               className={
                                 agent.status === "active"
                                   ? "bg-green-500 hover:bg-green-600"
-                                  : "bg-gray-500 hover:bg-gray-600"
+                                  : "bg-muted-foreground hover:bg-muted-foreground/90 text-background"
                               }
                             >
                               {agent.status}
@@ -405,12 +403,12 @@ export default function AgentsPage() {
                       
                       <div className="flex justify-between items-center text-sm">
                         <div className="flex items-center gap-2">
-                           <Badge
+                          <Badge
                               variant={agent.status === "active" ? "default" : "secondary"}
                               className={
                                 agent.status === "active"
                                   ? "bg-green-500 hover:bg-green-600"
-                                  : "bg-gray-500 hover:bg-gray-600"
+                                  : "bg-muted-foreground hover:bg-muted-foreground/90 text-background"
                               }
                             >
                               {agent.status}
@@ -430,7 +428,7 @@ export default function AgentsPage() {
                  {/* Pagination */}
                  {responseData?.pagination?.pages > 1 && (
                    <div className="flex items-center justify-between px-4 py-6 mt-4 border-t border-border/50 bg-muted/20 rounded-b-xl">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Page {currentPage} of {responseData.pagination.pages}</span>
+                       <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Page {currentPage} of {responseData.pagination.pages}</span>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="h-9 px-4 font-bold rounded-lg text-xs transition-all active:scale-95">Previous</Button>
                         <Button variant="outline" size="sm" disabled={currentPage === responseData.pagination.pages} onClick={() => setCurrentPage(p => p + 1)} className="h-9 px-4 font-bold rounded-lg text-xs transition-all active:scale-95">Next</Button>

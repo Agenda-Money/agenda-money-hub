@@ -136,7 +136,7 @@ export default function AdminManualDisbursePage() {
         </header>
 
         {/* Step 1: Search */}
-        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-gray-50/50">
+        <Card className="border border-border/50 bg-card shadow-xl">
           <CardHeader>
             <CardTitle className="text-lg">Step 1: Locate Loan</CardTitle>
             <CardDescription>Enter the Loan Reference or Mongo ID to pre-fill details.</CardDescription>
@@ -146,7 +146,7 @@ export default function AdminManualDisbursePage() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
-                  className="pl-10 h-12 text-lg font-mono border-2 focus:border-[#EC1B84] transition-all"
+                  className="h-12 border-border/60 bg-background pl-10 text-lg font-mono transition-all focus-visible:border-[#EC1B84]"
                   placeholder="e.g. AM-20240403-1234"
                   value={loanRef}
                   onChange={(e) => setLoanRef(e.target.value)}
@@ -166,8 +166,8 @@ export default function AdminManualDisbursePage() {
         {selectedLoan && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Step 2: Loan Summary */}
-            <Card className="border-none shadow-lg bg-zinc-900 text-white">
-              <CardHeader className="border-b border-white/10 pb-4">
+            <Card className="border border-border/60 bg-card shadow-xl">
+              <CardHeader className="border-b border-border/50 pb-4">
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle className="text-[#EC1B84] font-black uppercase tracking-widest text-xs mb-1">
@@ -179,48 +179,48 @@ export default function AdminManualDisbursePage() {
                     </h2>
                   </div>
                   <div className="text-right">
-                    <p className="text-white/60 text-[10px] uppercase font-bold tracking-tighter">Amount Due</p>
-                    <p className="text-xl font-black">{formatGHS(selectedLoan.totalPayable || 0)}</p>
+                    <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-tighter">Amount Due</p>
+                    <p className="text-xl font-black text-foreground">{formatGHS(selectedLoan.totalPayable || 0)}</p>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="space-y-1">
-                    <p className="text-white/40 flex items-center gap-1.5 uppercase text-[10px] font-bold">
+                    <p className="text-muted-foreground flex items-center gap-1.5 uppercase text-[10px] font-bold">
                       <User className="w-3 h-3" /> Borrower
                     </p>
-                    <p className="font-bold">{selectedLoan.userFullName || "N/A"}</p>
+                    <p className="font-bold text-foreground">{selectedLoan.userFullName || "N/A"}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-white/40 flex items-center gap-1.5 uppercase text-[10px] font-bold">
+                    <p className="text-muted-foreground flex items-center gap-1.5 uppercase text-[10px] font-bold">
                       <Phone className="w-3 h-3" /> Phone
                     </p>
-                    <p className="font-mono">{selectedLoan.userMsisdn || "N/A"}</p>
+                    <p className="font-mono text-foreground">{selectedLoan.userMsisdn || "N/A"}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-white/40 flex items-center gap-1.5 uppercase text-[10px] font-bold">
+                    <p className="text-muted-foreground flex items-center gap-1.5 uppercase text-[10px] font-bold">
                       <Banknote className="w-3 h-3" /> Principal
                     </p>
-                    <p className="font-bold">{formatGHS(selectedLoan.principal || 0)}</p>
+                    <p className="font-bold text-foreground">{formatGHS(selectedLoan.principal || 0)}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-white/40 flex items-center gap-1.5 uppercase text-[10px] font-bold">
+                    <p className="text-muted-foreground flex items-center gap-1.5 uppercase text-[10px] font-bold">
                       <Clock className="w-3 h-3" /> Tenure
                     </p>
-                    <p className="font-bold">{selectedLoan.tenureDays} Days</p>
+                    <p className="font-bold text-foreground">{selectedLoan.tenureDays} Days</p>
                   </div>
                 </div>
 
-                <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-2">
-                  <p className="text-xs font-bold text-white/40 uppercase">Guarantor Info</p>
-                  <p className="text-sm">
+                <div className="space-y-2 rounded-xl border border-border/50 bg-muted/20 p-4">
+                  <p className="text-xs font-bold uppercase text-muted-foreground">Guarantor Info</p>
+                  <p className="text-sm text-foreground">
                     {selectedLoan.guarantorName || "No Guarantor"}
-                    {selectedLoan.guarantorMsisdn && <span className="ml-2 text-white/60 font-mono">({selectedLoan.guarantorMsisdn})</span>}
+                    {selectedLoan.guarantorMsisdn && <span className="ml-2 font-mono text-muted-foreground">({selectedLoan.guarantorMsisdn})</span>}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-white/40">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Calendar className="w-3 h-3" />
                   Requested on {format(new Date(selectedLoan.createdAt), "PPP p")}
                 </div>
@@ -228,7 +228,7 @@ export default function AdminManualDisbursePage() {
             </Card>
 
             {/* Step 3: Disbursement Form */}
-            <Card className="border-none shadow-xl border-t-4 border-t-[#EC1B84]">
+            <Card className="border border-border/50 border-t-4 border-t-[#EC1B84] bg-card shadow-xl">
               <CardHeader>
                 <CardTitle className="text-lg">Step 2: Record Offline Payout</CardTitle>
                 <CardDescription>Funds must have been ALREADY sent to the user.</CardDescription>
@@ -238,12 +238,12 @@ export default function AdminManualDisbursePage() {
                   <Label className="text-xs uppercase font-bold text-muted-foreground tracking-widest">
                     Disbursement Reference (e.g. Batch ID)
                   </Label>
-                  <Input 
-                    value={formData.disbursementReference}
-                    onChange={(e) => setFormData(prev => ({ ...prev, disbursementReference: e.target.value }))}
-                    className="h-10 font-mono bg-muted/30"
-                    placeholder="Enter unique reference"
-                  />
+                    <Input 
+                      value={formData.disbursementReference}
+                      onChange={(e) => setFormData(prev => ({ ...prev, disbursementReference: e.target.value }))}
+                      className="h-10 bg-muted/30 font-mono"
+                      placeholder="Enter unique reference"
+                    />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -262,7 +262,7 @@ export default function AdminManualDisbursePage() {
                       Network
                     </Label>
                     <select 
-                      className="w-full h-10 px-3 bg-white border rounded-md text-sm"
+                      className="h-10 w-full rounded-md border border-border/60 bg-background px-3 text-sm text-foreground"
                       value={formData.momoNetwork}
                       onChange={(e) => setFormData(prev => ({ ...prev, momoNetwork: e.target.value }))}
                     >
@@ -309,7 +309,7 @@ export default function AdminManualDisbursePage() {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg text-blue-800 text-[10px] font-medium leading-tight">
+                <div className="flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/10 p-3 text-[10px] font-medium leading-tight text-blue-700 dark:text-blue-300">
                   <Info className="w-4 h-4 shrink-0" />
                   <span>Borrower will receive an automated SMS confirming disbursement once you submit this form.</span>
                 </div>
@@ -384,11 +384,11 @@ export default function AdminManualDisbursePage() {
 
 function Badge({ status }: { status: string }) {
   const configs: Record<string, { label: string, color: string }> = {
-    pending: { label: "PENDING", color: "bg-amber-100 text-amber-700 border-amber-200" },
-    active: { label: "ACTIVE", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-    overdue: { label: "OVERDUE", color: "bg-red-100 text-red-700 border-red-200" },
-    closed: { label: "CLOSED", color: "bg-gray-100 text-gray-700 border-gray-200" },
-    rejected: { label: "REJECTED", color: "bg-zinc-100 text-zinc-700 border-zinc-200" },
+    pending: { label: "PENDING", color: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" },
+    active: { label: "ACTIVE", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" },
+    overdue: { label: "OVERDUE", color: "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20" },
+    closed: { label: "CLOSED", color: "bg-muted text-muted-foreground border-border" },
+    rejected: { label: "REJECTED", color: "bg-zinc-500/10 text-zinc-700 dark:text-zinc-300 border-zinc-500/20" },
   };
 
   const config = configs[status.toLowerCase()] || { label: status, color: "bg-muted" };

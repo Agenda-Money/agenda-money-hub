@@ -26,6 +26,7 @@ export interface LivenessCaptureProps {
 }
 
 export interface LivenessResult {
+  userId: string;
   sessionId: string;
   challenges: {
     blink: boolean;
@@ -34,6 +35,8 @@ export interface LivenessResult {
   };
   attemptCount: number;
   capturedFrame: string; // base64 JPEG
+  antiFraudFlags: string[];
+  completedAt: string;
 }
 
 type Stage =
@@ -63,7 +66,7 @@ const CHALLENGES: ChallengeConfig[] = [
   {
     key: "blink",
     label: "Blink",
-    instruction: "Quick blink once — light blink is OK",
+    instruction: "Close your eyes slowly, then open",
     icon: <Eye className="w-8 h-8" />,
     color: "#3B82F6",
   },
@@ -85,19 +88,21 @@ const CHALLENGES: ChallengeConfig[] = [
 
 const MAX_ATTEMPTS = 3;
 const MODELS_PATH = "/models";
-const DETECTION_INTERVAL_MS = 72;
+const DETECTION_INTERVAL_MS = 50;
+const CHALLENGE_TIMEOUT_MS = 12000;
 
 // Blink: detect a dip in EAR from a recent “open” peak — catches partial / quick blinks.
-const BLINK_MIN_OPEN_EAR = 0.2; // need some baseline before we trust a dip
-const BLINK_DIP_FROM_PEAK = 0.07; // small drop counts (partial blink)
-const BLINK_RECOVER_WITHIN = 0.06; // recovered = back near peak → one blink
-const BLINK_WARMUP_FRAMES = 8;
+const BLINK_MIN_OPEN_EAR = 0.17; // need some baseline before we trust a dip
+const BLINK_DIP_FROM_PEAK = 0.04; // small drop counts (partial blink)
+const BLINK_RECOVER_WITHIN = 0.04; // recovered = back near peak → one blink
+const BLINK_WARMUP_FRAMES = 5;
 const BLINKS_REQUIRED = 1;
 /** Only update on-screen hints when EAR suggests eyes are open enough to read text */
 const EAR_FEEDBACK_VISIBLE_MIN = 0.26;
 
 // Head: blend yaw (nose vs eye mid) + jaw metric; min/max range — order & mirror agnostic.
 const HEAD_SWING_THRESHOLD = 0.035; // each way from neutral — very small turn passes
+const HEAD_WARMUP_FRAMES = 10;
 const HEAD_BLEND_YAW = 0.62;
 const HEAD_BLEND_JAW = 0.38;
 
@@ -284,6 +289,7 @@ export function LivenessCapture({
 
   const headScoreMinRef = useRef(Number.POSITIVE_INFINITY);
   const headScoreMaxRef = useRef(Number.NEGATIVE_INFINITY);
+  const headWarmupFramesRef = useRef(0);
 
   const mouthMotionFramesRef = useRef(0);
   const baselineMouthRef = useRef<number | null>(null);
@@ -310,6 +316,8 @@ export function LivenessCapture({
   const [feedbackMessage, setFeedbackMessage] = useState<string>("");
   const [headTurnProgress, setHeadTurnProgress] = useState(0);
   const [antiFraudFlags, setAntiFraudFlags] = useState<string[]>([]);
+  const [countdownMs, setCountdownMs] = useState(CHALLENGE_TIMEOUT_MS);
+  const [canRetry, setCanRetry] = useState(true);
   const headUiTickRef = useRef(0);
 
   const currentChallenge = CHALLENGES[currentChallengeIdx];
@@ -344,6 +352,7 @@ export function LivenessCapture({
     if (currentChallenge.key === "headTurn") {
       headScoreMinRef.current = Number.POSITIVE_INFINITY;
       headScoreMaxRef.current = Number.NEGATIVE_INFINITY;
+      headWarmupFramesRef.current = 0;
       setHeadTurnProgress(0);
     }
 
@@ -356,7 +365,7 @@ export function LivenessCapture({
 
     if (currentChallenge.key === "blink") {
       setFeedbackMessage(
-        "Look at the circle — blink once (a light blink is fine)",
+        "Slowly close your eyes, then reopen — don't rush it",
       );
       return;
     }
@@ -375,6 +384,21 @@ export function LivenessCapture({
   useEffect(() => {
     stageRef.current = stage;
   }, [stage]);
+
+  useEffect(() => {
+    if (stage !== "challenge") return;
+
+    setCountdownMs(CHALLENGE_TIMEOUT_MS);
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(
+        0,
+        CHALLENGE_TIMEOUT_MS - (Date.now() - challengeStartTimeRef.current),
+      );
+      setCountdownMs(remaining);
+    }, 100);
+
+    return () => window.clearInterval(timer);
+  }, [stage, currentChallengeIdx, attemptCount]);
 
   // â”€â”€â”€ Tab visibility tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -487,6 +511,31 @@ export function LivenessCapture({
     return canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
   }, []);
 
+  const failAttempt = useCallback(
+    (reason: string, message: string) => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
+      const reachedMax = attemptCountRef.current >= MAX_ATTEMPTS;
+      setCapturedFrame("");
+      setErrorMessage(message);
+      setCanRetry(!reachedMax);
+      setStage("failure");
+
+      if (reachedMax) {
+        stopCamera();
+        onFailure("max_attempts_reached");
+        return;
+      }
+
+      if (reason !== "challenge_timeout") {
+        setAntiFraudFlags((prev) =>
+          prev.includes(reason) ? prev : [...prev, reason],
+        );
+      }
+    },
+    [onFailure, stopCamera],
+  );
+
   // â”€â”€â”€ Challenge Advance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const advanceChallenge = useCallback(() => {
@@ -521,10 +570,13 @@ export function LivenessCapture({
         setTimeout(() => {
           setStage("success");
           onSuccess({
+            userId,
             sessionId,
             challenges: { blink: true, headTurn: true, smile: true },
             attemptCount: attemptCountRef.current,
             capturedFrame: frame,
+            antiFraudFlags,
+            completedAt: new Date().toISOString(),
           });
         }, 900);
       }, 350);
@@ -537,6 +589,7 @@ export function LivenessCapture({
       blinkStuckFramesRef.current = 0;
       headScoreMinRef.current = Number.POSITIVE_INFINITY;
       headScoreMaxRef.current = Number.NEGATIVE_INFINITY;
+      headWarmupFramesRef.current = 0;
       mouthMotionFramesRef.current = 0;
       baselineMouthRef.current = null;
       mouthBaselineSamplesRef.current = [];
@@ -547,7 +600,7 @@ export function LivenessCapture({
       const nextChallenge = CHALLENGES[challengeIdxRef.current];
       if (nextChallenge?.key === "blink") {
         setFeedbackMessage(
-          "Look at the circle — blink once (a light blink is fine)",
+          "Slowly close your eyes, then reopen — don't rush it",
         );
       } else if (nextChallenge?.key === "headTurn") {
         setFeedbackMessage("Turn gently both ways — small movements count");
@@ -560,7 +613,7 @@ export function LivenessCapture({
     queueMicrotask(() => {
       advanceInFlightRef.current = false;
     });
-  }, [captureFrame, stopCamera, onSuccess, sessionId]);
+  }, [antiFraudFlags, captureFrame, onSuccess, sessionId, stopCamera, userId]);
 
   // â”€â”€â”€ Detection Loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -585,15 +638,22 @@ export function LivenessCapture({
 
       // â”€â”€ Anti-fraud: multiple faces â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (detections.length > 1) {
-        stopCamera();
-        setStage("failure");
-        setErrorMessage("Multiple faces detected. Session aborted.");
-        onFailure("multiple_faces");
+        failAttempt(
+          "multiple_faces",
+          "Multiple faces were detected. Please try again with only the customer in frame.",
+        );
         return;
       }
 
       // â”€â”€ Anti-fraud: face disappears â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (detections.length === 0) {
+        if (Date.now() - challengeStartTimeRef.current >= CHALLENGE_TIMEOUT_MS) {
+          failAttempt(
+            "challenge_timeout",
+            "That step took too long. Let's try the liveness check again.",
+          );
+          return;
+        }
         if (!faceDisappearRef.current) {
           faceDisappearRef.current = Date.now();
         } else if (
@@ -613,6 +673,13 @@ export function LivenessCapture({
       }
 
       faceDisappearRef.current = null;
+      if (Date.now() - challengeStartTimeRef.current >= CHALLENGE_TIMEOUT_MS) {
+        failAttempt(
+          "challenge_timeout",
+          "That step took too long. Let's try the liveness check again.",
+        );
+        return;
+      }
       const { landmarks } = detections[0];
       const currentKey = CHALLENGES[challengeIdxRef.current].key;
 
@@ -670,7 +737,7 @@ export function LivenessCapture({
           if (blinkCountRef.current >= BLINKS_REQUIRED) {
             setFeedbackMessage("Got it");
           } else if (!blinkInDipRef.current) {
-            setFeedbackMessage("Light blink once — a small flicker is enough");
+            setFeedbackMessage("Slowly close your eyes, then open");
           }
         }
 
@@ -690,6 +757,9 @@ export function LivenessCapture({
       // â”€â”€ Head: track min/max blend score — both directions required; mirror / order independent
       if (currentKey === "headTurn") {
         const score = getCombinedHeadTurnScore(landmarks);
+        if (headWarmupFramesRef.current < HEAD_WARMUP_FRAMES) {
+          headWarmupFramesRef.current += 1;
+        } else {
         headScoreMinRef.current = Math.min(headScoreMinRef.current, score);
         headScoreMaxRef.current = Math.max(headScoreMaxRef.current, score);
 
@@ -739,6 +809,7 @@ export function LivenessCapture({
             }
           }, 250);
           return;
+        }
         }
       }
 
@@ -826,11 +897,24 @@ export function LivenessCapture({
         ) as unknown as number;
       }, DETECTION_INTERVAL_MS);
     }
-  }, [advanceChallenge, debugGesture, onFailure, stopCamera]);
+  }, [advanceChallenge, debugGesture, failAttempt]);
 
   // â”€â”€â”€ Start challenges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const startChallenges = useCallback(() => {
+    if (attemptCountRef.current >= MAX_ATTEMPTS) {
+      setCanRetry(false);
+      setErrorMessage(
+        "Maximum attempts reached. This verification will need manual review.",
+      );
+      setStage("failure");
+      onFailure("max_attempts_reached");
+      return;
+    }
+
+    attemptCountRef.current += 1;
+    setAttemptCount(attemptCountRef.current);
+    setCanRetry(attemptCountRef.current < MAX_ATTEMPTS);
     advanceInFlightRef.current = false;
     blinkCountRef.current = 0;
     blinkWarmupFramesRef.current = 0;
@@ -840,6 +924,7 @@ export function LivenessCapture({
     blinkStuckFramesRef.current = 0;
     headScoreMinRef.current = Number.POSITIVE_INFINITY;
     headScoreMaxRef.current = Number.NEGATIVE_INFINITY;
+    headWarmupFramesRef.current = 0;
     mouthMotionFramesRef.current = 0;
     baselineMouthRef.current = null;
     mouthBaselineSamplesRef.current = [];
@@ -849,15 +934,18 @@ export function LivenessCapture({
     completedSetRef.current = new Set();
     setCompletedChallenges(new Set());
     setCurrentChallengeIdx(0);
+    setErrorMessage("");
+    setCapturedFrame("");
     setStage("challenge");
     stageRef.current = "challenge";
     challengeStartTimeRef.current = Date.now();
+    faceDisappearRef.current = null;
     setTimeout(() => {
       rafRef.current = requestAnimationFrame(
         runDetectionLoop,
       ) as unknown as number;
     }, 180);
-  }, [runDetectionLoop]);
+  }, [onFailure, runDetectionLoop]);
 
   // â”€â”€â”€ DEV: Manual challenge completion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -1026,6 +1114,7 @@ export function LivenessCapture({
 
   if (stage === "challenge") {
     const currentStep = currentChallengeIdx + 1;
+    const secondsRemaining = Math.max(1, Math.ceil(countdownMs / 1000));
 
     return (
       <div className="relative min-h-[78vh] overflow-hidden rounded-[36px] bg-black text-white shadow-2xl shadow-black/30">
@@ -1047,11 +1136,14 @@ export function LivenessCapture({
               <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-white/70 backdrop-blur-md">
                 Step {currentStep} of {CHALLENGES.length}
               </div>
-              {attemptCount > 0 && (
+              <div className="flex items-center gap-2">
                 <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/70 backdrop-blur-md">
-                  Attempt {attemptCount + 1}/{MAX_ATTEMPTS}
+                  Attempt {attemptCount}/{MAX_ATTEMPTS}
                 </div>
-              )}
+                <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/70 backdrop-blur-md">
+                  {secondsRemaining}s left
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-2">
@@ -1165,11 +1257,11 @@ export function LivenessCapture({
             {mode === "agent-onboarding" && (
               <div className="mx-auto w-full max-w-xs rounded-2xl border border-sky-400/20 bg-sky-500/10 p-3 backdrop-blur-xl">
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-200">
-                  Agent note
+                  Agent status
                 </p>
                 <p className="mt-1 text-sm font-medium text-sky-50/90">
-                  Guide the customer to stay centered and complete each prompt
-                  in order.
+                  Pending challenge: {currentChallenge.label}. Keep the customer
+                  centered and finish within {secondsRemaining} seconds.
                 </p>
               </div>
             )}
@@ -1275,6 +1367,23 @@ export function LivenessCapture({
           <p className="mt-5 text-xs font-medium uppercase tracking-[0.18em] text-white/45">
             Your application may be flagged for manual review
           </p>
+          <div className="mt-6 flex w-full max-w-xs flex-col gap-3">
+            {canRetry && (
+              <Button
+                onClick={startChallenges}
+                className="h-12 rounded-full bg-[#EC1B84] font-bold text-white hover:bg-[#D41574]"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry Verification
+              </Button>
+            )}
+            {!canRetry && (
+              <p className="text-sm font-medium text-white/60">
+                Retry is now disabled because the session has reached the maximum
+                number of attempts.
+              </p>
+            )}
+          </div>
         </motion.div>
       </div>
     );

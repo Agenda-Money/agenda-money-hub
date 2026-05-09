@@ -2,9 +2,6 @@ import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Activity, CalendarDays, TrendingUp, AlertTriangle, ShieldCheck, Banknote, RefreshCw } from "lucide-react";
 import { KpiCard } from "@/components/analytics/KpiCard";
-import { ReferralRateCard } from "@/components/dashboard/ReferralRateCard";
-import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
 import { 
   SectionHead, 
   SectionError, 
@@ -17,8 +14,6 @@ import {
   PanelHead,
   CsaPerformanceTable
 } from "@/components/analytics/AnalyticsWidgets";
-import { useCohortRepayment } from "@/hooks/useCohortRepayment";
-import { CohortRepaymentCard } from "@/components/dashboard/CohortRepaymentCard";
 import { 
   useSummary, 
   usePerformance, 
@@ -51,25 +46,10 @@ export default function AnalyticsPage() {
   const [fromInput, setFromInput] = useState('');
   const [toInput, setToInput] = useState('');
 
-  const { data: refRes, isLoading: refLoading } = useQuery({
-    queryKey: ['referrals-analytics'],
-    queryFn: () => api.get('/api/referrals/analytics').then(r => r.data.data)
-  });
-
   const sum = useSummary();
   const perf = usePerformance(range);
   const dist = useDistribution();
   const vol = useVolume(range);
-
-  const [cohortRange, setCohortRange] = useState<'3' | '6' | 'all'>('all');
-
-  const { data: cohortRes, isLoading: cohortLoading, refetch: refetchCohort } = useCohortRepayment({
-    platform: 'admin',
-    monthsBack: cohortRange === 'all' ? undefined : parseInt(cohortRange)
-  });
-
-  const cohortData = cohortRes?.data?.cohorts || (Array.isArray(cohortRes?.data) ? cohortRes.data : []);
-  const cohortSummary = cohortRes?.data?.summary || null;
 
   const applyRange = () => setRange({ from: fromInput, to: toInput });
   const clearRange = () => { setRange({}); setFromInput(''); setToInput(''); };
@@ -123,6 +103,13 @@ export default function AnalyticsPage() {
           icon={<CalendarDays className="w-5 h-5" />}
         />
         <KpiCard
+          label="Repayment Rate"
+          value={fPct(p?.repaymentRate?.overall)}
+          subtext="On-time performance"
+          {...getRepaymentRateStatus(safeNum(p?.repaymentRate?.overall))}
+          icon={<TrendingUp className="w-5 h-5" />}
+        />
+        <KpiCard
           label="Recovery rate"
           value={fPct(overallCollectionRate)}
           subtext="Overdue collections"
@@ -131,9 +118,9 @@ export default function AnalyticsPage() {
         />
         <KpiCard
           label="Loan book"
-          value={fGHS(s?.loanBook?.value ?? s?.loanBook?.total)}
-          subtext={s?.loanBook?.count ? `${fCount(s?.loanBook?.count)} total loans` : "Outstanding principal"}
-          {...getLoanBookStatus(safeNum(s?.loanBook?.value ?? s?.loanBook?.total))}
+          value={fGHS(s?.loanBook?.total)}
+          subtext="Outstanding principal"
+          {...getLoanBookStatus(safeNum(s?.loanBook?.total))}
           icon={<Banknote className="w-5 h-5" />}
         />
         <KpiCard
@@ -182,32 +169,24 @@ export default function AnalyticsPage() {
         />
         <KpiCard
           label="All-time disbursements"
-          value={fGHS(s?.allTimeDisbursement?.totalValue ?? s?.disbursements?.allTime?.totalGHS)}
-          subtext={s?.allTimeDisbursement?.totalCount ? `${fCount(s?.allTimeDisbursement?.totalCount)} total loans` : "Total disbursed"}
+          value={fGHS(s?.disbursements?.allTime?.totalGHS)}
+          subtext="Total disbursed"
           status="neutral"
           icon={<Banknote className="w-5 h-5" />}
         />
         <KpiCard
-          label="Active Customers"
-          value={fCount(s?.activeCustomers?.count ?? p?.activeUsers?.count ?? s?.userActivity?.activeUsers ?? 0)}
-          subtext={s?.activeCustomers?.windowDays ? `Last ${s?.activeCustomers?.windowDays} days` : "Last 30 days"}
+          label="Active users"
+          value={fCount(p?.activeUsers?.count || s?.userActivity?.activeUsers || 0)}
+          subtext="Last 30 days"
           status="green"
           badge={{ text: "Healthy", variant: "green" }}
           icon={<Activity className="w-5 h-5" />}
         />
         <KpiCard
-          label="Retention Rate"
-          value={fPct(p?.retentionRate?.retentionRate)}
-          subtext={p?.retentionRate?.eligibleCustomers ? `${fCount(p?.retentionRate?.retainedCustomers)} of ${fCount(p?.retentionRate?.eligibleCustomers)} customers` : "Repaid & returned"}
-          status="green"
-          badge={{ text: "Loyal", variant: "green" }}
-          icon={<RefreshCw className="w-5 h-5" />}
-        />
-        <KpiCard
-          label="Churn Rate"
-          value={fPct(p?.churnRate ?? s?.userActivity?.churnRisk)}
-          subtext="Did not return in 90 days"
-          {...getChurnStatus(safeNum(p?.churnRate ?? s?.userActivity?.churnRisk))}
+          label="Churn risk"
+          value={safeNum(s?.userActivity?.churnRisk).toString()}
+          subtext="No re-application"
+          {...getChurnStatus(safeNum(s?.userActivity?.churnRisk))}
           icon={<AlertTriangle className="w-5 h-5" />}
         />
       </div>
@@ -222,8 +201,8 @@ export default function AnalyticsPage() {
             <Activity className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl lg:text-3xl font-black text-gray-900 dark:text-gray-100">Analytics Dashboard</h1>
-            <p className="text-sm font-bold text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-tight italic">Ecosystem pulse & business intelligence</p>
+            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Analytics Dashboard</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Ecosystem pulse & business intelligence</p>
           </div>
         </div>
 
@@ -266,19 +245,6 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        {/* Repayment Rate Analysis */}
-        <div className="space-y-4">
-          <SectionHead title="Repayment Rate" />
-          <CohortRepaymentCard 
-            data={cohortData} 
-            summary={cohortSummary as any} 
-            isLoading={cohortLoading}
-            onRefresh={() => refetchCohort()}
-            timeRange={cohortRange}
-            onTimeRangeChange={setCohortRange}
-          />
-        </div>
-
         {/* Section 2.5: CSA Performance */}
         <div>
           <SectionHead title="CSA Performance" />
@@ -292,17 +258,17 @@ export default function AnalyticsPage() {
             <SectionError section="Distribution data" onRetry={dist.refetch} />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-[14px] p-5 shadow-sm">
+              <div className="rounded-[14px] border border-border/60 bg-card p-5 shadow-sm">
                 <PanelHead title="Signup Growth" />
-                {dist.loading ? <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-[260px] rounded-lg" /> : <ChartSignupGrowth data={d?.signupGrowth || []} />}
+                {dist.loading ? <div className="h-[260px] animate-pulse rounded-lg bg-muted/40" /> : <ChartSignupGrowth data={d?.signupGrowth || []} />}
               </div>
-              <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-[14px] p-5 shadow-sm">
+              <div className="rounded-[14px] border border-border/60 bg-card p-5 shadow-sm">
                 <PanelHead title="Tier Distribution" />
-                {dist.loading ? <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-[260px] rounded-lg" /> : <ChartTierDistribution data={d?.tierDistribution?.byTier || []} />}
+                {dist.loading ? <div className="h-[260px] animate-pulse rounded-lg bg-muted/40" /> : <ChartTierDistribution data={d?.tierDistribution?.byTier || []} />}
               </div>
-              <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-[14px] p-5 shadow-sm">
+              <div className="rounded-[14px] border border-border/60 bg-card p-5 shadow-sm">
                 <PanelHead title="Geographic Distribution" />
-                {dist.loading ? <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-[260px] rounded-lg" /> : <GeographicList data={d?.geographicDistribution || []} />}
+                {dist.loading ? <div className="h-[260px] animate-pulse rounded-lg bg-muted/40" /> : <GeographicList data={d?.geographicDistribution || []} />}
               </div>
             </div>
           )}
@@ -315,31 +281,19 @@ export default function AnalyticsPage() {
             <SectionError section="Volume data" onRetry={vol.refetch} />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-[14px] p-5 shadow-sm">
+              <div className="rounded-[14px] border border-border/60 bg-card p-5 shadow-sm">
                 <PanelHead title="Disbursement vs Collection" />
-                {vol.loading ? <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-[280px] rounded-lg" /> : <ChartDisbColl data={v?.disbursementVsCollection || []} />}
+                {vol.loading ? <div className="h-[280px] animate-pulse rounded-lg bg-muted/40" /> : <ChartDisbColl data={v?.disbursementVsCollection || []} />}
               </div>
-              <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-[14px] p-5 shadow-sm flex flex-col">
+              <div className="flex flex-col rounded-[14px] border border-border/60 bg-card p-5 shadow-sm">
                 <PanelHead title="Repayment Channels" />
-                {vol.loading ? <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-[280px] rounded-lg flex-1" /> : (
+                {vol.loading ? <div className="h-[280px] flex-1 animate-pulse rounded-lg bg-muted/40" /> : (
                   <div className="flex-1 flex flex-col justify-center">
                     <RepaymentChannels data={v?.repaymentChannels} />
                   </div>
                 )}
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Section 5: Referrals */}
-        <div>
-          <SectionHead title="Referrals" />
-          {refLoading ? (
-            <div className="h-[200px] bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse" />
-          ) : refRes ? (
-            <ReferralRateCard data={refRes} />
-          ) : (
-            <SectionError section="Referrals data" onRetry={() => {}} />
           )}
         </div>
 

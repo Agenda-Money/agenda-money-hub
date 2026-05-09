@@ -45,7 +45,7 @@ const SignupPage = () => {
           setFormData(prev => ({
             ...prev,
             email: response.data.email || "",
-            fullName: response.data.fullName || ""
+            fullName: response.data.fullName || "",
           }));
         }
       } catch (err: any) {
@@ -66,7 +66,7 @@ const SignupPage = () => {
       toast.error("Passwords do not match. Please make sure both password fields are identical.");
       return; 
     }
-    
+
     setIsLoading(true);
     setError(null);
     
@@ -74,7 +74,7 @@ const SignupPage = () => {
       const response = await api.post("/api/admin/auth/signup", {
         token,
         password: formData.password,
-        fullName: formData.fullName
+        fullName: formData.fullName,
       });
 
       const data = response.data;
@@ -122,6 +122,9 @@ const SignupPage = () => {
   };
 
   const updateField = (field: string, value: string | boolean) => {
+    if (error) {
+      setError(null);
+    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -179,8 +182,8 @@ const SignupPage = () => {
                     value={formData.fullName}
                     onChange={(e) => updateField("fullName", e.target.value)}
                     required
-                    disabled={isFetchingInfo || !!formData.fullName}
-                    className="bg-muted/50 font-medium text-muted-foreground"
+                    disabled={isFetchingInfo}
+                    className={isFetchingInfo ? "bg-muted/50 font-medium text-muted-foreground" : undefined}
                   />
                   {isFetchingInfo && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -189,7 +192,7 @@ const SignupPage = () => {
                   )}
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -273,7 +276,7 @@ const SignupPage = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading || isFetchingInfo || !formData.agreeTerms || formData.password !== formData.confirmPassword || !token || !!error}
+                disabled={isLoading || isFetchingInfo || !formData.agreeTerms || formData.password !== formData.confirmPassword || !token}
               >
                 {isLoading ? "Creating Account..." : "Complete Signup"}
               </Button>

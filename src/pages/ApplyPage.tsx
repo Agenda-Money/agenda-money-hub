@@ -41,7 +41,10 @@ import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
 import { ProfileTab } from "./ProfileTab";
 import { LoanSummaryPage } from "./LoanSummaryPage";
-import { LivenessCapture } from "@/components/liveliness/LivenessCapture";
+import {
+  LivenessCapture,
+  type LivenessResult,
+} from "@/components/liveliness/LivenessCapture";
 
 import { UserRewardsTab } from "./UserRewardsTab";
 import { UserNetworkTab } from "./UserNetworkTab";
@@ -144,6 +147,7 @@ interface OnboardingData {
   ghanaCardFrontUrl: string;
   ghanaCardBackUrl: string;
   selfieUrl: string;
+  livenessSession: LivenessResult | null;
   hasAcceptedTerms: boolean;
 }
 
@@ -467,11 +471,12 @@ export default function ApplyPage() {
     employmentStatus: "",
     monthlyIncome: "",
     ghanaCardNumber: "",
-    ghanaCardFrontUrl: "",
-    ghanaCardBackUrl: "",
-    selfieUrl: "",
-    hasAcceptedTerms: false,
-  };
+      ghanaCardFrontUrl: "",
+      ghanaCardBackUrl: "",
+      selfieUrl: "",
+      livenessSession: null,
+      hasAcceptedTerms: false,
+    };
 
   const [onboardingData, setOnboardingData] = useState<OnboardingData>(() => {
     const saved = globalThis.sessionStorage.getItem("agenda_onboarding_data");
@@ -1348,6 +1353,7 @@ export default function ApplyPage() {
           ghanaCardFrontUrl: "",
           ghanaCardBackUrl: "",
           selfieUrl: "",
+          livenessSession: null,
         }));
         setOnboardingStep(3); // Go to Identity Step
         setIdentityStep("upload"); // Go to Upload screen
@@ -1437,6 +1443,7 @@ export default function ApplyPage() {
           ghanaCardFrontUrl: finalFrontUrl,
           ghanaCardBackUrl: finalBackUrl,
           selfieUrl: finalSelfieUrl,
+          livenessVerification: onboardingData.livenessSession,
           initialLoanAmount: Number(loanAmount),
           initialLoanTenure: Number(loanTenure),
           initialLoanPurpose: loanPurpose,
@@ -3775,18 +3782,19 @@ export default function ApplyPage() {
                                       <span className="text-sm font-medium text-green-700">
                                         Liveness verified
                                       </span>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="ml-2 text-xs text-red-500 h-6 px-2"
-                                        onClick={() => {
-                                          setOnboardingData((prev) => ({
-                                            ...prev,
-                                            selfieUrl: "",
-                                          }));
-                                          setShowLiveness(true);
-                                        }}
-                                      >
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="ml-2 text-xs text-red-500 h-6 px-2"
+                                          onClick={() => {
+                                            setOnboardingData((prev) => ({
+                                              ...prev,
+                                              selfieUrl: "",
+                                              livenessSession: null,
+                                            }));
+                                            setShowLiveness(true);
+                                          }}
+                                        >
                                         Redo
                                       </Button>
                                     </div>
@@ -3795,6 +3803,10 @@ export default function ApplyPage() {
                                       userId={normalizedMsisdn || "unknown"}
                                       mode="kyc"
                                       onSuccess={async (result) => {
+                                        setOnboardingData((prev) => ({
+                                          ...prev,
+                                          livenessSession: result,
+                                        }));
                                         const file = base64ToJpegFile(
                                           result.capturedFrame,
                                           `liveness-${Date.now()}.jpg`,
@@ -3813,6 +3825,12 @@ export default function ApplyPage() {
                                       }}
                                       onFailure={(reason) => {
                                         setShowLiveness(false);
+                                        if (reason === "max_attempts_reached") {
+                                          setOnboardingData((prev) => ({
+                                            ...prev,
+                                            livenessSession: null,
+                                          }));
+                                        }
                                         setErrorMessage(
                                           reason === "max_attempts_reached"
                                             ? "Liveness check failed. Your application will be reviewed manually."
