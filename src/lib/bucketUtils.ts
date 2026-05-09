@@ -9,11 +9,23 @@ export interface BucketMeta {
 }
 
 export function getBucketMeta(bucket: number): BucketMeta {
-  if (bucket >= 8) return {
-    label: 'DD+8+', short: '+8+',
+  if (bucket > 15) return {
+    label: `DD+${bucket}`, short: `+${bucket}`,
+    color: 'bg-red-900', textColor: 'text-white', ringColor: 'ring-red-900',
+    badgeBg: 'bg-red-300 text-red-900 border-red-400',
+    description: `Critical — ${bucket} days overdue`,
+  };
+  if (bucket === 15) return {
+    label: 'DD+15+', short: '+15+',
+    color: 'bg-red-800', textColor: 'text-white', ringColor: 'ring-red-800',
+    badgeBg: 'bg-red-200 text-red-900 border-red-300',
+    description: 'Critical — 15+ days overdue',
+  };
+  if (bucket >= 8 && bucket <= 14) return {
+    label: `DD+${bucket}`, short: `+${bucket}`,
     color: 'bg-red-600', textColor: 'text-white', ringColor: 'ring-red-600',
     badgeBg: 'bg-red-100 text-red-700 border-red-200',
-    description: 'Critical — 8+ days overdue',
+    description: `${bucket} days overdue`,
   };
   if (bucket === 7) return {
     label: 'DD+7', short: '+7',
@@ -75,16 +87,21 @@ export function getBucketMeta(bucket: number): BucketMeta {
     badgeBg: 'bg-emerald-100 text-emerald-600 border-emerald-200',
     description: 'Due in 2 days',
   };
-  // bucket === -3
-  return {
+  if (bucket === -3) return {
     label: 'DD-3', short: '-3',
     color: 'bg-emerald-300', textColor: 'text-black', ringColor: 'ring-emerald-300',
     badgeBg: 'bg-emerald-100 text-emerald-600 border-emerald-200',
     description: 'Due in 3 days',
   };
+  return {
+    label: `DD${bucket}`, short: `${bucket}`,
+    color: 'bg-emerald-200', textColor: 'text-black', ringColor: 'ring-emerald-200',
+    badgeBg: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    description: `Due in ${Math.abs(bucket)} days`,
+  };
 }
 
-export const BUCKET_ORDER = [8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3];
+export const BUCKET_ORDER = [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3];
 
 export function formatNetwork(network: string, msisdn?: string) {
   // 1. If we have an MSISDN, use heuristic detection to verify/fallback

@@ -123,7 +123,7 @@ const INCOME_BRACKETS = [
 ];
 const TERMS_LIST = [
   "Interest rate: 0.5% per day",
-  "Processing fee: GHS 30 flat",
+  "Tier-based processing fees apply",
   "Requirement: 18+ years",
   "Requirement: Valid Ghana Card",
   "Late payment affects credit score",
@@ -284,12 +284,13 @@ function PageHeader({
 function EstimatedTermSheet({
   amount,
   tenure,
+  fee,
 }: {
   amount: number;
   tenure: number;
+  fee: number;
 }) {
   const interest = Math.round(amount * 0.005 * tenure);
-  const fee = 30; // Flat Fee
   const disbursement = amount - fee;
   const total = amount + interest;
   const dueDate = new Date(Date.now() + tenure * 86400000).toLocaleDateString(
@@ -549,10 +550,9 @@ export default function ApplyPage() {
     return options.length ? options : [loanAmount];
   }, [activeTier, loanAmount]);
   const tenureOptions = useMemo(() => {
-    if (currentTier === 1) return [1, 5, 10, 14];
     const options = buildTenureOptions(activeTier);
     return options.length ? options : [loanTenure];
-  }, [activeTier, currentTier, loanTenure]);
+  }, [activeTier, loanTenure]);
 
   const normalizedMsisdn = useMemo(() => {
     const digitsOnly = sanitizeMsisdnEntryInput(msisdnInput);

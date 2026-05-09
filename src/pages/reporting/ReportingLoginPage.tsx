@@ -28,7 +28,7 @@ const ReportingLoginPage = () => {
     
     try {
       const result = await reportingLogin(email, password);
-      login(result.token, result.user?.name || result.user?.email || "Reporting Viewer");
+      login(result.token, result.displayName || result.user?.name || result.user?.email || "Reporting Viewer");
       window.location.href = "/reporting/dashboard";
     } catch (err: any) {
       setError(err.response?.data?.message || "Authentication failed");

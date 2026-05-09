@@ -12,6 +12,8 @@ import { useAuth } from "@/contexts/AuthContext";
 vi.mock("@/lib/api", () => ({
   getUserDetail: vi.fn(),
   getUserSessions: vi.fn(() => Promise.resolve({ sessions: [], total: 0 })),
+  blockUser: vi.fn(),
+  unblockUser: vi.fn(),
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -159,4 +161,60 @@ describe("UserDetailsPage", () => {
       expect(screen.getByText(/2024/i)).toBeInTheDocument();
     }, { timeout: 8000 });
   }, 15000);
+
+  it("handles block user flow correctly", async () => {
+    const mockUser = {
+      _id: "user-123",
+      fullName: "Kwame Asante",
+      msisdn: "233541234567",
+      isBlocked: false,
+    };
+
+    (api.getUserDetail as any).mockResolvedValue({
+      data: { user: mockUser, loanHistory: [], referrals: [] },
+    });
+
+    (api.blockUser as any).mockResolvedValue({
+      success: true,
+      message: "User blocked",
+      pendingLoansRejected: 2,
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <UserDetailsPage />
+        </BrowserRouter>
+      </QueryClientProvider>
+    );
+
+    // 1. Wait for page to load and find Block button
+    const blockBtn = await screen.findByRole("button", { name: /Block/i });
+    expect(blockBtn).toBeInTheDocument();
+
+    // 2. Click Block button to open modal
+    const { fireEvent } = await import("@testing-library/react");
+    fireEvent.click(blockBtn);
+
+    // 3. Check if modal is open
+    expect(await screen.findByText(/Are you sure you want to block this user/i)).toBeInTheDocument();
+
+    // 4. Fill in reason
+    const reasonInput = screen.getByPlaceholderText(/e.g. Suspected fraud/i);
+    fireEvent.change(reasonInput, { target: { value: "Test reason" } });
+
+    // 5. Click Block in modal
+    const confirmBtn = screen.getAllByRole("button", { name: /^Block$/, hidden: true }).at(-1);
+    expect(confirmBtn).toBeDefined();
+    fireEvent.click(confirmBtn!);
+
+    // 6. Verify API call
+    await waitFor(() => {
+      expect(api.blockUser).toHaveBeenCalledWith("233541234567", "Test reason");
+    });
+
+    // 7. Verify toast success message
+    const { toast } = await import("sonner");
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("2 pending loans rejected"));
+  });
 });

@@ -31,3 +31,6 @@ export const reportingAcceptInvite = (token: string, password: string, displayNa
 
 export const fetchReportingDashboard = () =>
   client.get('/dashboard').then(r => r.data);
+
+export const fetchCohortRepayment = (query?: string) =>
+  client.get(`/analytics/cohort-repayment${query ? `?${query}` : ''}`).then(r => r.data);

@@ -13,6 +13,7 @@ interface Props {
   applyPreset: (p: DatePreset) => void;
   setStartDate: (d: Date) => void;
   setEndDate: (d: Date) => void;
+  currency?: string;
 }
 
 export function MoMDisbursementCard({
@@ -23,6 +24,7 @@ export function MoMDisbursementCard({
   applyPreset,
   setStartDate,
   setEndDate,
+  currency = "₵"
 }: Props) {
   const [toggle, setToggle] = useState<"value" | "count">("value");
 
@@ -57,7 +59,7 @@ export function MoMDisbursementCard({
                 toggle === "value" ? "bg-background text-foreground shadow" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              By Value (GHS)
+              By Value ({currency})
             </button>
             <button
               onClick={() => setToggle("count")}
@@ -121,7 +123,7 @@ export function MoMDisbursementCard({
                 axisLine={false} 
                 tickLine={false} 
                 tick={{ fontSize: 11, fill: "#9CA3AF", fontWeight: 600 }} 
-                tickFormatter={(value) => toggle === "value" ? `₵${formatCount(value)}` : formatCount(value)} 
+                tickFormatter={(value) => toggle === "value" ? `${currency}${formatCount(value)}` : formatCount(value)} 
                 width={80}
               />
               <Tooltip 
@@ -147,12 +149,14 @@ export function MoMDisbursementCard({
                 }}
               />
               <Area 
-                type="monotone" 
+                type="linear" 
                 dataKey={toggle} 
                 stroke="#14b8a6" 
                 strokeWidth={3}
-                fillOpacity={1} 
+                fillOpacity={0.15} 
                 fill="url(#disbursementGradient)" 
+                dot={{ r: 4, fill: "#14b8a6", strokeWidth: 2, stroke: "#fff" }}
+                activeDot={{ r: 6, strokeWidth: 0 }}
                 animationDuration={1500}
               />
             </AreaChart>

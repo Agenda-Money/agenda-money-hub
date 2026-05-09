@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { TIERS } from "@/lib/constants";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { ArrowLeft, ChevronRight, CheckSquare, Square, Send, Loader2, AlertCircle, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,11 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
     const dailyRate = 0.005; // 0.5%
     
     const interestAmount = principal * dailyRate * tenure;
-    const feeAmount = 30.00; // Flat Fee
+    
+    // Lookup fee from TIERS
+    const userTier = Number(applicant?.currentTier ?? 1);
+    const tierConfig = TIERS.find(t => t.level === userTier);
+    const feeAmount = tierConfig?.processingFee ?? 30.00;
     
     // Explicit Logic:
     // Disbursement = Principal - Fee
@@ -124,7 +129,22 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
         }
 
         const message = error.response?.data?.message || "Failed to submit loan application. Please try again.";
-        setError(message);
+        
+        if (message.toLowerCase().includes("invalid tenure")) {
+           // Refresh profile/eligibility
+           const token = localStorage.getItem("agenda_token") || sessionStorage.getItem("agenda_token");
+           if (token) {
+             api.get('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+               .then(res => {
+                 // The parent component should handle the update via context or props if possible
+                 // But for now, we just toast and maybe redirect
+                 setError("Your eligibility has changed. Please try again with updated options.");
+                 setTimeout(() => onBack(), 2000);
+               });
+           }
+        } else {
+           setError(message);
+        }
     } finally {
         setIsSubmitting(false);
     }
