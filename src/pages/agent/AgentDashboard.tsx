@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Users, CreditCard, TrendingUp, UserPlus, Activity, Clock, ChevronRight, CalendarClock, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -108,13 +108,13 @@ export default function AgentDashboard() {
     enabled: !!user?.email,
   });
 
-  const { data: pendingEndorsementsCount } = useQuery({
-    queryKey: ["agent-pending-endorsements-count"],
+  const { data: pendingEndorsements = [] } = useQuery({
+    queryKey: ["agent-pending-endorsements-list"],
     queryFn: async () => {
       const res = await getAgentPendingEndorsements();
       const data = res.data || res || {};
       const list = data.endorsements || data.loans || (Array.isArray(data) ? data : []);
-      return Array.isArray(list) ? list.length : 0;
+      return Array.isArray(list) ? list : [];
     },
     enabled: !!user?.email,
   });
@@ -152,20 +152,53 @@ export default function AgentDashboard() {
   const dueToday: any[] = duePayments?.dueToday ?? [];
   const upcoming: any[] = duePayments?.upcoming ?? [];
 
+  const groupedUpcoming = upcoming.reduce((acc: any, loan: any) => {
+    const bucket = loan.ddBucket;
+    if (!acc[bucket]) acc[bucket] = [];
+    acc[bucket].push(loan);
+    return acc;
+  }, {});
+
+  const sortedBuckets = Object.keys(groupedUpcoming).sort((a, b) => Number(b) - Number(a));
+
   useSocket(wsUrl, (message) => {
     if (message?.type === "KYC_VERIFIED_SUCCESS" || message?.type === "LOAN_ENDORSED") {
       refetchDashboard();
     }
   });
 
+  const totalOutstandingToday = dueToday.reduce((sum, loan) => sum + (Number(loan.outstanding) || Number(loan.totalPayable) || 0), 0);
+  const totalOutstandingUpcoming = upcoming.reduce((sum, loan) => sum + (Number(loan.outstanding) || Number(loan.totalPayable) || 0), 0);
+
   const stats = {
     totalSignups: toNumber(dashboardData?.totalSignups || dashboardData?.stats?.totalSignups || dashboardData?.stats?.total_signups || dashboardData?.data?.stats?.totalSignups || (typeof portfolioStats?.total === 'number' ? portfolioStats.total : 0)),
     signupsThisMonth: toNumber(dashboardData?.signupsThisMonth || dashboardData?.stats?.signupsThisMonth || dashboardData?.stats?.signups_this_month || 0),
     activeLoans: typeof portfolioStats?.activeLoans === 'number' ? portfolioStats.activeLoans : toNumber(dashboardData?.activeLoans || dashboardData?.stats?.activeLoans || dashboardData?.stats?.active_loans || dashboardData?.portfolio?.loansActive || dashboardData?.data?.stats?.activeLoans || 0),
-    pendingEndorsements: pendingEndorsementsCount ?? 0,
+    pendingEndorsements: pendingEndorsements.length,
     portfolioHealth: dashboardData?.stats?.portfolioHealth ?? 100,
   };
   const recentSignups = dashboardData?.recentSignups ?? [];
+
+  const actionFeed = [
+    ...pendingEndorsements.map((e: any) => ({
+      id: e._id || e.id,
+      fullName: e.user?.fullName || e.fullName || "Unknown Client",
+      msisdn: e.user?.msisdn || e.msisdn || e.userMsisdn,
+      selfieUrl: e.user?.selfieUrl || e.selfieUrl,
+      kycStatus: e.user?.kycStatus || e.kycStatus || "verified",
+      type: "ENDORSEMENT",
+      loanAmount: e.amount || e.principal,
+      reference: e.loanReference || e.reference
+    })),
+    ...recentSignups.map((s: any) => ({
+      id: s._id || s.id,
+      fullName: s.fullName,
+      msisdn: s.msisdn,
+      selfieUrl: s.selfieUrl,
+      kycStatus: s.kycStatus,
+      type: "NEW_CLIENT"
+    }))
+  ].slice(0, 8);
 
   const statCards = [
     {
@@ -291,10 +324,13 @@ export default function AgentDashboard() {
             {/* Due Today */}
             <Card className="border-none shadow-xl shadow-black/5 bg-card/50 backdrop-blur-xl overflow-hidden border border-white/20">
               <CardHeader className="pb-2 pt-4 px-5">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">Due Today (DD0)</CardTitle>
-                  <Badge className="bg-red-100 text-red-700 border-red-200 font-black text-xs">{dueToday.length}</Badge>
-                </div>
+                 <div className="flex items-center justify-between">
+                   <div>
+                     <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">Due Today (DD0)</CardTitle>
+                     <p className="text-[10px] font-bold text-red-600/70 mt-0.5">TOTAL: GHS {totalOutstandingToday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                   </div>
+                   <Badge className="bg-red-500 text-white font-black text-xs px-2 shadow-sm">{dueToday.length}</Badge>
+                 </div>
               </CardHeader>
               <CardContent className="p-0">
                 {dueToday.length === 0 ? (
@@ -307,10 +343,25 @@ export default function AgentDashboard() {
                           <p className="text-sm font-bold text-foreground">{loan.fullName || loan.userMsisdn}</p>
                           <p className="text-xs text-muted-foreground">{loan.userMsisdn} · {loan.loanReference}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-black text-foreground">GHS {(loan.outstanding ?? loan.totalPayable).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                          <Badge variant="outline" className="text-[10px] font-black border-red-300 text-red-600 mt-0.5">TODAY</Badge>
-                        </div>
+                         <div className="text-right">
+                           <p className="text-sm font-black text-foreground">GHS {(loan.outstanding ?? loan.totalPayable).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                           <div className="flex items-center justify-end gap-1 mt-0.5">
+                             {loan.status && (
+                               <Badge 
+                                 variant="outline" 
+                                 className={cn(
+                                   "text-[9px] font-black uppercase py-0 px-1 border-0",
+                                   loan.status === 'overdue' ? "bg-red-100 text-red-700" :
+                                   loan.status === 'partial_repaid' ? "bg-amber-100 text-amber-700" :
+                                   "bg-blue-100 text-blue-700"
+                                 )}
+                               >
+                                 {loan.status === 'partial_repaid' ? 'Partial' : loan.status}
+                               </Badge>
+                             )}
+                             <Badge variant="outline" className="text-[9px] font-black border-red-200 text-red-600 py-0 px-1">TODAY</Badge>
+                           </div>
+                         </div>
                       </div>
                     ))}
                   </div>
@@ -321,32 +372,71 @@ export default function AgentDashboard() {
             {/* Upcoming Reminders (DD-2 and DD-3) */}
             <Card className="border-none shadow-xl shadow-black/5 bg-card/50 backdrop-blur-xl overflow-hidden border border-white/20">
               <CardHeader className="pb-2 pt-4 px-5">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <Bell className="h-3.5 w-3.5" /> Upcoming Reminders (DD-2 / DD-3)
-                  </CardTitle>
-                  <Badge className="bg-amber-100 text-amber-700 border-amber-200 font-black text-xs">{upcoming.length}</Badge>
-                </div>
+                 <div className="flex items-center justify-between">
+                   <div>
+                     <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                       <Bell className="h-3.5 w-3.5" /> Upcoming Reminders
+                     </CardTitle>
+                     <p className="text-[10px] font-bold text-amber-600/70 mt-0.5">TOTAL: GHS {totalOutstandingUpcoming.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                   </div>
+                   <Badge className="bg-amber-500 text-white font-black text-xs px-2 shadow-sm">{upcoming.length}</Badge>
+                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                {upcoming.length === 0 ? (
-                  <p className="text-sm text-muted-foreground px-5 pb-4 opacity-60">No upcoming payments in 2–3 days.</p>
+                 {upcoming.length === 0 ? (
+                   <p className="text-sm text-muted-foreground px-5 pb-4 opacity-60">No upcoming payments in the next 3 days.</p>
                 ) : (
                   <div className="divide-y divide-border/50">
-                    {upcoming.map((loan: any) => (
-                      <div key={loan.loanId} className="flex items-center justify-between px-5 py-3 hover:bg-muted/30 transition-colors">
-                        <div>
-                          <p className="text-sm font-bold text-foreground">{loan.fullName || loan.userMsisdn}</p>
-                          <p className="text-xs text-muted-foreground">{loan.userMsisdn} · {loan.loanReference}</p>
+                    {sortedBuckets.map((bucketStr) => {
+                      const bucketLoans = groupedUpcoming[bucketStr];
+                      const bucket = Number(bucketStr);
+                      const label = bucket === -1 ? "Due Tomorrow" : bucket === -2 ? "Due in 2 days" : `Due in ${Math.abs(bucket)} days`;
+                      
+                      return (
+                        <div key={bucketStr} className="space-y-0">
+                          <div className="bg-muted/30 px-5 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground border-y border-border/10">
+                            {label}
+                          </div>
+                          {bucketLoans.map((loan: any) => (
+                            <div key={loan.loanId} className="flex items-center justify-between px-5 py-3 hover:bg-muted/30 transition-colors">
+                              <div>
+                                <p className="text-sm font-bold text-foreground">{loan.fullName || loan.userMsisdn}</p>
+                                <p className="text-xs text-muted-foreground">{loan.userMsisdn} · {loan.loanReference}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-black text-foreground">GHS {(loan.outstanding ?? loan.totalPayable).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                <div className="flex items-center justify-end gap-1 mt-0.5">
+                                  {loan.status && (
+                                    <Badge 
+                                      variant="outline" 
+                                      className={cn(
+                                        "text-[9px] font-black uppercase py-0 px-1 border-0",
+                                        loan.status === 'partial_repaid' ? "bg-amber-100 text-amber-700" :
+                                        loan.status === 'overdue' ? "bg-red-100 text-red-700" :
+                                        "bg-blue-100 text-blue-700"
+                                      )}
+                                    >
+                                      {loan.status === 'partial_repaid' ? 'Partial' : loan.status}
+                                    </Badge>
+                                  )}
+                                  <Badge 
+                                    variant="outline" 
+                                    className={cn(
+                                      "text-[9px] font-black py-0 px-1",
+                                      bucket === -1 ? "border-amber-300 text-amber-700" :
+                                      bucket === -2 ? "border-amber-200 text-amber-600" :
+                                      "border-emerald-200 text-emerald-600"
+                                    )}
+                                  >
+                                    {label.toLowerCase()}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-black text-foreground">GHS {(loan.outstanding ?? loan.totalPayable).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                          <Badge variant="outline" className={cn("text-[10px] font-black mt-0.5", loan.ddBucket === -2 ? "border-amber-300 text-amber-600" : "border-emerald-300 text-emerald-600")}>
-                            {loan.ddBucket === -2 ? "in 2 days" : "in 3 days"}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -375,55 +465,72 @@ export default function AgentDashboard() {
             
             <Card className="border-none shadow-xl shadow-black/5 bg-card/50 backdrop-blur-xl overflow-hidden border border-white/20">
               <CardContent className="p-0 divide-y divide-border/50">
-                 {recentSignups.length > 0 ? (
-                    recentSignups.slice(0, 6).map((signup) => (
-                      <div key={signup._id} className="p-4 sm:p-5 flex items-center justify-between hover:bg-muted/30 transition-all group">
+                 {actionFeed.length > 0 ? (
+                    actionFeed.map((item) => (
+                      <div key={item.id} className="p-4 sm:p-5 flex items-center justify-between hover:bg-muted/30 transition-all group">
                          <div className="flex items-center gap-4">
                             <Dialog>
                                <DialogTrigger asChild>
                                  <div className="relative cursor-pointer hover:opacity-80 transition-opacity">
                                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-pink flex items-center justify-center text-primary-foreground font-black text-sm border-2 border-white shadow-sm shrink-0">
-                                      {signup.selfieUrl ? (
-                                        <img src={signup.selfieUrl} alt={signup.fullName} className="w-full h-full object-cover" />
+                                      {item.selfieUrl ? (
+                                        <img src={item.selfieUrl} alt={item.fullName} className="w-full h-full object-cover" />
                                       ) : (
-                                        signup.fullName?.charAt(0) || "?"
+                                        item.fullName?.charAt(0) || "?"
                                       )}
                                     </div>
                                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-card rounded-full flex items-center justify-center p-0.5 shadow-sm border border-border/20">
                                       <div className={cn(
                                         "w-full h-full rounded-full",
-                                        signup.kycStatus?.toLowerCase() === "verified" ? "bg-emerald-500" : "bg-amber-500"
+                                        item.kycStatus?.toLowerCase() === "verified" ? "bg-emerald-500" : "bg-amber-500"
                                       )} />
                                     </div>
                                  </div>
                                </DialogTrigger>
                                <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden bg-transparent border-none shadow-none flex justify-center">
-                                 {signup.selfieUrl ? (
-                                   <img src={signup.selfieUrl} alt={signup.fullName} className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+                                 <DialogHeader className="sr-only">
+                                   <DialogTitle>Client Selfie</DialogTitle>
+                                   <DialogDescription>Full size view of client selfie</DialogDescription>
+                                 </DialogHeader>
+                                 {item.selfieUrl ? (
+                                   <img src={item.selfieUrl} alt={item.fullName} className="max-w-full max-h-[80vh] object-contain rounded-xl" />
                                  ) : (
                                    <div className="w-64 h-64 rounded-full bg-gradient-pink flex items-center justify-center text-primary-foreground font-bold text-6xl shadow-xl">
-                                     {signup.fullName?.charAt(0) || "?"}
+                                     {item.fullName?.charAt(0) || "?"}
                                    </div>
                                  )}
                                </DialogContent>
                              </Dialog>
                             <div>
                                <p className="font-bold text-base text-foreground flex items-center gap-2">
-                                 {signup.fullName}
-                                 <Badge variant="outline" className="text-[10px] font-black uppercase py-0 px-2 h-4 border-primary/20 text-primary">NEW CLIENT</Badge>
+                                 {item.fullName}
+                                 <Badge 
+                                   variant="outline" 
+                                   className={cn(
+                                     "text-[10px] font-black uppercase py-0 px-2 h-4",
+                                     item.type === "ENDORSEMENT" ? "border-amber-200 text-amber-600 bg-amber-50" : "border-primary/20 text-primary bg-primary/5"
+                                   )}
+                                 >
+                                   {item.type === "ENDORSEMENT" ? "Endorsement" : "New Client"}
+                                 </Badge>
                                </p>
                                <p className="text-xs font-medium text-muted-foreground opacity-70">
-                                 Submitted loan request • {signup.msisdn}
+                                 {item.type === "ENDORSEMENT" 
+                                   ? `Needs your approval for GHS ${item.loanAmount} loan` 
+                                   : `Recently onboarded • ${item.msisdn}`}
                                </p>
                             </div>
                          </div>
                          <div className="flex items-center gap-3">
                             <Button 
                               size="sm" 
-                              className="h-9 px-4 rounded-xl font-bold bg-primary hover:bg-primary/90 hidden sm:flex"
-                              onClick={() => navigate(`/agent/endorsements`)}
+                              className={cn(
+                                "h-9 px-4 rounded-xl font-bold hidden sm:flex",
+                                item.type === "ENDORSEMENT" ? "bg-amber-500 hover:bg-amber-600" : "bg-primary hover:bg-primary/90"
+                              )}
+                              onClick={() => navigate(item.type === "ENDORSEMENT" ? "/agent/endorsements" : "/agent/portfolio")}
                             >
-                              Review
+                              {item.type === "ENDORSEMENT" ? "Approve" : "View"}
                             </Button>
                             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
                                <ChevronRight className="h-4 w-4" />

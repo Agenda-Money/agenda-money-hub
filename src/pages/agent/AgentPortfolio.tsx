@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,9 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 
@@ -35,6 +38,7 @@ interface OnboardedUser {
   kycStatus: string; // The API returns lowercase string, could be "verified", "pending", etc.
   loanStatus: string; // The API returns "none" or other statuses
   loanAmount?: number;
+  outstandingBalance?: number;
   onboardedDate: string;
   lastPayment?: string;
   selfieUrl?: string;
@@ -87,52 +91,84 @@ const getKycBadge = (status: string) => {
   }
 };
 
-const getLoanStatusBadge = (status: string, amount?: number) => {
+const getLoanStatusBadge = (status: string, amount?: number, outstanding?: number) => {
   const baseClasses = "text-xs font-medium";
   const normalizedStatus = status?.toUpperCase();
   
+  // Outstanding logic: 
+  // - For OVERDUE or PARTIAL_REPAID: show outstanding in red/amber alongside the loan amount
+  // - For ACTIVE: show outstanding in neutral tone (still has time)
+  // - For REPAID: outstanding will be 0, show as "Settled"
+  
+  const displayAmount = (amount || 0);
+  const displayOutstanding = (outstanding ?? displayAmount);
+
   switch (normalizedStatus) {
     case "ACTIVE":
       return (
         <div className="text-right">
-          <p className="font-bold text-foreground">₵{amount || 0}</p>
-          <Badge className={cn(baseClasses, "bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-400")}>
-            Active
-          </Badge>
+          <p className="font-bold text-foreground">₵{displayAmount}</p>
+          <div className="flex flex-col items-end gap-1 mt-1">
+            <Badge className={cn(baseClasses, "bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-400")}>
+              Active
+            </Badge>
+            {displayOutstanding > 0 && displayOutstanding < displayAmount && (
+              <span className="text-[10px] text-muted-foreground font-bold">₵{displayOutstanding} left</span>
+            )}
+          </div>
+        </div>
+      );
+    case "PARTIAL_REPAID":
+      return (
+        <div className="text-right">
+          <p className="font-bold text-foreground">₵{displayAmount}</p>
+          <div className="flex flex-col items-end gap-1 mt-1">
+            <Badge className={cn(baseClasses, "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400")}>
+              Partial
+            </Badge>
+            <span className="text-[10px] text-amber-600 font-black">₵{displayOutstanding} left</span>
+          </div>
         </div>
       );
     case "REPAID":
+    case "CLOSED":
       return (
         <div className="text-right">
-          <p className="font-bold text-foreground">₵{amount || 0}</p>
+          <p className="font-bold text-foreground">₵{displayAmount}</p>
           <Badge className={cn(baseClasses, "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400")}>
-            Closed
+            Settled
           </Badge>
         </div>
       );
     case "OVERDUE":
       return (
         <div className="text-right">
-          <p className="font-bold text-foreground">₵{amount || 0}</p>
-          <Badge className={cn(baseClasses, "bg-red-500/10 text-red-700 border-red-500/30 dark:text-red-400")}>
-            Overdue
-          </Badge>
+          <p className="font-bold text-foreground">₵{displayAmount}</p>
+          <div className="flex flex-col items-end gap-1 mt-1">
+            <Badge className={cn(baseClasses, "bg-red-500/10 text-red-700 border-red-500/30 dark:text-red-400")}>
+              Overdue
+            </Badge>
+            <span className="text-[10px] text-red-600 font-black">₵{displayOutstanding} left</span>
+          </div>
         </div>
       );
     case "DEFAULTED":
       return (
         <div className="text-right">
-          <p className="font-bold text-foreground">₵{amount || 0}</p>
-          <Badge className={cn(baseClasses, "bg-slate-500/10 text-slate-700 border-slate-500/30 dark:text-slate-400")}>
-            Defaulted
-          </Badge>
+          <p className="font-bold text-foreground">₵{displayAmount}</p>
+          <div className="flex flex-col items-end gap-1 mt-1">
+            <Badge className={cn(baseClasses, "bg-red-900/10 text-red-900 border-red-900/30 dark:text-red-500")}>
+              Defaulted
+            </Badge>
+            <span className="text-[10px] text-red-700 font-black">₵{displayOutstanding} left</span>
+          </div>
         </div>
       );
     case "PENDING":
     case "AWAITING_ENDORSEMENT":
       return (
         <div className="text-right">
-          <p className="font-bold text-foreground">₵{amount || 0}</p>
+          <p className="font-bold text-foreground">₵{displayAmount}</p>
           <Badge className={cn(baseClasses, "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400")}>
             Pending
           </Badge>
@@ -157,16 +193,30 @@ const maskGhanaCard = (number: string) => {
 export default function AgentPortfolio() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [page, setPage] = useState(1);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Reset page when search or filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filterStatus]);
+
   const { data, isLoading, isError, error } = useQuery<PortfolioResponse>({
-    queryKey: ["agent-portfolio", user?.email, page, searchTerm, filterStatus],
+    queryKey: ["agent-portfolio", user?.email, page, debouncedSearch, filterStatus],
     queryFn: async () => {
       try {
         const params: any = { page, limit: 10 };
-        if (searchTerm) params.search = searchTerm;
-        if (filterStatus !== "all") params.status = filterStatus;
+        if (debouncedSearch) params.search = debouncedSearch;
+        if (filterStatus !== "all") params.status = filterStatus.toUpperCase();
 
         const res = await getAgentPortfolio(params);
         
@@ -201,6 +251,7 @@ export default function AgentPortfolio() {
           kycStatus: (u.kycStatus as string)?.toLowerCase() || "pending",
           loanStatus: (u.loanStatus as string)?.toLowerCase() || "none",
           loanAmount: u.loanAmount as number | undefined,
+          outstandingBalance: u.outstandingBalance as number | undefined,
           onboardedDate: u.onboardedDate as string,
           lastPayment: u.lastPayment as string | undefined,
           selfieUrl: u.selfieUrl as string | undefined,
@@ -256,13 +307,17 @@ export default function AgentPortfolio() {
              myStatsData?.portfolio?.loansOverdue || 
              myStatsData?.portfolio?.metrics?.loansOverdue ||
              users.filter(u => u.loanStatus === "overdue").length,
+    partialRepaid: myStatsData?.portfolio?.metrics?.loansPartialRepaid || 0,
+    defaulted: myStatsData?.portfolio?.metrics?.loansDefaulted || 0,
   };
 
   const statCards = [
     { label: "Total Customers", value: stats.total, icon: User, color: "from-blue-500 to-blue-600" },
     { label: "KYC Verified", value: stats.verified, icon: CheckCircle2, color: "from-emerald-500 to-emerald-600" },
-    { label: "Active Loans", value: stats.activeLoans, icon: DollarSign, color: "from-amber-500 to-orange-500" },
-    { label: "Overdue", value: stats.overdue, icon: AlertCircle, color: "from-red-500 to-red-600" },
+    { label: "Active Loans", value: stats.activeLoans, icon: DollarSign, color: "from-blue-400 to-indigo-500" },
+    { label: "Partial Repaid", value: stats.partialRepaid, icon: Clock, color: "from-amber-400 to-orange-500" },
+    { label: "Overdue", value: stats.overdue, icon: AlertCircle, color: "from-red-400 to-red-500" },
+    { label: "Defaulted", value: stats.defaulted, icon: AlertCircle, color: "from-red-800 to-red-900" },
   ];
 
   return (
@@ -279,7 +334,7 @@ export default function AgentPortfolio() {
       </motion.div>
 
       {/* Stats Grid */}
-      <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
         {statCards.map((stat) => (
           <Card key={stat.label} className="border-0 shadow-md overflow-hidden">
             <div className={cn("h-1 bg-gradient-to-r", stat.color)} />
@@ -315,7 +370,6 @@ export default function AgentPortfolio() {
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
-                      setPage(1);
                     }}
                     className="pl-10 bg-muted/50 border-0"
                   />
@@ -340,6 +394,7 @@ export default function AgentPortfolio() {
                     <SelectGroup>
                       <SelectLabel className="text-[10px] uppercase text-muted-foreground px-2 py-1">Loan Status</SelectLabel>
                       <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="partial_repaid">Partial Repaid</SelectItem>
                       <SelectItem value="repaid">Repaid</SelectItem>
                       <SelectItem value="overdue">Overdue</SelectItem>
                       <SelectItem value="defaulted">Defaulted</SelectItem>
@@ -410,6 +465,10 @@ export default function AgentPortfolio() {
                               </div>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden bg-transparent border-none shadow-none flex justify-center">
+                              <DialogHeader className="sr-only">
+                                <DialogTitle>Client Selfie</DialogTitle>
+                                <DialogDescription>Full size view of client selfie</DialogDescription>
+                              </DialogHeader>
                               {customer.selfieUrl ? (
                                 <img src={customer.selfieUrl} alt={customer.fullName} className="max-w-full max-h-[80vh] object-contain rounded-xl" />
                               ) : (
@@ -437,7 +496,7 @@ export default function AgentPortfolio() {
                             {customer.region}
                           </span>
                         </div>
-                        {getLoanStatusBadge(customer.loanStatus, customer.loanAmount)}
+                        {getLoanStatusBadge(customer.loanStatus, customer.loanAmount, customer.outstandingBalance)}
                       </div>
                     </div>
 
@@ -455,6 +514,10 @@ export default function AgentPortfolio() {
                             </div>
                           </DialogTrigger>
                           <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden bg-transparent border-none shadow-none flex justify-center">
+                            <DialogHeader className="sr-only">
+                              <DialogTitle>Client Selfie</DialogTitle>
+                              <DialogDescription>Full size view of client selfie</DialogDescription>
+                            </DialogHeader>
                             {customer.selfieUrl ? (
                               <img src={customer.selfieUrl} alt={customer.fullName} className="max-w-full max-h-[80vh] object-contain rounded-xl" />
                             ) : (
@@ -479,7 +542,7 @@ export default function AgentPortfolio() {
                         {getKycBadge(customer.kycStatus)}
                       </div>
                       <div className="col-span-2">
-                        {getLoanStatusBadge(customer.loanStatus, customer.loanAmount)}
+                        {getLoanStatusBadge(customer.loanStatus, customer.loanAmount, customer.outstandingBalance)}
                       </div>
                       <div className="col-span-1 text-right text-xs text-muted-foreground">
                         {new Date(customer.onboardedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
