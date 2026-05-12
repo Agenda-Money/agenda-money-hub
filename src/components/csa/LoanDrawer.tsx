@@ -176,9 +176,9 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <p className="text-xs text-muted-foreground">{(loan?.user as any)?.employmentStatus}</p>
-                              {(loan?.user?.onboardingAgent?.name || loan?.referredBy?.name || loan?.onboardingAgent?.name || loan?.user?.referredByNodeCode) && (
+                              {(loan?.currentAssignedAgent?.name || loan?.user?.onboardingAgent?.name || loan?.referredBy?.name || loan?.onboardingAgent?.name || loan?.user?.referredByNodeCode) && (
                                 <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-bold border-[#378ADD]/20 bg-[#378ADD]/5 text-[#378ADD] whitespace-nowrap">
-                                  {loan.user?.onboardingAgent?.name || loan.referredBy?.name || loan.onboardingAgent?.name || loan.user?.referredByNodeCode}
+                                  {loan.currentAssignedAgent?.name || loan.user?.onboardingAgent?.name || loan.referredBy?.name || loan.onboardingAgent?.name || loan.user?.referredByNodeCode}
                                 </Badge>
                               )}
                             </div>

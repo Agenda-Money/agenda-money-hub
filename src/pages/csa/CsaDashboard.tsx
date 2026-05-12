@@ -170,6 +170,7 @@ export default function CsaDashboard() {
     loans.forEach((loan: any) => {
       const agentName =
         loan.currentAssignedAgent?.name ||
+        loan.assignedAgent ||
         loan.user?.onboardingAgent?.name ||
         loan.referredBy?.name ||
         loan.onboardingAgent?.name ||
@@ -533,7 +534,7 @@ function LoanTable({
       <table className="min-w-full text-sm">
         <thead>
           <tr className="border-b border-border/50 bg-muted/30">
-            <th className={thCls()}>Borrower</th>
+            <th className={cn(thCls(), 'sticky left-0 z-20 bg-muted border-r border-border/40')}>Borrower</th>
             <th className={thCls()}>Phone</th>
             <th className={thCls('ddBucket')} onClick={() => onSort('ddBucket')}>
               Bucket <SortIcon colKey="ddBucket" sortKey={sortKey} sortDir={sortDir} />
@@ -566,7 +567,14 @@ function LoanTable({
             const meta = getBucketMeta(loan.ddBucket);
             const outstanding = (loan.totalPayable ?? 0) - (loan.amountRepaid ?? 0);
             const name = loan.user?.fullName ?? loan.userMsisdn;
-            const agentName = loan.currentAssignedAgent?.name ?? loan.user?.referredByNodeCode ?? '—';
+            const agentName =
+              loan.currentAssignedAgent?.name ||
+              loan.assignedAgent ||
+              loan.user?.onboardingAgent?.name ||
+              loan.referredBy?.name ||
+              loan.onboardingAgent?.name ||
+              loan.user?.referredByNodeCode ||
+              '—';
 
             return (
               <tr
@@ -575,7 +583,7 @@ function LoanTable({
                 className="border-b border-border/30 cursor-pointer hover:bg-muted/40 transition-colors group"
               >
                 {/* Borrower */}
-                <td className="px-3 py-2.5 min-w-[140px]">
+                <td className="sticky left-0 z-10 bg-card group-hover:bg-accent border-r border-border/40 px-3 py-2.5 min-w-[140px] transition-colors">
                   <p className="font-semibold text-foreground truncate max-w-[160px] group-hover:text-primary transition-colors">{name}</p>
                   <p className="text-[10px] text-muted-foreground font-mono">{loan.loanReference}</p>
                 </td>
@@ -661,7 +669,7 @@ function LoanTable({
                 </td>
 
                 {/* Agent */}
-                <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap max-w-[120px]">
+                <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap min-w-[160px] max-w-[200px]">
                   <span className="truncate block">{agentName}</span>
                 </td>
 

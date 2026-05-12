@@ -188,12 +188,13 @@ function LoansTable({ loans, onLoanClick }: Readonly<{ loans: Loan[]; onLoanClic
   );
 }
 
-const StatusCard = ({ title, count, type }: { title: string, count: number | string, type: "pending" | "active" | "closed" | "overdue" }) => {
+const StatusCard = ({ title, count, type }: { title: string, count: number | string, type: "pending" | "active" | "closed" | "overdue" | "defaulted" }) => {
   const styles = {
     pending: "border-warning text-warning bg-warning/5",
     active: "border-green-500 text-green-600 bg-green-50",
     closed: "border-blue-500 text-blue-600 bg-blue-50",
-    overdue: "border-destructive text-destructive bg-destructive/5",
+    overdue: "border-orange-500 text-orange-600 bg-orange-50",
+    defaulted: "border-destructive text-destructive bg-destructive/5",
   };
 
   return (
@@ -302,18 +303,18 @@ export default function LoansPage() {
 
   // Parallel queries for status counts
   const statusQueries = useQueries({
-    queries: ["pending", "active", "closed", "overdue", "repaid"].map((status) => ({
+    queries: ["pending", "active", "closed", "overdue", "repaid", "defaulted"].map((status) => ({
       queryKey: ["loans-count", status],
       queryFn: async () => {
         const res = await getAdminLoans({ status, limit: 1 });
         return res.pagination?.total || 0;
       },
-      staleTime: 60000, 
+      staleTime: 60000,
     })),
   });
 
-  const [pendingCount, activeCount, closedCountRaw, overdueCount, repaidCount] = statusQueries.map(q => q.data ?? 0);
-  
+  const [pendingCount, activeCount, closedCountRaw, overdueCount, repaidCount, defaultedCount] = statusQueries.map(q => q.data ?? 0);
+
   // Combine closed and repaid counts
   const closedCount = (Number(closedCountRaw) || 0) + (Number(repaidCount) || 0);
 
@@ -401,11 +402,12 @@ export default function LoansPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <StatusCard title="Pending Approval" count={pendingCount} type="pending" />
           <StatusCard title="Active Loans" count={activeCount} type="active" />
           <StatusCard title="Closed Loans" count={closedCount} type="closed" />
           <StatusCard title="Overdue" count={overdueCount} type="overdue" />
+          <StatusCard title="Defaulted" count={defaultedCount} type="defaulted" />
         </div>
 
         {/* Controls Row (Tabs + Filter) */}

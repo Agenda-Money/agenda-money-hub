@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Phone, MapPin, Wifi, UserCheck, MessageSquare, PhoneCall } from 'lucide-react';
+import { Phone, MapPin, Wifi, UserCheck, MessageSquare, PhoneCall, CalendarDays, CalendarCheck } from 'lucide-react';
 import { differenceInDays, startOfDay, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { getBucketMeta, formatGHS, formatOutcome, outcomeColor, formatNetwork } from '@/lib/bucketUtils';
@@ -15,17 +15,21 @@ interface LoanCardProps {
     totalPayable: number;
     amountRepaid: number;
     dueDate: string;
+    disbursedAt?: string | null;
+    lastPaymentDate?: string | null;
+    lastPaymentType?: string | null;
     ddBucket: number;
     status: string;
     guarantorName: string | null;
     guarantorMsisdn: string | null;
-    user: { 
-      fullName: string; 
-      region: string; 
-      onboardingAgent?: { name: string }; 
+    user: {
+      fullName: string;
+      region: string;
+      onboardingAgent?: { name: string };
       referredByNodeCode?: string;
-      isRepeatBorrower?: boolean 
+      isRepeatBorrower?: boolean
     } | null;
+    currentAssignedAgent?: { id: string; name: string } | null;
     onboardingAgent?: { name: string };
     referredBy?: { name: string; code?: string };
     lastActivity: { outcome: string; createdAt: string; csaName: string } | null;
@@ -40,11 +44,13 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
   const name = loan.user?.fullName ?? loan.userMsisdn;
   const region = loan.user?.region;
 
-  // Agent attribution fallback logic
-  const agentName = 
-    loan.user?.onboardingAgent?.name || 
-    loan.referredBy?.name || 
-    loan.onboardingAgent?.name || 
+  // Agent attribution — currentAssignedAgent is the resolved source of truth (covers both formal agents and NODE peer-referrers)
+  const agentName =
+    loan.currentAssignedAgent?.name ||
+    (loan as any).assignedAgent ||
+    loan.user?.onboardingAgent?.name ||
+    loan.referredBy?.name ||
+    loan.onboardingAgent?.name ||
     loan.user?.referredByNodeCode;
 
   let exactDaysOverdue = loan.ddBucket;
@@ -114,6 +120,48 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
               </p>
             </div>
           )}
+        </div>
+
+        {/* Date info row */}
+        <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+          <div className="bg-muted/30 rounded-lg px-2 py-1.5">
+            <p className="text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-1 mb-0.5">
+              <CalendarDays className="h-2.5 w-2.5" />Disbursed
+            </p>
+            <p className="font-bold text-foreground">
+              {loan.disbursedAt ? format(new Date(loan.disbursedAt), 'dd MMM yy') : '—'}
+            </p>
+          </div>
+          <div className="bg-muted/30 rounded-lg px-2 py-1.5">
+            <p className="text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-1 mb-0.5">
+              <CalendarDays className="h-2.5 w-2.5" />Due Date
+            </p>
+            <p className="font-bold text-foreground">
+              {loan.dueDate ? format(new Date(loan.dueDate), 'dd MMM yy') : '—'}
+            </p>
+          </div>
+          <div className="bg-muted/30 rounded-lg px-2 py-1.5">
+            <p className="text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-1 mb-0.5">
+              <CalendarCheck className="h-2.5 w-2.5" />Last Paid
+            </p>
+            {loan.lastPaymentDate ? (
+              <div>
+                <p className="font-bold text-foreground">{format(new Date(loan.lastPaymentDate), 'dd MMM yy')}</p>
+                {loan.lastPaymentType && (
+                  <span className={cn(
+                    'text-[9px] font-bold px-1.5 py-0.5 rounded-full border',
+                    loan.lastPaymentType === 'full'
+                      ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                      : 'bg-amber-100 text-amber-700 border-amber-200',
+                  )}>
+                    {loan.lastPaymentType === 'full' ? 'Full' : 'Partial'}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground italic">None</p>
+            )}
+          </div>
         </div>
 
         {/* Meta row */}

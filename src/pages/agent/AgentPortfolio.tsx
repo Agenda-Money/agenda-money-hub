@@ -157,10 +157,10 @@ const getLoanStatusBadge = (status: string, amount?: number, outstanding?: numbe
         <div className="text-right">
           <p className="font-bold text-foreground">₵{displayAmount}</p>
           <div className="flex flex-col items-end gap-1 mt-1">
-            <Badge className={cn(baseClasses, "bg-red-900/10 text-red-900 border-red-900/30 dark:text-red-500")}>
-              Defaulted
+            <Badge className={cn(baseClasses, "bg-red-500/10 text-red-700 border-red-500/30 dark:text-red-400")}>
+              Overdue
             </Badge>
-            <span className="text-[10px] text-red-700 font-black">₵{displayOutstanding} left</span>
+            <span className="text-[10px] text-red-600 font-black">₵{displayOutstanding} left</span>
           </div>
         </div>
       );
@@ -303,21 +303,23 @@ export default function AgentPortfolio() {
                  myStatsData?.portfolio?.loansActive || 
                  myStatsData?.portfolio?.metrics?.loansActive ||
                  users.filter(u => u.loanStatus === "active").length,
-    overdue: myStatsData?.stats?.overdueLoans || 
-             myStatsData?.portfolio?.loansOverdue || 
-             myStatsData?.portfolio?.metrics?.loansOverdue ||
-             users.filter(u => u.loanStatus === "overdue").length,
-    partialRepaid: myStatsData?.portfolio?.metrics?.loansPartialRepaid || 0,
+    overdueRaw: myStatsData?.stats?.overdueLoans ||
+                myStatsData?.portfolio?.loansOverdue ||
+                myStatsData?.portfolio?.metrics?.loansOverdue ||
+                users.filter(u => u.loanStatus === "overdue").length,
     defaulted: myStatsData?.portfolio?.metrics?.loansDefaulted || 0,
+    partialRepaid: myStatsData?.portfolio?.metrics?.loansPartialRepaid || 0,
   };
+
+  // Fold defaulted into overdue — agents should not see a separate defaulted count
+  const overdueTotal = (stats.overdueRaw || 0) + (stats.defaulted || 0);
 
   const statCards = [
     { label: "Total Customers", value: stats.total, icon: User, color: "from-blue-500 to-blue-600" },
     { label: "KYC Verified", value: stats.verified, icon: CheckCircle2, color: "from-emerald-500 to-emerald-600" },
     { label: "Active Loans", value: stats.activeLoans, icon: DollarSign, color: "from-blue-400 to-indigo-500" },
     { label: "Partial Repaid", value: stats.partialRepaid, icon: Clock, color: "from-amber-400 to-orange-500" },
-    { label: "Overdue", value: stats.overdue, icon: AlertCircle, color: "from-red-400 to-red-500" },
-    { label: "Defaulted", value: stats.defaulted, icon: AlertCircle, color: "from-red-800 to-red-900" },
+    { label: "Overdue", value: overdueTotal, icon: AlertCircle, color: "from-red-400 to-red-500" },
   ];
 
   return (
@@ -334,7 +336,7 @@ export default function AgentPortfolio() {
       </motion.div>
 
       {/* Stats Grid */}
-      <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
+      <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {statCards.map((stat) => (
           <Card key={stat.label} className="border-0 shadow-md overflow-hidden">
             <div className={cn("h-1 bg-gradient-to-r", stat.color)} />
@@ -397,7 +399,6 @@ export default function AgentPortfolio() {
                       <SelectItem value="partial_repaid">Partial Repaid</SelectItem>
                       <SelectItem value="repaid">Repaid</SelectItem>
                       <SelectItem value="overdue">Overdue</SelectItem>
-                      <SelectItem value="defaulted">Defaulted</SelectItem>
                       <SelectItem value="none">No Loan</SelectItem>
                     </SelectGroup>
                   </SelectContent>
