@@ -76,6 +76,7 @@ export default function AgentDetailsPage() {
     loansPending: statsRaw.pendingLoans ?? portfolioRaw?.portfolio?.loansPending ?? agentDataRaw.loansPending ?? 0,
     loansClosed: statsRaw.closedLoans ?? portfolioRaw?.portfolio?.loansClosed ?? agentDataRaw.loansClosed ?? 0,
     loansOverdue: statsRaw.overdueLoans ?? portfolioRaw?.portfolio?.loansOverdue ?? agentDataRaw.loansOverdue ?? 0,
+    loansDefaulted: statsRaw.defaultedLoans ?? portfolioRaw?.metrics?.loansDefaulted ?? agentDataRaw.defaultedLoans ?? 0,
     selfieUrl: agentDataRaw.selfieUrl,
     ghanaCardFrontUrl: agentDataRaw.ghanaCardFrontUrl,
     ghanaCardBackUrl: agentDataRaw.ghanaCardBackUrl,
@@ -241,14 +242,14 @@ export default function AgentDetailsPage() {
                    <CardDescription>Aggregate status of loans tied to this agent's node code.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                        <div className="p-4 rounded-xl border bg-blue-50/50 dark:bg-blue-950/10 border-blue-100 dark:border-blue-900 flex flex-col">
                           <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-1">Active Loans</p>
-                           <p className="text-3xl font-bold text-blue-700 dark:text-blue-300 mt-auto">{formatNumber(agent.loansActive)}</p>
+                          <p className="text-3xl font-bold text-blue-700 dark:text-blue-300 mt-auto">{formatNumber(agent.loansActive)}</p>
                        </div>
                        <div className="p-4 rounded-xl border bg-amber-50/50 dark:bg-amber-950/10 border-amber-100 dark:border-amber-900 flex flex-col">
                           <p className="text-sm text-amber-600 dark:text-amber-400 font-medium mb-1">Pending Loans</p>
-                           <p className="text-3xl font-bold text-amber-700 dark:text-amber-300 mt-auto">{formatNumber(agent.loansPending)}</p>
+                          <p className="text-3xl font-bold text-amber-700 dark:text-amber-300 mt-auto">{formatNumber(agent.loansPending)}</p>
                        </div>
                        <div className="p-4 rounded-xl border bg-green-50/50 dark:bg-green-950/10 border-green-100 dark:border-green-900 flex flex-col">
                            <div className="flex items-center gap-1.5 mb-1">
@@ -257,12 +258,19 @@ export default function AgentDetailsPage() {
                            </div>
                            <p className="text-3xl font-bold text-green-700 dark:text-green-300 mt-auto">{formatNumber(agent.loansClosed)}</p>
                        </div>
+                       <div className="p-4 rounded-xl border bg-orange-50/50 dark:bg-orange-950/10 border-orange-100 dark:border-orange-900 flex flex-col">
+                           <div className="flex items-center gap-1.5 mb-1">
+                             <AlertCircle className="h-4 w-4 text-orange-600" />
+                             <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">Overdue Loans</p>
+                           </div>
+                           <p className="text-3xl font-bold text-orange-700 dark:text-orange-300 mt-auto">{formatNumber(agent.loansOverdue)}</p>
+                       </div>
                        <div className="p-4 rounded-xl border bg-red-50/50 dark:bg-red-950/10 border-red-100 dark:border-red-900 flex flex-col">
                            <div className="flex items-center gap-1.5 mb-1">
                              <AlertCircle className="h-4 w-4 text-red-600" />
-                             <p className="text-sm text-red-600 dark:text-red-400 font-medium">Overdue Loans</p>
+                             <p className="text-sm text-red-600 dark:text-red-400 font-medium">Defaulted Loans</p>
                            </div>
-                           <p className="text-3xl font-bold text-red-700 dark:text-red-300 mt-auto">{formatNumber(agent.loansOverdue)}</p>
+                           <p className="text-3xl font-bold text-red-700 dark:text-red-300 mt-auto">{formatNumber(agent.loansDefaulted)}</p>
                        </div>
                     </div>
                 </CardContent>

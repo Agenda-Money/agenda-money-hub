@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Phone, MapPin, Wifi, UserCheck, Send, ChevronDown, CheckCircle2, Copy, Clock } from 'lucide-react';
+import {
+  X, Phone, MapPin, Wifi, UserCheck, Send, ChevronDown, CheckCircle2, Copy,
+  Clock, Briefcase, Home, PhoneCall, MessageSquare, TrendingUp, AlertCircle,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -45,7 +48,7 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
   const [callbackAt, setCallbackAt] = useState('');
   const [sendSms, setSendSms] = useState(false);
   const [smsTemplateKey, setSmsTemplateKey] = useState('');
-  const [activeTab, setActiveTab] = useState<'detail' | 'history'>('detail');
+  const [activeTab, setActiveTab] = useState<'detail' | 'history' | 'research'>('detail');
 
   const { data, isLoading } = useQuery({
     queryKey: ['csa-loan-detail', loanId],
@@ -138,7 +141,7 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
 
             {/* Tabs */}
             <div className="flex border-b border-border bg-card/30 flex-shrink-0">
-              {(['detail', 'history'] as const).map((tab) => (
+              {(['detail', 'history', 'research'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -149,7 +152,7 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {tab === 'detail' ? 'Log Activity' : 'Call History'}
+                  {tab === 'detail' ? 'Log Activity' : tab === 'history' ? 'Call History' : 'Research'}
                 </button>
               ))}
             </div>
@@ -173,9 +176,9 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <p className="text-xs text-muted-foreground">{(loan?.user as any)?.employmentStatus}</p>
-                              {(loan?.user?.onboardingAgent?.name || loan?.referredBy?.name || loan?.onboardingAgent?.name || loan?.user?.referredByNodeCode) && (
+                              {(loan?.currentAssignedAgent?.name || loan?.user?.onboardingAgent?.name || loan?.referredBy?.name || loan?.onboardingAgent?.name || loan?.user?.referredByNodeCode) && (
                                 <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-bold border-[#378ADD]/20 bg-[#378ADD]/5 text-[#378ADD] whitespace-nowrap">
-                                  {loan.user?.onboardingAgent?.name || loan.referredBy?.name || loan.onboardingAgent?.name || loan.user?.referredByNodeCode}
+                                  {loan.currentAssignedAgent?.name || loan.user?.onboardingAgent?.name || loan.referredBy?.name || loan.onboardingAgent?.name || loan.user?.referredByNodeCode}
                                 </Badge>
                               )}
                             </div>
@@ -449,6 +452,8 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                       )}
                     </div>
                   )}
+
+                  {activeTab === 'research' && <ResearchPanel loan={loan} />}
                 </>
               )}
             </div>
@@ -456,5 +461,191 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+// ── Research Panel ────────────────────────────────────────────────────────────
+
+function ResearchField({ label, value, icon: Icon }: { label: string; value?: string | null; icon?: React.ElementType }) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">{label}</p>
+      <div className="flex items-center gap-1.5">
+        {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+        <p className="text-sm text-foreground">{value || <span className="text-muted-foreground italic">Not available</span>}</p>
+      </div>
+    </div>
+  );
+}
+
+function ResearchSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2.5">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function ResearchPanel({ loan }: { loan: any }) {
+  if (!loan) return null;
+
+  const callHistory: any[] = loan.callHistory ?? [];
+  const calls = callHistory.filter((a) => a.outcome !== 'SMS_SENT');
+  const smsList = callHistory.filter((a) => a.outcome === 'SMS_SENT');
+  const promises = callHistory.filter((a) => a.outcome === 'PROMISE_TO_PAY' || a.outcome === 'PARTIAL_PAYMENT');
+
+  // Outcome breakdown
+  const outcomeCounts: Record<string, number> = {};
+  for (const a of calls) {
+    outcomeCounts[a.outcome] = (outcomeCounts[a.outcome] || 0) + 1;
+  }
+  const topOutcomes = Object.entries(outcomeCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4);
+
+  const handleCall = (number: string) => { window.location.href = `tel:${number}`; };
+  const copyPhone = (phone: string) => { navigator.clipboard.writeText(phone); toast.success('Copied'); };
+
+  return (
+    <div className="p-5 space-y-6">
+      {/* Borrower Profile */}
+      <ResearchSection title="Borrower Profile">
+        <div className="bg-muted/30 rounded-xl p-4 border border-border/50 grid grid-cols-2 gap-4">
+          <ResearchField label="Full Name" value={loan.user?.fullName || loan.userMsisdn} />
+          <ResearchField label="Employment" value={loan.user?.employmentStatus} icon={Briefcase} />
+          <ResearchField label="Region" value={loan.user?.region} icon={MapPin} />
+          <ResearchField label="Address" value={loan.user?.address} icon={Home} />
+        </div>
+      </ResearchSection>
+
+      {/* Guarantor */}
+      <ResearchSection title="Guarantor">
+        {loan.guarantorName || loan.guarantorMsisdn ? (
+          <div className="bg-purple-50 dark:bg-purple-950/20 rounded-xl p-4 border border-purple-100 dark:border-purple-900/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-purple-900 dark:text-purple-200">{loan.guarantorName || '—'}</p>
+                <p className="text-xs text-purple-600 dark:text-purple-400 mt-0.5">{loan.guarantorMsisdn || 'No phone'}</p>
+              </div>
+              {loan.guarantorMsisdn && (
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => handleCall(loan.guarantorMsisdn)}
+                    className="flex items-center gap-1 text-[10px] font-bold text-white bg-purple-600 hover:bg-purple-700 px-2.5 py-1.5 rounded-lg transition-all active:scale-95"
+                  >
+                    <PhoneCall className="h-3 w-3" />
+                    Call
+                  </button>
+                  <button
+                    onClick={() => copyPhone(loan.guarantorMsisdn)}
+                    className="p-1.5 rounded-lg border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors text-purple-600"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-muted/20 rounded-xl p-4 border border-dashed border-border text-center">
+            <UserCheck className="h-5 w-5 mx-auto mb-1 text-muted-foreground opacity-40" />
+            <p className="text-xs text-muted-foreground">No guarantor on record</p>
+          </div>
+        )}
+      </ResearchSection>
+
+      {/* Contact Summary */}
+      <ResearchSection title="Contact Summary">
+        <div className="bg-muted/30 rounded-xl p-4 border border-border/50 space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 mx-auto mb-1">
+                <PhoneCall className="h-4 w-4 text-blue-600" />
+              </div>
+              <p className="text-lg font-black text-foreground">{calls.length}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Calls</p>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/30 mx-auto mb-1">
+                <MessageSquare className="h-4 w-4 text-sky-600" />
+              </div>
+              <p className="text-lg font-black text-foreground">{smsList.length}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">SMS</p>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 mx-auto mb-1">
+                <TrendingUp className="h-4 w-4 text-amber-600" />
+              </div>
+              <p className="text-lg font-black text-foreground">{promises.length}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Promises</p>
+            </div>
+          </div>
+
+          {topOutcomes.length > 0 && (
+            <div className="border-t border-border/50 pt-3 space-y-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Outcome Breakdown</p>
+              {topOutcomes.map(([outcome, count]) => (
+                <div key={outcome} className="flex items-center justify-between">
+                  <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border', outcomeColor(outcome))}>
+                    {formatOutcome(outcome)}
+                  </span>
+                  <span className="text-xs font-bold text-foreground">{count}×</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </ResearchSection>
+
+      {/* Payment Promises */}
+      <ResearchSection title="Payment Promises">
+        {promises.length === 0 ? (
+          <div className="bg-muted/20 rounded-xl p-4 border border-dashed border-border text-center">
+            <p className="text-xs text-muted-foreground">No promises recorded</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {promises.map((a: any) => (
+              <div key={a._id} className="bg-blue-50 dark:bg-blue-950/20 rounded-xl p-3 border border-blue-100 dark:border-blue-900/30">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border', outcomeColor(a.outcome))}>
+                      {formatOutcome(a.outcome)}
+                    </span>
+                    {a.promisedPaymentDate && (
+                      <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mt-1">
+                        Promised by {format(new Date(a.promisedPaymentDate), 'dd MMM yyyy')}
+                      </p>
+                    )}
+                    {a.promisedAmount && (
+                      <p className="text-[10px] text-blue-600 dark:text-blue-400">Amount: {formatGHS(a.promisedAmount)}</p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(a.createdAt), { addSuffix: true })}</p>
+                    {a.promiseKept === true && (
+                      <span className="text-[10px] font-bold text-emerald-600">✓ Kept</span>
+                    )}
+                    {a.promiseKept === false && (
+                      <span className="text-[10px] font-bold text-red-500">✗ Broken</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ResearchSection>
+
+      {/* Loan History — placeholder */}
+      <ResearchSection title="Previous Loans">
+        <div className="bg-muted/20 rounded-xl p-6 border border-dashed border-border text-center space-y-2">
+          <AlertCircle className="h-5 w-5 mx-auto text-muted-foreground opacity-40" />
+          <p className="text-xs font-semibold text-muted-foreground">Coming soon</p>
+          <p className="text-[10px] text-muted-foreground">Loan history will show repeat borrower status and previous repayment behaviour</p>
+        </div>
+      </ResearchSection>
+    </div>
   );
 }
