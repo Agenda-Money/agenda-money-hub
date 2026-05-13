@@ -2896,6 +2896,7 @@ export default function ApplyPage() {
                 }}
                 onContinue={(data) => {
                   setLoanApplicationData(data);
+                  if (data.nodeCode) setNodeCode(data.nodeCode);
                   handleOnboardingNext();
                 }}
                 initialAmount={loanAmount}
