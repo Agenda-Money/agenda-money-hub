@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -392,7 +392,7 @@ export default function CsaDashboard() {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  {['Borrower', 'Phone', 'Bucket', 'Disbursed', 'Due Date', 'Outstanding', 'Repaid', 'Last Payment', 'Pay Type', 'OD Days', 'Region', 'Last Activity', 'Agent', 'Action'].map((h) => (
+                  {['Client Name', 'Phone', 'Loan Amt', 'Bucket', 'Disbursed', 'Due Date', 'Outstanding', 'Repaid', 'Last Payment', 'Pay Type', 'OD Days', 'Region', 'Last Activity', 'Agent', 'Last Updated', 'Action'].map((h) => (
                     <th key={h} className="px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                       {h}
                     </th>
@@ -402,7 +402,7 @@ export default function CsaDashboard() {
               <tbody>
                 {[...Array(8)].map((_, i) => (
                   <tr key={i} className="border-b border-border/30">
-                    {Array(14).fill(null).map((_, j) => (
+                    {Array(16).fill(null).map((_, j) => (
                       <td key={j} className="px-3 py-3">
                         <Skeleton className="h-4 w-20 rounded" />
                       </td>
@@ -529,13 +529,32 @@ function LoanTable({
     key && key === sortKey && 'text-primary',
   );
 
+  // Group loans by agent, maintaining inner sort order; sort groups by count desc
+  const agentGroups = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const loan of loans) {
+      const key =
+        loan.currentAssignedAgent?.name ||
+        loan.assignedAgent ||
+        loan.user?.onboardingAgent?.name ||
+        loan.referredBy?.name ||
+        loan.onboardingAgent?.name ||
+        loan.user?.referredByNodeCode ||
+        'Unassigned';
+      if (!map[key]) map[key] = [];
+      map[key].push(loan);
+    }
+    return Object.entries(map).sort((a, b) => b[1].length - a[1].length);
+  }, [loans]);
+
   return (
     <div className="overflow-x-auto rounded-2xl border border-border/50 bg-card shadow-sm">
       <table className="min-w-full text-sm">
         <thead>
           <tr className="border-b border-border/50 bg-muted/30">
-            <th className={cn(thCls(), 'sticky left-0 z-20 bg-muted border-r border-border/40')}>Borrower</th>
+            <th className={cn(thCls(), 'sticky left-0 z-20 bg-muted border-r border-border/40')}>Client Name</th>
             <th className={thCls()}>Phone</th>
+            <th className={thCls()}>Loan Amt</th>
             <th className={thCls('ddBucket')} onClick={() => onSort('ddBucket')}>
               Bucket <SortIcon colKey="ddBucket" sortKey={sortKey} sortDir={sortDir} />
             </th>
@@ -559,141 +578,160 @@ function LoanTable({
             <th className={thCls()}>Region</th>
             <th className={thCls()}>Last Activity</th>
             <th className={thCls()}>Agent</th>
+            <th className={thCls()}>Last Updated</th>
             <th className={thCls()}>Action</th>
           </tr>
         </thead>
         <tbody>
-          {loans.map((loan: any) => {
-            const meta = getBucketMeta(loan.ddBucket);
-            const outstanding = (loan.totalPayable ?? 0) - (loan.amountRepaid ?? 0);
-            const name = loan.user?.fullName ?? loan.userMsisdn;
-            const agentName =
-              loan.currentAssignedAgent?.name ||
-              loan.assignedAgent ||
-              loan.user?.onboardingAgent?.name ||
-              loan.referredBy?.name ||
-              loan.onboardingAgent?.name ||
-              loan.user?.referredByNodeCode ||
-              '—';
-
-            return (
-              <tr
-                key={loan.loanId}
-                onClick={() => onOpenLoan(loan.loanId)}
-                className="border-b border-border/30 cursor-pointer hover:bg-muted/40 transition-colors group"
-              >
-                {/* Borrower */}
-                <td className="sticky left-0 z-10 bg-card group-hover:bg-accent border-r border-border/40 px-3 py-2.5 min-w-[140px] transition-colors">
-                  <p className="font-semibold text-foreground truncate max-w-[160px] group-hover:text-primary transition-colors">{name}</p>
-                  <p className="text-[10px] text-muted-foreground font-mono">{loan.loanReference}</p>
-                </td>
-
-                {/* Phone */}
-                <td className="px-3 py-2.5 whitespace-nowrap">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-mono text-foreground">{loan.userMsisdn}</span>
-                    <button
-                      onClick={(e) => copyPhone(e, loan.userMsisdn)}
-                      className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Copy className="h-3 w-3" />
-                    </button>
-                  </div>
-                </td>
-
-                {/* Bucket badge */}
-                <td className="px-3 py-2.5">
-                  <span className={cn('text-[10px] font-extrabold px-2.5 py-1 rounded-full border whitespace-nowrap', meta.badgeBg)}>
-                    {meta.label}
-                  </span>
-                </td>
-
-                {/* Disbursed */}
-                <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
-                  {loan.disbursedAt ? format(new Date(loan.disbursedAt), 'dd MMM yy') : '—'}
-                </td>
-
-                {/* Due Date */}
-                <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
-                  {loan.dueDate ? format(new Date(loan.dueDate), 'dd MMM yy') : '—'}
-                </td>
-
-                {/* Outstanding */}
-                <td className="px-3 py-2.5 whitespace-nowrap">
-                  <span className="text-sm font-bold text-primary">{formatGHS(outstanding)}</span>
-                </td>
-
-                {/* Amount Repaid */}
-                <td className="px-3 py-2.5 whitespace-nowrap text-xs text-emerald-600 font-semibold">
-                  {loan.amountRepaid > 0 ? formatGHS(loan.amountRepaid) : '—'}
-                </td>
-
-                {/* Last Payment Date */}
-                <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
-                  {loan.lastPaymentDate ? format(new Date(loan.lastPaymentDate), 'dd MMM yy') : '—'}
-                </td>
-
-                {/* Payment Type */}
-                <td className="px-3 py-2.5">{paymentTypeBadge(loan.lastPaymentType)}</td>
-
-                {/* OD Days */}
-                <td className="px-3 py-2.5 whitespace-nowrap">
-                  {loan.ddBucket > 0 ? (
-                    <span className={cn('text-xs font-bold', loan.ddBucket >= 5 ? 'text-red-600' : 'text-amber-600')}>
-                      {loan.ddBucket}d
+          {agentGroups.map(([agentName, groupLoans]) => (
+            <Fragment key={agentName}>
+              {/* Agent group header */}
+              <tr className="bg-muted/60 border-y border-border/40">
+                <td colSpan={16} className="px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-foreground">{agentName}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                      {groupLoans.length} loan{groupLoans.length !== 1 ? 's' : ''}
                     </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </td>
-
-                {/* Region */}
-                <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                  {loan.user?.region ?? '—'}
-                </td>
-
-                {/* Last Activity */}
-                <td className="px-3 py-2.5 min-w-[140px]">
-                  {loan.lastActivity ? (
-                    <div>
-                      <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border', outcomeColor(loan.lastActivity.outcome))}>
-                        {formatOutcome(loan.lastActivity.outcome)}
-                      </span>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {format(new Date(loan.lastActivity.createdAt), 'MMM d, HH:mm')}
-                      </p>
-                    </div>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground italic">No contact</span>
-                  )}
-                </td>
-
-                {/* Agent */}
-                <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap min-w-[160px] max-w-[200px]">
-                  <span className="truncate block">{agentName}</span>
-                </td>
-
-                {/* Action */}
-                <td className="px-3 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => { window.location.href = `tel:${loan.userMsisdn}`; onOpenLoan(loan.loanId); }}
-                      className="flex items-center gap-1 text-[10px] font-bold text-white bg-pink-600 hover:bg-pink-700 px-2.5 py-1.5 rounded-lg transition-all active:scale-95"
-                    >
-                      <Phone className="h-3 w-3" />
-                      Call
-                    </button>
-                    <button
-                      onClick={() => onOpenLoan(loan.loanId)}
-                      className="p-1.5 rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                    >
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    </button>
                   </div>
                 </td>
               </tr>
-            );
-          })}
+              {groupLoans.map((loan: any) => {
+                const meta = getBucketMeta(loan.ddBucket);
+                const outstanding = (loan.totalPayable ?? 0) - (loan.amountRepaid ?? 0);
+                const name = loan.user?.fullName ?? loan.userMsisdn;
+                const lastUpdated = loan.lastActivity?.createdAt ?? loan.updatedAt;
+
+                return (
+                  <tr
+                    key={loan.loanId}
+                    onClick={() => onOpenLoan(loan.loanId)}
+                    className="border-b border-border/30 cursor-pointer hover:bg-muted/40 transition-colors group"
+                  >
+                    {/* Client Name */}
+                    <td className="sticky left-0 z-10 bg-card group-hover:bg-accent border-r border-border/40 px-3 py-2.5 min-w-[140px] transition-colors">
+                      <p className="font-semibold text-foreground truncate max-w-[160px] group-hover:text-primary transition-colors">{name}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono">{loan.loanReference}</p>
+                    </td>
+
+                    {/* Phone */}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-mono text-foreground">{loan.userMsisdn}</span>
+                        <button
+                          onClick={(e) => copyPhone(e, loan.userMsisdn)}
+                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </td>
+
+                    {/* Loan Amount */}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs font-semibold text-foreground">
+                      {loan.principal != null ? formatGHS(loan.principal) : '—'}
+                    </td>
+
+                    {/* Bucket badge */}
+                    <td className="px-3 py-2.5">
+                      <span className={cn('text-[10px] font-extrabold px-2.5 py-1 rounded-full border whitespace-nowrap', meta.badgeBg)}>
+                        {meta.label}
+                      </span>
+                    </td>
+
+                    {/* Disbursed */}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
+                      {loan.disbursedAt ? format(new Date(loan.disbursedAt), 'dd MMM yy') : '—'}
+                    </td>
+
+                    {/* Due Date */}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
+                      {loan.dueDate ? format(new Date(loan.dueDate), 'dd MMM yy') : '—'}
+                    </td>
+
+                    {/* Outstanding */}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className="text-sm font-bold text-primary">{formatGHS(outstanding)}</span>
+                    </td>
+
+                    {/* Amount Repaid */}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs text-emerald-600 font-semibold">
+                      {loan.amountRepaid > 0 ? formatGHS(loan.amountRepaid) : '—'}
+                    </td>
+
+                    {/* Last Payment Date */}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
+                      {loan.lastPaymentDate ? format(new Date(loan.lastPaymentDate), 'dd MMM yy') : '—'}
+                    </td>
+
+                    {/* Payment Type */}
+                    <td className="px-3 py-2.5">{paymentTypeBadge(loan.lastPaymentType)}</td>
+
+                    {/* OD Days */}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {loan.ddBucket > 0 ? (
+                        <span className={cn('text-xs font-bold', loan.ddBucket >= 5 ? 'text-red-600' : 'text-amber-600')}>
+                          {loan.ddBucket}d
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+
+                    {/* Region */}
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                      {loan.user?.region ?? '—'}
+                    </td>
+
+                    {/* Last Activity */}
+                    <td className="px-3 py-2.5 min-w-[140px]">
+                      {loan.lastActivity ? (
+                        <div>
+                          <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border', outcomeColor(loan.lastActivity.outcome))}>
+                            {formatOutcome(loan.lastActivity.outcome)}
+                          </span>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {format(new Date(loan.lastActivity.createdAt), 'MMM d, HH:mm')}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground italic">No contact</span>
+                      )}
+                    </td>
+
+                    {/* Agent */}
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap min-w-[120px] max-w-[180px]">
+                      <span className="truncate block">{agentName}</span>
+                    </td>
+
+                    {/* Last Updated */}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
+                      {lastUpdated ? format(new Date(lastUpdated), 'dd MMM, HH:mm') : '—'}
+                    </td>
+
+                    {/* Action */}
+                    <td className="px-3 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => { window.location.href = `tel:${loan.userMsisdn}`; onOpenLoan(loan.loanId); }}
+                          className="flex items-center gap-1 text-[10px] font-bold text-white bg-pink-600 hover:bg-pink-700 px-2.5 py-1.5 rounded-lg transition-all active:scale-95"
+                        >
+                          <Phone className="h-3 w-3" />
+                          Call
+                        </button>
+                        <button
+                          onClick={() => onOpenLoan(loan.loanId)}
+                          className="p-1.5 rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </Fragment>
+          ))}
         </tbody>
       </table>
     </div>
