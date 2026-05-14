@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Phone, MapPin, Wifi, UserCheck, MessageSquare, PhoneCall, CalendarDays, CalendarCheck } from 'lucide-react';
-import { differenceInDays, startOfDay, format } from 'date-fns';
+import { differenceInDays, startOfDay, format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { getBucketMeta, formatGHS, formatOutcome, outcomeColor, formatNetwork } from '@/lib/bucketUtils';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,8 @@ interface LoanCardProps {
     currentAssignedAgent?: { id: string; name: string } | null;
     onboardingAgent?: { name: string };
     referredBy?: { name: string; code?: string };
+    principal?: number | null;
+    updatedAt?: string | null;
     lastActivity: { outcome: string; createdAt: string; csaName: string } | null;
   };
   onOpen: (loanId: string) => void;
@@ -52,6 +54,8 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
     loan.referredBy?.name ||
     loan.onboardingAgent?.name ||
     loan.user?.referredByNodeCode;
+
+  const lastUpdated = loan.lastActivity?.createdAt ?? loan.updatedAt;
 
   let exactDaysOverdue = loan.ddBucket;
   if (loan.ddBucket >= 8 && loan.dueDate) {
@@ -74,15 +78,22 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
       <div className={cn('h-1.5 w-full', meta.color)} />
 
       <div className="p-4 space-y-3">
-        {/* Top row: name + bucket badge */}
+        {/* Top row: client name + bucket badge */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Client Name</p>
             <p className="font-bold text-foreground truncate text-[15px] group-hover:text-primary transition-colors">
               {name}
             </p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Phone className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground font-medium">{loan.userMsisdn}</span>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                <Phone className="h-3 w-3 text-muted-foreground" />{loan.userMsisdn}
+              </span>
+              {loan.principal != null && (
+                <span className="text-[10px] font-bold text-foreground/70 bg-muted px-1.5 py-0.5 rounded-md">
+                  {formatGHS(loan.principal)}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -96,6 +107,11 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
               <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-bold border-[#378ADD]/20 bg-[#378ADD]/5 text-[#378ADD] whitespace-nowrap">
                 {agentName}
               </Badge>
+            )}
+            {lastUpdated && (
+              <span className="text-[9px] text-muted-foreground whitespace-nowrap">
+                {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })}
+              </span>
             )}
           </div>
         </div>
