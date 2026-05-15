@@ -241,7 +241,7 @@ function NotificationPreferences() {
               </p>
             </div>
           </div>
-          <div className="flex gap-3 pl-14">
+          <div className="flex gap-3 pl-0 sm:pl-14">
             <Input
               placeholder="e.g. +233200000000"
               value={whatsappNumber}
@@ -353,8 +353,8 @@ export default function SettingsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Settings</h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Configure loan tiers and platform settings
             </p>
           </div>
@@ -365,7 +365,7 @@ export default function SettingsPage() {
           value={activeTab}
           onValueChange={(val) => navigate(`/settings/${val}`)}
         >
-          <TabsList className="bg-muted p-1">
+          <TabsList className="bg-muted p-1 flex overflow-x-auto w-full sm:w-fit no-scrollbar">
             <TabsTrigger
               value="profile"
               className="data-[state=active]:bg-card"

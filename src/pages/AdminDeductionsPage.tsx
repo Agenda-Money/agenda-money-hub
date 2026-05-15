@@ -364,56 +364,100 @@ export default function AdminDeductionsPage() {
                 </div>
             </div>
 
-            <div className="overflow-hidden rounded-[32px] border border-border/60 bg-card shadow-xl backdrop-blur-xl">
-               <Table>
-                  <TableHeader className="h-12 bg-muted/30 text-[10px] uppercase font-black tracking-widest">
-                     <TableRow>
-                        <TableHead className="pl-8">Date</TableHead>
-                        <TableHead>Agent</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="pr-8 text-right">Actions</TableHead>
-                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                     {isLoading ? (
-                        <TableRow>
-                           <TableCell colSpan={6} className="h-64 text-center">
-                              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                           </TableCell>
-                        </TableRow>
-                     ) : deductions.length === 0 ? (
-                         <TableRow>
-                            <TableCell colSpan={6} className="h-64 text-center">
-                               <p className="font-bold text-muted-foreground">No deductions found</p>
-                            </TableCell>
-                         </TableRow>
-                      ) : (
-                         deductions.map((item: any) => (
-                           <DeductionRow 
-                            key={item._id} 
-                            item={item} 
-                            onSelect={(d: any) => {
-                              setSelectedDeduction(d);
-                              setIsDetailOpen(true);
-                            }}
-                           />
-                         ))
-                      )}
-                   </TableBody>
-                </Table>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-hidden rounded-[32px] border border-border/60 bg-card shadow-xl backdrop-blur-xl">
+               <div className="overflow-x-auto">
+                 <Table>
+                    <TableHeader className="h-12 bg-muted/30 text-[10px] uppercase font-black tracking-widest">
+                       <TableRow>
+                          <TableHead className="pl-8">Date</TableHead>
+                          <TableHead>Agent</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="pr-8 text-right">Actions</TableHead>
+                       </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                       {isLoading ? (
+                          <TableRow>
+                             <TableCell colSpan={6} className="h-64 text-center">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                             </TableCell>
+                          </TableRow>
+                       ) : deductions.length === 0 ? (
+                           <TableRow>
+                              <TableCell colSpan={6} className="h-64 text-center">
+                                 <p className="font-bold text-muted-foreground">No deductions found</p>
+                              </TableCell>
+                           </TableRow>
+                        ) : (
+                           deductions.map((item: any) => (
+                             <DeductionRow
+                              key={item._id}
+                              item={item}
+                              onSelect={(d: any) => {
+                                setSelectedDeduction(d);
+                                setIsDetailOpen(true);
+                              }}
+                             />
+                           ))
+                        )}
+                     </TableBody>
+                  </Table>
+               </div>
+               {pagination?.pages > 1 && (
+                <div className="flex items-center justify-between border-t border-border/40 bg-muted/10 px-8 py-6">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Page {page} of {pagination.pages}</span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="rounded-xl h-10 px-4 font-bold">Previous</Button>
+                    <Button variant="outline" size="sm" disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)} className="rounded-xl h-10 px-4 font-bold">Next</Button>
+                  </div>
+                </div>
+               )}
+            </div>
 
-                {pagination?.pages > 1 && (
-                 <div className="flex items-center justify-between border-t border-border/40 bg-muted/10 px-8 py-6">
-                   <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Page {page} of {pagination.pages}</span>
-                   <div className="flex gap-2">
-                     <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="rounded-xl h-10 px-4 font-bold">Previous</Button>
-                     <Button variant="outline" size="sm" disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)} className="rounded-xl h-10 px-4 font-bold">Next</Button>
-                   </div>
-                 </div>
-                )}
-             </div>
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {isLoading ? (
+                [1, 2, 3].map(i => <div key={i} className="h-28 animate-pulse rounded-3xl bg-muted" />)
+              ) : deductions.length === 0 ? (
+                <div className="h-40 flex items-center justify-center text-muted-foreground font-bold border rounded-3xl border-dashed">No deductions found</div>
+              ) : deductions.map((item: any) => (
+                <div
+                  key={item._id}
+                  className="bg-card rounded-3xl border border-border/60 p-4 shadow-sm space-y-3 cursor-pointer active:bg-muted/30"
+                  onClick={() => { setSelectedDeduction(item); setIsDetailOpen(true); }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-black text-foreground">{item.agentName || "Unknown Agent"}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{item.agentMsisdn}</p>
+                    </div>
+                    <span className="text-[10px] font-bold text-muted-foreground shrink-0">{format(new Date(item.createdAt), "MMM d, yyyy")}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-lg font-black text-red-600">-GHS {item.amount.toLocaleString('en-GH', { minimumFractionDigits: 2 })}</p>
+                    <Badge className={cn("border-none px-2 py-0.5 font-bold text-[9px]",
+                      item.status === "PENDING_CONFIRMATION" ? "bg-amber-500/10 text-amber-700" :
+                      item.status === "CONFIRMED" ? "bg-emerald-500/10 text-emerald-700" :
+                      "bg-muted text-muted-foreground"
+                    )}>
+                      {item.status === "PENDING_CONFIRMATION" ? "Pending" : item.status === "CONFIRMED" ? "Confirmed" : "Reversed"}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+              {pagination?.pages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Page {page} of {pagination.pages}</span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
+                    <Button variant="outline" size="sm" disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)}>Next</Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </div>

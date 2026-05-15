@@ -185,7 +185,7 @@ export default function AdminManualDisbursePage() {
                 </div>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div className="space-y-1">
                     <p className="text-muted-foreground flex items-center gap-1.5 uppercase text-[10px] font-bold">
                       <User className="w-3 h-3" /> Borrower
@@ -246,7 +246,7 @@ export default function AdminManualDisbursePage() {
                     />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase font-bold text-muted-foreground tracking-widest">
                       MoMo Phone (Target)
@@ -273,7 +273,7 @@ export default function AdminManualDisbursePage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase font-bold text-muted-foreground tracking-widest">
                       Amount Disbursed (GHS)

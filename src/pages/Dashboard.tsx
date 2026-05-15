@@ -111,9 +111,9 @@ export default function Dashboard() {
         <div className="lg:col-span-2 space-y-4">
           <RecentLoansTable />
         </div>
-        <div className="space-y-4 h-full flex flex-col">
+        <div className="space-y-4 flex flex-col min-h-[300px] lg:h-full">
           <PendingApprovals />
-          <div className="flex-1 min-h-[300px]">
+          <div className="flex-1">
             <RecentRepaymentsWidget />
           </div>
         </div>

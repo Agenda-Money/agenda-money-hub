@@ -225,7 +225,7 @@ export default function AgentDetailsPage() {
         </motion.div>
 
         <Tabs defaultValue="overview" className="space-y-4 w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:w-max lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-3 sm:w-max sm:inline-grid overflow-x-auto no-scrollbar">
             <TabsTrigger className="min-w-[120px]" value="overview">Overview</TabsTrigger>
             <TabsTrigger className="min-w-[120px]" value="profile">Profile & KYC</TabsTrigger>
             <TabsTrigger className="min-w-[120px]" value="commissions">Commissions</TabsTrigger>
@@ -476,7 +476,7 @@ export default function AgentDetailsPage() {
                         <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Total Deductions</p>
                         <p className="text-2xl font-black text-red-600 dark:text-red-400 font-mono">GHS {formatGHS(commissionResponse?.data?.summary?.totalDeducted ?? agent.loansOverdue * 10)}</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 border-t border-red-50 dark:border-red-900/50 pt-4">
+                    <div className="grid grid-cols-3 gap-1 sm:gap-2 border-t border-red-50 dark:border-red-900/50 pt-4">
                        <div className="space-y-1">
                           <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tight">Defaults</p>
                           <p className="text-[11px] font-black text-red-700 dark:text-red-400 font-mono">GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.defaultDeductions ?? agent.loansOverdue * 10)}</p>

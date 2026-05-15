@@ -978,100 +978,123 @@ export function CampaignHistoryPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Campaign</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-center">Recipients</TableHead>
-                <TableHead>Delivery</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                [1, 2, 3].map(i => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={6}><div className="h-12 w-full animate-pulse bg-muted rounded" /></TableCell>
-                  </TableRow>
-                ))
-              ) : campaigns.length === 0 ? (
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                    No campaigns found matching filters.
-                  </TableCell>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Recipients</TableHead>
+                  <TableHead>Delivery</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : (
-                campaigns.map((c) => {
-                  const rate = c.totalCount > 0 ? (c.deliveredCount / c.totalCount) * 100 : 0;
-                  return (
-                    <TableRow key={c._id}>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-sm uppercase tracking-tight">{c.label}</span>
-                          <span className="text-[10px] text-muted-foreground uppercase">{c.type} {c.tier ? `• L${c.tier}` : ""}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={cn("text-[10px] uppercase font-bold", getStatusColor(c.status))}>
-                          {c.status === "csv_ready" ? "Awaiting SMS" : c.status}
-                        </Badge>
-                        {c.status === "pending" && c.scheduledFor && (
-                           <p className="text-[9px] text-muted-foreground mt-1">
-                             Sched: {format(new Date(c.scheduledFor), "MMM d, HH:mm")}
-                           </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center font-mono text-sm">{c.totalCount.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                           <div className="flex items-center justify-between text-[10px]">
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  [1, 2, 3].map(i => (
+                    <TableRow key={i}>
+                      <TableCell colSpan={6}><div className="h-12 w-full animate-pulse bg-muted rounded" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : campaigns.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                      No campaigns found matching filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  campaigns.map((c) => {
+                    const rate = c.totalCount > 0 ? (c.deliveredCount / c.totalCount) * 100 : 0;
+                    return (
+                      <TableRow key={c._id}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-sm uppercase tracking-tight">{c.label}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase">{c.type} {c.tier ? `• L${c.tier}` : ""}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={cn("text-[10px] uppercase font-bold", getStatusColor(c.status))}>
+                            {c.status === "csv_ready" ? "Awaiting SMS" : c.status}
+                          </Badge>
+                          {c.status === "pending" && c.scheduledFor && (
+                            <p className="text-[9px] text-muted-foreground mt-1">
+                              Sched: {format(new Date(c.scheduledFor), "MMM d, HH:mm")}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center font-mono text-sm">{c.totalCount.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px]">
                               <span>{rate.toFixed(1)}%</span>
                               <span className="text-muted-foreground">{c.deliveredCount} / {c.totalCount}</span>
-                           </div>
-                           <div className="h-1.5 w-32 overflow-hidden rounded-full bg-muted">
-                              <div 
-                                className={cn("h-full transition-all", rate >= 90 ? "bg-emerald-500" : rate >= 50 ? "bg-amber-500" : "bg-red-500")} 
-                                style={{ width: `${rate}%` }} 
+                            </div>
+                            <div className="h-1.5 w-32 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className={cn("h-full transition-all", rate >= 90 ? "bg-emerald-500" : rate >= 50 ? "bg-amber-500" : "bg-red-500")}
+                                style={{ width: `${rate}%` }}
                               />
-                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {format(new Date(c.createdAt), "MMM d, HH:mm")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" variant="outline" onClick={() => setSelectedId(c._id)}>
-                          Report
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-          
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {format(new Date(c.createdAt), "MMM d, HH:mm")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="outline" onClick={() => setSelectedId(c._id)}>
+                            Report
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {isLoading ? (
+              [1, 2, 3].map(i => <div key={i} className="h-28 w-full animate-pulse bg-muted rounded-2xl" />)
+            ) : campaigns.length === 0 ? (
+              <div className="h-32 flex items-center justify-center text-muted-foreground text-sm border rounded-2xl border-dashed">No campaigns found.</div>
+            ) : campaigns.map((c) => {
+              const rate = c.totalCount > 0 ? (c.deliveredCount / c.totalCount) * 100 : 0;
+              return (
+                <div key={c._id} className="bg-muted/30 rounded-2xl border border-border p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-bold text-sm uppercase tracking-tight">{c.label}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">{c.type}{c.tier ? ` • L${c.tier}` : ""} • {format(new Date(c.createdAt), "MMM d, HH:mm")}</p>
+                    </div>
+                    <Badge className={cn("text-[10px] uppercase font-bold shrink-0", getStatusColor(c.status))}>
+                      {c.status === "csv_ready" ? "Awaiting SMS" : c.status}
+                    </Badge>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="font-bold">{rate.toFixed(1)}% delivered</span>
+                      <span className="text-muted-foreground">{c.deliveredCount} / {c.totalCount}</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div className={cn("h-full transition-all", rate >= 90 ? "bg-emerald-500" : rate >= 50 ? "bg-amber-500" : "bg-red-500")} style={{ width: `${rate}%` }} />
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" className="w-full" onClick={() => setSelectedId(c._id)}>View Report</Button>
+                </div>
+              );
+            })}
+          </div>
+
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-end gap-2">
-               <Button 
-                size="sm" 
-                variant="outline" 
-                disabled={page === 1} 
-                onClick={() => setPage(p => p - 1)}
-               >
-                 Previous
-               </Button>
+               <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
                <span className="text-xs text-muted-foreground">Page {page} of {totalPages}</span>
-               <Button 
-                size="sm" 
-                variant="outline" 
-                disabled={page === totalPages} 
-                onClick={() => setPage(p => p + 1)}
-               >
-                 Next
-               </Button>
+               <Button size="sm" variant="outline" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
             </div>
           )}
         </CardContent>
