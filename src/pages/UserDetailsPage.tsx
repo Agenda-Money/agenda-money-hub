@@ -479,7 +479,7 @@ export default function UserDetailsPage() {
         />
 
         {/* 2. Main Stats Bar */}
-        <Card className="p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+        <Card className="p-4 sm:p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
            <MetricCard label="On-time Rate" value={`${payload.onTimeRateTrend?.[0]?.rate || 90}%`} sub="Historical average" valueColor="text-teal-600" />
            <MetricCard label="Credit Score" value={user.creditScore || 80} sub="Out of 100" />
            <MetricCard label="Repayment Ratio" value={payload.referralQuality?.positiveRate?.toFixed(1) || '1.0'} sub="Recovery performance" />
@@ -493,7 +493,7 @@ export default function UserDetailsPage() {
         </Card>
 
         {/* 3. Content Tabs */}
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-8">
            <div className="lg:col-span-2 space-y-8">
               <div className="flex gap-1 p-1 bg-white dark:bg-gray-900 border border-pink-100/50 dark:border-gray-800 rounded-2xl w-full sm:w-fit shadow-sm overflow-x-auto no-scrollbar">
                 {['Identity', 'Financials', 'Activity'].map((tab) => (
@@ -511,7 +511,7 @@ export default function UserDetailsPage() {
 
               {activeTab === 'Identity' && (
                 <div className="space-y-8 animate-fade-in">
-                  <Card className="p-8">
+                  <Card className="p-4 sm:p-8">
                     <SectionHeader>Identity Verification Documents</SectionHeader>
                     <div className="grid sm:grid-cols-3 gap-6">
                       <KYCDoc label="Selfie ID" type="selfie" imageUrl={user.selfieUrl} />
@@ -534,7 +534,7 @@ export default function UserDetailsPage() {
                     </div>
                   </Card>
 
-                  <Card className="p-8">
+                  <Card className="p-4 sm:p-8">
                      <SectionHeader>User Personal Metadata</SectionHeader>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         <DetailItem label="Employment" value={user.metadata?.employmentStatus || user.employmentStatus} icon={Briefcase} />
@@ -554,9 +554,9 @@ export default function UserDetailsPage() {
 
               {activeTab === 'Financials' && (
                 <div className="space-y-8 animate-fade-in">
-                   <Card className="p-8">
+                   <Card className="p-4 sm:p-8">
                     <SectionHeader>Repayment Behavior</SectionHeader>
-                    <div className="grid md:grid-cols-2 gap-12">
+                    <div className="grid md:grid-cols-2 gap-6 sm:gap-12">
                        <div>
                           <p className="text-3xl font-black text-gray-900 dark:text-gray-100 mb-2 font-mono">{payload.onTimeRateTrend?.[0]?.rate || 90}%</p>
                           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 leading-relaxed">The user consistently pays back installments before the due date.</p>
@@ -578,7 +578,7 @@ export default function UserDetailsPage() {
                     </div>
                    </Card>
 
-                   <Card className="p-8">
+                   <Card className="p-4 sm:p-8">
                       <SectionHeader>Historical Records</SectionHeader>
                       <div className="space-y-4">
                         {loanHistory?.length > 0 ? loanHistory.map((loan: any) => (
@@ -632,7 +632,7 @@ export default function UserDetailsPage() {
                     </div>
                   ))}
 
-                  <Card className="p-8">
+                  <Card className="p-4 sm:p-8">
                     <div className="flex items-center justify-between mb-6">
                       <SectionHeader>Member Activity History</SectionHeader>
                     </div>
@@ -722,7 +722,7 @@ export default function UserDetailsPage() {
            {/* 4. Sidebar */}
            <div className="space-y-8">
               {activeLoan ? (
-                <Card className="p-8 bg-gradient-to-br from-white to-pink-50/20 dark:from-gray-900 dark:to-pink-900/5 relative overflow-hidden">
+                <Card className="p-4 sm:p-8 bg-gradient-to-br from-white to-pink-50/20 dark:from-gray-900 dark:to-pink-900/5 relative overflow-hidden">
                   <SectionHeader>Active Loan Focus</SectionHeader>
                   <div className="mt-6 p-6 rounded-[2rem] bg-white dark:bg-gray-800 shadow-xl border border-pink-100/30">
                     <div className="flex justify-between items-start mb-8">
@@ -750,7 +750,7 @@ export default function UserDetailsPage() {
                   </div>
                 </Card>
               ) : (
-                <Card className="p-8 bg-gradient-to-br from-white to-teal-50/10 dark:from-gray-900 dark:to-teal-900/5">
+                <Card className="p-4 sm:p-8 bg-gradient-to-br from-white to-teal-50/10 dark:from-gray-900 dark:to-teal-900/5">
                   <SectionHeader>Account Health</SectionHeader>
                   <div className="mt-4 space-y-6">
                     <div className="p-4 rounded-2xl bg-teal-50/30 dark:bg-teal-900/10 border border-teal-100/30">
@@ -777,7 +777,7 @@ export default function UserDetailsPage() {
               )}
 
               {/* Weekly Intensity */}
-              <Card className="p-8">
+              <Card className="p-4 sm:p-8">
                 <SectionHeader>App Session Intensity</SectionHeader>
                 <div className="mt-6">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Weekly volume (last 4 periods)</p>
@@ -799,7 +799,7 @@ export default function UserDetailsPage() {
               </Card>
 
               {/* Referrals (Growth) */}
-              <Card className="p-8">
+              <Card className="p-4 sm:p-8">
                 <SectionHeader>Network Growth</SectionHeader>
                 <div className="mt-6 space-y-4">
                   {referrals?.slice(0, 3).map((ref: any) => (

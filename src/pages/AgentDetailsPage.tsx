@@ -509,7 +509,49 @@ export default function AgentDetailsPage() {
                   const ledger = data?.ledger || data?.items || [];
                   return ledger.length > 0;
                 })() ? (
-                  <div className="overflow-x-auto">
+                  {/* Mobile commission cards */}
+                  <div className="md:hidden space-y-3">
+                    {(() => {
+                      const data = commissionResponse?.data || commissionResponse;
+                      const ledger = data?.ledger || data?.items || [];
+                      return ledger;
+                    })().map((item: any) => (
+                      <div key={item._id || item.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-muted/20">
+                        <div className="space-y-1.5 min-w-0 flex-1 pr-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className={cn(
+                              "capitalize text-[10px] px-1.5 py-0",
+                              item.type === 'SIGNUP' ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800" :
+                              item.type === 'REPAYMENT' ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" :
+                              "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"
+                            )}>
+                              {item.type.replace('_', ' ')}
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              {new Date(item.createdAt).toLocaleDateString("en-GB")}
+                            </span>
+                          </div>
+                          <p className="text-xs font-medium text-foreground truncate">
+                            {item.relatedName || item.sourceName || item.deductionReason || (
+                              item.type === 'SIGNUP' ? "New Signup" :
+                              item.type === 'REPAYMENT' ? "Loan Repayment" :
+                              item.type === 'PAYOUT' ? "Commission Payout" :
+                              "System Adjustment"
+                            )}
+                          </p>
+                        </div>
+                        <p className={cn(
+                          "text-sm font-black font-mono shrink-0",
+                          item.amount >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                        )}>
+                          {item.amount >= 0 ? "+" : "-"}GHS {formatGHS(Math.abs(item.amount))}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop table */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-sm text-left">
                       <thead className="text-xs text-muted-foreground uppercase bg-muted/30">
                         <tr>
