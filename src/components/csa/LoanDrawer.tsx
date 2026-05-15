@@ -638,13 +638,36 @@ function ResearchPanel({ loan }: { loan: any }) {
         )}
       </ResearchSection>
 
-      {/* Loan History — placeholder */}
-      <ResearchSection title="Previous Loans">
-        <div className="bg-muted/20 rounded-xl p-6 border border-dashed border-border text-center space-y-2">
-          <AlertCircle className="h-5 w-5 mx-auto text-muted-foreground opacity-40" />
-          <p className="text-xs font-semibold text-muted-foreground">Coming soon</p>
-          <p className="text-[10px] text-muted-foreground">Loan history will show repeat borrower status and previous repayment behaviour</p>
-        </div>
+      {/* Loan Journey */}
+      <ResearchSection title="Loan Journey">
+        {loan.loanNumber != null ? (
+          <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
+            <div className="flex items-center gap-4">
+              <div className="text-center shrink-0">
+                <p className="text-3xl font-black text-primary leading-none">L{loan.loanNumber}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Current</p>
+              </div>
+              <div className="flex-1 border-l border-border pl-4 space-y-1">
+                <p className="text-sm font-semibold text-foreground">
+                  {loan.totalLoans} total loan{loan.totalLoans !== 1 ? 's' : ''}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {loan.totalLoans > 1 ? 'Repeat borrower' : 'First-time borrower'}
+                </p>
+                {loan.loanNumber < loan.totalLoans && (
+                  <p className="text-[10px] text-amber-600 font-semibold">
+                    {loan.totalLoans - loan.loanNumber} more loan{loan.totalLoans - loan.loanNumber !== 1 ? 's' : ''} after this one
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-muted/20 rounded-xl p-4 border border-dashed border-border text-center space-y-1">
+            <AlertCircle className="h-5 w-5 mx-auto text-muted-foreground opacity-40" />
+            <p className="text-xs text-muted-foreground">Loan history unavailable</p>
+          </div>
+        )}
       </ResearchSection>
     </div>
   );
