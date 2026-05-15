@@ -216,21 +216,18 @@ export default function AnalyticsPage() {
         <div>
           <SectionHead title="Performance metrics" />
           
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 bg-white dark:bg-gray-900 border border-border dark:border-gray-800 rounded-xl p-3 shadow-sm w-full lg:w-fit">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1">
-              <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1 shrink-0">Filter By Date Range</span>
+          <div className="flex flex-col gap-3 mb-6 bg-white dark:bg-gray-900 border border-border dark:border-gray-800 rounded-xl p-3 shadow-sm w-full lg:w-fit">
+            <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">Filter By Date Range</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <div className="flex items-center gap-2 flex-1">
                 <input type="date" className="text-xs bg-transparent border border-gray-100 dark:border-gray-800 rounded-lg px-2 py-1.5 outline-none text-gray-700 dark:text-gray-200 flex-1 min-w-0 font-bold" value={fromInput} onChange={e => setFromInput(e.target.value)} />
                 <span className="text-[10px] font-black text-gray-300 dark:text-gray-600 shrink-0 uppercase">to</span>
                 <input type="date" className="text-xs bg-transparent border border-gray-100 dark:border-gray-800 rounded-lg px-2 py-1.5 outline-none text-gray-700 dark:text-gray-200 flex-1 min-w-0 font-bold" value={toInput} onChange={e => setToInput(e.target.value)} />
               </div>
-            </div>
-            
-            <div className="hidden sm:block h-6 w-px bg-gray-100 dark:bg-gray-800 mx-1" />
-            
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button onClick={applyRange} className="flex-1 sm:flex-none text-[10px] font-black uppercase tracking-widest px-6 py-2 bg-[#085041] text-white rounded-lg hover:bg-[#0F6E56] transition-colors shadow-sm">Apply</button>
-              <button onClick={clearRange} className="flex-1 sm:flex-none text-[10px] font-black uppercase tracking-widest px-6 py-2 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm">Clear</button>
+              <div className="flex items-center gap-2">
+                <button onClick={applyRange} className="flex-1 sm:flex-none text-[10px] font-black uppercase tracking-widest px-6 py-2 bg-[#085041] text-white rounded-lg hover:bg-[#0F6E56] transition-colors shadow-sm">Apply</button>
+                <button onClick={clearRange} className="flex-1 sm:flex-none text-[10px] font-black uppercase tracking-widest px-6 py-2 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm">Clear</button>
+              </div>
             </div>
           </div>
 

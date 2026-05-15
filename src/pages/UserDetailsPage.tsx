@@ -297,9 +297,9 @@ const BlockModal = ({ user, onClose, onConfirm, loading }: any) => {
 const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onRemoveFlag, onCall, canWrite }: any) => {
   const activeFlag = user.flags?.slice(-1)[0] || null
   return (
-    <Card className="p-8">
+    <Card className="p-4 sm:p-8">
       {activeFlag && <FlagBanner flag={activeFlag} id={user._id} onDeleted={onRemoveFlag} />}
-      <div className="flex flex-col md:flex-row gap-8 items-center md:items-start justify-between">
+      <div className="flex flex-col md:flex-row gap-6 sm:gap-8 items-center md:items-start justify-between">
         <div className="flex flex-col md:flex-row gap-6 items-center">
           <div className="w-20 h-20 rounded-[2.5rem] flex items-center justify-center bg-gradient-to-br from-pink-500 to-rose-600 shadow-xl shadow-pink-200 dark:shadow-none ring-4 ring-white dark:ring-gray-800">
             <span className="text-white text-3xl font-black">{user.fullName?.[0] || 'U'}</span>

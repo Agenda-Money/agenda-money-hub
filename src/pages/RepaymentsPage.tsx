@@ -213,7 +213,7 @@ export default function RepaymentsPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-[480px] md:max-w-6xl mx-auto pb-12 transition-all duration-300">
+      <div className="w-full max-w-6xl mx-auto pb-12">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Loan Repayments</h1>
@@ -226,7 +226,7 @@ export default function RepaymentsPage() {
           else if (val === "agent-collections") setSource("collections");
           else setSource(undefined);
         }} className="w-full">
-          <TabsList className="mb-6 h-auto flex flex-wrap md:grid md:grid-cols-4 w-full max-w-2xl bg-muted/50 p-1">
+          <TabsList className="mb-6 h-auto grid grid-cols-2 md:grid-cols-4 w-full max-w-2xl bg-muted/50 p-1">
             <TabsTrigger value="record" className="flex-1 py-2.5">Record Payment</TabsTrigger>
             <TabsTrigger value="organic" className="flex-1 py-2.5">Organic Payments</TabsTrigger>
             <TabsTrigger value="agent-collections" className="flex-1 py-2.5">Agent Collections</TabsTrigger>
@@ -239,7 +239,7 @@ export default function RepaymentsPage() {
                 <CardHeader><CardTitle>Repayment Details</CardTitle></CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4 mb-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
                       <div className="space-y-2">
                         <Label htmlFor="phone">Phone Number</Label>
                         <Input id="phone" placeholder="e.g. 2335..." value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -388,8 +388,9 @@ function RepaymentHistorySection({ title, subtitle, source, isLoading, repayment
           <p className="text-muted-foreground font-medium">No {title.toLowerCase()} found.</p>
         </div>
       ) : (
-        <div className="space-y-8">
-           <div className="hidden md:block bg-card rounded-[2rem] border border-border overflow-hidden shadow-sm">
+        <div className="space-y-4">
+          {/* Desktop table */}
+          <div className="hidden md:block bg-card rounded-[2rem] border border-border overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border bg-muted/30">
@@ -444,8 +445,46 @@ function RepaymentHistorySection({ title, subtitle, source, isLoading, repayment
                 ))}
               </TableBody>
             </Table>
-           </div>
-           <Button variant="outline" className="w-full rounded-2xl h-12" onClick={() => setLimit((l: number) => l + 10)} disabled={isFetchingMore}>{isFetchingMore ? "Loading..." : "Load More"}</Button>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {repayments.map((rep: any) => (
+              <div key={rep.repaymentId} className="bg-card rounded-2xl border border-border p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <MoMoAvatar />
+                    <div>
+                      <p className="font-bold text-sm">{rep.userName || "Unknown"}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{rep.userMsisdn}</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className={cn("text-[10px] font-black uppercase shrink-0", rep.collectionSource === 'collections' ? "bg-pink-500/10 text-pink-700 border-pink-200" : "bg-gray-100 text-gray-500 border-gray-200")}>
+                    {rep.collectionSource === 'collections' ? (rep.assignedCsaName || 'CSA') : 'Organic'}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-xl p-3">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">Amount Paid</p>
+                    <p className="text-base font-bold text-emerald-600">₵{Number(rep.amountPaid ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                    <Badge variant="outline" className={cn("text-[9px] font-black uppercase mt-1 border-none", (rep.remainingBalance <= 0 || rep.type === 'FULL') ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700")}>
+                      {(rep.remainingBalance <= 0 || rep.type === 'FULL') ? 'Full' : 'Partial'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">Remaining</p>
+                    <p className="text-sm font-semibold text-foreground/60">₵{Number(rep.remainingBalance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span className="font-mono font-bold uppercase">{rep.loanReference}</span>
+                  <span>{rep.paidAt ? format(new Date(rep.paidAt), "MMM d, h:mm a") : "—"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Button variant="outline" className="w-full rounded-2xl h-12" onClick={() => setLimit((l: number) => l + 10)} disabled={isFetchingMore}>{isFetchingMore ? "Loading..." : "Load More"}</Button>
         </div>
       )}
     </div>
@@ -492,7 +531,8 @@ function CollectionLogsView() {
         </div>
       </div>
 
-      <div className="bg-card rounded-2xl border border-border overflow-hidden">
+      {/* Desktop table */}
+      <div className="hidden md:block bg-card rounded-2xl border border-border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent border-border">
@@ -558,6 +598,38 @@ function CollectionLogsView() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-3">
+        {logs.length === 0 ? (
+          <div className="h-32 flex items-center justify-center text-muted-foreground text-xs uppercase font-bold tracking-widest border rounded-2xl border-dashed">No collection logs found</div>
+        ) : logs.map((log: any) => (
+          <div key={log._id} className="bg-card rounded-2xl border border-border p-4 shadow-sm space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-black text-sm text-foreground">{log.borrower?.name || log.userName || 'Unknown'}</p>
+                <p className="text-xs text-muted-foreground font-mono">{log.borrower?.msisdn || log.userMsisdn}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(log.createdAt), "MMM d, h:mm a")}</p>
+              </div>
+              <Badge variant="outline" className={cn("text-[10px] font-black tracking-widest uppercase border-none shrink-0", getOutcomeStyles(log.outcome || log.outcomeCode))}>
+                {log.outcomeLabel || log.outcome || 'Unknown'}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+              <span className="font-mono font-bold bg-muted/50 px-1.5 py-0.5 rounded uppercase">{log.loanReference}</span>
+              <span className="flex items-center gap-1 text-pink-600/70 font-bold">
+                <PhoneCall size={10} /> {log.csaName || log.csaAgentName || 'Agent'}
+              </span>
+              {log.callDuration && <span className="flex items-center gap-1"><Clock size={10} /> {log.callDuration}</span>}
+            </div>
+            {(log.note || log.notes) && (
+              <div className="bg-gray-50/50 dark:bg-gray-800/30 border-l-2 border-pink-200 p-2.5 rounded-r-xl">
+                <p className="text-xs text-gray-600 dark:text-gray-400 italic leading-relaxed">"{log.note || log.notes}"</p>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
       {total > 0 && (
