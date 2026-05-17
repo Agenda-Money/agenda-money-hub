@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Eye, Clock, CheckCircle, AlertTriangle, Check, XCircle, Loader2,
-  Filter, Search, Download, X, ChevronUp, ChevronDown, Calendar,
+  Filter, Search, Download, X, ChevronUp, ChevronDown, Calendar, SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
@@ -93,7 +93,7 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
     );
   }
 
-  const sortHeader = (label: string, field: string) => (
+  const SortTh = ({ label, field }: { label: string; field: string }) => (
     <th
       className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none"
       onClick={() => onSort(field)}
@@ -107,6 +107,7 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
 
   return (
     <>
+      {/* Desktop table */}
       <div className="hidden md:block bg-card rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -114,43 +115,39 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Reference</th>
                 <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">User</th>
-                {sortHeader("Amount", "amount")}
-                {sortHeader("Applied", "appliedAt")}
-                {sortHeader("Disbursed", "disbursedAt")}
-                {sortHeader("Due Date", "dueDate")}
+                <SortTh label="Amount" field="amount" />
+                <SortTh label="Applied" field="appliedAt" />
+                <SortTh label="Disbursed" field="disbursedAt" />
+                <SortTh label="Due Date" field="dueDate" />
                 <th className="text-left px-6 py-4 text-sm font-semibold text-muted-foreground">Status</th>
                 <th className="text-right px-6 py-4 text-sm font-semibold text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loans.map((loan, index) => {
-                const normalizedStatus = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
-                const displayConfig = statusConfig[normalizedStatus] ?? statusConfig.PENDING;
+                const key = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
+                const cfg = statusConfig[key] ?? statusConfig.PENDING;
                 return (
                   <tr
                     key={loan.id}
                     onClick={() => onLoanClick(loan)}
-                    className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 animate-fade-in cursor-pointer"
+                    className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in"
                     style={{ animationDelay: `${index * 30}ms` }}
                   >
-                    <td className="px-6 py-4 text-sm font-medium text-foreground font-mono">{loan.reference}</td>
+                    <td className="px-6 py-4 text-sm font-mono font-medium text-foreground">{loan.reference}</td>
                     <td className="px-6 py-4">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{loan.user}</p>
-                        <p className="text-xs text-muted-foreground">{loan.phone}</p>
-                      </div>
+                      <p className="text-sm font-medium text-foreground">{loan.user}</p>
+                      <p className="text-xs text-muted-foreground">{loan.phone}</p>
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium text-foreground">₵{loan.amount.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-foreground">₵{loan.amount.toLocaleString()}</td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">{formatDate(loan.appliedAt)}</td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">{formatDate(loan.disbursedAt)}</td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">{formatDate(loan.dueDate)}</td>
                     <td className="px-6 py-4">
-                      <Badge variant="outline" className={cn("font-medium", displayConfig.color)}>
-                        {displayConfig.label}
-                      </Badge>
+                      <Badge variant="outline" className={cn("font-medium text-xs", cfg.color)}>{cfg.label}</Badge>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center justify-end">
+                      <div className="flex justify-end">
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -165,11 +162,11 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
       </div>
 
       {/* Mobile cards */}
-      <div className="md:hidden space-y-4">
+      <div className="md:hidden space-y-3">
         {loans.map((loan, index) => {
-          const normalizedStatus = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
-          const displayConfig = statusConfig[normalizedStatus] ?? statusConfig.PENDING;
-          const StatusIcon = displayConfig.icon;
+          const key = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
+          const cfg = statusConfig[key] ?? statusConfig.PENDING;
+          const StatusIcon = cfg.icon;
           return (
             <div
               key={loan.id}
@@ -182,46 +179,49 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
                   onLoanClick(loan);
                 }
               }}
-              className="w-full text-left bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in cursor-pointer active:bg-muted/50"
+              className="bg-card rounded-xl p-4 border border-border space-y-3 cursor-pointer active:bg-muted/50 animate-fade-in"
               style={{ animationDelay: `${index * 30}ms` }}
             >
-              <div className="flex justify-between items-start gap-2">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground font-mono truncate">{loan.reference}</p>
-                  <h3 className="font-semibold text-foreground truncate">{loan.user}</h3>
-                  <p className="text-sm text-muted-foreground">{loan.phone}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono truncate">{loan.reference}</p>
+                  <p className="font-semibold text-foreground text-sm truncate">{loan.user}</p>
+                  <p className="text-xs text-muted-foreground">{loan.phone}</p>
                 </div>
-                <Badge variant="outline" className={cn("font-medium flex items-center gap-1 shrink-0", displayConfig.color)}>
+                <Badge variant="outline" className={cn("flex items-center gap-1 shrink-0 text-[11px] font-semibold", cfg.color)}>
                   <StatusIcon className={cn("h-3 w-3", loan.status === "DISBURSING" && "animate-spin")} />
-                  {displayConfig.label}
+                  {cfg.label}
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div className="flex flex-col gap-1">
-                  <span className="text-muted-foreground text-xs">Amount</span>
-                  <span className="font-semibold text-foreground">₵{loan.amount.toLocaleString()}</span>
+              {/* Stats row */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-muted/40 rounded-lg px-2.5 py-2">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Amount</p>
+                  <p className="text-sm font-bold text-foreground">₵{loan.amount.toLocaleString()}</p>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-muted-foreground text-xs">Applied</span>
-                  <span className="font-medium text-foreground">{formatDate(loan.appliedAt)}</span>
+                <div className="bg-muted/40 rounded-lg px-2.5 py-2">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Applied</p>
+                  <p className="text-xs font-medium text-foreground">{formatDate(loan.appliedAt)}</p>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-muted-foreground text-xs">Due Date</span>
-                  <span className="font-medium text-foreground">{formatDate(loan.dueDate)}</span>
+                <div className="bg-muted/40 rounded-lg px-2.5 py-2">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Due Date</p>
+                  <p className="text-xs font-medium text-foreground">{formatDate(loan.dueDate)}</p>
                 </div>
               </div>
 
+              {/* Disbursed row */}
               {loan.disbursedAt && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Check className="h-3 w-3 text-green-600" />
-                  Disbursed: {formatDate(loan.disbursedAt)}
-                </p>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Check className="h-3 w-3 text-green-500 shrink-0" />
+                  <span>Disbursed {formatDate(loan.disbursedAt)}</span>
+                </div>
               )}
 
-              <div className="pt-3 border-t border-border flex justify-end">
-                <Button variant="outline" size="sm" className="h-8" onClick={(e) => e.stopPropagation()}>
-                  <Eye className="h-4 w-4 mr-1" />
+              <div className="pt-2 border-t border-border flex justify-end">
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Eye className="h-3.5 w-3.5" />
                   View
                 </Button>
               </div>
@@ -232,29 +232,6 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
     </>
   );
 }
-
-const StatusCard = ({
-  title, count, type,
-}: {
-  title: string;
-  count: number | string;
-  type: "pending" | "awaiting" | "active" | "closed" | "overdue" | "defaulted";
-}) => {
-  const styles = {
-    pending: "border-warning text-warning bg-warning/5",
-    awaiting: "border-purple-500 text-purple-600 bg-purple-500/5",
-    active: "border-green-500 text-green-600 bg-green-50 dark:bg-green-950/20",
-    closed: "border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-950/20",
-    overdue: "border-orange-500 text-orange-600 bg-orange-50 dark:bg-orange-950/20",
-    defaulted: "border-destructive text-destructive bg-destructive/5",
-  };
-  return (
-    <div className={cn("bg-card rounded-xl p-4 shadow-sm border-l-4", styles[type])}>
-      <p className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">{title}</p>
-      <p className="text-xl sm:text-2xl font-bold text-foreground mt-1">{count}</p>
-    </div>
-  );
-};
 
 function parseDateRobust(dateStr: string | undefined | null): Date {
   if (!dateStr) return new Date("Invalid");
@@ -279,6 +256,7 @@ export default function LoansPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const getTabFromPath = () => {
     const path = location.pathname;
@@ -308,11 +286,8 @@ export default function LoansPage() {
     if (dateFrom) params.dateFrom = dateFrom;
     if (dateTo) params.dateTo = dateTo;
     const statusForTab = tabStatusMap[currentTab];
-    if (currentTab === "all" && statusFilter !== "all") {
-      params.status = statusFilter;
-    } else if (statusForTab) {
-      params.status = statusForTab;
-    }
+    if (currentTab === "all" && statusFilter !== "all") params.status = statusFilter;
+    else if (statusForTab) params.status = statusForTab;
     return params;
   }, [page, sortBy, sortOrder, debouncedSearch, dateFrom, dateTo, currentTab, statusFilter]);
 
@@ -343,7 +318,7 @@ export default function LoansPage() {
 
   const loans: Loan[] = rawLoans.map((l: any) => {
     const tenureValue =
-      l.tenureDays === null || l.tenureDays === undefined ? (l.tenure ?? "N/A") : `${l.tenureDays} days`;
+      l.tenureDays == null ? (l.tenure ?? "N/A") : `${l.tenureDays} days`;
 
     let computedStatus = l.status?.toUpperCase() ?? "PENDING";
 
@@ -376,8 +351,8 @@ export default function LoansPage() {
       amountRepaid: l.amountRepaid ?? 0,
       status: computedStatus as Loan["status"],
       nodeCode: l.user?.personalNodeCode || l.user?.nodeCode || "N/A",
-      kycStatus: l.user?.kycStatus || l.user?.kyc?.kycStatus || l.user?.onboardingData?.kycStatus || "Unknown",
-      selfieUrl: l.user?.selfieUrl || l.user?.kyc?.selfieUrl || l.user?.kycData?.selfieUrl || "",
+      kycStatus: l.user?.kycStatus || l.user?.kyc?.kycStatus || "Unknown",
+      selfieUrl: l.user?.selfieUrl || l.user?.kyc?.selfieUrl || "",
       tier: `L${tierNum}`,
       guaranteedBy: l.guaranteedBy,
       guaranteedByName: l.guaranteedByName,
@@ -411,7 +386,8 @@ export default function LoansPage() {
     }
   };
 
-  const hasFilters = !!(debouncedSearch || dateFrom || dateTo || statusFilter !== "all");
+  const hasExtraFilters = !!(dateFrom || dateTo || statusFilter !== "all");
+  const hasFilters = !!(debouncedSearch || hasExtraFilters);
 
   const clearFilters = () => {
     setSearchInput("");
@@ -420,6 +396,17 @@ export default function LoansPage() {
     setStatusFilter("all");
   };
 
+  // Stat strip config — defined after counts are available
+  const statItems = [
+    { label: "Pending",      count: pendingCount,      dot: "bg-amber-400",  card: "bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800",    text: "text-amber-700 dark:text-amber-400" },
+    { label: "Awaiting Node",count: awaitingNodeCount, dot: "bg-purple-500", card: "bg-purple-50 border-purple-200 dark:bg-purple-950/40 dark:border-purple-800", text: "text-purple-700 dark:text-purple-400" },
+    { label: "Active",       count: activeCount,       dot: "bg-green-500",  card: "bg-green-50 border-green-200 dark:bg-green-950/40 dark:border-green-800",     text: "text-green-700 dark:text-green-400" },
+    { label: "Closed",       count: closedCount,       dot: "bg-blue-500",   card: "bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800",         text: "text-blue-700 dark:text-blue-400" },
+    { label: "Overdue",      count: overdueCount,      dot: "bg-orange-500", card: "bg-orange-50 border-orange-200 dark:bg-orange-950/40 dark:border-orange-800", text: "text-orange-700 dark:text-orange-400" },
+    { label: "Defaulted",    count: defaultedCount,    dot: "bg-red-500",    card: "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-800",             text: "text-red-700 dark:text-red-400" },
+  ];
+
+  // Page buttons (desktop)
   const maxVisible = 5;
   let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
   const endPage = Math.min(totalPages, startPage + maxVisible - 1);
@@ -427,107 +414,187 @@ export default function LoansPage() {
   const pageButtons: number[] = [];
   for (let i = startPage; i <= endPage; i++) pageButtons.push(i);
 
+  const STATUS_OPTIONS = [
+    { value: "all", label: "All Statuses" },
+    { value: "PENDING", label: "Pending" },
+    { value: "AWAITING_ENDORSEMENT", label: "Awaiting Node" },
+    { value: "DISBURSING", label: "Disbursing" },
+    { value: "ACTIVE", label: "Active" },
+    { value: "OVERDUE", label: "Overdue" },
+    { value: "DEFAULTED", label: "Defaulted" },
+    { value: "REPAID", label: "Repaid" },
+    { value: "REJECTED", label: "Rejected" },
+  ];
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Loans</h1>
-            <p className="text-muted-foreground mt-1 text-sm">Manage and monitor all loan applications</p>
+      <div className="space-y-4 sm:space-y-6">
+
+        {/* ── Header ─────────────────────────────────────────── */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-3xl font-bold text-foreground">Loans</h1>
+            <p className="text-muted-foreground mt-0.5 text-xs sm:text-sm hidden sm:block">
+              Manage and monitor all loan applications
+            </p>
           </div>
-          <Button onClick={handleExport} disabled={isExporting} variant="outline" size="sm" className="shrink-0">
-            {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
-            <span className="hidden sm:inline">Export CSV</span>
-            <span className="sm:hidden">Export</span>
+          <Button
+            onClick={handleExport}
+            disabled={isExporting}
+            size="sm"
+            variant="outline"
+            className="shrink-0 h-9 gap-1.5 border-border"
+          >
+            {isExporting
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Download className="h-4 w-4" />}
+            <span>Export</span>
           </Button>
         </div>
 
-        {/* Stats strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          <StatusCard title="Pending" count={pendingCount} type="pending" />
-          <StatusCard title="Awaiting Node" count={awaitingNodeCount} type="awaiting" />
-          <StatusCard title="Active" count={activeCount} type="active" />
-          <StatusCard title="Closed" count={closedCount} type="closed" />
-          <StatusCard title="Overdue" count={overdueCount} type="overdue" />
-          <StatusCard title="Defaulted" count={defaultedCount} type="defaulted" />
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by reference, name or phone…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-9 bg-card rounded-xl"
-          />
-          {searchInput && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-              onClick={() => setSearchInput("")}
-            >
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
-
-        {/* Tabs + status filter */}
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <Tabs
-              value={currentTab}
-              onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)}
-              className="flex-1 min-w-0 overflow-hidden"
-            >
-              <TabsList className="bg-muted p-1 overflow-x-auto flex flex-nowrap snap-x w-full">
-                {[
-                  { value: "all", label: "All" },
-                  { value: "pending", label: "Pending" },
-                  { value: "awaiting-node", label: "Awaiting Node" },
-                  { value: "active", label: "Active" },
-                  { value: "overdue", label: "Overdue" },
-                  { value: "closed", label: "Closed" },
-                  { value: "defaulted", label: "Defaulted" },
-                ].map(({ value, label }) => (
-                  <TabsTrigger
-                    key={value}
-                    value={value}
-                    className="data-[state=active]:bg-card whitespace-nowrap snap-start shrink-0 text-xs sm:text-sm"
-                  >
-                    {label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-
-            {currentTab === "all" && (
-              <div className="flex items-center gap-2 w-full sm:w-[220px] shrink-0">
-                <Filter className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full rounded-xl bg-card border-border">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl border-border">
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="PENDING">Pending</SelectItem>
-                    <SelectItem value="AWAITING_ENDORSEMENT">Awaiting Node</SelectItem>
-                    <SelectItem value="DISBURSING">Disbursing</SelectItem>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="OVERDUE">Overdue</SelectItem>
-                    <SelectItem value="DEFAULTED">Defaulted</SelectItem>
-                    <SelectItem value="REPAID">Repaid</SelectItem>
-                    <SelectItem value="REJECTED">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
+        {/* ── Stat strip — mobile: horizontal scroll, desktop: grid ── */}
+        {/* Mobile */}
+        <div className="sm:hidden overflow-x-auto no-scrollbar -mx-4 px-4">
+          <div className="flex gap-3 w-max pr-4 pb-0.5">
+            {statItems.map((s) => (
+              <div
+                key={s.label}
+                className={cn(
+                  "flex-none w-[118px] rounded-2xl border p-3.5 shadow-sm",
+                  s.card,
+                )}
+              >
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", s.dot)} />
+                  <span className={cn("text-[11px] font-semibold leading-tight line-clamp-1", s.text)}>
+                    {s.label}
+                  </span>
+                </div>
+                <p className="text-[26px] font-bold text-foreground leading-none">{s.count}</p>
               </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop */}
+        <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {statItems.map((s) => (
+            <div key={s.label} className={cn("rounded-xl border p-4 shadow-sm", s.card)}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className={cn("h-2 w-2 rounded-full shrink-0", s.dot)} />
+                <span className={cn("text-xs font-semibold", s.text)}>{s.label}</span>
+              </div>
+              <p className="text-2xl font-bold text-foreground">{s.count}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Search + filter toggle (mobile) ─────────────────── */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search reference, name or phone…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-9 pr-9 bg-card rounded-xl h-10"
+            />
+            {searchInput && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setSearchInput("")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
             )}
           </div>
 
+          {/* Mobile filter toggle */}
+          <Button
+            variant={hasExtraFilters ? "default" : "outline"}
+            size="icon"
+            className="sm:hidden h-10 w-10 shrink-0 relative"
+            onClick={() => setShowFilters((f) => !f)}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {hasExtraFilters && (
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary border border-background" />
+            )}
+          </Button>
+        </div>
+
+        {/* ── Tabs + desktop status filter ────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <Tabs
+            value={currentTab}
+            onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)}
+            className="flex-1 min-w-0 overflow-hidden"
+          >
+            <TabsList className="bg-muted p-1 overflow-x-auto no-scrollbar flex flex-nowrap w-full h-auto">
+              {[
+                { value: "all",          label: "All" },
+                { value: "pending",      label: "Pending" },
+                { value: "awaiting-node",label: "Awaiting" },
+                { value: "active",       label: "Active" },
+                { value: "overdue",      label: "Overdue" },
+                { value: "closed",       label: "Closed" },
+                { value: "defaulted",    label: "Defaulted" },
+              ].map(({ value, label }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="data-[state=active]:bg-card whitespace-nowrap shrink-0 text-xs sm:text-sm px-3 py-1.5"
+                >
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+
+          {/* Desktop status filter (always visible) */}
+          {currentTab === "all" && (
+            <div className="hidden sm:flex items-center gap-2 w-[220px] shrink-0">
+              <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full rounded-xl bg-card border-border">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-border">
+                  {STATUS_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        {/* ── Filter panel (mobile: collapsible, desktop: always visible) ── */}
+        <div className={cn(
+          "flex-col gap-3 p-4 sm:p-0 rounded-xl border border-dashed border-border sm:border-0 sm:rounded-none",
+          showFilters ? "flex" : "hidden sm:flex",
+        )}>
+          {/* Mobile status filter */}
+          {currentTab === "all" && (
+            <div className="sm:hidden flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="flex-1 rounded-xl bg-card border-border">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-border">
+                  {STATUS_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Date range */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="text-sm text-muted-foreground whitespace-nowrap">Applied:</span>
@@ -546,16 +613,21 @@ export default function LoansPage() {
               />
             </div>
             {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground hover:text-foreground shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="shrink-0 text-muted-foreground hover:text-foreground self-start sm:self-auto"
+              >
                 <X className="h-3.5 w-3.5 mr-1" />
-                Clear
+                Clear all
               </Button>
             )}
           </div>
         </div>
 
-        {/* Table */}
-        <Tabs value={currentTab} className="space-y-4">
+        {/* ── Table ───────────────────────────────────────────── */}
+        <Tabs value={currentTab}>
           <TabsContent value={currentTab} className="mt-0">
             <div className="space-y-4">
               <LoansTable
@@ -566,44 +638,32 @@ export default function LoansPage() {
                 onSort={handleSort}
               />
 
-              {/* Pagination — always visible */}
+              {/* ── Pagination ─────────────────────────────────── */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border pt-4">
                 <p className="text-sm text-muted-foreground">
-                  Showing {loans.length} of {totalLoans} loan{totalLoans !== 1 ? "s" : ""}
+                  {isLoading
+                    ? "Loading…"
+                    : `Showing ${loans.length} of ${totalLoans} loan${totalLoans !== 1 ? "s" : ""}`}
                 </p>
+
                 {totalPages > 1 && (
                   <>
-                    {/* Mobile: simple prev / page-of / next */}
+                    {/* Mobile */}
                     <div className="flex sm:hidden items-center gap-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page === 1 || isLoading}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1 || isLoading}>
                         Previous
                       </Button>
-                      <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      <span className="text-sm text-muted-foreground whitespace-nowrap font-medium">
                         {currentPage} / {totalPages}
                       </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={page >= totalPages || isLoading}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages || isLoading}>
                         Next
                       </Button>
                     </div>
 
-                    {/* Desktop: numbered buttons + jump */}
-                    <div className="hidden sm:flex items-center gap-1 flex-wrap justify-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page === 1 || isLoading}
-                      >
+                    {/* Desktop */}
+                    <div className="hidden sm:flex items-center gap-1">
+                      <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1 || isLoading}>
                         Previous
                       </Button>
                       {pageButtons.map((p) => (
@@ -618,12 +678,7 @@ export default function LoansPage() {
                           {p}
                         </Button>
                       ))}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={page >= totalPages || isLoading}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages || isLoading}>
                         Next
                       </Button>
                       <Input
