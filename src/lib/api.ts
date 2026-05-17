@@ -376,6 +376,16 @@ export const getAdminLoans = async (params?: any) => {
   return response.data;
 };
 
+export const exportAdminLoans = async (params?: any): Promise<void> => {
+  const response = await api.get('/api/admin/loans/export', { params, responseType: 'blob' });
+  const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `loans-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 export const approveLoan = async (id: string) => {
   const response = await api.post(`/api/admin/loans/${id}/approve`);
   return response.data;
