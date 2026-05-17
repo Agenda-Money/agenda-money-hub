@@ -185,13 +185,13 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
               className="w-full text-left bg-card rounded-xl p-4 shadow-sm border border-border space-y-3 animate-fade-in cursor-pointer active:bg-muted/50"
               style={{ animationDelay: `${index * 30}ms` }}
             >
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs text-muted-foreground font-mono">{loan.reference}</p>
-                  <h3 className="font-semibold text-foreground">{loan.user}</h3>
+              <div className="flex justify-between items-start gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground font-mono truncate">{loan.reference}</p>
+                  <h3 className="font-semibold text-foreground truncate">{loan.user}</h3>
                   <p className="text-sm text-muted-foreground">{loan.phone}</p>
                 </div>
-                <Badge variant="outline" className={cn("font-medium flex items-center gap-1", displayConfig.color)}>
+                <Badge variant="outline" className={cn("font-medium flex items-center gap-1 shrink-0", displayConfig.color)}>
                   <StatusIcon className={cn("h-3 w-3", loan.status === "DISBURSING" && "animate-spin")} />
                   {displayConfig.label}
                 </Badge>
@@ -250,8 +250,8 @@ const StatusCard = ({
   };
   return (
     <div className={cn("bg-card rounded-xl p-4 shadow-sm border-l-4", styles[type])}>
-      <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      <p className="text-2xl font-bold text-foreground mt-1">{count}</p>
+      <p className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">{title}</p>
+      <p className="text-xl sm:text-2xl font-bold text-foreground mt-1">{count}</p>
     </div>
   );
 };
@@ -476,13 +476,13 @@ export default function LoansPage() {
 
         {/* Tabs + status filter */}
         <div className="flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <Tabs
               value={currentTab}
               onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)}
-              className="w-full sm:w-auto"
+              className="flex-1 min-w-0 overflow-hidden"
             >
-              <TabsList className="bg-muted p-1 overflow-x-auto flex flex-nowrap shrink-0 snap-x">
+              <TabsList className="bg-muted p-1 overflow-x-auto flex flex-nowrap snap-x w-full">
                 {[
                   { value: "all", label: "All" },
                   { value: "pending", label: "Pending" },
@@ -504,7 +504,7 @@ export default function LoansPage() {
             </Tabs>
 
             {currentTab === "all" && (
-              <div className="flex items-center gap-2 w-full sm:w-[220px]">
+              <div className="flex items-center gap-2 w-full sm:w-[220px] shrink-0">
                 <Filter className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-full rounded-xl bg-card border-border">
@@ -527,28 +527,28 @@ export default function LoansPage() {
           </div>
 
           {/* Date range */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-sm text-muted-foreground">Applied:</span>
+              <span className="text-sm text-muted-foreground whitespace-nowrap">Applied:</span>
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="h-9 rounded-lg border border-input bg-card px-3 text-sm text-foreground"
+                className="h-9 rounded-lg border border-input bg-card px-2 text-sm text-foreground flex-1 sm:flex-none sm:w-36 min-w-0"
               />
-              <span className="text-muted-foreground text-sm">–</span>
+              <span className="text-muted-foreground text-sm shrink-0">–</span>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="h-9 rounded-lg border border-input bg-card px-3 text-sm text-foreground"
+                className="h-9 rounded-lg border border-input bg-card px-2 text-sm text-foreground flex-1 sm:flex-none sm:w-36 min-w-0"
               />
             </div>
             {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground hover:text-foreground shrink-0">
                 <X className="h-3.5 w-3.5 mr-1" />
-                Clear filters
+                Clear
               </Button>
             )}
           </div>
@@ -572,51 +572,77 @@ export default function LoansPage() {
                   Showing {loans.length} of {totalLoans} loan{totalLoans !== 1 ? "s" : ""}
                 </p>
                 {totalPages > 1 && (
-                  <div className="flex items-center gap-1 flex-wrap justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1 || isLoading}
-                    >
-                      Previous
-                    </Button>
-                    {pageButtons.map((p) => (
+                  <>
+                    {/* Mobile: simple prev / page-of / next */}
+                    <div className="flex sm:hidden items-center gap-3">
                       <Button
-                        key={p}
-                        variant={p === currentPage ? "default" : "outline"}
+                        variant="outline"
                         size="sm"
-                        className="w-9"
-                        onClick={() => setPage(p)}
-                        disabled={isLoading}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1 || isLoading}
                       >
-                        {p}
+                        Previous
                       </Button>
-                    ))}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page >= totalPages || isLoading}
-                    >
-                      Next
-                    </Button>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={totalPages}
-                      value={jumpPage}
-                      onChange={(e) => setJumpPage(e.target.value)}
-                      placeholder="Go"
-                      className="w-16 h-8 text-sm text-center ml-2"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          const n = parseInt(jumpPage, 10);
-                          if (n >= 1 && n <= totalPages) { setPage(n); setJumpPage(""); }
-                        }
-                      }}
-                    />
-                  </div>
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page >= totalPages || isLoading}
+                      >
+                        Next
+                      </Button>
+                    </div>
+
+                    {/* Desktop: numbered buttons + jump */}
+                    <div className="hidden sm:flex items-center gap-1 flex-wrap justify-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1 || isLoading}
+                      >
+                        Previous
+                      </Button>
+                      {pageButtons.map((p) => (
+                        <Button
+                          key={p}
+                          variant={p === currentPage ? "default" : "outline"}
+                          size="sm"
+                          className="w-9"
+                          onClick={() => setPage(p)}
+                          disabled={isLoading}
+                        >
+                          {p}
+                        </Button>
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page >= totalPages || isLoading}
+                      >
+                        Next
+                      </Button>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={totalPages}
+                        value={jumpPage}
+                        onChange={(e) => setJumpPage(e.target.value)}
+                        placeholder="Go"
+                        className="w-16 h-8 text-sm text-center ml-2"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const n = parseInt(jumpPage, 10);
+                            if (n >= 1 && n <= totalPages) { setPage(n); setJumpPage(""); }
+                          }
+                        }}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             </div>
