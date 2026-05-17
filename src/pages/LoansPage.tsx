@@ -162,7 +162,7 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
       </div>
 
       {/* Mobile cards */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-3 w-full min-w-0">
         {loans.map((loan, index) => {
           const key = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
           const cfg = statusConfig[key] ?? statusConfig.PENDING;
@@ -183,46 +183,51 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
               style={{ animationDelay: `${index * 30}ms` }}
             >
               {/* Header */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[10px] text-muted-foreground font-mono truncate">{loan.reference}</p>
-                  <p className="font-semibold text-foreground text-sm truncate">{loan.user}</p>
-                  <p className="text-xs text-muted-foreground">{loan.phone}</p>
+              <div className="flex items-start justify-between gap-3 w-full min-w-0">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center bg-primary/10 border border-primary/20">
+                     <span className="text-sm font-bold text-primary">{loan.user ? loan.user.charAt(0).toUpperCase() : "?"}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground text-sm truncate">{loan.user}</p>
+                    <p className="text-xs text-muted-foreground font-mono truncate">{loan.reference} <span className="opacity-50 mx-1">•</span> {loan.phone}</p>
+                  </div>
                 </div>
-                <Badge variant="outline" className={cn("flex items-center gap-1 shrink-0 text-[11px] font-semibold", cfg.color)}>
+                <Badge variant="outline" className={cn("flex items-center gap-1.5 shrink-0 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border-border/50", cfg.color)}>
                   <StatusIcon className={cn("h-3 w-3", loan.status === "DISBURSING" && "animate-spin")} />
                   {cfg.label}
                 </Badge>
               </div>
 
-              {/* Stats row */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-muted/40 rounded-lg px-2.5 py-2">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Amount</p>
-                  <p className="text-sm font-bold text-foreground">₵{loan.amount.toLocaleString()}</p>
+              {/* Stats Receipt */}
+              <div className="bg-muted/30 rounded-xl p-3 border border-border/50 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">Amount</span>
+                  <span className="text-sm font-bold text-foreground">₵{loan.amount.toLocaleString()}</span>
                 </div>
-                <div className="bg-muted/40 rounded-lg px-2.5 py-2">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Applied</p>
-                  <p className="text-xs font-medium text-foreground">{formatDate(loan.appliedAt)}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">Applied</span>
+                  <span className="text-xs font-medium text-foreground">{formatDate(loan.appliedAt)}</span>
                 </div>
-                <div className="bg-muted/40 rounded-lg px-2.5 py-2">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Due Date</p>
-                  <p className="text-xs font-medium text-foreground">{formatDate(loan.dueDate)}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">Due Date</span>
+                  <span className="text-xs font-medium text-foreground">{formatDate(loan.dueDate)}</span>
                 </div>
               </div>
 
-              {/* Disbursed row */}
-              {loan.disbursedAt && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Check className="h-3 w-3 text-green-500 shrink-0" />
-                  <span>Disbursed {formatDate(loan.disbursedAt)}</span>
+              {/* Action row */}
+              <div className="pt-1 flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  {loan.disbursedAt && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate pr-2">
+                      <Check className="h-3 w-3 text-green-500 shrink-0" />
+                      <span className="truncate">Disbursed {formatDate(loan.disbursedAt)}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-
-              <div className="pt-2 border-t border-border flex justify-end">
-                <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="sm" className="h-8 text-xs font-medium text-primary hover:text-primary hover:bg-primary/10 gap-1.5 px-3 rounded-full shrink-0" onClick={(e) => { e.stopPropagation(); onLoanClick(loan); }}>
+                  Details
                   <Eye className="h-3.5 w-3.5" />
-                  View
                 </Button>
               </div>
             </div>
@@ -428,7 +433,7 @@ export default function LoansPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full min-w-0">
 
         {/* ── Header ─────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-3">
@@ -452,25 +457,25 @@ export default function LoansPage() {
           </Button>
         </div>
 
-        {/* ── Stat strip — mobile: horizontal scroll, desktop: grid ── */}
+        {/* ── Stat strip — mobile: grid, desktop: grid ── */}
         {/* Mobile */}
-        <div className="sm:hidden overflow-x-auto no-scrollbar -mx-4 px-4">
-          <div className="flex gap-3 w-max pr-4 pb-0.5">
+        <div className="sm:hidden w-full">
+          <div className="grid grid-cols-3 gap-2 w-full pb-1">
             {statItems.map((s) => (
               <div
                 key={s.label}
                 className={cn(
-                  "flex-none w-[118px] rounded-2xl border p-3.5 shadow-sm",
+                  "w-full rounded-2xl border p-2.5 shadow-sm",
                   s.card,
                 )}
               >
-                <div className="flex items-center gap-1.5 mb-2">
+                <div className="flex items-center gap-1 mb-1.5">
                   <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", s.dot)} />
-                  <span className={cn("text-[11px] font-semibold leading-tight line-clamp-1", s.text)}>
+                  <span className={cn("text-[10px] font-semibold leading-tight line-clamp-1", s.text)}>
                     {s.label}
                   </span>
                 </div>
-                <p className="text-[26px] font-bold text-foreground leading-none">{s.count}</p>
+                <p className="text-xl font-bold text-foreground leading-none">{s.count}</p>
               </div>
             ))}
           </div>
@@ -490,8 +495,8 @@ export default function LoansPage() {
         </div>
 
         {/* ── Search + filter toggle (mobile) ─────────────────── */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+        <div className="flex items-center gap-2 w-full min-w-0">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               placeholder="Search reference, name or phone…"
@@ -526,13 +531,13 @@ export default function LoansPage() {
         </div>
 
         {/* ── Tabs + desktop status filter ────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full min-w-0">
           <Tabs
             value={currentTab}
             onValueChange={(val) => navigate(val === "all" ? "/loans" : `/loans/${val}`)}
-            className="flex-1 min-w-0 overflow-hidden"
+            className="flex-1 w-full min-w-0"
           >
-            <TabsList className="bg-muted p-1 overflow-x-auto no-scrollbar flex flex-nowrap w-full h-auto">
+            <TabsList className="bg-muted p-1 grid grid-cols-4 sm:flex sm:flex-nowrap w-full h-auto gap-1">
               {[
                 { value: "all",          label: "All" },
                 { value: "pending",      label: "Pending" },
@@ -594,23 +599,27 @@ export default function LoansPage() {
           )}
 
           {/* Date range */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-sm text-muted-foreground whitespace-nowrap">Applied:</span>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="h-9 rounded-lg border border-input bg-card px-2 text-sm text-foreground flex-1 sm:flex-none sm:w-36 min-w-0"
-              />
-              <span className="text-muted-foreground text-sm shrink-0">–</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="h-9 rounded-lg border border-input bg-card px-2 text-sm text-foreground flex-1 sm:flex-none sm:w-36 min-w-0"
-              />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full min-w-0">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2 shrink-0">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Applied:</span>
+              </div>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-input bg-card px-2 text-sm text-foreground flex-1 sm:flex-none sm:w-36 min-w-0"
+                />
+                <span className="text-muted-foreground text-sm shrink-0">–</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-input bg-card px-2 text-sm text-foreground flex-1 sm:flex-none sm:w-36 min-w-0"
+                />
+              </div>
             </div>
             {hasFilters && (
               <Button
@@ -627,9 +636,9 @@ export default function LoansPage() {
         </div>
 
         {/* ── Table ───────────────────────────────────────────── */}
-        <Tabs value={currentTab}>
-          <TabsContent value={currentTab} className="mt-0">
-            <div className="space-y-4">
+        <Tabs value={currentTab} className="w-full min-w-0">
+          <TabsContent value={currentTab} className="mt-0 w-full min-w-0">
+            <div className="space-y-4 w-full min-w-0">
               <LoansTable
                 loans={loans}
                 onLoanClick={(loan) => setSelectedLoan(loan)}
