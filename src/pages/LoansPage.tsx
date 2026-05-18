@@ -428,7 +428,7 @@ export default function LoansPage() {
     { value: "ACTIVE", label: "Active" },
     { value: "OVERDUE", label: "Overdue" },
     { value: "DEFAULTED", label: "Defaulted" },
-    { value: "REPAID", label: "Repaid" },
+    { value: "REPAID,CLOSED", label: "Closed" },
     { value: "REJECTED", label: "Rejected" },
   ];
 
