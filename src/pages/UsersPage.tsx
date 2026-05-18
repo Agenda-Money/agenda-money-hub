@@ -13,13 +13,15 @@ import {
 } from "@/components/ui/select";
 import {
   Search, Download, UserPlus, ChevronRight, ChevronUp, ChevronDown,
-  ChevronsUpDown, X, Ban, CheckCircle, Users, ShieldAlert, Activity,
+  ChevronsUpDown, X, Ban, CheckCircle, Users, ShieldAlert, Activity, Flag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CampaignGenerationModal } from "@/components/users/CampaignGenerationModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAdminUsers, bulkActionUsers, exportAdminUsers } from "@/lib/api";
+import { getAdminUsers, bulkActionUsers, bulkFlagUsers, exportAdminUsers } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface User {
   id: string;
@@ -84,6 +86,9 @@ export default function UsersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isBulkFlagOpen, setIsBulkFlagOpen] = useState(false);
+  const [flagLevel, setFlagLevel] = useState("normal");
+  const [flagReason, setFlagReason] = useState("");
 
   // Debounce search 300ms
   useEffect(() => {
@@ -190,6 +195,20 @@ export default function UsersPage() {
     onError: () => toast({ title: "Bulk action failed", variant: "destructive" }),
   });
 
+  const bulkFlagMutation = useMutation({
+    mutationFn: ({ ids, level, reason }: { ids: string[]; level: string; reason: string }) =>
+      bulkFlagUsers(ids, level, reason),
+    onSuccess: (_, { ids }) => {
+      toast({ title: `${ids.length} user${ids.length !== 1 ? "s" : ""} flagged` });
+      setSelectedIds(new Set());
+      setIsBulkFlagOpen(false);
+      setFlagLevel("normal");
+      setFlagReason("");
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: () => toast({ title: "Bulk flag failed", variant: "destructive" }),
+  });
+
   const handleExport = async () => {
     setIsExporting(true);
     try {
@@ -264,6 +283,25 @@ export default function UsersPage() {
               />
             </div>
             <div className="flex flex-wrap gap-2">
+              {/* Mobile-only sort control */}
+              <Select
+                value={`${sortBy}-${sortOrder}`}
+                onValueChange={(v) => {
+                  const [field, order] = v.split("-") as [SortField, SortOrder];
+                  setSortBy(field);
+                  setSortOrder(order);
+                }}
+              >
+                <SelectTrigger className="sm:hidden w-full h-10"><SelectValue placeholder="Sort" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="joinedAt-desc">Newest joined</SelectItem>
+                  <SelectItem value="joinedAt-asc">Oldest joined</SelectItem>
+                  <SelectItem value="tier-desc">Tier: High → Low</SelectItem>
+                  <SelectItem value="tier-asc">Tier: Low → High</SelectItem>
+                  <SelectItem value="name-asc">Name: A → Z</SelectItem>
+                  <SelectItem value="name-desc">Name: Z → A</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={tierFilter} onValueChange={setTierFilter}>
                 <SelectTrigger className="w-[110px] h-10"><SelectValue placeholder="Tier" /></SelectTrigger>
                 <SelectContent>
@@ -319,7 +357,12 @@ export default function UsersPage() {
         {selectedIds.size > 0 && (
           <div className="flex flex-wrap items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl px-4 py-3">
             <span className="text-sm font-semibold text-primary">{selectedIds.size} selected</span>
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 ml-auto flex-wrap">
+              <Button size="sm" variant="outline" className="h-8 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700"
+                onClick={() => setIsBulkFlagOpen(true)}
+                disabled={bulkFlagMutation.isPending}>
+                <Flag className="h-3.5 w-3.5 mr-1.5" /> Flag
+              </Button>
               <Button size="sm" variant="destructive" className="h-8"
                 onClick={() => bulkMutation.mutate({ action: "block", ids: Array.from(selectedIds) })}
                 disabled={bulkMutation.isPending}>
@@ -519,6 +562,47 @@ export default function UsersPage() {
       </div>
 
       <CampaignGenerationModal open={isCampaignModalOpen} onOpenChange={setIsCampaignModalOpen} />
+
+      {/* Bulk Flag Modal */}
+      <Dialog open={isBulkFlagOpen} onOpenChange={(o) => { if (!o) { setIsBulkFlagOpen(false); setFlagLevel("normal"); setFlagReason(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Flag {selectedIds.size} user{selectedIds.size !== 1 ? "s" : ""}</DialogTitle>
+            <DialogDescription>This flag will be visible to all admins on each user's profile.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Severity</Label>
+              <Select value={flagLevel} onValueChange={setFlagLevel}>
+                <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Input
+                value={flagReason}
+                onChange={e => setFlagReason(e.target.value)}
+                placeholder="e.g. Suspicious activity pattern…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBulkFlagOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => bulkFlagMutation.mutate({ ids: Array.from(selectedIds), level: flagLevel, reason: flagReason })}
+              disabled={!flagReason.trim() || bulkFlagMutation.isPending}
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              {bulkFlagMutation.isPending ? "Flagging…" : `Flag ${selectedIds.size} user${selectedIds.size !== 1 ? "s" : ""}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
