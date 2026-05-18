@@ -28,7 +28,7 @@ interface Loan {
   disbursedAt?: string;
   totalPayable?: number;
   amountRepaid?: number;
-  status: "PENDING" | "DISBURSING" | "ACTIVE" | "REPAID" | "OVERDUE" | "DEFAULTED" | "REJECTED" | "DUE TODAY" | "AWAITING_ENDORSEMENT";
+  status: "PENDING" | "DISBURSING" | "ACTIVE" | "REPAID" | "CLOSED" | "OVERDUE" | "DEFAULTED" | "REJECTED" | "DUE TODAY" | "AWAITING_ENDORSEMENT";
   nodeCode: string;
   kycStatus?: string;
   selfieUrl?: string;
@@ -48,6 +48,7 @@ const statusConfig = {
   DISBURSING: { label: "Disbursing", icon: Loader2, color: "bg-blue-500/10 text-blue-600 border-blue-200" },
   ACTIVE: { label: "Active", icon: CheckCircle, color: "bg-green-600/10 text-green-700 border-green-500/20" },
   REPAID: { label: "Closed", icon: Check, color: "bg-blue-600/10 text-blue-700 border-blue-500/20" },
+  CLOSED: { label: "Closed", icon: Check, color: "bg-blue-600/10 text-blue-700 border-blue-500/20" },
   OVERDUE: { label: "Overdue", icon: AlertTriangle, color: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20" },
   DEFAULTED: { label: "Defaulted", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
   REJECTED: { label: "Rejected", icon: XCircle, color: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20" },
@@ -427,7 +428,7 @@ export default function LoansPage() {
     { value: "ACTIVE", label: "Active" },
     { value: "OVERDUE", label: "Overdue" },
     { value: "DEFAULTED", label: "Defaulted" },
-    { value: "REPAID", label: "Repaid" },
+    { value: "REPAID,CLOSED", label: "Closed" },
     { value: "REJECTED", label: "Rejected" },
   ];
 

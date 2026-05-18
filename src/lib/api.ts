@@ -442,6 +442,11 @@ export const bulkActionUsers = async (action: 'block' | 'unblock', userIds: stri
   return response.data;
 };
 
+export const bulkFlagUsers = async (userIds: string[], level: string, reason: string) => {
+  const response = await api.post('/api/admin/users/bulk-flag', { userIds, level, reason });
+  return response.data;
+};
+
 export const exportAdminUsers = async (params?: any): Promise<void> => {
   const response = await api.get('/api/admin/users/export', { params, responseType: 'blob' });
   const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));

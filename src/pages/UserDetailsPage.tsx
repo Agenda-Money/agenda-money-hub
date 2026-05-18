@@ -449,6 +449,40 @@ export default function UserDetailsPage() {
     </DashboardLayout>
   )
 
+  // ── Account Health Computation ──────────────────────────────────────────────
+  const completedLoans = (loanHistory ?? []).filter((l: any) =>
+    !['AWAITING_ENDORSEMENT', 'PENDING', 'REJECTED', 'CANCELLED'].includes(l.status?.toUpperCase())
+  );
+  const defaultedLoans = completedLoans.filter((l: any) => l.status?.toUpperCase() === 'DEFAULTED');
+  const overdueLoans   = completedLoans.filter((l: any) => l.status?.toUpperCase() === 'OVERDUE');
+  const repaidLoans    = completedLoans.filter((l: any) => ['REPAID', 'CLOSED'].includes(l.status?.toUpperCase()));
+  const reliabilityRate = completedLoans.length === 0
+    ? null
+    : Math.round((repaidLoans.length / completedLoans.length) * 100);
+  const isBlacklisted = !!user.blacklistedUntil && new Date(user.blacklistedUntil) > new Date();
+  const hasDefaults   = defaultedLoans.length > 0;
+  const hasOverdue    = overdueLoans.length > 0;
+
+  let healthStatus: 'red' | 'amber' | 'green' = 'green';
+  let healthMessage = 'No active liabilities found. This member is currently eligible for an advancement.';
+  if (hasDefaults || isBlacklisted || user.isBlocked) {
+    healthStatus = 'red';
+    healthMessage = hasDefaults
+      ? `Account has ${defaultedLoans.length} default${defaultedLoans.length !== 1 ? 's' : ''} on record. Not currently eligible for advancement.`
+      : isBlacklisted
+        ? `Account blacklisted until ${formatDate(user.blacklistedUntil)}.`
+        : 'Account is blocked. Review before advancing.';
+  } else if (hasOverdue) {
+    healthStatus = 'amber';
+    healthMessage = `${overdueLoans.length} loan${overdueLoans.length !== 1 ? 's' : ''} currently overdue. Account under review.`;
+  }
+
+  const healthTheme = {
+    red:   { card: 'from-white to-red-50/10 dark:from-gray-900 dark:to-red-900/5', band: 'bg-red-50/40 dark:bg-red-900/10 border-red-100/50 dark:border-red-800/30', label: 'text-red-600', value: 'text-red-700 dark:text-red-400', msg: 'text-red-600 dark:text-red-400 font-semibold' },
+    amber: { card: 'from-white to-amber-50/10 dark:from-gray-900 dark:to-amber-900/5', band: 'bg-amber-50/40 dark:bg-amber-900/10 border-amber-100/50 dark:border-amber-800/30', label: 'text-amber-600', value: 'text-amber-700 dark:text-amber-400', msg: 'text-amber-600 dark:text-amber-400 font-semibold' },
+    green: { card: 'from-white to-teal-50/10 dark:from-gray-900 dark:to-teal-900/5', band: 'bg-teal-50/30 dark:bg-teal-900/10 border-teal-100/30', label: 'text-teal-600', value: 'text-gray-900 dark:text-gray-100', msg: 'text-gray-400 font-bold' },
+  }[healthStatus];
+
   // Robust Identity Resolution - SAFE HERE after data guards
   const resolvedIdentity = {
     momoName: user.kyc?.momoName || loanHistory?.find((l: any) => l.momoResolvedName)?.momoResolvedName || 'N/A',
@@ -608,7 +642,12 @@ export default function UserDetailsPage() {
                                </div>
                                <div className="min-w-[80px] text-right shrink-0">
                                   <p className="text-sm font-black text-pink-600 dark:text-pink-400 font-mono truncate">₵{(loan.totalPayable || (loan.principal + loan.interestAmount) || 0).toLocaleString()}</p>
-                                  <Pill color={loan.status === 'ACTIVE' ? 'blue' : 'teal'} className="mt-1 scale-90 origin-right max-w-full">{(loan.status || 'CLOSED').toUpperCase().replace('AWAITING_ENDORSEMENT', 'AWAITING')}</Pill>
+                                  <Pill color={
+                                    loan.status?.toUpperCase() === 'DEFAULTED' ? 'red' :
+                                    loan.status?.toUpperCase() === 'OVERDUE' ? 'amber' :
+                                    loan.status?.toUpperCase() === 'ACTIVE' ? 'blue' :
+                                    ['REPAID', 'CLOSED'].includes(loan.status?.toUpperCase()) ? 'teal' : 'gray'
+                                  } className="mt-1 scale-90 origin-right max-w-full">{(loan.status || 'CLOSED').toUpperCase().replace('AWAITING_ENDORSEMENT', 'AWAITING')}</Pill>
                                </div>
                             </div>
                           </div>
@@ -750,18 +789,20 @@ export default function UserDetailsPage() {
                   </div>
                 </Card>
               ) : (
-                <Card className="p-4 sm:p-8 bg-gradient-to-br from-white to-teal-50/10 dark:from-gray-900 dark:to-teal-900/5">
+                <Card className={`p-4 sm:p-8 bg-gradient-to-br ${healthTheme.card}`}>
                   <SectionHeader>Account Health</SectionHeader>
                   <div className="mt-4 space-y-6">
-                    <div className="p-4 rounded-2xl bg-teal-50/30 dark:bg-teal-900/10 border border-teal-100/30">
-                       <p className="text-[10px] font-black uppercase tracking-widest text-teal-600 mb-1">Lifetime Reliability</p>
-                       <p className="text-2xl font-black text-gray-900 dark:text-gray-100 font-mono">{payload.onTimeRateTrend?.[0]?.rate || 100}%</p>
+                    <div className={`p-4 rounded-2xl border ${healthTheme.band}`}>
+                       <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${healthTheme.label}`}>Lifetime Reliability</p>
+                       <p className={`text-2xl font-black font-mono ${healthTheme.value}`}>
+                         {reliabilityRate !== null ? `${reliabilityRate}%` : '—'}
+                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                        <div className="p-4 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800">
                           <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Loans</p>
-                          <p className="text-lg font-black text-gray-900 dark:text-gray-100">
-                            {loanHistory?.filter((l: any) => !['AWAITING_ENDORSEMENT', 'PENDING', 'REJECTED', 'CANCELLED'].includes(l.status?.toUpperCase())).length || 0}
+                          <p className={`text-lg font-black ${healthTheme.value}`}>
+                            {completedLoans.length}
                           </p>
                        </div>
                        <div className="p-4 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800">
@@ -770,7 +811,7 @@ export default function UserDetailsPage() {
                        </div>
                     </div>
                     <div className="pt-2">
-                       <p className="text-[10px] text-gray-400 font-bold">No active liabilities found. This member is currently eligible for an advancement.</p>
+                       <p className={`text-[10px] font-bold ${healthTheme.msg}`}>{healthMessage}</p>
                     </div>
                   </div>
                 </Card>
