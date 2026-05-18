@@ -351,7 +351,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
               </Badge>
             </div>
 
-            {loan.guaranteedBy && (
+            {loan.guaranteedBy ? (
               <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4">
                 <p className="text-sm font-semibold text-purple-600 dark:text-purple-400">Node Endorsement</p>
                 <div className="mt-4 grid grid-cols-2 gap-4">
@@ -370,18 +370,30 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Endorsed On</p>
                     <p className="font-medium">
-                      {(loan.guaranteedAt || (loan as any).endorsedAt || loan.guarantorApprovedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt)
-                        ? new Date(loan.guaranteedAt || (loan as any).endorsedAt || loan.guarantorApprovedAt || (loan as any).guaranteedDate || (loan as any).endorsedOn || (loan as any).guaranteedOn || userDetails?.guaranteedAt || userDetails?.endorsedAt).toLocaleDateString("en-GB", {
+                      {(loan.guaranteedAt || loan.guarantorApprovedAt)
+                        ? new Date((loan.guaranteedAt || loan.guarantorApprovedAt)!).toLocaleDateString("en-GB", {
                             day: "numeric",
                             month: "short",
-                            year: "numeric"
+                            year: "numeric",
                           })
                         : "N/A"}
                     </p>
                   </div>
                 </div>
               </div>
-            )}
+            ) : isAwaitingEndorsement && Number(tierNum) >= 2 ? (
+              <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4 flex items-start gap-3">
+                <Clock className="h-4 w-4 text-purple-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                    Awaiting Node Endorsement
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This Tier {tierNum} loan is waiting for a node owner to endorse it before admin review.
+                  </p>
+                </div>
+              </div>
+            ) : null}
 
             {isPending && (
               <div className="space-y-4">
@@ -493,7 +505,13 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
               {Number(tierNum) >= 2 && (
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Guaranteed By</p>
-                  <p className="font-medium">{actualLoan?.guaranteedByName || actualLoan?.guarantorName || "Pending Guarantor"}</p>
+                  {loan.guaranteedBy ? (
+                    <p className="font-medium">{actualLoan?.guaranteedByName || actualLoan?.guarantorName || loan.guaranteedBy}</p>
+                  ) : isAwaitingEndorsement ? (
+                    <p className="text-xs text-purple-500 font-medium">Awaiting node endorsement</p>
+                  ) : (
+                    <p className="font-medium text-muted-foreground">—</p>
+                  )}
                 </div>
               )}
               <div className="space-y-1">

@@ -376,6 +376,16 @@ export const getAdminLoans = async (params?: any) => {
   return response.data;
 };
 
+export const exportAdminLoans = async (params?: any): Promise<void> => {
+  const response = await api.get('/api/admin/loans/export', { params, responseType: 'blob' });
+  const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `loans-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 export const approveLoan = async (id: string) => {
   const response = await api.post(`/api/admin/loans/${id}/approve`);
   return response.data;
@@ -425,6 +435,21 @@ export const recordManualRepayment = async (data: { msisdn?: string; amount: num
 export const getAdminUsers = async (params?: any) => {
   const response = await api.get('/api/admin/users', { params });
   return response.data;
+};
+
+export const bulkActionUsers = async (action: 'block' | 'unblock', userIds: string[], reason?: string) => {
+  const response = await api.post('/api/admin/users/bulk-action', { action, userIds, reason });
+  return response.data;
+};
+
+export const exportAdminUsers = async (params?: any): Promise<void> => {
+  const response = await api.get('/api/admin/users/export', { params, responseType: 'blob' });
+  const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `users-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 };
 
 export const getPendingKycUsers = async (limit: number = 1000) => {

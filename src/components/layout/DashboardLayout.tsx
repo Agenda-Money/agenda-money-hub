@@ -25,7 +25,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="h-screen flex w-full bg-background-secondary overflow-hidden">
       <AppSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       
-      <div className="flex-1 flex flex-col min-h-0 h-full">
+      <div className="flex-1 flex flex-col min-h-0 h-full min-w-0 w-full">
         <Header onMenuClick={() => setSidebarOpen(true)} />
         
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto min-w-0">

@@ -88,32 +88,32 @@ const Card = ({ children, className = '' }: any) => (
 )
 
 const InnerCard = ({ children, className = '' }: any) => (
-  <div className={`bg-pink-50/30 dark:bg-gray-800/50 border border-pink-100/50 dark:border-gray-700/50 rounded-2xl ${className}`}>
+  <div className={`bg-pink-50/30 dark:bg-gray-800/50 border border-pink-100/50 dark:border-gray-700/50 rounded-2xl w-full min-w-0 ${className}`}>
     {children}
   </div>
 )
 
 const MetricCard = ({ label, value, sub, valueColor = '' }: any) => (
-  <div className="bg-white dark:bg-gray-800/50 border border-pink-100/40 dark:border-transparent rounded-2xl p-4 shadow-sm hover:shadow-pink/5 transition-all">
-    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5 font-sans">{label}</p>
-    <p className={`text-2xl font-black font-mono tracking-tight ${valueColor || 'text-gray-900 dark:text-gray-100'}`}>{value}</p>
-    {sub && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-medium font-sans">{sub}</p>}
+  <div className="bg-white dark:bg-gray-800/50 border border-pink-100/40 dark:border-transparent rounded-2xl p-4 shadow-sm hover:shadow-pink/5 transition-all w-full min-w-0">
+    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5 font-sans truncate">{label}</p>
+    <p className={`text-2xl font-black font-mono tracking-tight truncate ${valueColor || 'text-gray-900 dark:text-gray-100'}`}>{value}</p>
+    {sub && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-medium font-sans truncate">{sub}</p>}
   </div>
 )
 
 const DetailItem = ({ label, value, icon: Icon, onCall }: any) => (
-  <div className="flex items-center gap-4 p-4 rounded-[1.25rem] bg-white dark:bg-gray-800/40 border border-pink-100/50 dark:border-gray-700/30 group/item hover:border-pink-300 dark:hover:border-pink-500/30 hover:shadow-md hover:shadow-pink-500/5 transition-all duration-300">
-    <div className="w-8 h-8 rounded-xl bg-pink-50 dark:bg-pink-900/20 flex items-center justify-center text-pink-600 dark:text-pink-400">
+  <div className="flex items-center gap-3 sm:gap-4 p-4 rounded-[1.25rem] bg-white dark:bg-gray-800/40 border border-pink-100/50 dark:border-gray-700/30 group/item hover:border-pink-300 dark:hover:border-pink-500/30 hover:shadow-md hover:shadow-pink-500/5 transition-all duration-300 w-full min-w-0">
+    <div className="w-8 h-8 shrink-0 rounded-xl bg-pink-50 dark:bg-pink-900/20 flex items-center justify-center text-pink-600 dark:text-pink-400">
       <Icon size={14} />
     </div>
     <div className="flex-1 min-w-0">
-      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-gray-400 dark:text-gray-500 mb-1">{label}</p>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[13px] font-bold text-gray-900 dark:text-gray-100 break-words leading-relaxed">{value || 'N/A'}</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-gray-400 dark:text-gray-500 mb-1 truncate">{label}</p>
+      <div className="flex items-center justify-between gap-2 w-full min-w-0">
+        <p className="text-[13px] font-bold text-gray-900 dark:text-gray-100 break-words leading-relaxed max-w-full truncate sm:whitespace-normal">{value || 'N/A'}</p>
         {onCall && value && value !== 'N/A' && (
           <button 
             onClick={() => onCall(value)}
-            className="p-1.5 rounded-lg bg-pink-50 text-pink-600 opacity-0 group-hover/item:opacity-100 transition-all hover:bg-pink-600 hover:text-white"
+            className="p-1.5 shrink-0 rounded-lg bg-pink-50 text-pink-600 opacity-0 group-hover/item:opacity-100 transition-all hover:bg-pink-600 hover:text-white"
           >
             <Phone size={12} />
           </button>
@@ -297,45 +297,45 @@ const BlockModal = ({ user, onClose, onConfirm, loading }: any) => {
 const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onRemoveFlag, onCall, canWrite }: any) => {
   const activeFlag = user.flags?.slice(-1)[0] || null
   return (
-    <Card className="p-4 sm:p-8">
+    <Card className="p-4 sm:p-8 w-full min-w-0">
       {activeFlag && <FlagBanner flag={activeFlag} id={user._id} onDeleted={onRemoveFlag} />}
-      <div className="flex flex-col md:flex-row gap-6 sm:gap-8 items-center md:items-start justify-between">
-        <div className="flex flex-col md:flex-row gap-6 items-center">
-          <div className="w-20 h-20 rounded-[2.5rem] flex items-center justify-center bg-gradient-to-br from-pink-500 to-rose-600 shadow-xl shadow-pink-200 dark:shadow-none ring-4 ring-white dark:ring-gray-800">
+      <div className="flex flex-col md:flex-row gap-6 sm:gap-8 items-center md:items-start justify-between w-full min-w-0">
+        <div className="flex flex-col md:flex-row gap-6 items-center w-full min-w-0">
+          <div className="w-20 h-20 shrink-0 rounded-[2.5rem] flex items-center justify-center bg-gradient-to-br from-pink-500 to-rose-600 shadow-xl shadow-pink-200 dark:shadow-none ring-4 ring-white dark:ring-gray-800">
             <span className="text-white text-3xl font-black">{user.fullName?.[0] || 'U'}</span>
           </div>
-          <div className="flex flex-col items-center md:items-start">
+          <div className="flex flex-col items-center md:items-start min-w-0 w-full">
             <div className="flex items-center gap-3 flex-wrap justify-center md:justify-start mb-2">
-              <h1 className="text-3xl font-black text-gray-900 dark:text-gray-100 tracking-tight">{user.fullName}</h1>
-              <Pill color="blue">L{user.currentTier || 1}</Pill>
-              {user.kycStatus === 'VERIFIED' && <Pill color="teal">Verified</Pill>}
-              <Pill color="brand" className="font-mono">{user.personalNodeCode || user.nodeCode}</Pill>
+              <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 tracking-tight text-center md:text-left break-words max-w-full">{user.fullName}</h1>
+              <Pill color="blue" className="shrink-0">L{user.currentTier || 1}</Pill>
+              {user.kycStatus === 'VERIFIED' && <Pill color="teal" className="shrink-0">Verified</Pill>}
+              <Pill color="brand" className="font-mono shrink-0 truncate max-w-full">{user.personalNodeCode || user.nodeCode}</Pill>
             </div>
-            <div className="flex gap-4 flex-wrap justify-center md:justify-start text-[13px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide">
-              <div className="flex items-center gap-3">
-                <span className="font-mono tracking-normal text-gray-900 dark:text-gray-100">{user.msisdn}</span>
+            <div className="flex gap-4 flex-wrap justify-center md:justify-start text-[13px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide w-full min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="font-mono tracking-normal text-gray-900 dark:text-gray-100 truncate">{user.msisdn}</span>
                 <button 
                   onClick={() => onCall(user.msisdn)}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-500 text-white hover:bg-pink-600 transition-all shadow-lg shadow-pink-500/20 active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-500 text-white hover:bg-pink-600 transition-all shadow-lg shadow-pink-500/20 active:scale-95 shrink-0"
                 >
                   <PhoneCall size={12} strokeWidth={3} />
                   <span className="text-[10px] font-black uppercase tracking-widest">Call</span>
                 </button>
               </div>
               <span className="hidden md:inline opacity-30">·</span>
-              <span>Joined {formatDate(user.createdAt)}</span>
+              <span className="truncate">Joined {formatDate(user.createdAt)}</span>
             </div>
              <div className="mt-2">
               {user.referredByNodeCode && (
-                <div className="flex items-center gap-2 justify-center md:justify-start">
-                  <span className="text-pink-600 dark:text-pink-400 font-black text-[10px] tracking-[0.2em] uppercase">Referred by:</span>
-                  <span className="text-gray-900 dark:text-gray-100 font-black text-[11px] font-mono">{user.referredByNodeCode}</span>
+                <div className="flex items-center gap-2 justify-center md:justify-start min-w-0">
+                  <span className="text-pink-600 dark:text-pink-400 font-black text-[10px] tracking-[0.2em] uppercase shrink-0">Referred by:</span>
+                  <span className="text-gray-900 dark:text-gray-100 font-black text-[11px] font-mono truncate">{user.referredByNodeCode}</span>
                 </div>
               )}
             </div>
           </div>
         </div>
-        <div className="flex gap-2.5 flex-wrap justify-center md:justify-end">
+        <div className="flex gap-2.5 flex-wrap justify-center md:justify-end shrink-0">
           <button onClick={onFlag} className="px-4 py-2 rounded-xl border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 text-xs font-black uppercase tracking-widest hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all">Flag</button>
           <button onClick={onBlock} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${user.isBlocked ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-900/20'}`}>
             {user.isBlocked ? 'Unblock' : 'Block'}
@@ -458,7 +458,7 @@ export default function UserDetailsPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto space-y-8 pb-12">
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 pb-12 w-full min-w-0">
         
         {/* Top Navigation */}
         <div className="flex items-center justify-between py-2">
@@ -479,7 +479,7 @@ export default function UserDetailsPage() {
         />
 
         {/* 2. Main Stats Bar */}
-        <Card className="p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+        <Card className="p-4 sm:p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 w-full min-w-0">
            <MetricCard label="On-time Rate" value={`${payload.onTimeRateTrend?.[0]?.rate || 90}%`} sub="Historical average" valueColor="text-teal-600" />
            <MetricCard label="Credit Score" value={user.creditScore || 80} sub="Out of 100" />
            <MetricCard label="Repayment Ratio" value={payload.referralQuality?.positiveRate?.toFixed(1) || '1.0'} sub="Recovery performance" />
@@ -493,14 +493,14 @@ export default function UserDetailsPage() {
         </Card>
 
         {/* 3. Content Tabs */}
-        <div className="grid lg:grid-cols-3 gap-8">
-           <div className="lg:col-span-2 space-y-8">
+        <div className="grid lg:grid-cols-3 gap-6 sm:gap-8 w-full min-w-0">
+           <div className="lg:col-span-2 space-y-6 sm:space-y-8 min-w-0 w-full">
               <div className="flex gap-1 p-1 bg-white dark:bg-gray-900 border border-pink-100/50 dark:border-gray-800 rounded-2xl w-full sm:w-fit shadow-sm overflow-x-auto no-scrollbar">
                 {['Identity', 'Financials', 'Activity'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
+                    className={`px-6 sm:px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 shrink-0 ${
                       activeTab === tab ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'
                     }`}
                   >
@@ -511,30 +511,30 @@ export default function UserDetailsPage() {
 
               {activeTab === 'Identity' && (
                 <div className="space-y-8 animate-fade-in">
-                  <Card className="p-8">
+                  <Card className="p-4 sm:p-8 w-full min-w-0">
                     <SectionHeader>Identity Verification Documents</SectionHeader>
                     <div className="grid sm:grid-cols-3 gap-6">
                       <KYCDoc label="Selfie ID" type="selfie" imageUrl={user.selfieUrl} />
                       <KYCDoc label="Card Front" type="front" imageUrl={user.ghanaCardFrontUrl} />
                       <KYCDoc label="Card Back" type="back" imageUrl={user.ghanaCardBackUrl} />
                     </div>
-                    <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
                       <InnerCard className="p-4">
                         <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Momo Name</p>
-                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono">{resolvedIdentity.momoName}</p>
+                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono truncate">{resolvedIdentity.momoName}</p>
                       </InnerCard>
                       <InnerCard className="p-4">
                         <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">ID Number</p>
-                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono">{resolvedIdentity.ghanaCardNumber}</p>
+                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono truncate">{resolvedIdentity.ghanaCardNumber}</p>
                       </InnerCard>
                       <InnerCard className="p-4">
                         <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Card Name</p>
-                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 break-words">{resolvedIdentity.ghanaCardName}</p>
+                        <p className="text-sm font-black text-gray-900 dark:text-gray-100 break-words max-w-full truncate sm:whitespace-normal">{resolvedIdentity.ghanaCardName}</p>
                       </InnerCard>
                     </div>
                   </Card>
 
-                  <Card className="p-8">
+                  <Card className="p-4 sm:p-8 w-full min-w-0">
                      <SectionHeader>User Personal Metadata</SectionHeader>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         <DetailItem label="Employment" value={user.metadata?.employmentStatus || user.employmentStatus} icon={Briefcase} />
@@ -554,10 +554,10 @@ export default function UserDetailsPage() {
 
               {activeTab === 'Financials' && (
                 <div className="space-y-8 animate-fade-in">
-                   <Card className="p-8">
+                   <Card className="p-4 sm:p-8 w-full min-w-0">
                     <SectionHeader>Repayment Behavior</SectionHeader>
-                    <div className="grid md:grid-cols-2 gap-12">
-                       <div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12 w-full min-w-0">
+                       <div className="min-w-0 w-full">
                           <p className="text-3xl font-black text-gray-900 dark:text-gray-100 mb-2 font-mono">{payload.onTimeRateTrend?.[0]?.rate || 90}%</p>
                           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 leading-relaxed">The user consistently pays back installments before the due date.</p>
                           <div className="flex gap-1 h-3 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800">
@@ -571,44 +571,44 @@ export default function UserDetailsPage() {
                              <span className="text-red-600 font-bold">Missed</span>
                           </div>
                        </div>
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full min-w-0">
                           <MetricCard label="Average Days Saved" value="2.4" sub="Paid earlier than scheduled" />
                           <MetricCard label="Recovery Ratio" value="1.0" sub="All funds recovered" valueColor="text-teal-600" />
                        </div>
                     </div>
                    </Card>
 
-                   <Card className="p-8">
+                   <Card className="p-4 sm:p-8 w-full min-w-0">
                       <SectionHeader>Historical Records</SectionHeader>
                       <div className="space-y-4">
                         {loanHistory?.length > 0 ? loanHistory.map((loan: any) => (
-                          <div key={loan._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-2xl bg-pink-50/20 dark:bg-gray-800/50 border border-pink-100/30 hover:border-pink-300 transition-colors gap-4">
-                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-900 flex items-center justify-center text-pink-600 shadow-sm border border-pink-100/30">
+                          <div key={loan._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 rounded-2xl bg-pink-50/20 dark:bg-gray-800/50 border border-pink-100/30 hover:border-pink-300 transition-colors gap-4 w-full min-w-0">
+                            <div className="flex items-center gap-3 sm:gap-4 w-full min-w-0">
+                              <div className="w-10 h-10 shrink-0 rounded-xl bg-white dark:bg-gray-900 flex items-center justify-center text-pink-600 shadow-sm border border-pink-100/30">
                                 <Shield size={18} strokeWidth={2.5} />
                               </div>
-                              <div>
-                                 <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono">{loan.loanReference || loan.loanRef}</p>
-                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{formatDate(loan.createdAt)}</p>
+                              <div className="min-w-0">
+                                 <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono truncate">{loan.loanReference || loan.loanRef}</p>
+                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">{formatDate(loan.createdAt)}</p>
                               </div>
                             </div>
                             
-                            <div className="flex items-center gap-8 text-right sm:text-left">
-                               <div className="hidden sm:block">
+                            <div className="flex flex-row items-center justify-between sm:justify-end gap-3 sm:gap-8 w-full sm:w-auto min-w-0">
+                               <div className="hidden sm:block shrink-0">
                                   <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Principal</p>
-                                  <p className="text-xs font-black text-gray-900 dark:text-gray-100 font-mono">₵{(loan.principal || 0).toLocaleString()}</p>
+                                  <p className="text-xs font-black text-gray-900 dark:text-gray-100 font-mono truncate">₵{(loan.principal || 0).toLocaleString()}</p>
                                </div>
-                               <div className="hidden sm:block">
+                               <div className="hidden sm:block shrink-0">
                                   <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Interest</p>
-                                  <p className="text-xs font-black text-gray-600 dark:text-gray-400 font-mono">₵{(loan.interestAmount || 0).toLocaleString()}</p>
+                                  <p className="text-xs font-black text-gray-600 dark:text-gray-400 font-mono truncate">₵{(loan.interestAmount || 0).toLocaleString()}</p>
                                </div>
-                               <div>
-                                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Due Date</p>
-                                  <p className="text-xs font-black text-gray-900 dark:text-gray-100 font-mono">{formatDate(loan.dueDate)}</p>
+                               <div className="shrink-0 min-w-0">
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5 truncate">Due Date</p>
+                                  <p className="text-xs font-black text-gray-900 dark:text-gray-100 font-mono truncate">{formatDate(loan.dueDate)}</p>
                                </div>
-                               <div className="min-w-[80px] text-right">
-                                  <p className="text-sm font-black text-pink-600 dark:text-pink-400 font-mono">₵{(loan.totalPayable || (loan.principal + loan.interestAmount) || 0).toLocaleString()}</p>
-                                  <Pill color={loan.status === 'ACTIVE' ? 'blue' : 'teal'} className="mt-1 scale-90 origin-right">{(loan.status || 'CLOSED').toUpperCase()}</Pill>
+                               <div className="min-w-[80px] text-right shrink-0">
+                                  <p className="text-sm font-black text-pink-600 dark:text-pink-400 font-mono truncate">₵{(loan.totalPayable || (loan.principal + loan.interestAmount) || 0).toLocaleString()}</p>
+                                  <Pill color={loan.status === 'ACTIVE' ? 'blue' : 'teal'} className="mt-1 scale-90 origin-right max-w-full">{(loan.status || 'CLOSED').toUpperCase().replace('AWAITING_ENDORSEMENT', 'AWAITING')}</Pill>
                                </div>
                             </div>
                           </div>
@@ -632,7 +632,7 @@ export default function UserDetailsPage() {
                     </div>
                   ))}
 
-                  <Card className="p-8">
+                  <Card className="p-4 sm:p-8 w-full min-w-0">
                     <div className="flex items-center justify-between mb-6">
                       <SectionHeader>Member Activity History</SectionHeader>
                     </div>
@@ -653,8 +653,8 @@ export default function UserDetailsPage() {
                                 <PhoneCall size={14} />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start gap-2">
-                                  <p className="text-sm font-black text-gray-900 dark:text-gray-200">
+                                <div className="flex flex-col sm:flex-row sm:justify-between items-start gap-1 sm:gap-2 w-full min-w-0">
+                                  <p className="text-sm font-black text-gray-900 dark:text-gray-200 truncate w-full">
                                     {s.csaAgentName || 'Agent'} <span className="font-bold text-gray-400 text-[11px] ml-1 uppercase tracking-widest">logged a call</span>
                                   </p>
                                   <span className="text-[10px] text-gray-400 font-mono font-black shrink-0">
@@ -686,11 +686,11 @@ export default function UserDetailsPage() {
                           <div key={s._id || i} className={`flex gap-4 py-4 items-start px-2 rounded-2xl border-b border-gray-50 dark:border-gray-800/50 last:border-0`}>
                             <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 shadow-sm ${isApp ? 'bg-teal-500' : 'bg-purple-500'}`} />
                             <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-start gap-2">
-                                <p className="text-sm font-black text-gray-900 dark:text-gray-200 capitalize">
+                              <div className="flex flex-col sm:flex-row sm:justify-between items-start gap-1 sm:gap-2 w-full min-w-0">
+                                <p className="text-sm font-black text-gray-900 dark:text-gray-200 capitalize truncate w-full">
                                   {isApp ? 'App Session' : 'USSD Entry'} · {s.type || s.action?.replace(/_/g, ' ')}
                                 </p>
-                                <span className="text-[10px] text-gray-400 font-mono font-black">
+                                <span className="text-[10px] text-gray-400 font-mono font-black shrink-0">
                                   {new Date(s.timestamp || s.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {formatDate(s.timestamp || s.createdAt)}
                                 </span>
                               </div>
@@ -720,17 +720,17 @@ export default function UserDetailsPage() {
            </div>
 
            {/* 4. Sidebar */}
-           <div className="space-y-8">
+           <div className="space-y-6 sm:space-y-8 min-w-0 w-full">
               {activeLoan ? (
-                <Card className="p-8 bg-gradient-to-br from-white to-pink-50/20 dark:from-gray-900 dark:to-pink-900/5 relative overflow-hidden">
+                <Card className="p-4 sm:p-8 bg-gradient-to-br from-white to-pink-50/20 dark:from-gray-900 dark:to-pink-900/5 relative overflow-hidden w-full min-w-0">
                   <SectionHeader>Active Loan Focus</SectionHeader>
-                  <div className="mt-6 p-6 rounded-[2rem] bg-white dark:bg-gray-800 shadow-xl border border-pink-100/30">
-                    <div className="flex justify-between items-start mb-8">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-600 mb-1">Total Payback</p>
-                        <p className="text-4xl font-black text-gray-900 dark:text-gray-100 font-mono tracking-tighter">₵{activeLoan.totalPayable || activeLoan.amountBorrowed}</p>
+                  <div className="mt-6 p-4 sm:p-6 rounded-[2rem] bg-white dark:bg-gray-800 shadow-xl border border-pink-100/30 w-full min-w-0">
+                    <div className="flex justify-between items-start mb-8 gap-2 w-full min-w-0">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-600 mb-1 truncate">Total Payback</p>
+                        <p className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-gray-100 font-mono tracking-tighter truncate">₵{activeLoan.totalPayable || activeLoan.amountBorrowed}</p>
                       </div>
-                      <Pill color={activeLoan.daysOverdue > 0 ? 'red' : 'teal'}>{activeLoan.paymentStatus?.toUpperCase() || 'ACTIVE'}</Pill>
+                      <Pill color={activeLoan.daysOverdue > 0 ? 'red' : 'teal'} className="shrink-0">{activeLoan.paymentStatus?.toUpperCase() || 'ACTIVE'}</Pill>
                     </div>
                     <div className="space-y-4 mb-4">
                       <div className="flex justify-between text-xs font-bold">
@@ -750,7 +750,7 @@ export default function UserDetailsPage() {
                   </div>
                 </Card>
               ) : (
-                <Card className="p-8 bg-gradient-to-br from-white to-teal-50/10 dark:from-gray-900 dark:to-teal-900/5">
+                <Card className="p-4 sm:p-8 bg-gradient-to-br from-white to-teal-50/10 dark:from-gray-900 dark:to-teal-900/5">
                   <SectionHeader>Account Health</SectionHeader>
                   <div className="mt-4 space-y-6">
                     <div className="p-4 rounded-2xl bg-teal-50/30 dark:bg-teal-900/10 border border-teal-100/30">
@@ -777,7 +777,7 @@ export default function UserDetailsPage() {
               )}
 
               {/* Weekly Intensity */}
-              <Card className="p-8">
+              <Card className="p-4 sm:p-8 w-full min-w-0">
                 <SectionHeader>App Session Intensity</SectionHeader>
                 <div className="mt-6">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Weekly volume (last 4 periods)</p>
@@ -799,19 +799,21 @@ export default function UserDetailsPage() {
               </Card>
 
               {/* Referrals (Growth) */}
-              <Card className="p-8">
+              <Card className="p-4 sm:p-8 w-full min-w-0">
                 <SectionHeader>Network Growth</SectionHeader>
                 <div className="mt-6 space-y-4">
                   {referrals?.slice(0, 3).map((ref: any) => (
-                    <div key={ref._id} className="flex items-center justify-between p-4 rounded-2xl bg-pink-50/30 dark:bg-gray-800/50 border border-pink-100/20">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center text-xs font-black text-pink-600 shadow-sm">{ref.fullName?.[0]}</div>
-                        <div>
-                          <p className="text-xs font-black text-gray-900 dark:text-gray-100 tracking-tight">{ref.fullName}</p>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">T{ref.currentTier}</p>
+                    <div key={ref.id || ref.nodeCode} className="flex justify-between items-center p-4 rounded-2xl border bg-gray-50/50 dark:bg-gray-800/50 w-full min-w-0 gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 shrink-0 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 font-black text-xs">
+                          {ref.name?.[0] || 'U'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">{ref.name}</p>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5 truncate">{ref.nodeCode}</p>
                         </div>
                       </div>
-                      <Pill color="teal" className="scale-75 origin-right">Active</Pill>
+                      <Pill color="brand" className="scale-90 origin-right shrink-0">L{ref.tier || 1}</Pill>
                     </div>
                   ))}
                   {(!referrals || referrals.length === 0) && (
