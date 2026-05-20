@@ -55,11 +55,22 @@ export function useCsaPerformance(range?: DateRange, windowHours?: number) {
     queryKey: ['analytics-csa-performance', range?.from, range?.to, windowHours],
     queryFn: async ({ queryKey }) => {
       const [_, from, to, hours] = queryKey as [string, string?, string?, number?];
-      const p = { 
+      const p = {
         ...(from || to ? { dateFrom: from, dateTo: to } : {}),
         ...(hours ? { windowHours: hours } : {})
       };
       const res = await api.get('/api/admin/analytics/csa-performance', { params: p });
+      return res.data?.data || res.data;
+    },
+  });
+  return { data: q.data, error: q.isError, loading: q.isPending || q.isFetching, refetch: q.refetch };
+}
+
+export function useReferralAnalytics() {
+  const q = useQuery({
+    queryKey: ['analytics-referrals'],
+    queryFn: async () => {
+      const res = await api.get('/api/admin/analytics/referrals');
       return res.data?.data || res.data;
     },
   });

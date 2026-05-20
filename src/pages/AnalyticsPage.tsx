@@ -14,13 +14,15 @@ import {
   PanelHead,
   CsaPerformanceTable
 } from "@/components/analytics/AnalyticsWidgets";
-import { 
-  useSummary, 
-  usePerformance, 
-  useDistribution, 
+import {
+  useSummary,
+  usePerformance,
+  useDistribution,
   useVolume,
-  useCsaPerformance
+  useCsaPerformance,
+  useReferralAnalytics
 } from "@/components/analytics/analytics.hooks";
+import { ReferralAnalytics } from "@/components/analytics/ReferralAnalytics";
 import { 
   safeNum, 
   fGHS, 
@@ -50,6 +52,7 @@ export default function AnalyticsPage() {
   const perf = usePerformance(range);
   const dist = useDistribution();
   const vol = useVolume(range);
+  const ref = useReferralAnalytics();
 
   const applyRange = () => setRange({ from: fromInput, to: toInput });
   const clearRange = () => { setRange({}); setFromInput(''); setToInput(''); };
@@ -292,6 +295,25 @@ export default function AnalyticsPage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Section 5: Referrals */}
+        <div>
+          <SectionHead title="Referrals" />
+          {ref.error ? (
+            <SectionError section="Referral data" onRetry={ref.refetch} />
+          ) : ref.loading ? (
+            <div className="space-y-4">
+              <div className="h-[160px] animate-pulse rounded-[14px] bg-muted/40" />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="h-[300px] animate-pulse rounded-[14px] bg-muted/40" />
+                <div className="h-[300px] animate-pulse rounded-[14px] bg-muted/40" />
+              </div>
+              <div className="h-[300px] animate-pulse rounded-[14px] bg-muted/40" />
+            </div>
+          ) : ref.data ? (
+            <ReferralAnalytics data={ref.data} onRefresh={ref.refetch} loading={ref.loading} />
+          ) : null}
         </div>
 
       </div>
