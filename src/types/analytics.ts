@@ -118,3 +118,22 @@ export interface ReferralAnalyticsData {
   totalApplications: number;
   momShares:         Array<{ month: string; count: number }>;
 }
+
+export interface AdminReferralAnalyticsData {
+  funnel: {
+    totalShares:       number;
+    totalApplications: number;
+    totalRegistrations: number;
+    totalLoans:        number;
+    conversionRate:    number;
+  };
+  topReferrers: Array<{
+    msisdn:           string;
+    name:             string | null;
+    nodeCode:         string | null;
+    totalShares:      number;
+    totalConversions: number;
+  }>;
+  momTrend: Array<{ month: string; shares: number; conversions: number }>;
+  channelBreakdown: Array<{ channel: string; count: number }>;
+}
