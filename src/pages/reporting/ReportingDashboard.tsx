@@ -135,14 +135,14 @@ export default function ReportingDashboard() {
         />
         <StatsCard
           title="Default Rate"
-          value={`${defaultRate.toFixed(1)}%`}
+          value={`${(defaultRate || 0).toFixed(1)}%`}
           icon={AlertTriangle}
           className="border-destructive/20"
           isLive
         />
         <StatsCard
           title="Retention Rate"
-          value={`${retentionRate.toFixed(1)}%`}
+          value={`${(retentionRate || 0).toFixed(1)}%`}
           icon={RefreshCcw}
           isLive
         />
