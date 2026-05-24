@@ -8,18 +8,11 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Share2, RefreshCw, ArrowRight, Users, TrendingUp, Smartphone } from "lucide-react";
+import { Share2, RefreshCw, ArrowRight, Users, TrendingUp } from "lucide-react";
 import type { AdminReferralAnalyticsData } from "@/types/analytics";
 import { PanelHead } from "./AnalyticsWidgets";
-
-const CHANNEL_COLORS: Record<string, string> = {
-  whatsapp: "#25D366",
-  sms: "#4B6FE4",
-  link: "#F59E0B",
-};
 
 function FunnelStep({
   label,
@@ -31,15 +24,15 @@ function FunnelStep({
   isLast?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2 flex-1">
-      <div className="flex-1 rounded-xl border border-border/60 bg-muted/30 p-4 text-center">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
+    <div className="flex items-center gap-2 flex-1 min-w-0">
+      <div className="flex-1 rounded-xl border border-border/60 bg-muted/30 p-4 text-center min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 truncate">
           {label}
         </p>
         <p className="text-2xl font-bold text-foreground">{value.toLocaleString()}</p>
       </div>
       {!isLast && (
-        <ArrowRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
+        <ArrowRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />
       )}
     </div>
   );
@@ -64,14 +57,20 @@ export function ReferralAnalytics({ data, onRefresh, loading }: Props) {
               <Share2 className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-bold text-foreground">Conversion Funnel</p>
-              <p className="text-[11px] text-muted-foreground">Customer referrals only — agents excluded</p>
+              <p className="text-sm font-bold text-foreground">Referral Conversion Funnel</p>
+              <p className="text-[11px] text-muted-foreground">
+                Customer (NODE) referrals only — agents excluded
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Share → Loan rate</p>
-              <p className="text-xl font-bold text-[#1D9E75]">{funnel.conversionRate.toFixed(1)}%</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Referral → Loan rate
+              </p>
+              <p className="text-xl font-bold text-[#1D9E75]">
+                {funnel.loanConversionRate.toFixed(1)}%
+              </p>
             </div>
             <button
               onClick={onRefresh}
@@ -84,30 +83,17 @@ export function ReferralAnalytics({ data, onRefresh, loading }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          <FunnelStep label="Shares" value={funnel.totalShares} />
-          <FunnelStep label="Applications" value={funnel.totalApplications} />
-          <FunnelStep label="Registrations" value={funnel.totalRegistrations} />
-          <FunnelStep label="Loans taken" value={funnel.totalLoans} isLast />
+        <div className="flex items-center gap-1 overflow-x-auto pb-1">
+          <FunnelStep label="Referred & Registered" value={funnel.totalReferrals} />
+          <FunnelStep label="Applied for Loan" value={funnel.withLoanApp} />
+          <FunnelStep label="Loan Disbursed" value={funnel.withDisbursedLoan} isLast />
         </div>
       </div>
 
       {/* MoM trend + channel breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-[14px] border border-border/60 bg-card p-5 shadow-sm">
-          <PanelHead
-            title="Monthly Trend"
-            right={
-              <div className="flex items-center gap-3 text-[11px]">
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 rounded-full bg-[#1D9E75]" /> Shares
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 rounded-full bg-[#8b5cf6]" /> Loans
-                </span>
-              </div>
-            }
-          />
+          <PanelHead title="Monthly Referral Registrations" />
           {momTrend.length === 0 ? (
             <div className="h-[240px] flex items-center justify-center bg-muted/20 rounded-lg border border-dashed border-border">
               <p className="text-sm text-muted-foreground">No trend data yet</p>
@@ -116,7 +102,11 @@ export function ReferralAnalytics({ data, onRefresh, loading }: Props) {
             <div className="h-[240px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={momTrend} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.06)" />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="rgba(0,0,0,0.06)"
+                  />
                   <XAxis
                     dataKey="month"
                     axisLine={false}
@@ -124,26 +114,23 @@ export function ReferralAnalytics({ data, onRefresh, loading }: Props) {
                     tick={{ fontSize: 11, fill: "#9CA3AF" }}
                     dy={5}
                   />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9CA3AF" }} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                  />
                   <Tooltip
                     cursor={{ stroke: "rgba(0,0,0,0.08)" }}
                     contentStyle={{ borderRadius: "8px", fontSize: "12px" }}
+                    formatter={(val: number) => [val.toLocaleString(), "Referrals"]}
                   />
                   <Line
                     type="monotone"
-                    dataKey="shares"
+                    dataKey="referrals"
                     stroke="#1D9E75"
                     strokeWidth={2}
                     dot={false}
-                    name="Shares"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="conversions"
-                    stroke="#8b5cf6"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Loans"
+                    name="Referrals"
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -152,10 +139,17 @@ export function ReferralAnalytics({ data, onRefresh, loading }: Props) {
         </div>
 
         <div className="rounded-[14px] border border-border/60 bg-card p-5 shadow-sm">
-          <PanelHead title="Channel Breakdown" />
+          <PanelHead
+            title="Share Link Channels"
+            right={
+              <span className="text-[10px] text-muted-foreground/60 italic">
+                In-app share links only
+              </span>
+            }
+          />
           {channelBreakdown.length === 0 ? (
             <div className="h-[240px] flex items-center justify-center bg-muted/20 rounded-lg border border-dashed border-border">
-              <p className="text-sm text-muted-foreground">No channel data yet</p>
+              <p className="text-sm text-muted-foreground">No share link data yet</p>
             </div>
           ) : (
             <div className="h-[240px]">
@@ -165,14 +159,23 @@ export function ReferralAnalytics({ data, onRefresh, loading }: Props) {
                   layout="vertical"
                   margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.06)" />
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9CA3AF" }} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    horizontal={false}
+                    stroke="rgba(0,0,0,0.06)"
+                  />
+                  <XAxis
+                    type="number"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                  />
                   <YAxis
                     type="category"
                     dataKey="channel"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: "#6B7280", textTransform: "capitalize" }}
+                    tick={{ fontSize: 12, fill: "#6B7280" }}
                     width={70}
                     tickFormatter={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
                   />
@@ -181,15 +184,7 @@ export function ReferralAnalytics({ data, onRefresh, loading }: Props) {
                     contentStyle={{ borderRadius: "8px", fontSize: "12px" }}
                     formatter={(val: number) => [val.toLocaleString(), "Shares"]}
                   />
-                  <Bar
-                    dataKey="count"
-                    radius={[0, 4, 4, 0]}
-                    barSize={28}
-                    name="Shares"
-                    fill="#1D9E75"
-                    // per-bar color from CHANNEL_COLORS not supported in static fill;
-                    // using Cell for per-bar coloring
-                  />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={28} fill="#1D9E75" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -217,33 +212,27 @@ export function ReferralAnalytics({ data, onRefresh, loading }: Props) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/40">
-                  <th className="text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground px-5 py-3">
-                    #
-                  </th>
-                  <th className="text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground px-5 py-3">
-                    Name
-                  </th>
-                  <th className="text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground px-5 py-3">
-                    Node Code
-                  </th>
-                  <th className="text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground px-5 py-3">
-                    Phone
-                  </th>
-                  <th className="text-right text-[10px] font-black uppercase tracking-widest text-muted-foreground px-5 py-3">
-                    Shares
-                  </th>
-                  <th className="text-right text-[10px] font-black uppercase tracking-widest text-muted-foreground px-5 py-3">
-                    Loans
-                  </th>
+                  {["#", "Name", "Node Code", "Phone", "Referred", "Loans"].map((h) => (
+                    <th
+                      key={h}
+                      className={`text-[10px] font-black uppercase tracking-widest text-muted-foreground px-5 py-3 ${
+                        h === "#" || h === "Referred" || h === "Loans"
+                          ? "text-right"
+                          : "text-left"
+                      }`}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {topReferrers.map((r, i) => (
                   <tr
-                    key={r.msisdn}
+                    key={r.msisdn ?? i}
                     className="border-b border-border/20 last:border-0 hover:bg-muted/20 transition-colors"
                   >
-                    <td className="px-5 py-3 text-[12px] font-bold text-muted-foreground">
+                    <td className="px-5 py-3 text-right text-[12px] font-bold text-muted-foreground">
                       {i + 1}
                     </td>
                     <td className="px-5 py-3 font-semibold text-foreground">
@@ -253,10 +242,10 @@ export function ReferralAnalytics({ data, onRefresh, loading }: Props) {
                       {r.nodeCode || "—"}
                     </td>
                     <td className="px-5 py-3 font-mono text-[12px] text-muted-foreground">
-                      {r.msisdn}
+                      {r.msisdn || "—"}
                     </td>
                     <td className="px-5 py-3 text-right text-muted-foreground">
-                      {r.totalShares.toLocaleString()}
+                      {r.totalReferred.toLocaleString()}
                     </td>
                     <td className="px-5 py-3 text-right">
                       <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-[#1D9E75]/10 text-[#1D9E75] font-bold text-[12px]">
