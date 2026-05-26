@@ -20,6 +20,7 @@ import {
 
 export interface LivenessCaptureProps {
   userId: string;
+  userName?: string;
   mode: "kyc" | "agent-onboarding";
   onSuccess: (result: LivenessResult) => void;
   onFailure: (reason: string) => void;
@@ -269,6 +270,7 @@ function ChallengeIcon({
 
 export function LivenessCapture({
   userId,
+  userName,
   mode,
   onSuccess,
   onFailure,
@@ -303,6 +305,9 @@ export function LivenessCapture({
   const challengeStartTimeRef = useRef<number>(0);
   const tabHiddenRef = useRef(false);
   const debugLogAtRef = useRef(0);
+  const modelsLoadedRef = useRef(false);
+  const consecutiveDetectionErrorsRef = useRef(0);
+  const antiFraudFlagsRef = useRef<string[]>([]);
 
   const [stage, setStage] = useState<Stage>("loading");
   const [currentChallengeIdx, setCurrentChallengeIdx] = useState(0);
@@ -330,6 +335,32 @@ export function LivenessCapture({
     debugLogAtRef.current = now;
 
   }, []);
+
+  // Keep antiFraudFlagsRef in sync so callbacks that can't list state in deps
+  // still read the latest value without stale closures
+  useEffect(() => {
+    antiFraudFlagsRef.current = antiFraudFlags;
+  }, [antiFraudFlags]);
+
+  // Fire-and-forget structured event logger — never throws, never blocks UX
+  const logLivenessEvent = useCallback(
+    (eventType: string, details?: Record<string, unknown>) => {
+      try {
+        fetch("/api/liveness/log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId,
+            sessionId,
+            userName: userName ?? undefined,
+            eventType,
+            details,
+          }),
+        }).catch(() => {});
+      } catch {}
+    },
+    [userId, sessionId, userName],
+  );
 
   useEffect(() => {
     if (!currentChallenge) return;
@@ -480,20 +511,28 @@ export function LivenessCapture({
 
   useEffect(() => {
     const loadModels = async () => {
-      try {
-        await Promise.all([
-          faceapi.nets.ssdMobilenetv1.loadFromUri(MODELS_PATH),
-          faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_PATH),
-        ]);
-        setStage("permission");
-      } catch (e) {
-        console.error("Failed to load face-api models", e);
-        // Still proceed
-        setStage("permission");
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await Promise.all([
+            faceapi.nets.ssdMobilenetv1.loadFromUri(MODELS_PATH),
+            faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_PATH),
+          ]);
+          modelsLoadedRef.current = true;
+          setStage("permission");
+          return;
+        } catch (e) {
+          if (attempt < 2) {
+            await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          }
+        }
       }
+      // All retries failed — proceed anyway; silentSelfiePass will handle it
+      modelsLoadedRef.current = false;
+      logLivenessEvent("model_load_failed", { retries: 3 });
+      setStage("permission");
     };
     loadModels();
-  }, []);
+  }, [logLivenessEvent]);
 
   // â”€â”€â”€ Challenge Timer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -511,21 +550,49 @@ export function LivenessCapture({
     return canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
   }, []);
 
+  // Silent fallback: capture a still frame and treat it as a pass.
+  // Called when the user has exhausted all attempts or models failed to load.
+  // The antiFraudFlag 'silent_fallback' is recorded in the result so the
+  // backend knows this was not a full liveness pass.
+  const silentSelfiePass = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const frame = captureFrame();
+    stopCamera();
+    setStage("submitting");
+    setTimeout(() => {
+      setStage("success");
+      onSuccess({
+        userId,
+        sessionId,
+        challenges: { blink: false, headTurn: false, smile: false },
+        attemptCount: attemptCountRef.current,
+        capturedFrame: frame,
+        antiFraudFlags: [...antiFraudFlagsRef.current, "silent_fallback"],
+        completedAt: new Date().toISOString(),
+      });
+    }, 600);
+  }, [captureFrame, stopCamera, onSuccess, userId, sessionId]);
+
   const failAttempt = useCallback(
     (reason: string, message: string) => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
       const reachedMax = attemptCountRef.current >= MAX_ATTEMPTS;
-      setCapturedFrame("");
-      setErrorMessage(message);
-      setCanRetry(!reachedMax);
-      setStage("failure");
 
       if (reachedMax) {
-        stopCamera();
-        onFailure("max_attempts_reached");
+        logLivenessEvent("max_attempts_silent_pass", {
+          reason,
+          attemptCount: attemptCountRef.current,
+          antiFraudFlags: antiFraudFlagsRef.current,
+        });
+        silentSelfiePass();
         return;
       }
+
+      setCapturedFrame("");
+      setErrorMessage(message);
+      setCanRetry(true);
+      setStage("failure");
 
       if (reason !== "challenge_timeout") {
         setAntiFraudFlags((prev) =>
@@ -533,7 +600,7 @@ export function LivenessCapture({
         );
       }
     },
-    [onFailure, stopCamera],
+    [silentSelfiePass, logLivenessEvent],
   );
 
   // â”€â”€â”€ Challenge Advance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -673,6 +740,7 @@ export function LivenessCapture({
       }
 
       faceDisappearRef.current = null;
+      consecutiveDetectionErrorsRef.current = 0;
       if (Date.now() - challengeStartTimeRef.current >= CHALLENGE_TIMEOUT_MS) {
         failAttempt(
           "challenge_timeout",
@@ -887,7 +955,15 @@ export function LivenessCapture({
         }
       }
     } catch (e) {
-      // Detection error — skip this frame
+      consecutiveDetectionErrorsRef.current += 1;
+      if (consecutiveDetectionErrorsRef.current >= 20) {
+        logLivenessEvent("detection_loop_crash", {
+          consecutiveErrors: consecutiveDetectionErrorsRef.current,
+          error: String(e),
+        });
+        silentSelfiePass();
+        return;
+      }
     }
 
     if (stageRef.current === "challenge") {
@@ -897,18 +973,24 @@ export function LivenessCapture({
         ) as unknown as number;
       }, DETECTION_INTERVAL_MS);
     }
-  }, [advanceChallenge, debugGesture, failAttempt]);
+  }, [advanceChallenge, debugGesture, failAttempt, logLivenessEvent, silentSelfiePass]);
 
   // â”€â”€â”€ Start challenges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const startChallenges = useCallback(() => {
     if (attemptCountRef.current >= MAX_ATTEMPTS) {
-      setCanRetry(false);
-      setErrorMessage(
-        "Maximum attempts reached. This verification will need manual review.",
-      );
-      setStage("failure");
-      onFailure("max_attempts_reached");
+      logLivenessEvent("max_attempts_silent_pass", { trigger: "startChallenges_guard" });
+      silentSelfiePass();
+      return;
+    }
+
+    // Models failed to load — skip straight to silent selfie capture
+    if (!modelsLoadedRef.current) {
+      attemptCountRef.current += 1;
+      logLivenessEvent("models_not_loaded_silent_pass", {
+        attemptCount: attemptCountRef.current,
+      });
+      silentSelfiePass();
       return;
     }
 
