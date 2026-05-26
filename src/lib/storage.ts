@@ -19,7 +19,7 @@ export const uploadToStorage = async (
   try {
     // 1. Get a pre-signed PUT URL from the backend
     const { data } = await api.post<{ success: boolean; uploadUrl: string; key: string }>(
-      "/files/upload-url",
+      "/api/files/upload-url",
       { key: storagePath, contentType: file.type || "image/jpeg" },
     );
 
