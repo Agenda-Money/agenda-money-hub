@@ -3802,6 +3802,7 @@ export default function ApplyPage() {
                                   ) : showLiveness ? (
                                     <LivenessCapture
                                       userId={normalizedMsisdn || "unknown"}
+                                      userName={`${onboardingData.firstName ?? ""} ${onboardingData.surname ?? ""}`.trim() || undefined}
                                       mode="kyc"
                                       onSuccess={async (result) => {
                                         setOnboardingData((prev) => ({
