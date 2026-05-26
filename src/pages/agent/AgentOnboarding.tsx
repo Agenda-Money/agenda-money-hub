@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Loader2, Camera, CheckCircle2, AlertCircle, User, MapPin, ImageIcon, ArrowRight, ArrowLeft, Upload, CreditCard, TrendingUp, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { uploadToSupabase } from "@/lib/supabase";
+import { uploadToStorage } from "@/lib/storage";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -232,14 +232,14 @@ export default function AgentOnboarding() {
     const agentCode = user?.agentCode || "unknown";
     
     const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const path = `${agentCode}/${type}_${timestamp}.${fileExtension}`;
+    const path = `agents/${agentCode}/${type}_${timestamp}.${fileExtension}`;
 
-    const result = await uploadToSupabase(file, "kyc-bucket", path);
+    const result = await uploadToStorage(file, path);
 
     setUploadProgress(prev => ({ ...prev, [type]: false }));
 
-    if (result.success && result.url) {
-      updateField(fieldMap[type], result.url);
+    if (result.success && result.key) {
+      updateField(fieldMap[type], result.key);
       toast.success("Image uploaded successfully!");
     } else {
       toast.error("Upload failed", {

@@ -34,7 +34,7 @@ import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
-import { uploadToSupabase } from "@/lib/supabase";
+import { uploadToStorage } from "@/lib/storage";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 
 type View = "landing" | "auth" | "otp" | "onboarding" | "success";
@@ -159,12 +159,12 @@ export default function AgentApplyPage() {
     const fileExtension = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `agents/${identifier}/${type}_${timestamp}.${fileExtension}`;
 
-    const result = await uploadToSupabase(file, "kyc-bucket", path);
+    const result = await uploadToStorage(file, path);
 
     setUploadProgress((prev) => ({ ...prev, [type]: false }));
 
-    if (result.success && result.url) {
-      updateField(fieldMap[type], result.url);
+    if (result.success && result.key) {
+      updateField(fieldMap[type], result.key);
       toast.success("Image uploaded successfully!", { duration: 1500 });
     } else {
       toast.error("Upload failed", {
