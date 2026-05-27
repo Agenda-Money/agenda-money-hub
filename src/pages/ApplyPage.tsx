@@ -1443,9 +1443,9 @@ export default function ApplyPage() {
           ghanaCardBackUrl: finalBackUrl,
           selfieUrl: finalSelfieUrl,
           livenessVerification: onboardingData.livenessSession,
-          initialLoanAmount: Number(loanAmount),
-          initialLoanTenure: Number(loanTenure),
-          initialLoanPurpose: loanPurpose,
+          initialLoanAmount: Number(loanApplicationData?.amount ?? loanAmount),
+          initialLoanTenure: Number(loanApplicationData?.tenure ?? loanTenure),
+          initialLoanPurpose: loanApplicationData?.purpose ?? loanPurpose,
           nodeCode: nodeCode.trim(), // Include referral code
         }),
       });
@@ -2874,9 +2874,9 @@ export default function ApplyPage() {
         }}
         onBack={() => setDecisionError(null)}
         loanData={{
-          amount: loanAmount,
-          tenure: loanTenure,
-          purpose: loanPurpose,
+          amount: loanApplicationData?.amount ?? loanAmount,
+          tenure: loanApplicationData?.tenure ?? loanTenure,
+          purpose: loanApplicationData?.purpose ?? loanPurpose,
         }}
       />
     );
@@ -2913,9 +2913,9 @@ export default function ApplyPage() {
     return (
       <LoanSummaryPage
         loanData={{
-          amount: loanAmount,
-          tenure: loanTenure,
-          purpose: loanPurpose,
+          amount: loanApplicationData?.amount ?? loanAmount,
+          tenure: loanApplicationData?.tenure ?? loanTenure,
+          purpose: loanApplicationData?.purpose ?? loanPurpose,
         }}
         applicant={{
           ...(userData || {}),

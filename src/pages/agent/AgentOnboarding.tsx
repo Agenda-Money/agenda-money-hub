@@ -598,8 +598,7 @@ export default function AgentOnboarding() {
               setShowLiveness(false);
               setLivenessStatus({
                 tone: "success",
-                message: "PASS: customer identity was verified and attached to this onboarding session.",
-                sessionId: result.sessionId,
+                message: "Identity verified successfully. You can proceed to the next step.",
               });
             }}
             onFailure={(reason) => {
@@ -622,8 +621,8 @@ export default function AgentOnboarding() {
                 tone: "error",
                 message:
                   reason === "max_attempts_reached"
-                    ? "FAIL: maximum liveness attempts reached. Stop onboarding and escalate this customer to manual review."
-                    : "Liveness was not completed. Review the guidance and try again when the customer is ready.",
+                    ? "Maximum attempts reached. Do not proceed — escalate this customer to manual review."
+                    : "Verification was not completed. Review the guidance and try again when the customer is ready.",
               });
             }}
           />
@@ -915,7 +914,7 @@ export default function AgentOnboarding() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="alternatePhone">Alternate Phone</Label>
+                    <Label htmlFor="alternatePhone">Alternate Phone Number *</Label>
                     <Input
                       id="alternatePhone"
                       value={formData.alternatePhone}
@@ -923,7 +922,7 @@ export default function AgentOnboarding() {
                         const val = e.target.value.replace(/\D/g, "");
                         if (val.length <= 10) updateField("alternatePhone", val);
                       }}
-                      placeholder="Optional backup contact"
+                      placeholder="0244123456"
                       maxLength={10}
                       className={cn(
                         "h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono",
@@ -944,30 +943,6 @@ export default function AgentOnboarding() {
                           Alternate phone cannot be the same as the MoMo number
                         </p>
                       )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="alternatePhone">Alternate Phone Number *</Label>
-                    <Input
-                      id="alternatePhone"
-                      value={formData.alternatePhone}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "");
-                        if (val.length <= 10) updateField("alternatePhone", val);
-                      }}
-                      placeholder="0244123456"
-                      maxLength={10}
-                      className={cn(
-                        "h-12 bg-muted/50 border-0 focus-visible:ring-primary font-mono",
-                        formData.alternatePhone && formData.alternatePhone.length >= 9 && !parsePhoneNumberFromString(formData.alternatePhone, "GH")?.isValid() && "border-2 border-destructive"
-                      )}
-                    />
-                    {formData.alternatePhone && !parsePhoneNumberFromString(formData.alternatePhone, "GH")?.isValid() && (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        Must be a valid Ghanaian number
-                      </p>
-                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -1263,11 +1238,6 @@ export default function AgentOnboarding() {
                             )}
                           >
                             {livenessStatus.message}
-                            {livenessStatus.sessionId && (
-                              <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.16em]">
-                                Session {livenessStatus.sessionId}
-                              </span>
-                            )}
                           </AlertDescription>
                         </Alert>
                       )}
