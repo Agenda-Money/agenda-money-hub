@@ -598,8 +598,7 @@ export default function AgentOnboarding() {
               setShowLiveness(false);
               setLivenessStatus({
                 tone: "success",
-                message: "PASS: customer identity was verified and attached to this onboarding session.",
-                sessionId: result.sessionId,
+                message: "Identity verified successfully. You can proceed to the next step.",
               });
             }}
             onFailure={(reason) => {
@@ -622,8 +621,8 @@ export default function AgentOnboarding() {
                 tone: "error",
                 message:
                   reason === "max_attempts_reached"
-                    ? "FAIL: maximum liveness attempts reached. Stop onboarding and escalate this customer to manual review."
-                    : "Liveness was not completed. Review the guidance and try again when the customer is ready.",
+                    ? "Maximum attempts reached. Do not proceed — escalate this customer to manual review."
+                    : "Verification was not completed. Review the guidance and try again when the customer is ready.",
               });
             }}
           />
@@ -1239,11 +1238,6 @@ export default function AgentOnboarding() {
                             )}
                           >
                             {livenessStatus.message}
-                            {livenessStatus.sessionId && (
-                              <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.16em]">
-                                Session {livenessStatus.sessionId}
-                              </span>
-                            )}
                           </AlertDescription>
                         </Alert>
                       )}
