@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { SecureKycImage } from "@/components/common/SecureKycImage";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -326,61 +327,43 @@ export default function PendingKycPage() {
                 </p>
                 <div className="flex gap-3">
                   {user.selfieUrl && (
-                    <button
-                      type="button"
-                      className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setZoomedImage(user.selfieUrl);
-                      }}
+                    <div
+                      className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <img
-                        src={user.selfieUrl}
-                        alt="Selfie"
-                        className="w-full h-full object-cover"
+                      <SecureKycImage
+                        imageUrl={user.selfieUrl}
+                        label="Selfie"
+                        className="w-20 h-20"
+                        onExpand={(url) => setZoomedImage(url)}
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                        <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </button>
+                    </div>
                   )}
                   {user.ghanaCardFrontUrl && (
-                    <button
-                      type="button"
-                      className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setZoomedImage(user.ghanaCardFrontUrl);
-                      }}
+                    <div
+                      className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <img
-                        src={user.ghanaCardFrontUrl}
-                        alt="ID Front"
-                        className="w-full h-full object-cover"
+                      <SecureKycImage
+                        imageUrl={user.ghanaCardFrontUrl}
+                        label="ID Front"
+                        className="w-20 h-20"
+                        onExpand={(url) => setZoomedImage(url)}
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                        <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </button>
+                    </div>
                   )}
                   {user.ghanaCardBackUrl && (
-                    <button
-                      type="button"
-                      className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden group cursor-pointer relative"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setZoomedImage(user.ghanaCardBackUrl);
-                      }}
+                    <div
+                      className="w-20 h-20 rounded border-2 border-border bg-muted overflow-hidden"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <img
-                        src={user.ghanaCardBackUrl}
-                        alt="ID Back"
-                        className="w-full h-full object-cover"
+                      <SecureKycImage
+                        imageUrl={user.ghanaCardBackUrl}
+                        label="ID Back"
+                        className="w-20 h-20"
+                        onExpand={(url) => setZoomedImage(url)}
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                        <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -550,75 +533,42 @@ export default function PendingKycPage() {
                       {/* Selfie */}
                       {selectedUser.selfieUrl && (
                         <div className="space-y-2">
-                          <p className="text-sm font-medium text-muted-foreground">
-                            Selfie Photo
-                          </p>
-                          <button
-                            type="button"
-                            className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border cursor-pointer hover:border-primary transition-colors group"
-                            onClick={() =>
-                              setZoomedImage(selectedUser.selfieUrl)
-                            }
-                          >
-                            <img
-                              src={selectedUser.selfieUrl}
-                              alt="Selfie"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            />
-                          </button>
-                          <p className="text-xs text-muted-foreground text-center">
-                            Click to zoom
-                          </p>
+                          <p className="text-sm font-medium text-muted-foreground">Selfie Photo</p>
+                          <SecureKycImage
+                            imageUrl={selectedUser.selfieUrl}
+                            label="Selfie"
+                            className="aspect-square"
+                            onExpand={(url) => setZoomedImage(url)}
+                          />
+                          <p className="text-xs text-muted-foreground text-center">Click to zoom</p>
                         </div>
                       )}
 
                       {/* Ghana Card Front */}
                       {selectedUser.ghanaCardFrontUrl && (
                         <div className="space-y-2">
-                          <p className="text-sm font-medium text-muted-foreground">
-                            Card Front
-                          </p>
-                          <button
-                            type="button"
-                            className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border cursor-pointer hover:border-primary transition-colors group"
-                            onClick={() =>
-                              setZoomedImage(selectedUser.ghanaCardFrontUrl)
-                            }
-                          >
-                            <img
-                              src={selectedUser.ghanaCardFrontUrl}
-                              alt="Ghana Card Front"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            />
-                          </button>
-                          <p className="text-xs text-muted-foreground text-center">
-                            Click to zoom
-                          </p>
+                          <p className="text-sm font-medium text-muted-foreground">Card Front</p>
+                          <SecureKycImage
+                            imageUrl={selectedUser.ghanaCardFrontUrl}
+                            label="Ghana Card Front"
+                            className="aspect-square"
+                            onExpand={(url) => setZoomedImage(url)}
+                          />
+                          <p className="text-xs text-muted-foreground text-center">Click to zoom</p>
                         </div>
                       )}
 
                       {/* Ghana Card Back */}
                       {selectedUser.ghanaCardBackUrl && (
                         <div className="space-y-2">
-                          <p className="text-sm font-medium text-muted-foreground">
-                            Card Back
-                          </p>
-                          <button
-                            type="button"
-                            className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border cursor-pointer hover:border-primary transition-colors group"
-                            onClick={() =>
-                              setZoomedImage(selectedUser.ghanaCardBackUrl)
-                            }
-                          >
-                            <img
-                              src={selectedUser.ghanaCardBackUrl}
-                              alt="Ghana Card Back"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            />
-                          </button>
-                          <p className="text-xs text-muted-foreground text-center">
-                            Click to zoom
-                          </p>
+                          <p className="text-sm font-medium text-muted-foreground">Card Back</p>
+                          <SecureKycImage
+                            imageUrl={selectedUser.ghanaCardBackUrl}
+                            label="Ghana Card Back"
+                            className="aspect-square"
+                            onExpand={(url) => setZoomedImage(url)}
+                          />
+                          <p className="text-xs text-muted-foreground text-center">Click to zoom</p>
                         </div>
                       )}
                     </div>

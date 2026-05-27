@@ -13,6 +13,7 @@ import { CheckCircle, XCircle, Loader2, User, MapPin, Calendar } from "lucide-re
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { SecureKycImage } from "@/components/common/SecureKycImage";
 import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
 
 interface KycReviewModalProps {
@@ -204,55 +205,19 @@ export function KycReviewModal({ user, isOpen, onClose }: KycReviewModalProps) {
                   {/* Selfie */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">Selfie Photo</p>
-                    <div className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border">
-                      {user.kycSelfieUrl ? (
-                        <img
-                          src={user.kycSelfieUrl}
-                          alt="User Selfie"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <User className="h-12 w-12 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
+                    <SecureKycImage imageUrl={user.kycSelfieUrl} label="User Selfie" className="aspect-square" />
                   </div>
 
                   {/* Ghana Card Front */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">Ghana Card (Front)</p>
-                    <div className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border">
-                      {user.kycGhanaCardFrontUrl ? (
-                        <img
-                          src={user.kycGhanaCardFrontUrl}
-                          alt="Ghana Card Front"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <p className="text-sm text-muted-foreground">No image</p>
-                        </div>
-                      )}
-                    </div>
+                    <SecureKycImage imageUrl={user.kycGhanaCardFrontUrl} label="Ghana Card Front" className="aspect-square" />
                   </div>
 
                   {/* Ghana Card Back */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">Ghana Card (Back)</p>
-                    <div className="aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border">
-                      {user.kycGhanaCardBackUrl ? (
-                        <img
-                          src={user.kycGhanaCardBackUrl}
-                          alt="Ghana Card Back"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <p className="text-sm text-muted-foreground">No image</p>
-                        </div>
-                      )}
-                    </div>
+                    <SecureKycImage imageUrl={user.kycGhanaCardBackUrl} label="Ghana Card Back" className="aspect-square" />
                   </div>
                 </div>
               </div>

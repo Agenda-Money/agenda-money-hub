@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, CreditCard, CheckCircle2, XCircle, Clock, AlertCircle, Camera, IdCard, Maximize2, Lock, AlertTriangle } from "lucide-react";
+import { User, CreditCard, CheckCircle2, XCircle, Clock, AlertCircle, Camera, IdCard, Lock, AlertTriangle } from "lucide-react";
 import { cn, deduplicateWords } from "@/lib/utils";
 import {
   Dialog,
@@ -153,75 +153,54 @@ export function IdentityKycSection({
           {/* Selfie & ID Comparison */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Live Selfie */}
-            <div className="group relative space-y-2">
+            <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Camera className="h-4 w-4" />
                 Live Selfie
               </div>
-               {userData.selfieUrl ? (
-                <div 
-                  className="relative cursor-zoom-in overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md hover:border-primary/50"
-                  onClick={() => setSelectedImage({ url: userData.selfieUrl!, title: "Live Selfie" })}
-                >
-                  <img 
-                    src={userData.selfieUrl} 
-                    alt="Live selfie" 
-                    className="w-full aspect-[3/2] object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                    <Maximize2 className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </div>
+              {userData.selfieUrl ? (
+                <SecureKycImage
+                  imageUrl={userData.selfieUrl}
+                  label="Live Selfie"
+                  className="w-full aspect-[3/2]"
+                  onExpand={(url) => setSelectedImage({ url, title: "Live Selfie" })}
+                />
               ) : (
                 <ImagePlaceholder icon={Camera} label="No selfie uploaded" />
               )}
             </div>
 
             {/* Ghana Card Front */}
-            <div className="group relative space-y-2">
+            <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <IdCard className="h-4 w-4" />
                 Ghana Card (Front)
               </div>
-               {userData.ghanaCardFrontUrl ? (
-                <div 
-                  className="relative cursor-zoom-in overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md hover:border-primary/50"
-                  onClick={() => setSelectedImage({ url: userData.ghanaCardFrontUrl!, title: "Ghana Card (Front)" })}
-                >
-                  <img 
-                    src={userData.ghanaCardFrontUrl} 
-                    alt="Ghana Card front" 
-                    className="w-full aspect-[1.586] object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                    <Maximize2 className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </div>
+              {userData.ghanaCardFrontUrl ? (
+                <SecureKycImage
+                  imageUrl={userData.ghanaCardFrontUrl}
+                  label="Ghana Card (Front)"
+                  className="w-full aspect-[1.586]"
+                  onExpand={(url) => setSelectedImage({ url, title: "Ghana Card (Front)" })}
+                />
               ) : (
                 <ImagePlaceholder icon={IdCard} label="No ID uploaded" />
               )}
             </div>
 
             {/* Ghana Card Back */}
-            <div className="group relative space-y-2">
+            <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <IdCard className="h-4 w-4" />
                 Ghana Card (Back)
               </div>
-               {userData.ghanaCardBackUrl ? (
-                <div 
-                  className="relative cursor-zoom-in overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md hover:border-primary/50"
-                  onClick={() => setSelectedImage({ url: userData.ghanaCardBackUrl!, title: "Ghana Card (Back)" })}
-                >
-                  <img 
-                    src={userData.ghanaCardBackUrl} 
-                    alt="Ghana Card back" 
-                    className="w-full aspect-[1.586] object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                    <Maximize2 className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </div>
+              {userData.ghanaCardBackUrl ? (
+                <SecureKycImage
+                  imageUrl={userData.ghanaCardBackUrl}
+                  label="Ghana Card (Back)"
+                  className="w-full aspect-[1.586]"
+                  onExpand={(url) => setSelectedImage({ url, title: "Ghana Card (Back)" })}
+                />
               ) : (
                 <ImagePlaceholder icon={IdCard} label="No ID uploaded" />
               )}

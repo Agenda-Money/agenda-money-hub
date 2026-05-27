@@ -28,43 +28,47 @@ export function SecureKycImage({
     let isMounted = true;
 
     const fetchSignedUrl = async () => {
-      if (imageUrl) {
-        setUrl(imageUrl);
-        setIsLoading(false);
-        return;
-      }
-
-      if (!userId || !imageType) return;
-      
       setIsLoading(true);
       setError(null);
-      
+
       try {
-        const res = await getKycSignedUrl(userId, imageType);
-        
-        if (isMounted) {
-          if (res.data?.success && res.data?.url) {
-            setUrl(res.data.url);
-          } else {
-            setError("Failed to load image");
+        // Full URL (old Supabase URLs or already-signed URLs) — use directly
+        if (imageUrl && /^https?:\/\//i.test(imageUrl)) {
+          if (isMounted) { setUrl(imageUrl); setIsLoading(false); }
+          return;
+        }
+
+        // Bare R2 storage key — resolve via backend signed-url endpoint
+        if (imageUrl) {
+          const base = import.meta.env.VITE_API_URL || '';
+          const res = await fetch(`${base}/api/files/signed-url?path=${encodeURIComponent(imageUrl)}`);
+          const data = await res.json();
+          if (isMounted) {
+            if (data?.signedUrl) setUrl(data.signedUrl);
+            else setError("Failed to load image");
+            setIsLoading(false);
           }
+          return;
+        }
+
+        // Legacy: fetch by userId + imageType
+        if (!userId || !imageType) { if (isMounted) setIsLoading(false); return; }
+        const res = await getKycSignedUrl(userId, imageType);
+        if (isMounted) {
+          if (res.data?.success && res.data?.url) setUrl(res.data.url);
+          else setError("Failed to load image");
+          setIsLoading(false);
         }
       } catch (err: any) {
         if (isMounted) {
           setError(err.response?.data?.message || "Error fetching image");
-        }
-      } finally {
-        if (isMounted) {
           setIsLoading(false);
         }
       }
     };
 
     fetchSignedUrl();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [userId, imageType, imageUrl]);
 
   if (isLoading) {

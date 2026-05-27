@@ -34,7 +34,7 @@ import { useApplicant } from "@/contexts/ApplicantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocketContext } from "@/contexts/SocketContext";
 import api, { getUserLoansHistory, getUserRepaymentsHistory } from "@/lib/api";
-import { uploadToSupabase } from "@/lib/supabase";
+import { uploadToStorage } from "@/lib/storage";
 import { TIER_LIMITS, TIERS, type TierConfig } from "@/lib/constants";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
 import { UserDashboard } from "@/pages/User";
@@ -1368,17 +1368,16 @@ export default function ApplyPage() {
         errorMsg: string,
       ) => {
         const ext = getFileExtension(file);
-        const result = await uploadToSupabase(
+        const result = await uploadToStorage(
           file,
-          "kyc-documents",
-          `${userId}/${label}-${Date.now()}${ext}`,
+          `users/${userId}/${label}-${Date.now()}${ext}`,
         );
-        if (!result.success || !result.url)
+        if (!result.success || !result.key)
           throw new Error(result.error || errorMsg);
-        return result.url;
+        return result.key;
       };
 
-      // 🎯 CRITICAL: Overwrite blobs with real Supabase links if new files exist (DO IT IN PARALLEL FOR SPEED)
+      // 🎯 CRITICAL: Overwrite local blobs with R2 storage keys before submitting
       const uploadPromises = [];
 
       // The files in uploadedFiles are already compressed from handleUpload!

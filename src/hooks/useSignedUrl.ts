@@ -13,7 +13,8 @@ export function useSignedUrl(filePath?: string) {
       setSignedUrl(null);
       return;
     }
-    fetch(`/api/files/signed-url?path=${encodeURIComponent(filePath)}`)
+    const base = import.meta.env.VITE_API_URL || '';
+    fetch(`${base}/api/files/signed-url?path=${encodeURIComponent(filePath)}`)
       .then(res => res.json())
       .then(data => setSignedUrl(data.signedUrl))
       .catch(() => setSignedUrl(null));
