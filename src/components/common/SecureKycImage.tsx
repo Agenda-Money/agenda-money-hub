@@ -40,7 +40,8 @@ export function SecureKycImage({
 
         // Bare R2 storage key — resolve via backend signed-url endpoint
         if (imageUrl) {
-          const res = await fetch(`/api/files/signed-url?path=${encodeURIComponent(imageUrl)}`);
+          const base = import.meta.env.VITE_API_URL || '';
+          const res = await fetch(`${base}/api/files/signed-url?path=${encodeURIComponent(imageUrl)}`);
           const data = await res.json();
           if (isMounted) {
             if (data?.signedUrl) setUrl(data.signedUrl);
