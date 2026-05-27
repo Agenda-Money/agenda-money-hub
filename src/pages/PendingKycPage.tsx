@@ -337,7 +337,7 @@ export default function PendingKycPage() {
                         className="w-20 h-20"
                         onExpand={(url) => setZoomedImage(url)}
                       />
-                    </button>
+                    </div>
                   )}
                   {user.ghanaCardFrontUrl && (
                     <div
