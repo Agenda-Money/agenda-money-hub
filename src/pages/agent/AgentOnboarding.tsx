@@ -492,7 +492,9 @@ export default function AgentOnboarding() {
         ghanaCardFrontUrl: formData.ghanaCardFrontUrl, // Use public URL
         ghanaCardBackUrl: formData.ghanaCardBackUrl,   // Use public URL
         selfieUrl: formData.selfieUrl,                 // Use public URL
-        livenessVerification: formData.livenessSession,
+        livenessVerification: formData.livenessSession
+          ? (({ capturedFrame: _f, ...rest }) => rest)(formData.livenessSession)
+          : null,
         initialLoanAmount: Number(formData.loanAmount),
         initialLoanTenure: Number(formData.loanTenure),
         initialLoanPurpose: formData.loanPurpose,

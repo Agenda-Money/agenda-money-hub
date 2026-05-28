@@ -1442,7 +1442,9 @@ export default function ApplyPage() {
           ghanaCardFrontUrl: finalFrontUrl,
           ghanaCardBackUrl: finalBackUrl,
           selfieUrl: finalSelfieUrl,
-          livenessVerification: onboardingData.livenessSession,
+          livenessVerification: onboardingData.livenessSession
+            ? (({ capturedFrame: _f, ...rest }) => rest)(onboardingData.livenessSession)
+            : null,
           initialLoanAmount: Number(loanApplicationData?.amount ?? loanAmount),
           initialLoanTenure: Number(loanApplicationData?.tenure ?? loanTenure),
           initialLoanPurpose: loanApplicationData?.purpose ?? loanPurpose,
