@@ -376,6 +376,11 @@ export const getAdminLoans = async (params?: any) => {
   return response.data;
 };
 
+export const getAdminLoanDetail = async (loanId: string) => {
+  const response = await api.get(`/api/admin/loans/${loanId}/detail`);
+  return response.data;
+};
+
 export const exportAdminLoans = async (params?: any): Promise<void> => {
   const response = await api.get('/api/admin/loans/export', { params, responseType: 'blob' });
   const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
