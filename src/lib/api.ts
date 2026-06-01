@@ -570,4 +570,14 @@ export const getAdminAgentDetails = async (id: string) => {
   return response.data;
 };
 
+export const triggerScoreRecalculate = async (customerId: string) => {
+  const response = await api.post(`/api/scoring/${customerId}/recalculate`, { triggeredBy: 'manual' });
+  return response.data;
+};
+
+export const getCustomerScore = async (customerId: string) => {
+  const response = await api.get(`/api/scoring/${customerId}`);
+  return response.data;
+};
+
 export default api;
