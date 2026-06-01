@@ -16,14 +16,17 @@ interface UserHeaderProps {
     flags?: any[];
   };
   onAction: (type: 'flag' | 'block' | 'unblock' | 'edit') => void;
+  onScoreClick?: () => void;
 }
 
-export const UserHeader: React.FC<UserHeaderProps> = ({ user, onAction }) => {
+export const UserHeader: React.FC<UserHeaderProps> = ({ user, onAction, onScoreClick }) => {
   const { fullName, msisdn, currentTier: tier, kycStatus, createdAt, isBlocked, referredByNodeCode: refCode } = user;
   const initials = fullName ? fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '??';
   const joinedAt = createdAt ? format(new Date(createdAt), 'dd MMM yyyy') : 'N/A';
   const tierProgress = (user as any).totalLoansRepaid % 5;
-  const creditScore = (user as any).creditScore || 69;
+  const agendaScore = (user as any).agendaScore;
+  const creditScore = agendaScore?.score ?? null;
+  const creditLabel = agendaScore?.label ?? null;
   const onTimeRate = (user as any).onTimeRepaymentPercent || 85;
   const activeLoan = (user as any).activeLoanAmount ? `₵${(user as any).activeLoanAmount}` : 'None';
 
@@ -95,10 +98,22 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ user, onAction }) => {
           <div className="val-premium !text-[18px] mt-1 text-pink-600 font-bold">{tierProgress} / 5 loans to L{tier + 1}</div>
         </div>
         <div>
-          <div className="label-premium">Credit Score</div>
-          <div className="val-premium !text-[18px] mt-1">
-            <span className="font-bold">{creditScore}</span>
-            <span className="text-[var(--color-text-secondary)] font-normal text-[14px] ml-1">/ 100 · Good</span>
+          <div className="label-premium">Agenda Score</div>
+          <div
+            className={creditScore !== null && onScoreClick ? "cursor-pointer hover:opacity-70 transition-opacity" : ""}
+            onClick={creditScore !== null ? onScoreClick : undefined}
+            title={creditScore !== null ? "View score breakdown" : undefined}
+          >
+            <div className="val-premium !text-[18px] mt-1">
+              {creditScore !== null ? (
+                <>
+                  <span className="font-bold">{creditScore}</span>
+                  <span className="text-[var(--color-text-secondary)] font-normal text-[14px] ml-1">/ 100{creditLabel ? ` · ${creditLabel.charAt(0) + creditLabel.slice(1).toLowerCase()}` : ''}</span>
+                </>
+              ) : (
+                <span className="text-[var(--color-text-secondary)] font-normal text-[14px]">Not scored yet</span>
+              )}
+            </div>
           </div>
         </div>
         <div>

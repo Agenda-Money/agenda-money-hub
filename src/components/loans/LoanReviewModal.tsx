@@ -178,14 +178,16 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
     return "bg-muted text-muted-foreground border-border";
   })();
 
-  const creditScoreValue = loan?.creditScore ?? "-";
+  const agendaScoreRaw = (loan as any)?.user?.agendaScore ?? null;
+  const creditScoreValue = agendaScoreRaw?.score ?? loan?.creditScore ?? null;
   const creditScoreClass = (() => {
-    if (creditScoreValue === "-" || creditScoreValue === null || creditScoreValue === undefined) return "text-muted-foreground";
+    if (creditScoreValue === null || creditScoreValue === undefined) return "text-muted-foreground";
     const numericScore = Number(creditScoreValue);
     if (Number.isNaN(numericScore)) return "text-muted-foreground";
-    if (numericScore < 400) return "text-rose-400";
-    if (numericScore <= 700) return "text-[#ffb300]";
-    return "text-[#00e676]";
+    if (numericScore >= 75) return "text-[#00e676]";
+    if (numericScore >= 55) return "text-teal-400";
+    if (numericScore >= 35) return "text-[#ffb300]";
+    return "text-rose-400";
   })();
 
   const approveMutation = useMutation({
@@ -481,8 +483,12 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Credit Score</p>
-                  <p className={`text-lg font-medium ${creditScoreClass}`}>{creditScoreValue}</p>
+                  <p className="text-sm text-muted-foreground">Agenda Score</p>
+                  <p className={`text-lg font-medium ${creditScoreClass}`}>
+                    {creditScoreValue !== null ? (
+                      <>{creditScoreValue}<span className="text-xs text-muted-foreground ml-1">/ 100{agendaScoreRaw?.label ? ` · ${agendaScoreRaw.label.charAt(0) + agendaScoreRaw.label.slice(1).toLowerCase()}` : ''}</span></>
+                    ) : '—'}
+                  </p>
                 </div>
               </div>
             </div>

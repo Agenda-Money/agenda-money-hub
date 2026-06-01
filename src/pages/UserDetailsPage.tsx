@@ -47,6 +47,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SecureKycImage } from "@/components/common/SecureKycImage"
+import { AgendaScoreSheet } from "@/components/scoring/AgendaScoreSheet"
 import LoanDetailSheet from "@/components/loans/LoanDetailSheet"
 
 // Helper to format dates to DD/MM/YYYY
@@ -359,6 +360,7 @@ export default function UserDetailsPage() {
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false)
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false)
   const [blockReason, setBlockReason] = useState('')
+  const [scoreSheetOpen, setScoreSheetOpen] = useState(false)
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null)
 
   const handleCall = (number: string) => {
@@ -373,7 +375,8 @@ export default function UserDetailsPage() {
   })
 
   const payload = detailRes?.data || {}
-  const { user, activeLoan, loanHistory, sessions, deviceConflicts, weeklyUsage, referrals, referralQuality } = payload
+  const { user, activeLoan, loanHistory, sessions, deviceConflicts, weeklyUsage, referrals, referralQuality, agendaScore } = payload
+  const scoreValue: number | null = agendaScore?.totalScore ?? user?.agendaScore?.score ?? null
 
   // 2) Paginated Sessions (for Activity tab)
   const [sessionPage, setSessionPage] = useState(1)
@@ -517,7 +520,13 @@ export default function UserDetailsPage() {
         {/* 2. Main Stats Bar */}
         <Card className="p-4 sm:p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 w-full min-w-0">
            <MetricCard label="On-time Rate" value={`${payload.onTimeRateTrend?.[0]?.rate || 90}%`} sub="Historical average" valueColor="text-teal-600" />
-           <MetricCard label="Credit Score" value={user.creditScore || 80} sub="Out of 100" />
+           <div
+             onClick={() => agendaScore && setScoreSheetOpen(true)}
+             className={cn(agendaScore ? "cursor-pointer hover:opacity-80 transition-opacity" : "pointer-events-none")}
+             title={agendaScore ? "Click to view score breakdown" : undefined}
+           >
+             <MetricCard label="Agenda Score" value={scoreValue !== null ? scoreValue : '—'} sub={agendaScore?.label ?? user?.agendaScore?.label ?? 'Not scored yet'} />
+           </div>
            <MetricCard label="Repayment Ratio" value={payload.referralQuality?.positiveRate?.toFixed(1) || '1.0'} sub="Recovery performance" />
            <MetricCard 
              label="Total Borrowed" 
@@ -947,6 +956,13 @@ export default function UserDetailsPage() {
           </Dialog>
         )}
       </div>
+
+      <AgendaScoreSheet
+        score={agendaScore ?? null}
+        open={scoreSheetOpen}
+        onClose={() => setScoreSheetOpen(false)}
+        customerName={user?.fullName}
+      />
     </DashboardLayout>
   )
 }
