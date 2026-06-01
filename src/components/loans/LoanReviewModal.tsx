@@ -144,7 +144,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
   const kycStatus = (userDetails?.kycStatus || loan?.kycStatus || loanUser?.kycStatus || userDetails?.onboardingData?.kycStatus || userDetails?.kyc?.status || "Unknown") as string;
   const status = (loan?.status || "PENDING").toString().toUpperCase();
   const isPending = status === "PENDING";
-  const isDisbursing = status === "DISBURSING";
+  const isDisbursing = status === "DISBURSING" || status === "DISBURSING_INIT";
+  const isDisbursingReview = status === "DISBURSEMENT_REVIEW";
   const isAwaitingEndorsement = status === "AWAITING_ENDORSEMENT";
 
   useEffect(() => {
@@ -526,6 +527,18 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
               </div>
             </div>
           </div>
+
+          {isDisbursingReview && (
+            <div className="sticky bottom-0 border-t border-red-200 bg-red-50/95 p-6 backdrop-blur">
+              <div className="flex items-start gap-3 text-sm text-red-700">
+                <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-red-500" />
+                <div>
+                  <p className="font-semibold">Manual Review Required</p>
+                  <p className="mt-1 text-red-600">The previous disbursement attempt timed out. Check the Paystack dashboard to confirm whether a transfer was created before taking any action. Do not re-approve until confirmed.</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {(isPending || isDisbursing || isAwaitingEndorsement) && canWrite && (
             <div className="sticky bottom-0 border-t border-border bg-background/95 p-6 backdrop-blur">

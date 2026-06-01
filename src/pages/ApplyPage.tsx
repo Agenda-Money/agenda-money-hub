@@ -290,7 +290,10 @@ function EstimatedTermSheet({
   tenure: number;
   fee: number;
 }) {
-  const interest = Math.round(amount * 0.005 * tenure);
+  // Interest capped at 14 days — higher-tier tenures (20/30 days) get extra
+  // repayment time without extra interest cost.
+  const interestDays = Math.min(tenure, 14);
+  const interest = Math.round(amount * 0.005 * interestDays);
   const disbursement = amount - fee;
   const total = amount + interest;
   const dueDate = new Date(Date.now() + tenure * 86400000).toLocaleDateString(
@@ -1442,7 +1445,9 @@ export default function ApplyPage() {
           ghanaCardFrontUrl: finalFrontUrl,
           ghanaCardBackUrl: finalBackUrl,
           selfieUrl: finalSelfieUrl,
-          livenessVerification: onboardingData.livenessSession,
+          livenessVerification: onboardingData.livenessSession
+            ? (({ capturedFrame: _f, ...rest }) => rest)(onboardingData.livenessSession)
+            : null,
           initialLoanAmount: Number(loanApplicationData?.amount ?? loanAmount),
           initialLoanTenure: Number(loanApplicationData?.tenure ?? loanTenure),
           initialLoanPurpose: loanApplicationData?.purpose ?? loanPurpose,

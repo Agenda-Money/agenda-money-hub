@@ -45,7 +45,9 @@ interface Loan {
 
 const statusConfig = {
   PENDING: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
+  DISBURSING_INIT: { label: "Initiating", icon: Loader2, color: "bg-blue-500/10 text-blue-600 border-blue-200" },
   DISBURSING: { label: "Disbursing", icon: Loader2, color: "bg-blue-500/10 text-blue-600 border-blue-200" },
+  DISBURSEMENT_REVIEW: { label: "Review Required", icon: AlertTriangle, color: "bg-red-500/10 text-red-600 border-red-300" },
   ACTIVE: { label: "Active", icon: CheckCircle, color: "bg-green-600/10 text-green-700 border-green-500/20" },
   REPAID: { label: "Closed", icon: Check, color: "bg-blue-600/10 text-blue-700 border-blue-500/20" },
   CLOSED: { label: "Closed", icon: Check, color: "bg-blue-600/10 text-blue-700 border-blue-500/20" },

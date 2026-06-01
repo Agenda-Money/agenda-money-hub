@@ -48,6 +48,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SecureKycImage } from "@/components/common/SecureKycImage"
 import { AgendaScoreSheet } from "@/components/scoring/AgendaScoreSheet"
+import LoanDetailSheet from "@/components/loans/LoanDetailSheet"
 
 // Helper to format dates to DD/MM/YYYY
 const formatDate = (dateInput: any) => {
@@ -360,6 +361,7 @@ export default function UserDetailsPage() {
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false)
   const [blockReason, setBlockReason] = useState('')
   const [scoreSheetOpen, setScoreSheetOpen] = useState(false)
+  const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null)
 
   const handleCall = (number: string) => {
     window.location.href = `tel:${number}`
@@ -625,18 +627,18 @@ export default function UserDetailsPage() {
                       <SectionHeader>Historical Records</SectionHeader>
                       <div className="space-y-4">
                         {loanHistory?.length > 0 ? loanHistory.map((loan: any) => (
-                          <div key={loan._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 rounded-2xl bg-pink-50/20 dark:bg-gray-800/50 border border-pink-100/30 hover:border-pink-300 transition-colors gap-4 w-full min-w-0">
+                          <div key={loan._id} onClick={() => setSelectedLoanId(String(loan._id))} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 rounded-2xl bg-pink-50/20 dark:bg-gray-800/50 border border-pink-100/30 hover:border-pink-300 hover:bg-pink-50/40 transition-colors gap-4 w-full min-w-0 cursor-pointer group">
                             <div className="flex items-center gap-3 sm:gap-4 w-full min-w-0">
-                              <div className="w-10 h-10 shrink-0 rounded-xl bg-white dark:bg-gray-900 flex items-center justify-center text-pink-600 shadow-sm border border-pink-100/30">
+                              <div className="w-10 h-10 shrink-0 rounded-xl bg-white dark:bg-gray-900 flex items-center justify-center text-pink-600 shadow-sm border border-pink-100/30 group-hover:bg-pink-50 transition-colors">
                                 <Shield size={18} strokeWidth={2.5} />
                               </div>
                               <div className="min-w-0">
-                                 <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono truncate">{loan.loanReference || loan.loanRef}</p>
+                                 <p className="text-sm font-black text-gray-900 dark:text-gray-100 font-mono truncate group-hover:text-pink-600 transition-colors">{loan.loanReference || loan.loanRef}</p>
                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">{formatDate(loan.createdAt)}</p>
                               </div>
                             </div>
-                            
-                            <div className="flex flex-row items-center justify-between sm:justify-end gap-3 sm:gap-8 w-full sm:w-auto min-w-0">
+
+                            <div className="flex flex-row items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto min-w-0">
                                <div className="hidden sm:block shrink-0">
                                   <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Principal</p>
                                   <p className="text-xs font-black text-gray-900 dark:text-gray-100 font-mono truncate">₵{(loan.principal || 0).toLocaleString()}</p>
@@ -658,6 +660,7 @@ export default function UserDetailsPage() {
                                     ['REPAID', 'CLOSED'].includes(loan.status?.toUpperCase()) ? 'teal' : 'gray'
                                   } className="mt-1 scale-90 origin-right max-w-full">{(loan.status || 'CLOSED').toUpperCase().replace('AWAITING_ENDORSEMENT', 'AWAITING')}</Pill>
                                </div>
+                               <ChevronRight size={16} className="text-gray-300 group-hover:text-pink-400 shrink-0 transition-colors hidden sm:block" />
                             </div>
                           </div>
                         )) : (
@@ -886,14 +889,19 @@ export default function UserDetailsPage() {
           />
         )}
         {isEditDrawerOpen && (
-          <EditUserSheet 
-            isOpen={isEditDrawerOpen} 
-            setIsOpen={setIsEditDrawerOpen} 
-            userPhone={user.msisdn} 
-            userId={id!} 
-            initialData={user} 
+          <EditUserSheet
+            isOpen={isEditDrawerOpen}
+            setIsOpen={setIsEditDrawerOpen}
+            userPhone={user.msisdn}
+            userId={id!}
+            initialData={user}
           />
         )}
+
+        <LoanDetailSheet
+          loanId={selectedLoanId}
+          onClose={() => setSelectedLoanId(null)}
+        />
 
         {isBlockModalOpen && (
           <Dialog open={isBlockModalOpen} onOpenChange={setIsBlockModalOpen}>
