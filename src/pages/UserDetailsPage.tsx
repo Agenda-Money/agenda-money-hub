@@ -42,6 +42,7 @@ import {
   editUser
 } from "@/lib/api"
 import { getFriendlyErrorMessage } from "@/lib/errorUtils"
+import { triggerScoreRecalculate } from "@/lib/api"
 import { EditUserSheet } from "@/components/user/EditUserSheet"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -361,6 +362,15 @@ export default function UserDetailsPage() {
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false)
   const [blockReason, setBlockReason] = useState('')
   const [scoreSheetOpen, setScoreSheetOpen] = useState(false)
+
+  const recalculateScoreMutation = useMutation({
+    mutationFn: () => triggerScoreRecalculate(id!),
+    onSuccess: () => {
+      toast.success("Score calculation queued — refreshing in a few seconds…")
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ['user-detail', id] }), 4000)
+    },
+    onError: () => toast.error("Failed to trigger score calculation"),
+  })
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null)
 
   const handleCall = (number: string) => {
@@ -521,9 +531,9 @@ export default function UserDetailsPage() {
         <Card className="p-4 sm:p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 w-full min-w-0">
            <MetricCard label="On-time Rate" value={`${payload.onTimeRateTrend?.[0]?.rate || 90}%`} sub="Historical average" valueColor="text-teal-600" />
            <div
-             onClick={() => agendaScore && setScoreSheetOpen(true)}
-             className={cn(agendaScore ? "cursor-pointer hover:opacity-80 transition-opacity" : "pointer-events-none")}
-             title={agendaScore ? "Click to view score breakdown" : undefined}
+             onClick={() => setScoreSheetOpen(true)}
+             className="cursor-pointer hover:opacity-80 transition-opacity"
+             title={agendaScore ? "View score breakdown" : "Calculate Agenda Score"}
            >
              <MetricCard label="Agenda Score" value={scoreValue !== null ? scoreValue : '—'} sub={agendaScore?.label ?? user?.agendaScore?.label ?? 'Not scored yet'} />
            </div>
@@ -962,6 +972,8 @@ export default function UserDetailsPage() {
         open={scoreSheetOpen}
         onClose={() => setScoreSheetOpen(false)}
         customerName={user?.fullName}
+        onRecalculate={() => recalculateScoreMutation.mutate()}
+        isRecalculating={recalculateScoreMutation.isPending}
       />
     </DashboardLayout>
   )

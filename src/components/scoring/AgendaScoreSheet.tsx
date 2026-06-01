@@ -4,9 +4,12 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
+  Loader2,
+  RefreshCw,
   XCircle,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -64,6 +67,8 @@ interface AgendaScoreSheetProps {
   open: boolean;
   onClose: () => void;
   customerName?: string;
+  onRecalculate?: () => void;
+  isRecalculating?: boolean;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -215,12 +220,10 @@ function VariableBar({ label, earned, max }: { label: string; earned: number; ma
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function AgendaScoreSheet({ score, open, onClose, customerName }: AgendaScoreSheetProps) {
-  if (!score) return null;
-
-  const meta = scoreMeta(score.totalScore);
+export function AgendaScoreSheet({ score, open, onClose, customerName, onRecalculate, isRecalculating }: AgendaScoreSheetProps) {
+  const meta = score ? scoreMeta(score.totalScore) : null;
   const circumference = 2 * Math.PI * 40;
-  const strokeDasharray = `${(score.totalScore / 100) * circumference} ${circumference}`;
+  const strokeDasharray = score ? `${(score.totalScore / 100) * circumference} ${circumference}` : `0 ${circumference}`;
 
   const triggeredLabel: Record<string, string> = {
     loan_application: "Loan application",
@@ -237,12 +240,44 @@ export function AgendaScoreSheet({ score, open, onClose, customerName }: AgendaS
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto p-0">
         {/* ── Header ── */}
         <SheetHeader className="px-6 pt-6 pb-4 border-b bg-gradient-to-br from-pink-50/60 to-transparent dark:from-pink-950/20">
-          <SheetTitle className="text-base font-semibold">
-            Agenda Score
-            {customerName && <span className="text-muted-foreground font-normal ml-2">· {customerName}</span>}
-          </SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="text-base font-semibold">
+              Agenda Score
+              {customerName && <span className="text-muted-foreground font-normal ml-2">· {customerName}</span>}
+            </SheetTitle>
+            {onRecalculate && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onRecalculate}
+                disabled={isRecalculating}
+                className="h-7 text-xs gap-1.5"
+              >
+                {isRecalculating
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <RefreshCw className="h-3 w-3" />}
+                {isRecalculating ? "Calculating…" : score ? "Recalculate" : "Calculate Score"}
+              </Button>
+            )}
+          </div>
 
-          {/* Big gauge */}
+          {/* Not yet scored — empty state */}
+          {!score && (
+            <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                <svg className="w-10 h-10 text-muted-foreground/30" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="12" />
+                </svg>
+              </div>
+              <p className="font-semibold text-sm">No score yet</p>
+              <p className="text-xs text-muted-foreground max-w-[220px]">
+                This customer hasn't been scored. Click <span className="font-semibold">Calculate Score</span> to run the scoring engine now.
+              </p>
+            </div>
+          )}
+
+          {/* Big gauge — only when scored */}
+          {score && meta && (
           <div className="flex items-center gap-6 pt-3">
             <div className="relative w-24 h-24 shrink-0">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
@@ -277,9 +312,10 @@ export function AgendaScoreSheet({ score, open, onClose, customerName }: AgendaS
               </div>
             </div>
           </div>
+          )}
         </SheetHeader>
 
-        <div className="px-6 py-5 space-y-6">
+        {score && <div className="px-6 py-5 space-y-6">
 
           {/* ── Flags ── */}
           {score.flags.length > 0 && (
@@ -365,7 +401,7 @@ export function AgendaScoreSheet({ score, open, onClose, customerName }: AgendaS
           <p className="text-[10px] text-muted-foreground/50 text-center pb-2">
             v{score.version} · Score expires after 7 days and is recalculated on repayment or KYC change
           </p>
-        </div>
+        </div>}
       </SheetContent>
     </Sheet>
   );
