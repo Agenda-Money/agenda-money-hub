@@ -371,7 +371,8 @@ export default function UserDetailsPage() {
   })
 
   const payload = detailRes?.data || {}
-  const { user, activeLoan, loanHistory, sessions, deviceConflicts, weeklyUsage, referrals, referralQuality } = payload
+  const { user, activeLoan, loanHistory, sessions, deviceConflicts, weeklyUsage, referrals, referralQuality, agendaScore } = payload
+  const scoreValue: number | null = agendaScore?.totalScore ?? user?.agendaScore?.score ?? null
 
   // 2) Paginated Sessions (for Activity tab)
   const [sessionPage, setSessionPage] = useState(1)
@@ -515,7 +516,7 @@ export default function UserDetailsPage() {
         {/* 2. Main Stats Bar */}
         <Card className="p-4 sm:p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 w-full min-w-0">
            <MetricCard label="On-time Rate" value={`${payload.onTimeRateTrend?.[0]?.rate || 90}%`} sub="Historical average" valueColor="text-teal-600" />
-           <MetricCard label="Credit Score" value={user.creditScore || 80} sub="Out of 100" />
+           <MetricCard label="Agenda Score" value={scoreValue !== null ? scoreValue : '—'} sub={agendaScore?.label ?? user?.agendaScore?.label ?? 'Not scored yet'} />
            <MetricCard label="Repayment Ratio" value={payload.referralQuality?.positiveRate?.toFixed(1) || '1.0'} sub="Recovery performance" />
            <MetricCard 
              label="Total Borrowed" 

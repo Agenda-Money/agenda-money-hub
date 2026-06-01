@@ -105,7 +105,7 @@ export function PendingApprovals() {
           repaymentDate: l.dueDate ?? l.repaymentDate,
           loansToDate: l.user?.totalLoansRepaid ?? l.user?.totalLoansTaken ?? l.user?.totalLoans ?? l.totalLoans ?? l.loansToDate ?? 0,
           repaymentRate: l.repaymentRate ?? 100,
-          creditScore: l.creditScore ?? 700,
+          creditScore: l.user?.agendaScore?.score ?? l.creditScore ?? null,
           nodeCode: l.nodeCode ?? "N/A",
           userStatus: l.userStatus ?? "Node",
           status: (l.status?.toUpperCase() ?? "PENDING")
@@ -192,7 +192,7 @@ export function PendingApprovals() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-3 text-xs">
                     <span className="text-muted-foreground font-medium">{loan.tenor}</span>
-                    <span className="text-muted-foreground">Score: {loan.creditScore}</span>
+                    {loan.creditScore !== null && <span className="text-muted-foreground">Score: {loan.creditScore}</span>}
                   </div>
                   
                   {/* Inline Actions */}
