@@ -6,6 +6,12 @@ import api, {
   subscribeNotification,
   unsubscribeNotification,
 } from "@/lib/api";
+import {
+  getUniwalletConfig, updateUniwalletConfig,
+} from "@/api/payments.api";
+import {
+  getDirectDebitConfig, updateDirectDebitConfig,
+} from "@/api/direct-debit.api";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -23,7 +29,7 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone } from "lucide-react";
+import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone, CheckCircle2, XCircle } from "lucide-react";
 import { AuthorizeAgentModal } from "@/components/agents/AuthorizeAgentModal";
 import { InviteCsaModal } from "@/components/csa/InviteCsaModal";
 import { InviteReportingModal } from "@/components/reporting/InviteReportingModal";
@@ -264,11 +270,332 @@ function NotificationPreferences() {
   );
 }
 
+function CredentialDot({ ok }: { ok: boolean }) {
+  return ok
+    ? <CheckCircle2 className="h-4 w-4 text-green-500 inline-block" />
+    : <XCircle className="h-4 w-4 text-red-400 inline-block" />;
+}
+
+function ToggleRow({
+  label, description, checked, onCheckedChange, disabled,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between p-4 border rounded-lg bg-card">
+      <div>
+        <p className="font-medium text-sm">{label}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      </div>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+    </div>
+  );
+}
+
+function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
+  const qc = useQueryClient();
+
+  // ── UniWallet ────────────────────────────────────────────────────────────
+  const { data: uwData, isLoading: uwLoading } = useQuery({
+    queryKey: ["uw-config"],
+    queryFn: getUniwalletConfig,
+  });
+
+  const uwMut = useMutation({
+    mutationFn: updateUniwalletConfig,
+    onSuccess: () => { toast.success("UniWallet settings saved"); qc.invalidateQueries({ queryKey: ["uw-config"] }); },
+    onError: () => toast.error("Failed to save UniWallet settings"),
+  });
+
+  const uw = uwData?.data;
+  const env = uwData?.env;
+
+  const [disbNarr, setDisbNarr] = useState("");
+  const [collNarr, setCollNarr] = useState("");
+
+  useEffect(() => {
+    if (uw) {
+      setDisbNarr(uw.disbursementNarration);
+      setCollNarr(uw.collectionNarration);
+    }
+  }, [uw]);
+
+  // ── Direct Debit ─────────────────────────────────────────────────────────
+  const { data: ddConfig, isLoading: ddLoading } = useQuery({
+    queryKey: ["dd-config"],
+    queryFn: getDirectDebitConfig,
+  });
+
+  const ddMut = useMutation({
+    mutationFn: updateDirectDebitConfig,
+    onSuccess: () => { toast.success("Direct Debit settings saved"); qc.invalidateQueries({ queryKey: ["dd-config"] }); },
+    onError: () => toast.error("Failed to save Direct Debit settings"),
+  });
+
+  const [productId, setProductId] = useState("");
+  const [merchantId, setMerchantId] = useState("");
+  const [debitTime, setDebitTime] = useState("08:00");
+  const [retryAttempts, setRetryAttempts] = useState("3");
+  const [noticedays, setNoticeDays] = useState("1,3");
+
+  useEffect(() => {
+    if (ddConfig) {
+      setProductId(ddConfig.productId);
+      setMerchantId(ddConfig.merchantId);
+      setDebitTime(ddConfig.defaultDebitTime);
+      setRetryAttempts(String(ddConfig.retryAttempts));
+      setNoticeDays(ddConfig.daysToDebitDayNotice.join(","));
+    }
+  }, [ddConfig]);
+
+  return (
+    <Tabs defaultValue="uniwallet">
+      <TabsList className="bg-muted p-1 mb-4">
+        <TabsTrigger value="uniwallet" className="data-[state=active]:bg-card">UniWallet (STK Push)</TabsTrigger>
+        <TabsTrigger value="directdebit" className="data-[state=active]:bg-card">Direct Debit</TabsTrigger>
+      </TabsList>
+
+      {/* ── UniWallet Tab ── */}
+      <TabsContent value="uniwallet" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>UniWallet Configuration</CardTitle>
+            <CardDescription>Control disbursements and STK push collections</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {uwLoading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : (
+              <>
+                <ToggleRow
+                  label="Disbursements Enabled"
+                  description="Allow loan disbursements via UniWallet credit endpoint"
+                  checked={uw?.disbursementEnabled ?? true}
+                  onCheckedChange={v => uwMut.mutate({ disbursementEnabled: v })}
+                  disabled={!canWrite || uwMut.isPending}
+                />
+                <ToggleRow
+                  label="Collections Enabled (STK Push)"
+                  description="Allow repayment collection via UniWallet debit endpoint"
+                  checked={uw?.collectionsEnabled ?? true}
+                  onCheckedChange={v => uwMut.mutate({ collectionsEnabled: v })}
+                  disabled={!canWrite || uwMut.isPending}
+                />
+                <ToggleRow
+                  label="Name Enquiry Enabled"
+                  description="Verify MoMo name before disbursement"
+                  checked={uw?.nameEnquiryEnabled ?? true}
+                  onCheckedChange={v => uwMut.mutate({ nameEnquiryEnabled: v })}
+                  disabled={!canWrite || uwMut.isPending}
+                />
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Transaction Narrations</CardTitle>
+            <CardDescription>What shows on the customer's MoMo statement</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Disbursement Narration</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={disbNarr}
+                  onChange={e => setDisbNarr(e.target.value)}
+                  placeholder="Agenda Money Loan Disbursement"
+                  disabled={!canWrite}
+                />
+                {canWrite && (
+                  <Button
+                    variant="outline"
+                    disabled={uwMut.isPending}
+                    onClick={() => uwMut.mutate({ disbursementNarration: disbNarr })}
+                  >
+                    Save
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Collection Narration</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={collNarr}
+                  onChange={e => setCollNarr(e.target.value)}
+                  placeholder="Agenda Money Loan Repayment"
+                  disabled={!canWrite}
+                />
+                {canWrite && (
+                  <Button
+                    variant="outline"
+                    disabled={uwMut.isPending}
+                    onClick={() => uwMut.mutate({ collectionNarration: collNarr })}
+                  >
+                    Save
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {env && (
+          <Card className="border-dashed">
+            <CardHeader>
+              <CardTitle className="text-sm">Environment (read-only)</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Base URL</span>
+                <span className="font-mono text-xs">{env.baseUrl || "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Environment</span>
+                <Badge variant="outline">{env.nodeEnv}</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">API Key</span>
+                <CredentialDot ok={env.apiKeyConfigured} />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Transflow ID</span>
+                <CredentialDot ok={env.transflowIdConfigured} />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Disbursement Product</span>
+                <CredentialDot ok={env.disbursementProductConfigured} />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Collections Product</span>
+                <CredentialDot ok={env.collectionsProductConfigured} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </TabsContent>
+
+      {/* ── Direct Debit Tab ── */}
+      <TabsContent value="directdebit" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Direct Debit Configuration</CardTitle>
+            <CardDescription>ITC standing orders — auto-debit on loan due date</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {ddLoading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : (
+              <>
+                <ToggleRow
+                  label="Direct Debit Enabled"
+                  description="Master switch — turns the entire direct debit feature on or off"
+                  checked={ddConfig?.enabled ?? false}
+                  onCheckedChange={v => ddMut.mutate({ enabled: v })}
+                  disabled={!canWrite || ddMut.isPending}
+                />
+                <ToggleRow
+                  label="Auto-Setup on Disbursement"
+                  description="Automatically send a standing order request when a loan is disbursed"
+                  checked={ddConfig?.autoSetupOnDisbursement ?? false}
+                  onCheckedChange={v => ddMut.mutate({ autoSetupOnDisbursement: v })}
+                  disabled={!canWrite || ddMut.isPending}
+                />
+                <ToggleRow
+                  label="Hybrid Mode (Trigger Failed Debits)"
+                  description="Allow admin to manually retry failed subscription debits via ITC"
+                  checked={ddConfig?.triggerDebitStatus ?? true}
+                  onCheckedChange={v => ddMut.mutate({ triggerDebitStatus: v })}
+                  disabled={!canWrite || ddMut.isPending}
+                />
+                <ToggleRow
+                  label="Pre-Debit Customer Notification"
+                  description="ITC notifies the customer before debiting (recommended)"
+                  checked={ddConfig?.notificationStatus ?? true}
+                  onCheckedChange={v => ddMut.mutate({ notificationStatus: v })}
+                  disabled={!canWrite || ddMut.isPending}
+                />
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>ITC Credentials</CardTitle>
+            <CardDescription>Product and merchant identifiers from ITC onboarding</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[
+              { label: "Product ID", value: productId, set: setProductId, key: "productId" as const, placeholder: "e.g. PROD_67890" },
+              { label: "Merchant ID", value: merchantId, set: setMerchantId, key: "merchantId" as const, placeholder: "e.g. MERCH_12345" },
+            ].map(({ label, value, set, key, placeholder }) => (
+              <div key={key} className="space-y-1.5">
+                <Label>{label}</Label>
+                <div className="flex gap-2">
+                  <Input value={value} onChange={e => set(e.target.value)} placeholder={placeholder} disabled={!canWrite} />
+                  {canWrite && (
+                    <Button variant="outline" disabled={ddMut.isPending} onClick={() => ddMut.mutate({ [key]: value })}>Save</Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Debit Schedule Defaults</CardTitle>
+            <CardDescription>Default values used when setting up a standing order</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Default Debit Time (24h)</Label>
+              <div className="flex gap-2">
+                <Input type="time" value={debitTime} onChange={e => setDebitTime(e.target.value)} className="w-36" disabled={!canWrite} />
+                {canWrite && (
+                  <Button variant="outline" disabled={ddMut.isPending} onClick={() => ddMut.mutate({ defaultDebitTime: debitTime })}>Save</Button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Max Retry Attempts</Label>
+              <div className="flex gap-2">
+                <Input type="number" min={1} max={4} value={retryAttempts} onChange={e => setRetryAttempts(e.target.value)} className="w-24" disabled={!canWrite} />
+                {canWrite && (
+                  <Button variant="outline" disabled={ddMut.isPending} onClick={() => ddMut.mutate({ retryAttempts: parseInt(retryAttempts) })}>Save</Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">ITC charges extra for more than 4 retries</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Days-Before-Debit Notification</Label>
+              <div className="flex gap-2">
+                <Input value={noticedays} onChange={e => setNoticeDays(e.target.value)} placeholder="1,3" className="w-36" disabled={!canWrite} />
+                {canWrite && (
+                  <Button variant="outline" disabled={ddMut.isPending} onClick={() => ddMut.mutate({ daysToDebitDayNotice: noticedays.split(",").map(s => s.trim()).filter(Boolean) })}>Save</Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Comma-separated days before debit date (e.g. 1,3 = notify 3 days and 1 day before)</p>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
+  );
+}
+
 export default function SettingsPage() {
   const { user, updateProfile, canWrite } = useAuth();
   const { tab } = useParams();
   const navigate = useNavigate();
-  const validTabs = ["profile", "general", "appearance", "notifications"];
+  const validTabs = ["profile", "general", "appearance", "notifications", "payments"];
   const activeTab = validTabs.includes(tab ?? "") ? tab! : "profile";
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -389,6 +716,12 @@ export default function SettingsPage() {
               className="data-[state=active]:bg-card"
             >
               Notifications
+            </TabsTrigger>
+            <TabsTrigger
+              value="payments"
+              className="data-[state=active]:bg-card"
+            >
+              Payments
             </TabsTrigger>
           </TabsList>
 
@@ -548,6 +881,10 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="payments" className="mt-4">
+            <PaymentsSettings canWrite={canWrite} />
           </TabsContent>
 
           <TabsContent value="notifications" className="mt-4">
