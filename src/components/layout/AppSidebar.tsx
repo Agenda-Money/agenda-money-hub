@@ -17,6 +17,7 @@ import {
   Send,
   PhoneCall,
   Gift,
+  Repeat2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -224,6 +225,16 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
             subItems: [
               { to: "/payouts", label: "Withdrawals" },
               { to: "/admin/commissions/deductions", label: "Deductions" },
+            ],
+          },
+          {
+            to: "/admin/direct-debit",
+            icon: Repeat2,
+            label: "Direct Debit",
+            subItems: [
+              { to: "/admin/direct-debit", label: "Overview" },
+              { to: "/admin/direct-debit/mandates", label: "Mandates" },
+              { to: "/admin/direct-debit/delinquent", label: "Delinquent Customers" },
             ],
           },
           { to: "/analytics", icon: BarChart3, label: "Analytics" },

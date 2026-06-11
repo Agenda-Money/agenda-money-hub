@@ -43,6 +43,7 @@ import PendingKycPage from "./pages/PendingKycPage";
 import AuditLogs from "./pages/AuditLogs";
 import AdminDeductionsPage from "./pages/AdminDeductionsPage";
 import AdminManualDisbursePage from "./pages/AdminManualDisbursePage";
+import DirectDebitPage from "./pages/DirectDebitPage";
 import {
   CampaignHistoryPage,
   MomoDisbursementPage,
@@ -265,6 +266,8 @@ const App = () => {
                       <Route path="/audit-logs" element={<RequireAuth><AdminRoute><AuditLogs /></AdminRoute></RequireAuth>} />
                       <Route path="/settings" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/settings/:tab" element={<RequireAuth><AdminRoute><SettingsPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/admin/direct-debit" element={<RequireAuth><AdminRoute><DirectDebitPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/admin/direct-debit/:tab" element={<RequireAuth><AdminRoute><DirectDebitPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents" element={<RequireAuth><AdminRoute><AgentsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/agents/:id" element={<RequireAuth><AdminRoute><AgentDetailsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/admin/collections/monitoring" element={<RequireAuth><AdminRoute><CsaAuthProvider><TeamActivityPage /></CsaAuthProvider></AdminRoute></RequireAuth>} />
