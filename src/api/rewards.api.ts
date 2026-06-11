@@ -70,10 +70,12 @@ export interface BulkSmsPayload {
   senderId: string;
   message: string;
   label: string;
+  all?: boolean;         // send to every registered customer
   tier?: number;
-  contacts?: string[];   // array of MSISDNs — required if no tier
+  contacts?: string[];   // array of MSISDNs
   scheduled?: boolean;
   startDate?: string;    // ISO string — required if scheduled: true
+  messageType?: 'general' | 'issue' | 'maintenance';
 }
 
 export async function sendBulkSms(payload: BulkSmsPayload): Promise<{ campaignId: string }> {

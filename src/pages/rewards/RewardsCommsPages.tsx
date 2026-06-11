@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Gift, History, MessageSquare, Settings2, Trash2, Wallet, Download, Loader2, AlertTriangle, RefreshCw, Send, Calendar, Users, List, Play, Info, CheckCircle } from "lucide-react";
+import { Gift, History, MessageSquare, Settings2, Trash2, Wallet, Download, Loader2, AlertTriangle, RefreshCw, Send, Calendar, Users, List, Play, Info, CheckCircle, ShieldAlert, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { useRewardTiers } from "@/hooks/useRewardTiers";
 import { useCampaigns, useCampaignReport, useRetryCampaign } from "@/hooks/useCampaigns";
@@ -370,6 +370,11 @@ export function SendAirtimePage() {
   );
 }
 
+const MESSAGE_TYPE_TEMPLATES = {
+  issue: "Dear Customer, we are currently experiencing an issue that may affect our services. Our team is actively working to resolve this as quickly as possible. We apologize for the inconvenience and will keep you updated.",
+  maintenance: "Dear Customer, we will be performing scheduled maintenance on our platform. Services may be temporarily unavailable during this period. We apologize for any inconvenience and thank you for your patience.",
+} as const;
+
 export function SendSmsPage() {
   const { data: tiers, isLoading: isTiersLoading } = useRewardTiers();
   const [senderId, setSenderId] = useState("AGENDA");
@@ -378,19 +383,24 @@ export function SendSmsPage() {
   const [manualPhones, setManualPhones] = useState("");
   const [message, setMessage] = useState("");
   const [label, setLabel] = useState("");
+  const [messageType, setMessageType] = useState<"general" | "issue" | "maintenance">("general");
   const [schedule, setSchedule] = useState(false);
   const [sendAt, setSendAt] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  const senderIds = [...new Set(tiers?.map(t => t.senderId) ?? ["AGENDA"])];
+  const senderIds = [...new Set(["AGENDA", ...(tiers?.map(t => t.senderId) ?? [])])];
   const charCount = message.length;
   const parts = Math.max(1, Math.ceil(charCount / 160));
-  
+
   const manualList = manualPhones.split(/[\s,;]+/).map((item) => item.trim()).filter(Boolean);
   const invalidManual = recipientMode === "manual" ? manualList.filter((phone) => !isValidGhanaPhone(phone)) : [];
-  
+
   const scheduleInvalid = schedule && (!sendAt || new Date(sendAt).getTime() <= Date.now());
-  const canSend = message.trim().length > 0 && label.trim().length > 0 && (recipientMode !== "manual" || (manualList.length > 0 && invalidManual.length === 0)) && !scheduleInvalid;
+  const recipientValid =
+    recipientMode === "all" ||
+    recipientMode === "tier" ||
+    (recipientMode === "manual" && manualList.length > 0 && invalidManual.length === 0);
+  const canSend = message.trim().length > 0 && label.trim().length > 0 && recipientValid && !scheduleInvalid;
 
   const handleTierChange = (tier: string) => {
     const tierNum = parseInt(tier);
@@ -402,6 +412,10 @@ export function SendSmsPage() {
     }
   };
 
+  const applyTemplate = (type: "issue" | "maintenance") => {
+    setMessage(MESSAGE_TYPE_TEMPLATES[type]);
+  };
+
   const sendCampaign = async () => {
     setIsSending(true);
     try {
@@ -410,16 +424,17 @@ export function SendSmsPage() {
         message,
         label,
         scheduled: schedule,
+        messageType,
       };
 
       if (recipientMode === "tier" && selectedTier) {
         payload.tier = selectedTier;
       } else if (recipientMode === "manual") {
         payload.contacts = manualList;
+      } else {
+        // "all" — send to every registered customer
+        payload.all = true;
       }
-      // If mode is "all", backend handles it or we might need another flag. 
-      // Current spec says { tier } or { contacts }. If none, assume all? 
-      // Let's assume 'all' is not directly supported yet or needs verification.
 
       if (schedule) {
         payload.startDate = new Date(sendAt).toISOString();
@@ -427,10 +442,10 @@ export function SendSmsPage() {
 
       const { campaignId } = await sendBulkSms(payload);
       toast.success(`Campaign queued — ID: ${campaignId}`);
-      // Reset form
       setMessage("");
       setLabel("");
       setManualPhones("");
+      setMessageType("general");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to send campaign");
     } finally {
@@ -443,44 +458,105 @@ export function SendSmsPage() {
 
   return (
     <PageShell title="Send SMS" description="Compose a campaign with real sender IDs and backend integration." icon={MessageSquare}>
-        <div className="flex items-center justify-end mb-4">
-           <Card className="p-3 bg-muted/30 border-dashed">
-              <div className="flex items-center gap-4">
-                 <div>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">SMS bundle balance</p>
-                    <p className="text-xl font-black">{isBundleLoading ? "---" : isBundleError ? "Error" : bundleCount.toLocaleString()} credits</p>
-                 </div>
-                 <div className={cn(
-                   "h-2 w-2 rounded-full",
-                   isBundleLoading ? "bg-muted animate-pulse" : 
-                   isBundleError ? "bg-red-500" : 
-                   bundleCount > 500 ? "bg-emerald-500" : 
-                   bundleCount > 100 ? "bg-amber-500" : "bg-red-500"
-                 )} />
-              </div>
-           </Card>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+      <div className="flex items-center justify-end mb-4">
+        <Card className="p-3 bg-muted/30 border-dashed">
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">SMS bundle balance</p>
+              <p className="text-xl font-black">{isBundleLoading ? "---" : isBundleError ? "Error" : bundleCount.toLocaleString()} credits</p>
+            </div>
+            <div className={cn(
+              "h-2 w-2 rounded-full",
+              isBundleLoading ? "bg-muted animate-pulse" :
+              isBundleError ? "bg-red-500" :
+              bundleCount > 500 ? "bg-emerald-500" :
+              bundleCount > 100 ? "bg-amber-500" : "bg-red-500"
+            )} />
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <Card>
           <CardHeader>
             <CardTitle>Campaign Composer</CardTitle>
             <CardDescription>Select recipients and craft your message.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+
+            {/* Message type selector */}
+            <div className="space-y-2">
+              <Label>Message Type</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["general", "issue", "maintenance"] as const).map((type) => {
+                  const icons = {
+                    general: <MessageSquare className="h-4 w-4" />,
+                    issue: <ShieldAlert className="h-4 w-4" />,
+                    maintenance: <Wrench className="h-4 w-4" />,
+                  };
+                  const labels = { general: "General", issue: "Issue / Outage", maintenance: "Maintenance" };
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        setMessageType(type);
+                        if (type !== "general") applyTemplate(type);
+                      }}
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 rounded-lg border p-3 text-xs font-bold transition",
+                        messageType === type
+                          ? type === "issue"
+                            ? "border-red-400 bg-red-50 text-red-700"
+                            : type === "maintenance"
+                            ? "border-amber-400 bg-amber-50 text-amber-700"
+                            : "border-primary bg-primary/5 text-primary"
+                          : "hover:bg-muted/50 text-muted-foreground"
+                      )}
+                    >
+                      {icons[type]}
+                      {labels[type]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Issue/maintenance warning banner */}
+            {messageType === "issue" && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-3 animate-in fade-in duration-200">
+                <ShieldAlert className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-red-800">Issue / Outage Notification</p>
+                  <p className="text-xs text-red-700">A pre-filled template has been loaded. Edit it with specific details before sending. This will go to all selected customers.</p>
+                </div>
+              </div>
+            )}
+            {messageType === "maintenance" && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3 animate-in fade-in duration-200">
+                <Wrench className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-amber-800">Maintenance Notice</p>
+                  <p className="text-xs text-amber-700">A pre-filled template has been loaded. Edit it with the specific date and time window before sending.</p>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Campaign Label (Internal Reference)</Label>
-              <Input 
-                placeholder="e.g. May Promo - Tier 4" 
+              <Input
+                placeholder={messageType === "issue" ? "e.g. Service Disruption – June 2026" : messageType === "maintenance" ? "e.g. Scheduled Maintenance – June 2026" : "e.g. May Promo - Tier 4"}
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
               />
             </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Sender ID</Label>
-                <select 
-                  value={senderId} 
-                  onChange={(event) => setSenderId(event.target.value)} 
+                <select
+                  value={senderId}
+                  onChange={(event) => setSenderId(event.target.value)}
                   className="h-11 w-full rounded-md border bg-background px-3 text-sm"
                 >
                   {senderIds.map(id => <option key={id} value={id}>{id}</option>)}
@@ -488,9 +564,9 @@ export function SendSmsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Recipients</Label>
-                <select 
-                  value={recipientMode} 
-                  onChange={(event) => setRecipientMode(event.target.value as any)} 
+                <select
+                  value={recipientMode}
+                  onChange={(event) => setRecipientMode(event.target.value as any)}
                   className="h-11 w-full rounded-md border bg-background px-3 text-sm"
                 >
                   <option value="all">All customers</option>
@@ -499,13 +575,20 @@ export function SendSmsPage() {
                 </select>
               </div>
             </div>
-            
+
+            {recipientMode === "all" && (
+              <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-3 flex items-center gap-3">
+                <Users className="h-4 w-4 text-blue-500 shrink-0" />
+                <p className="text-xs text-blue-700 font-medium">Message will be sent to every customer with a registered phone number.</p>
+              </div>
+            )}
+
             {recipientMode === "tier" && (
               <div className="space-y-2">
                 <Label>Select Tier</Label>
-                <select 
-                  value={selectedTier || ""} 
-                  onChange={(event) => handleTierChange(event.target.value)} 
+                <select
+                  value={selectedTier || ""}
+                  onChange={(event) => handleTierChange(event.target.value)}
                   className="h-11 w-full rounded-md border bg-background px-3 text-sm"
                 >
                   <option value="" disabled>Choose a tier</option>
@@ -518,13 +601,14 @@ export function SendSmsPage() {
 
             {recipientMode === "manual" && (
               <div className="space-y-2">
-                <Label>Manual phone numbers</Label>
-                <Textarea 
-                  value={manualPhones} 
-                  onChange={(event) => setManualPhones(event.target.value)} 
-                  placeholder="0241234567, +233551234567" 
-                  className="min-h-24" 
+                <Label>Phone numbers</Label>
+                <Textarea
+                  value={manualPhones}
+                  onChange={(event) => setManualPhones(event.target.value)}
+                  placeholder={"0241234567, 0551234567\n+233201234567"}
+                  className="min-h-24 font-mono text-sm"
                 />
+                <p className="text-xs text-muted-foreground">{manualList.length} number{manualList.length !== 1 ? "s" : ""} detected — separate by comma, space, or newline</p>
                 {invalidManual.length > 0 && (
                   <p className="text-sm font-medium text-red-600">
                     Invalid Ghana number(s): {invalidManual.join(", ")}
@@ -540,10 +624,10 @@ export function SendSmsPage() {
                   {parts} SMS part{parts === 1 ? "" : "s"}
                 </span>
               </div>
-              <Textarea 
-                value={message} 
-                onChange={(event) => setMessage(event.target.value)} 
-                className="min-h-44" 
+              <Textarea
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                className="min-h-44"
                 placeholder="Type your message here..."
               />
               <div className="flex justify-between text-xs text-muted-foreground">
@@ -563,10 +647,10 @@ export function SendSmsPage() {
             {schedule && (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
                 <Label>Send date and time</Label>
-                <Input 
-                  type="datetime-local" 
-                  value={sendAt} 
-                  onChange={(event) => setSendAt(event.target.value)} 
+                <Input
+                  type="datetime-local"
+                  value={sendAt}
+                  onChange={(event) => setSendAt(event.target.value)}
                 />
                 {scheduleInvalid && (
                   <p className="text-sm font-medium text-red-600 flex items-center gap-1">
@@ -577,9 +661,14 @@ export function SendSmsPage() {
               </div>
             )}
 
-            <Button 
-              disabled={!canSend || isSending} 
-              className="w-full h-12 text-lg font-bold bg-primary hover:bg-primary/90" 
+            <Button
+              disabled={!canSend || isSending}
+              className={cn(
+                "w-full h-12 text-lg font-bold",
+                messageType === "issue" ? "bg-red-600 hover:bg-red-700" :
+                messageType === "maintenance" ? "bg-amber-600 hover:bg-amber-700" :
+                "bg-primary hover:bg-primary/90"
+              )}
               onClick={sendCampaign}
             >
               {isSending ? (
@@ -590,7 +679,7 @@ export function SendSmsPage() {
               ) : (
                 <>
                   <Send className="mr-2 h-5 w-5" />
-                  {schedule ? "Schedule Campaign" : "Send Campaign Now"}
+                  {schedule ? "Schedule Campaign" : messageType === "issue" ? "Send Issue Alert Now" : messageType === "maintenance" ? "Send Maintenance Notice" : "Send Campaign Now"}
                 </>
               )}
             </Button>
@@ -605,15 +694,21 @@ export function SendSmsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-3 text-sm">
               <div className="flex justify-between rounded-lg bg-muted/50 p-3">
-                <span className="text-muted-foreground">Mode</span>
-                <span className="font-bold uppercase">{recipientMode}</span>
+                <span className="text-muted-foreground">Type</span>
+                <span className="font-bold uppercase">{messageType}</span>
+              </div>
+              <div className="flex justify-between rounded-lg bg-muted/50 p-3">
+                <span className="text-muted-foreground">Recipients</span>
+                <span className="font-bold uppercase">
+                  {recipientMode === "all" ? "All customers" : recipientMode === "tier" && selectedTier ? `Tier L${selectedTier}` : recipientMode === "manual" ? `${manualList.length} number${manualList.length !== 1 ? "s" : ""}` : "—"}
+                </span>
               </div>
               <div className="flex justify-between rounded-lg bg-muted/50 p-3">
                 <span className="text-muted-foreground">Sender</span>
                 <span className="font-bold">{senderId}</span>
               </div>
               <div className="flex justify-between rounded-lg bg-muted/50 p-3">
-                <span className="text-muted-foreground">Estimated Parts</span>
+                <span className="text-muted-foreground">Parts</span>
                 <span className="font-bold">{parts}</span>
               </div>
             </div>
@@ -625,12 +720,28 @@ export function SendSmsPage() {
               </p>
             </div>
 
-            <div className="rounded-lg bg-blue-50 p-4 flex items-start gap-3">
-               <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
-               <p className="text-[10px] text-blue-700 leading-relaxed uppercase font-bold">
-                 SMS credits will be deducted from your bundle balance upon sending.
-               </p>
-            </div>
+            {messageType === "issue" ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+                <ShieldAlert className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                <p className="text-[10px] text-red-700 leading-relaxed font-bold uppercase">
+                  This is an issue/outage notification. Confirm the message is accurate before sending.
+                </p>
+              </div>
+            ) : messageType === "maintenance" ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+                <Wrench className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                <p className="text-[10px] text-amber-700 leading-relaxed font-bold uppercase">
+                  This is a maintenance notice. Ensure the date and time details are correct.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg bg-blue-50 p-4 flex items-start gap-3">
+                <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-[10px] text-blue-700 leading-relaxed uppercase font-bold">
+                  SMS credits will be deducted from your bundle balance upon sending.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
