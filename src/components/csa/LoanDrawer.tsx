@@ -205,6 +205,10 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{(loan.user as any).region}</span>
                           )}
                           <span className="flex items-center gap-1"><Wifi className="h-3 w-3" />{formatNetwork(loan?.network ?? '', loan?.userMsisdn)}</span>
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            <span className="font-semibold">Alt:</span>&nbsp;{(loan?.user as any)?.alternatePhone ?? 'N/A'}
+                          </span>
                           {(loan?.user as any)?.address && (
                             <span className="col-span-2 flex items-center gap-1 truncate">{(loan.user as any).address}</span>
                           )}
@@ -515,6 +519,7 @@ function ResearchPanel({ loan }: { loan: any }) {
           <ResearchField label="Full Name" value={loan.user?.fullName || loan.userMsisdn} />
           <ResearchField label="Employment" value={loan.user?.employmentStatus} icon={Briefcase} />
           <ResearchField label="Region" value={loan.user?.region} icon={MapPin} />
+          <ResearchField label="Alt. Phone" value={loan.user?.alternatePhone ?? 'N/A'} icon={Phone} />
           <ResearchField label="Address" value={loan.user?.address} icon={Home} />
         </div>
       </ResearchSection>

@@ -25,6 +25,7 @@ interface LoanCardProps {
     user: {
       fullName: string;
       region: string;
+      alternatePhone?: string | null;
       onboardingAgent?: { name: string };
       referredByNodeCode?: string;
       isRepeatBorrower?: boolean
@@ -189,6 +190,11 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
           )}
           <span className="flex items-center gap-1">
             <Wifi className="h-3 w-3" />{formatNetwork(loan.network, loan.userMsisdn)}
+          </span>
+          <span className="flex items-center gap-1">
+            <Phone className="h-3 w-3" />
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mr-0.5">Alt:</span>
+            {loan.user?.alternatePhone ?? 'N/A'}
           </span>
           {loan.guarantorName && (
             <span className="flex items-center gap-1">

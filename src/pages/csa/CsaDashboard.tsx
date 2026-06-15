@@ -392,7 +392,7 @@ export default function CsaDashboard() {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  {['Client Name', 'Phone', 'Loan Amt', 'Bucket', 'Disbursed', 'Due Date', 'Outstanding', 'Repaid', 'Last Payment', 'Pay Type', 'OD Days', 'Region', 'Last Activity', 'Agent', 'Last Updated', 'Action'].map((h) => (
+                  {['Client Name', 'Phone', 'Alt. Phone', 'Loan Amt', 'Bucket', 'Disbursed', 'Due Date', 'Outstanding', 'Repaid', 'Last Payment', 'Pay Type', 'OD Days', 'Region', 'Last Activity', 'Agent', 'Last Updated', 'Action'].map((h) => (
                     <th key={h} className="px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                       {h}
                     </th>
@@ -402,7 +402,7 @@ export default function CsaDashboard() {
               <tbody>
                 {[...Array(8)].map((_, i) => (
                   <tr key={i} className="border-b border-border/30">
-                    {Array(16).fill(null).map((_, j) => (
+                    {Array(17).fill(null).map((_, j) => (
                       <td key={j} className="px-3 py-3">
                         <Skeleton className="h-4 w-20 rounded" />
                       </td>
@@ -554,6 +554,7 @@ function LoanTable({
           <tr className="border-b border-border/50 bg-muted/30">
             <th className={cn(thCls(), 'sticky left-0 z-20 bg-muted border-r border-border/40')}>Client Name</th>
             <th className={thCls()}>Phone</th>
+            <th className={thCls()}>Alt. Phone</th>
             <th className={thCls()}>Loan Amt</th>
             <th className={thCls('ddBucket')} onClick={() => onSort('ddBucket')}>
               Bucket <SortIcon colKey="ddBucket" sortKey={sortKey} sortDir={sortDir} />
@@ -587,7 +588,7 @@ function LoanTable({
             <Fragment key={agentName}>
               {/* Agent group header */}
               <tr className="bg-muted/60 border-y border-border/40">
-                <td colSpan={16} className="px-4 py-2">
+                <td colSpan={17} className="px-4 py-2">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-foreground">{agentName}</span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
@@ -625,6 +626,23 @@ function LoanTable({
                           <Copy className="h-3 w-3" />
                         </button>
                       </div>
+                    </td>
+
+                    {/* Alt. Phone */}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {loan.user?.alternatePhone ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-mono text-foreground">{loan.user.alternatePhone}</span>
+                          <button
+                            onClick={(e) => copyPhone(e, loan.user.alternatePhone)}
+                            className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">N/A</span>
+                      )}
                     </td>
 
                     {/* Loan Amount */}
