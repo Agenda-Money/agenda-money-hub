@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone, CheckCircle2, XCircle } from "lucide-react";
+import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone, CheckCircle2, XCircle, Database, RefreshCw, BarChart2, Loader2 } from "lucide-react";
 import { AuthorizeAgentModal } from "@/components/agents/AuthorizeAgentModal";
 import { InviteCsaModal } from "@/components/csa/InviteCsaModal";
 import { InviteReportingModal } from "@/components/reporting/InviteReportingModal";
@@ -591,11 +591,168 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
   );
 }
 
+function SystemJobsPanel({ canWrite }: { canWrite: boolean }) {
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<Record<string, number> | null>(null);
+  const [overdueLoading, setOverdueLoading] = useState(false);
+  const [scoreLoading, setScoreLoading] = useState(false);
+
+  const runCleanup = async () => {
+    setCleanupLoading(true);
+    setCleanupResult(null);
+    try {
+      const res = await api.post("/api/admin/system/jobs/storage-cleanup");
+      setCleanupResult(res.data.result);
+      toast.success("Storage cleanup completed.");
+    } catch {
+      toast.error("Storage cleanup failed. Check server logs.");
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
+
+  const runOverdueCheck = async () => {
+    setOverdueLoading(true);
+    try {
+      await api.post("/api/admin/system/jobs/overdue-check");
+      toast.success("Overdue check enqueued — runs in the background.");
+    } catch {
+      toast.error("Failed to enqueue overdue check.");
+    } finally {
+      setOverdueLoading(false);
+    }
+  };
+
+  const runScoreBatch = async () => {
+    setScoreLoading(true);
+    try {
+      await api.post("/api/admin/system/jobs/score-batch");
+      toast.success("Score batch refresh enqueued — may take a few minutes.");
+    } catch {
+      toast.error("Failed to enqueue score refresh.");
+    } finally {
+      setScoreLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-orange-500/10 rounded-lg text-orange-500 mt-0.5">
+              <Database className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle>Storage Cleanup</CardTitle>
+              <CardDescription>
+                Strips recipients from completed campaigns, purges CSA activity
+                logs (90d), eligibility traces (60d), and admin audit logs (90d).
+                Never touches loans, users, repayments, or financial records.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {cleanupResult && (
+            <div className="rounded-lg border bg-muted/40 p-4 space-y-2 text-sm">
+              <p className="font-medium text-muted-foreground mb-3">Last run result</p>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-1.5">
+                {[
+                  ["Campaign recipient arrays stripped", cleanupResult.campaignRecipients],
+                  ["CSA activity records deleted", cleanupResult.collectionActivities],
+                  ["Eligibility audit logs deleted", cleanupResult.eligibilityAuditLogs],
+                  ["Admin audit logs deleted", cleanupResult.auditLogs],
+                ].map(([label, val]) => (
+                  <>
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="font-mono font-semibold">{val}</span>
+                  </>
+                ))}
+              </div>
+            </div>
+          )}
+          {canWrite && (
+            <Button
+              onClick={runCleanup}
+              disabled={cleanupLoading}
+              variant="outline"
+              className="border-orange-500/40 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20"
+            >
+              {cleanupLoading ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running...</>
+              ) : (
+                <><Database className="h-4 w-4 mr-2" />Run Now</>
+              )}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-yellow-500/10 rounded-lg text-yellow-600 mt-0.5">
+              <RefreshCw className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle>Overdue Loan Check</CardTitle>
+              <CardDescription>
+                Re-runs the daily overdue status check across all active loans.
+                Enqueues in the background — safe to run at any time.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {canWrite && (
+            <Button onClick={runOverdueCheck} disabled={overdueLoading} variant="outline">
+              {overdueLoading ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enqueuing...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" />Run Now</>
+              )}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-blue-500/10 rounded-lg text-blue-600 mt-0.5">
+              <BarChart2 className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle>Credit Score Batch Refresh</CardTitle>
+              <CardDescription>
+                Recalculates credit scores for all users. Enqueues in the
+                background — may take several minutes to complete.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {canWrite && (
+            <Button onClick={runScoreBatch} disabled={scoreLoading} variant="outline">
+              {scoreLoading ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enqueuing...</>
+              ) : (
+                <><BarChart2 className="h-4 w-4 mr-2" />Run Now</>
+              )}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { user, updateProfile, canWrite } = useAuth();
   const { tab } = useParams();
   const navigate = useNavigate();
-  const validTabs = ["profile", "general", "appearance", "notifications", "payments"];
+  const validTabs = ["profile", "general", "appearance", "notifications", "payments", "system"];
   const activeTab = validTabs.includes(tab ?? "") ? tab! : "profile";
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -722,6 +879,12 @@ export default function SettingsPage() {
               className="data-[state=active]:bg-card"
             >
               Payments
+            </TabsTrigger>
+            <TabsTrigger
+              value="system"
+              className="data-[state=active]:bg-card"
+            >
+              System
             </TabsTrigger>
           </TabsList>
 
@@ -885,6 +1048,17 @@ export default function SettingsPage() {
 
           <TabsContent value="payments" className="mt-4">
             <PaymentsSettings canWrite={canWrite} />
+          </TabsContent>
+
+          <TabsContent value="system" className="mt-4">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">System Maintenance</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Run scheduled maintenance jobs on demand. These jobs also run
+                automatically on their scheduled intervals.
+              </p>
+            </div>
+            <SystemJobsPanel canWrite={canWrite} />
           </TabsContent>
 
           <TabsContent value="notifications" className="mt-4">
