@@ -1,10 +1,10 @@
-import { useState, useMemo, Fragment } from 'react';
+import { useState, useMemo, Fragment, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, SlidersHorizontal, RefreshCw, AlertTriangle, TrendingUp, Download,
-  ChevronDown, ChevronUp, Copy, Phone, ArrowUpDown, ArrowUp, ArrowDown,
+  ChevronDown, ChevronUp, Copy, Phone, ArrowUpDown, ArrowUp, ArrowDown, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -103,6 +103,10 @@ export default function CsaDashboard() {
       prev.set('page', next.toString());
       return prev;
     });
+
+  const mode = searchParams.get('mode') || 'collections';
+  const setMode = (m: string) =>
+    setSearchParams((prev) => { prev.set('mode', m); return prev; }, { replace: true });
 
   const sortKey = (searchParams.get('sortKey') as SortKey) || 'ddBucket';
   const sortDir = (searchParams.get('sortDir') as SortDir) || 'desc';
@@ -230,6 +234,34 @@ export default function CsaDashboard() {
         </div>
       </div>
 
+      {/* Mode toggle */}
+      <div className="flex gap-1 bg-muted rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setMode('collections')}
+          className={cn(
+            'flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold rounded-lg transition-colors',
+            mode === 'collections' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <AlertTriangle className="h-3.5 w-3.5" />
+          Collections
+        </button>
+        <button
+          onClick={() => setMode('lookup')}
+          className={cn(
+            'flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold rounded-lg transition-colors',
+            mode === 'lookup' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <Users className="h-3.5 w-3.5" />
+          Customer Lookup
+        </button>
+      </div>
+
+      {mode === 'lookup' ? (
+        <CustomerLookupView onOpenLoan={setSelectedLoanId} />
+      ) : (
+        <>
       {/* Personal Performance Stats */}
       <div className="bg-[#085041] dark:bg-[#063a2f] text-white rounded-2xl p-4 shadow-md flex flex-wrap items-center justify-between gap-4 border border-[#0F6E56]/30">
         <div className="flex items-center gap-2">
@@ -475,7 +507,228 @@ export default function CsaDashboard() {
         </>
       )}
 
+        </>
+      )}
+
       <LoanDrawer loanId={selectedLoanId} onClose={() => setSelectedLoanId(null)} />
+    </div>
+  );
+}
+
+// ── Loan status badge ─────────────────────────────────────────────────────────
+
+const STATUS_COLORS: Record<string, string> = {
+  ACTIVE:               'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  OVERDUE:              'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  PARTIAL_REPAID:       'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  DEFAULTED:            'bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-300',
+  REPAID:               'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  PENDING:              'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  DISBURSING:           'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  DISBURSING_INIT:      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  AWAITING_ENDORSEMENT: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  REJECTED:             'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500',
+};
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'Active', OVERDUE: 'Overdue', PARTIAL_REPAID: 'Partial',
+  DEFAULTED: 'Defaulted', REPAID: 'Repaid', PENDING: 'Pending',
+  DISBURSING: 'Disbursing', DISBURSING_INIT: 'Disbursing',
+  AWAITING_ENDORSEMENT: 'Awaiting', REJECTED: 'Rejected',
+};
+
+function LoanStatusBadge({ status }: { status: string }) {
+  return (
+    <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-full', STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-600')}>
+      {STATUS_LABELS[status] ?? status}
+    </span>
+  );
+}
+
+// ── Customer Lookup view ───────────────────────────────────────────────────────
+
+function CustomerLookupView({ onOpenLoan }: { onOpenLoan: (id: string) => void }) {
+  const [rawQuery, setRawQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [expandedMsisdn, setExpandedMsisdn] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(rawQuery.trim()), 400);
+    return () => clearTimeout(t);
+  }, [rawQuery]);
+
+  const { data: searchData, isLoading: searching } = useQuery({
+    queryKey: ['csa-customer-search', debouncedQuery],
+    queryFn: () =>
+      csaApi.get('/api/csa/collections/customers/search', { params: { q: debouncedQuery } }).then((r) => r.data),
+    enabled: debouncedQuery.length >= 2,
+  });
+
+  const { data: historyData, isLoading: historyLoading } = useQuery({
+    queryKey: ['csa-customer-history', expandedMsisdn],
+    queryFn: () =>
+      csaApi.get(`/api/csa/collections/customers/${encodeURIComponent(expandedMsisdn!)}/loans`).then((r) => r.data),
+    enabled: !!expandedMsisdn,
+  });
+
+  const customers: any[] = searchData?.data ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="relative">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by name or phone number..."
+          value={rawQuery}
+          onChange={(e) => setRawQuery(e.target.value)}
+          className="pl-10 h-10 rounded-xl"
+          autoFocus
+        />
+      </div>
+
+      {debouncedQuery.length < 2 && (
+        <div className="flex flex-col items-center py-20 text-center text-muted-foreground">
+          <Users className="h-10 w-10 opacity-20 mb-3" />
+          <p className="text-sm">Type a name or phone number to find a customer</p>
+        </div>
+      )}
+
+      {debouncedQuery.length >= 2 && searching && (
+        <div className="space-y-2">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+        </div>
+      )}
+
+      {debouncedQuery.length >= 2 && !searching && customers.length === 0 && (
+        <div className="flex flex-col items-center py-20 text-center">
+          <AlertTriangle className="h-10 w-10 text-muted-foreground opacity-30 mb-3" />
+          <p className="font-semibold">No customers found</p>
+          <p className="text-sm text-muted-foreground mt-1">Try a different name or phone number</p>
+        </div>
+      )}
+
+      {customers.length > 0 && (
+        <div className="space-y-2">
+          {customers.map((customer: any) => {
+            const isExpanded = expandedMsisdn === customer.msisdn;
+            return (
+              <div key={customer.msisdn} className="rounded-2xl border border-border/50 bg-card overflow-hidden">
+                <button
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors text-left"
+                  onClick={() => setExpandedMsisdn(isExpanded ? null : customer.msisdn)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-bold text-primary">
+                        {(customer.fullName || '?').charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">{customer.fullName || 'Unknown'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {customer.msisdn}{customer.region ? ` · ${customer.region}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">
+                        {customer.totalLoans} loan{customer.totalLoans !== 1 ? 's' : ''}
+                      </p>
+                      {customer.latestLoan && (
+                        <LoanStatusBadge status={customer.latestLoan.status} />
+                      )}
+                    </div>
+                    {isExpanded
+                      ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                      : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
+                  </div>
+                </button>
+
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.18 }}
+                      className="overflow-hidden border-t border-border/50"
+                    >
+                      {historyLoading ? (
+                        <div className="p-4 space-y-2">
+                          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
+                        </div>
+                      ) : (
+                        <div className="p-4 space-y-3">
+                          {(historyData?.customer?.alternatePhone || historyData?.customer?.kycStatus) && (
+                            <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground pb-1">
+                              {historyData.customer.alternatePhone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  Alt: {historyData.customer.alternatePhone}
+                                </span>
+                              )}
+                              {historyData.customer.kycStatus && (
+                                <span>
+                                  KYC:{' '}
+                                  <span className={cn(
+                                    'font-semibold',
+                                    historyData.customer.kycStatus === 'APPROVED' ? 'text-green-600' : 'text-amber-600',
+                                  )}>
+                                    {historyData.customer.kycStatus}
+                                  </span>
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {(historyData?.loans ?? []).length === 0 ? (
+                            <p className="text-sm text-muted-foreground py-2">No loan history</p>
+                          ) : (
+                            (historyData?.loans ?? []).map((loan: any) => (
+                              <div
+                                key={loan.loanId}
+                                className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3 gap-4"
+                              >
+                                <div className="space-y-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs font-bold text-muted-foreground">
+                                      Loan #{loan.loanNumber}
+                                    </span>
+                                    <LoanStatusBadge status={loan.status} />
+                                  </div>
+                                  <p className="text-sm font-semibold">{formatGHS(loan.principal)}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {loan.disbursedAt ? format(new Date(loan.disbursedAt), 'dd MMM yyyy') : '—'}
+                                    {loan.dueDate ? ` · Due ${format(new Date(loan.dueDate), 'dd MMM yyyy')}` : ''}
+                                    {loan.repaidAt ? ` · Repaid ${format(new Date(loan.repaidAt), 'dd MMM yyyy')}` : ''}
+                                  </p>
+                                </div>
+                                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                  <p className="text-xs text-muted-foreground whitespace-nowrap">
+                                    {formatGHS(loan.amountRepaid)} / {formatGHS(loan.totalPayable)}
+                                  </p>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 rounded-lg text-xs"
+                                    onClick={() => onOpenLoan(String(loan.loanId))}
+                                  >
+                                    Open
+                                  </Button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
