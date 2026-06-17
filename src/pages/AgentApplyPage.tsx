@@ -251,6 +251,11 @@ export default function AgentApplyPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "OTP verification failed.");
 
+      // Store JWT so uploadToStorage can authenticate pre-signed PUT URL requests
+      if (data?.token) {
+        globalThis.sessionStorage.setItem("agenda_token", data.token);
+      }
+
       // After successful verification, do a final check to ensure they shouldn't bypass onboarding check
       const checkRes = await fetch(`${baseApiUrl}/api/agents/public/check/${normalizedMsisdn}`);
       if (checkRes.ok) {
@@ -342,6 +347,7 @@ export default function AgentApplyPage() {
         throw new Error(data.message || "Failed to submit application");
       }
 
+      globalThis.sessionStorage.removeItem("agenda_token");
       toast.success("Application submitted successfully!");
       setView("success");
     } catch (error: any) {
