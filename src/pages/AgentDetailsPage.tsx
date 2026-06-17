@@ -160,9 +160,11 @@ export default function AgentDetailsPage() {
             <div className="flex flex-col lg:flex-row justify-between gap-6">
               <div className="flex items-start gap-4 sm:gap-5 min-w-0">
                   {agent.selfieUrl ? (
-                    <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full overflow-hidden border-2 sm:border-4 border-background shadow-sm shrink-0">
-                      <img src={agent.selfieUrl} alt={agent.name} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    </div>
+                    <SecureKycImage
+                      imageUrl={agent.selfieUrl}
+                      label="Agent Selfie"
+                      className="h-16 w-16 sm:h-20 sm:w-20 rounded-full border-2 sm:border-4 border-background shadow-sm shrink-0"
+                    />
                  ) : (
                     <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-primary/10 flex items-center justify-center text-primary text-2xl sm:text-3xl font-bold shrink-0">
                       {agent.name.charAt(0)}
@@ -395,27 +397,19 @@ export default function AgentDetailsPage() {
                            <p className="text-sm font-medium text-muted-foreground">Ghana Card (Front)</p>
                            <p className="text-xs font-mono font-bold bg-muted px-2 py-0.5 rounded-md">{agent.ghanaCardNumber}</p>
                         </div>
-                         {agent.ghanaCardFrontUrl ? (
-                           <a href={agent.ghanaCardFrontUrl} target="_blank" rel="noreferrer" className="block w-full aspect-[1.6/1] rounded-xl overflow-hidden border-2 border-muted hover:border-primary transition-colors">
-                              <img src={agent.ghanaCardFrontUrl} alt="Ghana Card Front" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                           </a>
-                        ) : (
-                           <div className="w-full aspect-[1.6/1] rounded-xl border-2 border-dashed border-muted flex items-center justify-center bg-muted/20">
-                              <p className="text-sm text-muted-foreground">Not uploaded</p>
-                           </div>
-                        )}
+                        <SecureKycImage
+                          imageUrl={agent.ghanaCardFrontUrl}
+                          label="Ghana Card (Front)"
+                          className="w-full aspect-[1.6/1]"
+                        />
                      </div>
                      <div className="space-y-3">
                         <p className="text-sm font-medium text-muted-foreground">Ghana Card (Back)</p>
-                         {agent.ghanaCardBackUrl ? (
-                           <a href={agent.ghanaCardBackUrl} target="_blank" rel="noreferrer" className="block w-full aspect-[1.6/1] rounded-xl overflow-hidden border-2 border-muted hover:border-primary transition-colors">
-                              <img src={agent.ghanaCardBackUrl} alt="Ghana Card Back" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                           </a>
-                        ) : (
-                           <div className="w-full aspect-[1.6/1] rounded-xl border-2 border-dashed border-muted flex items-center justify-center bg-muted/20">
-                              <p className="text-sm text-muted-foreground">Not uploaded</p>
-                           </div>
-                        )}
+                        <SecureKycImage
+                          imageUrl={agent.ghanaCardBackUrl}
+                          label="Ghana Card (Back)"
+                          className="w-full aspect-[1.6/1]"
+                        />
                      </div>
                   </div>
                </CardContent>
