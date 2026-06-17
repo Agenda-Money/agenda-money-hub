@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone, CheckCircle2, XCircle, Database, RefreshCw, BarChart2, Loader2 } from "lucide-react";
+import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone, CheckCircle2, XCircle, Database, RefreshCw, BarChart2, Loader2, AlertTriangle } from "lucide-react";
 import { AuthorizeAgentModal } from "@/components/agents/AuthorizeAgentModal";
 import { InviteCsaModal } from "@/components/csa/InviteCsaModal";
 import { InviteReportingModal } from "@/components/reporting/InviteReportingModal";
@@ -596,6 +596,30 @@ function SystemJobsPanel({ canWrite }: { canWrite: boolean }) {
   const [cleanupResult, setCleanupResult] = useState<Record<string, number> | null>(null);
   const [overdueLoading, setOverdueLoading] = useState(false);
   const [scoreLoading, setScoreLoading] = useState(false);
+  const [retryLoading, setRetryLoading] = useState(false);
+
+  const { data: failedJobs, refetch: refetchFailed } = useQuery({
+    queryKey: ["system", "failed-jobs"],
+    queryFn: () => api.get("/api/admin/system/jobs/failed").then((r) => r.data),
+    refetchInterval: 15_000,
+  });
+
+  const totalFailed = (failedJobs?.shortQueue ?? 0) + (failedJobs?.longQueue ?? 0);
+
+  const retryFailedJobs = async (queue: "short" | "long" | "all") => {
+    setRetryLoading(true);
+    try {
+      const res = await api.post("/api/admin/system/jobs/retry-failed", { queue });
+      const results = res.data.results as Record<string, { retried: number }>;
+      const total = Object.values(results).reduce((s, r) => s + r.retried, 0);
+      toast.success(`${total} failed job${total !== 1 ? "s" : ""} re-queued.`);
+      refetchFailed();
+    } catch {
+      toast.error("Failed to retry jobs. Check server logs.");
+    } finally {
+      setRetryLoading(false);
+    }
+  };
 
   const runCleanup = async () => {
     setCleanupLoading(true);
@@ -741,6 +765,75 @@ function SystemJobsPanel({ canWrite }: { canWrite: boolean }) {
                 <><BarChart2 className="h-4 w-4 mr-2" />Run Now</>
               )}
             </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className={totalFailed > 0 ? "border-red-500/40" : ""}>
+        <CardHeader>
+          <div className="flex items-start gap-3">
+            <div className={`p-2 rounded-lg mt-0.5 ${totalFailed > 0 ? "bg-red-500/10 text-red-500" : "bg-muted text-muted-foreground"}`}>
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <CardTitle>Failed Jobs</CardTitle>
+                {failedJobs && (
+                  <span className={`text-xs font-mono px-2 py-0.5 rounded-full font-semibold ${
+                    totalFailed > 0
+                      ? "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+                      : "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
+                  }`}>
+                    {totalFailed === 0 ? "All clear" : `${totalFailed} failed`}
+                  </span>
+                )}
+              </div>
+              <CardDescription>
+                SMS, overdue checks, and other background jobs that have exhausted
+                retries. Fix the underlying issue first, then retry.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {failedJobs && (
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="rounded-lg border bg-muted/40 p-3 flex items-center justify-between">
+                <span className="text-muted-foreground">Short queue (SMS)</span>
+                <span className="font-mono font-bold">{failedJobs.shortQueue}</span>
+              </div>
+              <div className="rounded-lg border bg-muted/40 p-3 flex items-center justify-between">
+                <span className="text-muted-foreground">Long queue (batch jobs)</span>
+                <span className="font-mono font-bold">{failedJobs.longQueue}</span>
+              </div>
+            </div>
+          )}
+          {canWrite && (
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                onClick={() => retryFailedJobs("short")}
+                disabled={retryLoading || (failedJobs?.shortQueue ?? 0) === 0}
+                variant="outline"
+                className="border-red-500/40 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+              >
+                {retryLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Retrying...</>
+                ) : (
+                  <><RefreshCw className="h-4 w-4 mr-2" />Retry SMS Jobs</>
+                )}
+              </Button>
+              <Button
+                onClick={() => retryFailedJobs("all")}
+                disabled={retryLoading || totalFailed === 0}
+                variant="outline"
+              >
+                {retryLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Retrying...</>
+                ) : (
+                  <><RefreshCw className="h-4 w-4 mr-2" />Retry All</>
+                )}
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
