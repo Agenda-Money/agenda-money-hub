@@ -4,9 +4,9 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-      day: "sunday"
-      time: "04:00"
-      timezone: "Africa/Accra"
+      # day: "sunday"
+      # time: "04:00"
+      # timezone: "Africa/Accra"
 
     open-pull-requests-limit: 10
 
