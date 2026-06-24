@@ -8,18 +8,18 @@ updates:
       # time: "04:00"
       # timezone: "Africa/Accra"
 
-    open-pull-requests-limit: 10
+    # open-pull-requests-limit: 10
 
     assignees:
       - "theniitettey"
 
-    groups:
-      production-deps:
-        dependency-type: "production"
-      dev-deps:
-        dependency-type: "development"
+    # groups:
+    #   production-deps:
+    #     dependency-type: "production"
+    #   dev-deps:
+    #     dependency-type: "development"
 
-    commit-message:
-      prefix: "chore"
-      prefix-development: "chore(dev)"
-      include: scope
+    # commit-message:
+    #   prefix: "chore"
+    #   prefix-development: "chore(dev)"
+    #   include: scope
