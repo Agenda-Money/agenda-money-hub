@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ArrowLeft, Briefcase, Stethoscope, GraduationCap, Home, MoreHorizontal, Info, Pencil, Plane, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -55,10 +55,19 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
   errorMessage,
   onErrorDismiss
 }) => {
-  const [amount, setAmount] = useState<number>(initialAmount || tierMin);
-  const [tenure, setTenure] = useState<number>(initialTenure || (tenureOptions.includes(14) ? 14 : tenureOptions[tenureOptions.length - 1]));
-  const [purpose, setPurpose] = useState<string>(initialPurpose || "Business");
+  const roundedMax = Math.floor(tierMax / 50) * 50;
+
+  const [amount, setAmount] = useState<number>(initialAmount || roundedMax);
+  const [tenure, setTenure] = useState<number>(initialTenure || 0);
+  const [purpose, setPurpose] = useState<string>(initialPurpose || "");
   const [nodeCode, setNodeCode] = useState<string>(initialNodeCode || "");
+
+  const amountPresets = useMemo(() => {
+    const raw = Array.from({ length: 5 }, (_, i) => roundedMax - i * 50).filter(
+      (v) => v >= tierMin,
+    );
+    return Array.from(new Set(raw)).sort((a, b) => a - b);
+  }, [tierMin, roundedMax]);
 
 
   return (
@@ -141,6 +150,27 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                         <Pencil className="w-3 h-3 text-[#EC1B84]" />
                      </div>
                   </div>
+              </div>
+
+              {/* Quick Amount Presets */}
+              <div className="flex justify-between gap-2">
+                {amountPresets.map((preset) => {
+                  const isActive = amount === preset;
+                  return (
+                    <button
+                      key={preset}
+                      onClick={() => setAmount(preset)}
+                      className={cn(
+                        "flex-1 py-2.5 px-1 rounded-full text-xs font-bold border transition-all duration-200",
+                        isActive
+                          ? "bg-pink-50 border-[#EC1B84] text-[#EC1B84] shadow-sm ring-1 ring-[#EC1B84]/30"
+                          : "bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50"
+                      )}
+                    >
+                      GHS{preset}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Slider */}
