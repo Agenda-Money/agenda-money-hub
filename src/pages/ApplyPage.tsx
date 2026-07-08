@@ -50,6 +50,7 @@ import { UserRewardsTab } from "./UserRewardsTab";
 import { UserNetworkTab } from "./UserNetworkTab";
 import { parseDecisionError, DecisionError } from "@/lib/api";
 import { EligibilityBlockScreen } from "@/components/eligibility/EligibilityBlockScreen";
+import { EligibilityCheckTransition } from "@/components/eligibility/EligibilityCheckTransition";
 import { UserEndorsementsTab } from "./UserEndorsementsTab";
 import { RepaymentPage } from "./RepaymentPage";
 import { LoanStatusCard } from "@/components/dashboard/LoanStatusCard";
@@ -150,15 +151,6 @@ interface OnboardingData {
   livenessSession: LivenessResult | null;
   hasAcceptedTerms: boolean;
 }
-
-const buildAmountOptions = (tier?: TierConfig) => {
-  if (!tier) return [];
-  if (tier.amounts?.length) return tier.amounts;
-  if (!tier.minAmount || !tier.maxAmount) return [];
-  const step = tier.minAmount;
-  const count = Math.floor((tier.maxAmount - tier.minAmount) / step) + 1;
-  return Array.from({ length: count }, (_, i) => tier.minAmount + i * step);
-};
 
 const buildTenureOptions = (tier?: TierConfig) => {
   if (!tier) return [];
@@ -442,6 +434,8 @@ export default function ApplyPage() {
 
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [onboardingDirection, setOnboardingDirection] = useState(0);
+  const [showEligibilityTransition, setShowEligibilityTransition] =
+    useState(false);
   const [activeTab, setActiveTab] = useState("home"); // home, loans, profile
   const [isRepaymentOpen, setIsRepaymentOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -501,9 +495,9 @@ export default function ApplyPage() {
     purpose: string;
   } | null>(null);
 
-  const [loanAmount, setLoanAmount] = useState(100);
-  const [loanTenure, setLoanTenure] = useState(14);
-  const [loanPurpose, setLoanPurpose] = useState("Business");
+  const [loanAmount, setLoanAmount] = useState(0);
+  const [loanTenure, setLoanTenure] = useState(0);
+  const [loanPurpose, setLoanPurpose] = useState("");
   const [isSubmittingOnboarding, setIsSubmittingOnboarding] = useState(false);
 
   // Identity Verification Sub-step State
@@ -548,10 +542,6 @@ export default function ApplyPage() {
   const tierMin = activeTier?.minAmount ?? TIERS[0].minAmount;
   const tierMax = activeTier?.maxAmount ?? 300;
   const tierMaxTenure = activeTier?.maxTenure ?? 14;
-  const amountOptions = useMemo(() => {
-    const options = buildAmountOptions(activeTier);
-    return options.length ? options : [loanAmount];
-  }, [activeTier, loanAmount]);
   const tenureOptions = useMemo(() => {
     const options = buildTenureOptions(activeTier);
     return options.length ? options : [loanTenure];
@@ -1318,6 +1308,16 @@ export default function ApplyPage() {
     setErrorMessage(null);
     setOnboardingDirection(-1);
     setOnboardingStep((p) => p - 1);
+  };
+
+  const handleIdentityUploadContinue = () => {
+    const err = validateOnboardingStep(3);
+    if (err) {
+      setErrorMessage(err);
+      return;
+    }
+    setErrorMessage(null);
+    setShowEligibilityTransition(true);
   };
 
   const handleOnboardingSubmit = async () => {
@@ -2887,6 +2887,19 @@ export default function ApplyPage() {
     );
   }
 
+  // Post-KYC transition: brief "reviewing application" beat before Step 4
+  if (onboardingStep === 3 && showEligibilityTransition) {
+    return (
+      <EligibilityCheckTransition
+        onComplete={() => {
+          setShowEligibilityTransition(false);
+          setOnboardingDirection(1);
+          setOnboardingStep(4);
+        }}
+      />
+    );
+  }
+
   // Step 4: Loan Application (Full Screen)
   if (onboardingStep === 4) {
     return <LoanApplicationPage
@@ -2901,7 +2914,9 @@ export default function ApplyPage() {
                 onContinue={(data) => {
                   setLoanApplicationData(data);
                   if (data.nodeCode) setNodeCode(data.nodeCode);
-                  handleOnboardingNext();
+                  setErrorMessage(null);
+                  setOnboardingDirection(1);
+                  setOnboardingStep(5);
                 }}
                 initialAmount={loanAmount}
                 initialTenure={loanTenure}
@@ -3861,7 +3876,7 @@ export default function ApplyPage() {
                       </div>
 
                       <Button
-                        onClick={handleOnboardingNext}
+                        onClick={handleIdentityUploadContinue}
                         className="w-full h-12 rounded-full font-bold bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200 mt-6"
                       >
                         Continue
