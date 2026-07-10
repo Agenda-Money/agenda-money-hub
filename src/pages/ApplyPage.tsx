@@ -1708,7 +1708,7 @@ export default function ApplyPage() {
                 </span>
               </div>
               <div className="flex items-center gap-3 bg-gray-50 p-2.5 pr-6 rounded-xl border border-gray-100/50 shadow-sm">
-                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 shrink-0">
+                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
                 <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
@@ -1720,7 +1720,7 @@ export default function ApplyPage() {
                   <Smartphone className="w-4 h-4" />
                 </div>
                 <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
-                  100% digital
+                  Fast & secure
                 </span>
               </div>
             </div>

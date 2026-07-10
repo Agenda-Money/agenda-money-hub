@@ -57,7 +57,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
 }) => {
   const roundedMax = Math.floor(tierMax / 50) * 50;
 
-  const [amount, setAmount] = useState<number>(initialAmount || roundedMax);
+  const [amount, setAmount] = useState<number>(initialAmount || 0);
   const [tenure, setTenure] = useState<number>(initialTenure || 0);
   const [purpose, setPurpose] = useState<string>(initialPurpose || "");
   const [nodeCode, setNodeCode] = useState<string>(initialNodeCode || "");
@@ -164,7 +164,7 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                         "flex-1 py-2.5 px-1 rounded-full text-xs font-bold border transition-all duration-200",
                         isActive
                           ? "bg-pink-50 border-[#EC1B84] text-[#EC1B84] shadow-sm ring-1 ring-[#EC1B84]/30"
-                          : "bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50"
+                          : "bg-white border-gray-300 text-gray-400 hover:border-gray-400 hover:bg-gray-50"
                       )}
                     >
                       GHS{preset}
@@ -209,8 +209,8 @@ export const LoanApplicationPage: React.FC<LoanApplicationPageProps> = ({
                    className={cn(
                      "flex-1 py-3 px-1 rounded-full text-sm font-medium border transition-all duration-200",
                      isActive
-                       ? "bg-pink-50 border-[#EC1B84] text-[#EC1B84] font-bold shadow-sm ring-1 ring-[#EC1B84]/30" 
-                       : "bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50"
+                       ? "bg-pink-50 border-[#EC1B84] text-[#EC1B84] font-bold shadow-sm ring-1 ring-[#EC1B84]/30"
+                       : "bg-white border-gray-300 text-gray-400 hover:border-gray-400 hover:bg-gray-50"
                    )}
                  >
                    {days} {days === 1 ? "day" : "days"}
