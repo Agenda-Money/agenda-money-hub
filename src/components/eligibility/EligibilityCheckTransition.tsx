@@ -12,8 +12,8 @@ const CHECKS = [
   "Calculating your eligible amount",
 ];
 
-const STEP_DURATION_MS = 900;
-const FINAL_DELAY_MS = 500;
+const STEP_DURATION_MS = 1800;
+const FINAL_DELAY_MS = 600;
 
 export const EligibilityCheckTransition: React.FC<
   EligibilityCheckTransitionProps
