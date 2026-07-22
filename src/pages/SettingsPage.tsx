@@ -12,6 +12,14 @@ import {
 import {
   getDirectDebitConfig, updateDirectDebitConfig,
 } from "@/api/direct-debit.api";
+import {
+  getOrchardConfig, updateOrchardConfig,
+  getDisbursementProvider, setDisbursementProvider,
+  type DisbursementProviderName,
+} from "@/api/orchard.api";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -324,6 +332,36 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
     }
   }, [uw]);
 
+  // ── Disbursement Provider Switch ─────────────────────────────────────────
+  const { data: activeProvider, isLoading: providerLoading } = useQuery({
+    queryKey: ["disbursement-provider"],
+    queryFn: getDisbursementProvider,
+  });
+
+  const providerMut = useMutation({
+    mutationFn: setDisbursementProvider,
+    onSuccess: (provider) => {
+      toast.success(`Disbursement provider switched to ${provider === "ORCHARD" ? "Orchard" : "Paystack"}`);
+      qc.invalidateQueries({ queryKey: ["disbursement-provider"] });
+    },
+    onError: () => toast.error("Failed to switch disbursement provider"),
+  });
+
+  // ── Orchard ──────────────────────────────────────────────────────────────
+  const { data: orchardData, isLoading: orchardLoading } = useQuery({
+    queryKey: ["orchard-config"],
+    queryFn: getOrchardConfig,
+  });
+
+  const orchardMut = useMutation({
+    mutationFn: updateOrchardConfig,
+    onSuccess: () => { toast.success("Orchard settings saved"); qc.invalidateQueries({ queryKey: ["orchard-config"] }); },
+    onError: () => toast.error("Failed to save Orchard settings"),
+  });
+
+  const orchard = orchardData?.data;
+  const orchardEnv = orchardData?.env;
+
   // ── Direct Debit ─────────────────────────────────────────────────────────
   const { data: ddConfig, isLoading: ddLoading } = useQuery({
     queryKey: ["dd-config"],
@@ -353,10 +391,46 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
   }, [ddConfig]);
 
   return (
-    <Tabs defaultValue="uniwallet">
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Disbursement Provider</CardTitle>
+          <CardDescription>Which PSP actually sends the money when a loan is approved</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {providerLoading ? (
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          ) : (
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-medium text-sm">Active provider</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Switching takes effect on the next loan approval — in-flight disbursements aren't affected.
+                </p>
+              </div>
+              <Select
+                value={activeProvider ?? "PAYSTACK"}
+                onValueChange={(v) => providerMut.mutate(v as DisbursementProviderName)}
+                disabled={!canWrite || providerMut.isPending}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PAYSTACK">Paystack</SelectItem>
+                  <SelectItem value="ORCHARD">Orchard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="uniwallet">
       <TabsList className="bg-muted p-1 mb-4">
         <TabsTrigger value="uniwallet" className="data-[state=active]:bg-card">UniWallet (STK Push)</TabsTrigger>
         <TabsTrigger value="directdebit" className="data-[state=active]:bg-card">Direct Debit</TabsTrigger>
+        <TabsTrigger value="orchard" className="data-[state=active]:bg-card">Orchard</TabsTrigger>
       </TabsList>
 
       {/* ── UniWallet Tab ── */}
@@ -587,7 +661,95 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
           </CardContent>
         </Card>
       </TabsContent>
+
+      {/* ── Orchard Tab ── */}
+      <TabsContent value="orchard" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Orchard Products</CardTitle>
+            <CardDescription>Enable each product only once it's sandbox-verified — all default off</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {orchardLoading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : (
+              <>
+                <ToggleRow
+                  label="Disbursement Enabled"
+                  description="Allow loan disbursements via Orchard (MTC)"
+                  checked={orchard?.disbursementEnabled ?? false}
+                  onCheckedChange={v => orchardMut.mutate({ disbursementEnabled: v })}
+                  disabled={!canWrite || orchardMut.isPending}
+                />
+                <ToggleRow
+                  label="Auto-Debit Enabled"
+                  description="Allow recurring repayment collection via Orchard's auto-debit mandates"
+                  checked={orchard?.autoDebitEnabled ?? false}
+                  onCheckedChange={v => orchardMut.mutate({ autoDebitEnabled: v })}
+                  disabled={!canWrite || orchardMut.isPending}
+                />
+                <ToggleRow
+                  label="Airtime Top-Up Enabled"
+                  description="Tier 2 product — not yet built"
+                  checked={orchard?.airtimeEnabled ?? false}
+                  onCheckedChange={v => orchardMut.mutate({ airtimeEnabled: v })}
+                  disabled={!canWrite || orchardMut.isPending}
+                />
+                <ToggleRow
+                  label="Bill Pay Enabled"
+                  description="Tier 2 product — not yet built"
+                  checked={orchard?.billPayEnabled ?? false}
+                  onCheckedChange={v => orchardMut.mutate({ billPayEnabled: v })}
+                  disabled={!canWrite || orchardMut.isPending}
+                />
+                <ToggleRow
+                  label="Remittance Enabled"
+                  description="Tier 2 product — not yet built"
+                  checked={orchard?.remittanceEnabled ?? false}
+                  onCheckedChange={v => orchardMut.mutate({ remittanceEnabled: v })}
+                  disabled={!canWrite || orchardMut.isPending}
+                />
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {orchardEnv && (
+          <Card className="border-dashed">
+            <CardHeader>
+              <CardTitle className="text-sm">Environment (read-only)</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Base URL</span>
+                <span className="font-mono text-xs">{orchardEnv.baseUrl || "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Environment</span>
+                <Badge variant="outline">{orchardEnv.nodeEnv}</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Client ID</span>
+                <CredentialDot ok={orchardEnv.clientIdConfigured} />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Client Secret</span>
+                <CredentialDot ok={orchardEnv.clientSecretConfigured} />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Service ID</span>
+                <CredentialDot ok={orchardEnv.serviceIdConfigured} />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Webhook Secret (ours)</span>
+                <CredentialDot ok={orchardEnv.webhookSecretConfigured} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </TabsContent>
     </Tabs>
+    </div>
   );
 }
 

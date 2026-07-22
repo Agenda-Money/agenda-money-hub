@@ -10,13 +10,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { 
-  getAdminUserProfile, 
-  approveLoan, 
-  rejectLoan, 
+import {
+  getAdminUserProfile,
+  approveLoan,
+  rejectLoan,
   syncLoanTransfer,
   resolveMomoName
 } from "@/lib/api";
+import { getOrchardTransactionStatus } from "@/api/orchard.api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -75,6 +76,7 @@ type LoanReviewData = {
   guarantorApprovedAt?: string;
   createdAt?: string;
   loanDetails?: any;
+  disbursementProvider?: "PAYSTACK" | "ORCHARD";
 };
 
 interface LoanReviewModalProps {
@@ -147,6 +149,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
   const isDisbursing = status === "DISBURSING" || status === "DISBURSING_INIT";
   const isDisbursingReview = status === "DISBURSEMENT_REVIEW";
   const isAwaitingEndorsement = status === "AWAITING_ENDORSEMENT";
+  const disbursementProvider = actualLoan?.disbursementProvider || loan?.disbursementProvider || "PAYSTACK";
+  const providerLabel = disbursementProvider === "ORCHARD" ? "Orchard" : "Paystack";
 
   useEffect(() => {
     if (isOpen && loanId && isPending) {
@@ -222,6 +226,15 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
     },
   });
 
+  const invalidateAfterSync = () => {
+    queryClient.invalidateQueries({ queryKey: ["loans"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-loans"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-analytics"] });
+    queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    queryClient.invalidateQueries({ queryKey: ["loans-count"] });
+  };
+
   const syncMutation = useMutation({
     mutationFn: (id: string) => syncLoanTransfer(id),
     onSuccess: (data) => {
@@ -231,12 +244,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
       if (responseCode === "01") {
         onOpenChange(false);
         toast.success("Disbursement Successful! Loan is now Active.", { duration: 1000 });
-        queryClient.invalidateQueries({ queryKey: ["loans"] });
-        queryClient.invalidateQueries({ queryKey: ["admin-loans"] });
-        queryClient.invalidateQueries({ queryKey: ["admin-analytics"] });
-        queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
-        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-        queryClient.invalidateQueries({ queryKey: ["loans-count"] });
+        invalidateAfterSync();
         if (loanId) onActionSuccess?.('sync', loanId);
         return;
       }
@@ -249,15 +257,35 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
         toast.info(responseMessage || "Status updated. Please refresh.");
       }
 
-      queryClient.invalidateQueries({ queryKey: ["loans"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-loans"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-analytics"] });
-      queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["loans-count"] });
+      invalidateAfterSync();
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to check transaction status");
+    },
+  });
+
+  // Orchard exposes no one-off status-check API — this re-reads our own
+  // transaction log (kept current by the callback) instead of calling the
+  // PSP directly, unlike the Paystack sync-transfer flow above.
+  const orchardSyncMutation = useMutation({
+    mutationFn: (id: string) => getOrchardTransactionStatus(id),
+    onSuccess: (log) => {
+      if (log.status === "completed") {
+        onOpenChange(false);
+        toast.success("Disbursement confirmed via Orchard! Loan is now Active.", { duration: 1000 });
+        invalidateAfterSync();
+        if (loanId) onActionSuccess?.('sync', loanId);
+        return;
+      }
+      if (log.status === "failed" || log.status === "reversed") {
+        toast.warning("Orchard reported this disbursement failed. Loan reverted to Pending — do not re-approve without checking the Orchard portal.");
+      } else {
+        toast.info("Orchard hasn't confirmed this transaction yet. Try again shortly.");
+      }
+      invalidateAfterSync();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to check Orchard transaction status");
     },
   });
 
@@ -275,8 +303,14 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
 
   const handleSync = () => {
     if (!loanId) return;
-    syncMutation.mutate(loanId);
+    if (disbursementProvider === "ORCHARD") {
+      orchardSyncMutation.mutate(loanId);
+    } else {
+      syncMutation.mutate(loanId);
+    }
   };
+
+  const isSyncing = syncMutation.isPending || orchardSyncMutation.isPending;
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -534,7 +568,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                 <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-red-500" />
                 <div>
                   <p className="font-semibold">Manual Review Required</p>
-                  <p className="mt-1 text-red-600">The previous disbursement attempt timed out. Check the Paystack dashboard to confirm whether a transfer was created before taking any action. Do not re-approve until confirmed.</p>
+                  <p className="mt-1 text-red-600">The previous disbursement attempt timed out. Check the {providerLabel} {disbursementProvider === "ORCHARD" ? "portal" : "dashboard"} to confirm whether a transfer was created before taking any action. Do not re-approve until confirmed.</p>
                 </div>
               </div>
             </div>
@@ -552,9 +586,9 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                   <Button
                     className="w-full bg-[#3b82f6] hover:bg-[#2563eb] transition-colors"
                     onClick={handleSync}
-                    disabled={syncMutation.isPending}
+                    disabled={isSyncing}
                   >
-                    {syncMutation.isPending ? (
+                    {isSyncing ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Syncing Status...
@@ -562,7 +596,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                     ) : (
                       <>
                         <RefreshCcw className="mr-2 h-4 w-4" />
-                        Sync Transaction Status
+                        Sync Transaction Status ({providerLabel})
                       </>
                     )}
                   </Button>
