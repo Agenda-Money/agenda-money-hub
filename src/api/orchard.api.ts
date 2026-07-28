@@ -123,3 +123,41 @@ export async function setDisbursementProvider(activeProvider: DisbursementProvid
   const res = await api.put('/api/admin/settings/disbursement-provider', { activeProvider });
   return res.data.activeProvider;
 }
+
+// ── Collection provider switch (governs the customer USSD "Pay Now" flow) ──
+export type CollectionProviderName = 'PAYSTACK' | 'ORCHARD';
+
+export async function getCollectionProvider(): Promise<CollectionProviderName> {
+  const res = await api.get('/api/admin/settings/collection-provider');
+  return res.data.activeProvider;
+}
+
+export async function setCollectionProvider(activeProvider: CollectionProviderName): Promise<CollectionProviderName> {
+  const res = await api.put('/api/admin/settings/collection-provider', { activeProvider });
+  return res.data.activeProvider;
+}
+
+// ── Manual collection triggers ──────────────────────────────────────────
+export interface TriggerCollectionResult {
+  success: boolean;
+  reference: string;
+  message: string;
+  response?: Record<string, unknown>;
+}
+
+/** Generic — targets whichever provider is passed (defaults server-side to
+ * the active collection provider if omitted). */
+export async function triggerCollection(params: {
+  loanReference: string;
+  amount?: number;
+  provider?: CollectionProviderName;
+}): Promise<TriggerCollectionResult> {
+  const res = await api.post('/api/admin/repayments/trigger-collection', params);
+  return res.data.data;
+}
+
+/** Orchard-specific — lives in the Orchard settings tab, always Orchard. */
+export async function triggerOrchardCollection(loanReference: string, amount?: number): Promise<TriggerCollectionResult> {
+  const res = await api.post(`${BASE}/collect/${encodeURIComponent(loanReference)}`, amount !== undefined ? { amount } : {});
+  return res.data.data;
+}
