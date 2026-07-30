@@ -67,6 +67,8 @@ import { ReportingLayout } from "./components/layout/ReportingLayout";
 import ReportingDashboard from "./pages/reporting/ReportingDashboard";
 import ReportingLoginPage from "./pages/reporting/ReportingLoginPage";
 import ReportingInviteAccept from "./pages/reporting/ReportingInviteAccept";
+import ReportingForgotPasswordPage from "./pages/reporting/ReportingForgotPasswordPage";
+import ReportingResetPasswordPage from "./pages/reporting/ReportingResetPasswordPage";
 
 const ReportingDomainRedirect = () => {
   useEffect(() => {
@@ -192,6 +194,8 @@ const App = () => {
                     <>
                       <Route path="/reporting/login" element={<ReportingLoginPage />} />
                       <Route path="/reporting/invite" element={<ReportingInviteAccept />} />
+                      <Route path="/reporting/forgot-password" element={<ReportingForgotPasswordPage />} />
+                      <Route path="/reporting/reset-password" element={<ReportingResetPasswordPage />} />
                       <Route element={<ReportingGuard />}>
                         <Route element={<ReportingLayout><Outlet /></ReportingLayout>}>
                           <Route path="/reporting/dashboard" element={<ReportingDashboard />} />

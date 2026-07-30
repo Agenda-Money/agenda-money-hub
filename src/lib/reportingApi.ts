@@ -29,6 +29,12 @@ export const reportingLogin = (email: string, password: string) =>
 export const reportingAcceptInvite = (token: string, password: string, displayName: string) =>
   client.post('/auth/accept', { token, password, displayName }).then(r => r.data);
 
+export const reportingForgotPassword = (email: string) =>
+  client.post('/auth/forgot-password', { email }).then(r => r.data);
+
+export const reportingResetPassword = (token: string, password: string) =>
+  client.post('/auth/reset-password', { token, password }).then(r => r.data);
+
 export const fetchReportingDashboard = () =>
   client.get('/dashboard').then(r => r.data);
 
