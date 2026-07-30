@@ -136,6 +136,7 @@ export default function ReportingDashboard() {
         <StatsCard
           title="Default Rate"
           value={`${(defaultRate || 0).toFixed(1)}%`}
+          description="% of active customers (last 12mo) 120+ days overdue"
           icon={AlertTriangle}
           className="border-destructive/20"
           isLive
