@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { TIERS } from "@/lib/constants";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { ArrowLeft, ChevronRight, CheckSquare, Square, Send, Loader2, AlertCircle, CalendarClock } from "lucide-react";
+import { ArrowLeft, ChevronRight, CheckSquare, Square, Send, Loader2, AlertCircle, CalendarClock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, getApplicantName } from "@/lib/utils";
 import { getNetwork, getNetworkStyles } from "@/lib/momo";
@@ -15,7 +15,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { EligibilityBlockScreen } from "@/components/eligibility/EligibilityBlockScreen";
+
+const MANDATE_OTP_LENGTH = 5;
+
+interface LoanSubmitResult {
+  loanReference?: string;
+  status?: string;
+}
 
 interface LoanSummaryPageProps {
   loanData: {
@@ -26,16 +34,87 @@ interface LoanSummaryPageProps {
   applicant: any; // User data
   onBack: () => void;
   onHome: () => void; // New prop for navigating home
-  onSubmit?: () => Promise<void>; // Optional external submit handler
+  onSubmit?: () => Promise<LoanSubmitResult | void>; // Optional external submit handler (agent mode)
+  onMandateConfirmed?: () => void; // Agent mode: called once the auto-repay code is confirmed, so the caller can show its own completion screen
 }
 
-export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, applicant, onBack, onHome, onSubmit }) => {
+export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, applicant, onBack, onHome, onSubmit, onMandateConfirmed }) => {
   const [agreed, setAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [loanStatus, setLoanStatus] = useState<string>("PENDING");
+  const [loanReference, setLoanReference] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [decisionError, setDecisionError] = useState<DecisionError | null>(null);
+
+  // Auto-repay ("mandate") OTP confirmation state
+  const isAgentMode = !!onSubmit;
+  const [mandateConfirmed, setMandateConfirmed] = useState(false);
+  const [mandateOtp, setMandateOtp] = useState("");
+  const [isMandateSubmitting, setIsMandateSubmitting] = useState(false);
+  const [isMandateResending, setIsMandateResending] = useState(false);
+  const [mandateError, setMandateError] = useState<string | null>(null);
+  const [mandateResendSeconds, setMandateResendSeconds] = useState(60);
+
+  useEffect(() => {
+    if (mandateResendSeconds <= 0) return;
+    const timer = setTimeout(() => setMandateResendSeconds((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [mandateResendSeconds]);
+
+  const handleConfirmMandateOtp = async (otpValue?: string) => {
+    const code = otpValue ?? mandateOtp;
+    if (code.length !== MANDATE_OTP_LENGTH || isMandateSubmitting || !loanReference) return;
+    setIsMandateSubmitting(true);
+    setMandateError(null);
+    try {
+      if (isAgentMode) {
+        await api.post(`/api/agents/onboard/${loanReference}/mandate/confirm-otp`, {
+          msisdn: applicant?.msisdn,
+          otp: code,
+        });
+        onMandateConfirmed?.();
+      } else {
+        const applicantAuthToken = localStorage.getItem("agenda_token");
+        await api.post(
+          `/api/loans/${loanReference}/mandate/confirm-otp`,
+          { otp: code },
+          applicantAuthToken ? { headers: { Authorization: `Bearer ${applicantAuthToken}` } } : undefined
+        );
+        setMandateConfirmed(true);
+      }
+    } catch (err: any) {
+      setMandateOtp("");
+      setMandateError(err.response?.data?.message || "That code didn't work. Please try again.");
+    } finally {
+      setIsMandateSubmitting(false);
+    }
+  };
+
+  const handleResendMandateOtp = async () => {
+    if (mandateResendSeconds > 0 || isMandateResending || !loanReference) return;
+    setIsMandateResending(true);
+    setMandateError(null);
+    try {
+      if (isAgentMode) {
+        await api.post(`/api/agents/onboard/${loanReference}/mandate/resend-otp`, {
+          msisdn: applicant?.msisdn,
+        });
+      } else {
+        const applicantAuthToken = localStorage.getItem("agenda_token");
+        await api.post(
+          `/api/loans/${loanReference}/mandate/resend-otp`,
+          {},
+          applicantAuthToken ? { headers: { Authorization: `Bearer ${applicantAuthToken}` } } : undefined
+        );
+      }
+      setMandateResendSeconds(60);
+    } catch (err: any) {
+      setMandateError(err.response?.data?.message || "Couldn't resend the code. Please try again.");
+    } finally {
+      setIsMandateResending(false);
+    }
+  };
 
   // Calculations
   const { interest, fee, totalRepayment, disbursementAmount, dueDate } = useMemo(() => {
@@ -90,7 +169,9 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
     
     try {
         if (onSubmit) {
-            await onSubmit();
+            const result = await onSubmit();
+            if (result?.status) setLoanStatus(result.status);
+            if (result?.loanReference) setLoanReference(result.loanReference);
             setIsSuccess(true);
         } else {
             // Internal logic (Fallback)
@@ -114,7 +195,8 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
             // Check status from response (either under data.loan or data.data)
             const createdLoan = res.data?.data || res.data?.loan || {};
             setLoanStatus(createdLoan.status || "PENDING");
-            
+            if (createdLoan.loanReference) setLoanReference(createdLoan.loanReference);
+
             setIsSuccess(true);
         }
     } catch (error: any) {
@@ -149,6 +231,79 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
         setIsSubmitting(false);
     }
   };
+
+  // AUTO-REPAY CODE CONFIRMATION SCREEN
+  if (isSuccess && loanStatus === "AWAITING_MANDATE" && !mandateConfirmed) {
+      return (
+        <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
+            <div className="w-16 h-16 bg-pink-50 rounded-full flex items-center justify-center mb-6 shadow-sm border border-pink-100">
+                <ShieldCheck className="w-8 h-8 text-[#EC1B84]" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">One more step</h2>
+            <p className="text-gray-500 mb-8 text-sm max-w-[300px] mx-auto">
+               We've sent a code to {formattedPhone} to set up automatic repayment for this loan. Enter it below to finish your application.
+            </p>
+
+            <div className="flex justify-center mb-6">
+              <InputOTP
+                value={mandateOtp}
+                onChange={(v) => {
+                  setMandateOtp(v);
+                  if (v.length === MANDATE_OTP_LENGTH) handleConfirmMandateOtp(v);
+                }}
+                maxLength={MANDATE_OTP_LENGTH}
+              >
+                <InputOTPGroup>
+                  {Array.from({ length: MANDATE_OTP_LENGTH }).map((_, i) => (
+                    <InputOTPSlot
+                      key={i}
+                      index={i}
+                      className={cn(
+                        "h-14 w-10 sm:w-12 text-xl font-bold",
+                        mandateError ? "border-red-500 text-red-500" : ""
+                      )}
+                    />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+
+            {mandateError && (
+              <p className="text-sm text-red-600 mb-4 max-w-[280px] mx-auto">{mandateError}</p>
+            )}
+
+            <div className="w-full max-w-xs space-y-3">
+              <Button
+                onClick={() => handleConfirmMandateOtp()}
+                disabled={mandateOtp.length !== MANDATE_OTP_LENGTH || isMandateSubmitting}
+                className="w-full h-12 rounded-full bg-[#EC1B84] hover:bg-[#D41472] text-white font-bold shadow-lg shadow-pink-200 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isMandateSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Confirming...
+                  </>
+                ) : (
+                  "Confirm Code"
+                )}
+              </Button>
+
+              <button
+                onClick={handleResendMandateOtp}
+                disabled={mandateResendSeconds > 0 || isMandateResending}
+                className="text-sm text-[#EC1B84] font-medium hover:underline disabled:opacity-50 disabled:no-underline"
+              >
+                {isMandateResending
+                  ? "Resending..."
+                  : mandateResendSeconds > 0
+                  ? `Resend code in ${mandateResendSeconds}s`
+                  : "Resend code"}
+              </button>
+            </div>
+        </div>
+      );
+  }
 
   // SUCCESS SCREEN
   if (isSuccess) {
