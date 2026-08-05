@@ -428,7 +428,7 @@ export default function AgentDetailsPage() {
 
           <TabsContent value="commissions" className="space-y-6 m-0">
             {/* Main Summary Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                {/* Available Balance Card */}
                 <Card className="bg-[#EC1B84]/5 dark:bg-[#EC1B84]/10 border-[#EC1B84]/20 dark:border-[#EC1B84]/30 shadow-sm relative overflow-hidden group">
                    <div className="absolute right-[-10px] top-[-10px] opacity-10 transition-transform group-hover:scale-110 duration-500">
@@ -493,6 +493,21 @@ export default function AgentDetailsPage() {
                           <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tight">Manual</p>
                           <p className="text-[11px] font-black text-red-700 dark:text-red-400 font-mono">GHS {formatGHS(commissionResponse?.data?.summary?.breakdown?.manualCorrections ?? 0)}</p>
                        </div>
+                    </div>
+                  </CardContent>
+               </Card>
+
+               {/* Paid Out Card */}
+               <Card className="flex flex-col justify-center bg-emerald-50/20 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900">
+                  <CardContent className="pt-6 space-y-4">
+                    <div>
+                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Paid Out</p>
+                        <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">GHS {formatGHS(commissionResponse?.data?.summary?.totalPaidOut ?? 0)}</p>
+                        <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-tight">Already sent via payout</p>
+                    </div>
+                    <div className="border-t border-emerald-50 dark:border-emerald-900/50 pt-4">
+                       <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tight">Pending Payout</p>
+                       <p className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono">GHS {formatGHS(commissionResponse?.data?.summary?.pendingPayouts ?? 0)}</p>
                     </div>
                   </CardContent>
                </Card>
