@@ -153,6 +153,11 @@ export default function AgentOnboarding() {
   const frontUploadRef = useRef<HTMLInputElement>(null);
   const backUploadRef = useRef<HTMLInputElement>(null);
   const selfieIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingOnboardingResultRef = useRef<{
+    customerName: string;
+    nodeCode: string | null;
+    awaitingConsent: boolean;
+  } | null>(null);
 
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
 
@@ -455,7 +460,31 @@ export default function AgentOnboarding() {
     setCurrentStep(prev => prev - 1);
   };
 
-  const handleSubmit = async () => {
+  const finalizeOnboardingSuccess = (result: { customerName: string; nodeCode: string | null; awaitingConsent: boolean }) => {
+    setSubmissionResult(result);
+
+    localStorage.removeItem(STORAGE_KEY);
+    setFormData({ ...INITIAL_FORM_DATA, ghanaCardNumber: "GHA-" });
+
+    if (navigator.vibrate) navigator.vibrate(200);
+
+    toast.success("Customer Onboarded! 🎉", {
+      description: result.awaitingConsent
+        ? "Authorization request sent successfully."
+        : "Customer successfully registered.",
+    });
+  };
+
+  // Called by LoanSummaryPage once the borrower confirms the auto-repay code
+  // for a loan that was held in AWAITING_MANDATE.
+  const handleMandateConfirmed = () => {
+    if (pendingOnboardingResultRef.current) {
+      finalizeOnboardingSuccess(pendingOnboardingResultRef.current);
+      pendingOnboardingResultRef.current = null;
+    }
+  };
+
+  const handleSubmit = async (): Promise<{ loanReference?: string; status?: string } | void> => {
     setIsSubmitting(true);
 
     try {
@@ -511,23 +540,18 @@ export default function AgentOnboarding() {
       const awaitingConsent = responseBody.status === "AWAITING_CONSENT" || response.data?.status === "AWAITING_CONSENT";
       const nodeCode = responseBody.nodeCode || response.data?.nodeCode || null;
       const customerName = `${payload.fullName} ${payload.surname}`.trim();
+      const loan = responseBody.loan || response.data?.loan;
 
-      setSubmissionResult({
-        customerName,
-        nodeCode,
-        awaitingConsent,
-      });
+      if (loan?.status === "AWAITING_MANDATE") {
+        // Hold off on the completion screen until LoanSummaryPage confirms the
+        // auto-repay code — pendingOnboardingResultRef carries what we'd
+        // otherwise have set on submissionResult right away.
+        pendingOnboardingResultRef.current = { customerName, nodeCode, awaitingConsent };
+        return { loanReference: loan.loanReference, status: loan.status };
+      }
 
-      localStorage.removeItem(STORAGE_KEY);
-      setFormData({ ...INITIAL_FORM_DATA, ghanaCardNumber: "GHA-" });
-
-      if (navigator.vibrate) navigator.vibrate(200);
-
-      toast.success("Customer Onboarded! 🎉", {
-        description: awaitingConsent
-          ? "Authorization request sent successfully."
-          : "Customer successfully registered.",
-      });
+      finalizeOnboardingSuccess({ customerName, nodeCode, awaitingConsent });
+      return { loanReference: loan?.loanReference, status: loan?.status };
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || error.message || "Please try again";
       setSubmissionResult({ error: errorMsg });
@@ -771,6 +795,7 @@ export default function AgentOnboarding() {
         }}
         onHome={() => navigate("/agent")}
         onSubmit={handleSubmit}
+        onMandateConfirmed={handleMandateConfirmed}
       />
     );
   }

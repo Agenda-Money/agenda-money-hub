@@ -18,6 +18,7 @@ import {
   PhoneCall,
   Gift,
   Repeat2,
+  TreePine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -235,6 +236,15 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
               { to: "/admin/direct-debit", label: "Overview" },
               { to: "/admin/direct-debit/mandates", label: "Mandates" },
               { to: "/admin/direct-debit/delinquent", label: "Delinquent Customers" },
+            ],
+          },
+          {
+            to: "/admin/orchard",
+            icon: TreePine,
+            label: "Orchard",
+            subItems: [
+              { to: "/admin/orchard", label: "Overview" },
+              { to: "/admin/orchard/mandates", label: "Mandates" },
             ],
           },
           { to: "/analytics", icon: BarChart3, label: "Analytics" },

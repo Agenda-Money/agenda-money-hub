@@ -350,11 +350,23 @@ export default function LoanDetailSheet({ loanId, onClose }: LoanDetailSheetProp
                 )}
               </div>
 
-              {/* Paystack ref */}
-              {loan.paystackDisbursementRef && (
+              {/* Disbursement provider + reference */}
+              {(loan.disbursementReference || loan.paystackDisbursementRef) && (
                 <div className="px-6 py-4">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Paystack Disbursement Ref</p>
-                  <p className="text-xs font-mono text-gray-600 dark:text-gray-300 break-all">{loan.paystackDisbursementRef}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Disbursement Ref</p>
+                    <span className={cn(
+                      "text-[9px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded",
+                      loan.disbursementProvider === "ORCHARD"
+                        ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+                        : "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
+                    )}>
+                      {loan.disbursementProvider === "ORCHARD" ? "Orchard" : "Paystack"}
+                    </span>
+                  </div>
+                  <p className="text-xs font-mono text-gray-600 dark:text-gray-300 break-all">
+                    {loan.disbursementReference ?? loan.paystackDisbursementRef}
+                  </p>
                 </div>
               )}
 

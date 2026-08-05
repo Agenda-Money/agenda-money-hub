@@ -12,6 +12,17 @@ import {
 import {
   getDirectDebitConfig, updateDirectDebitConfig,
 } from "@/api/direct-debit.api";
+import {
+  getOrchardConfig, updateOrchardConfig,
+  getDisbursementProvider, setDisbursementProvider,
+  type DisbursementProviderName,
+  getCollectionProvider, setCollectionProvider,
+  triggerCollection, triggerOrchardCollection,
+  type CollectionProviderName,
+} from "@/api/orchard.api";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -324,6 +335,83 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
     }
   }, [uw]);
 
+  // ── Disbursement Provider Switch ─────────────────────────────────────────
+  const { data: activeProvider, isLoading: providerLoading } = useQuery({
+    queryKey: ["disbursement-provider"],
+    queryFn: getDisbursementProvider,
+  });
+
+  const providerMut = useMutation({
+    mutationFn: setDisbursementProvider,
+    onSuccess: (provider) => {
+      toast.success(`Disbursement provider switched to ${provider === "ORCHARD" ? "Orchard" : "Paystack"}`);
+      qc.invalidateQueries({ queryKey: ["disbursement-provider"] });
+    },
+    onError: () => toast.error("Failed to switch disbursement provider"),
+  });
+
+  // ── Collection Provider Switch (governs customer USSD "Pay Now") ─────────
+  const { data: activeCollectionProvider, isLoading: collectionProviderLoading } = useQuery({
+    queryKey: ["collection-provider"],
+    queryFn: getCollectionProvider,
+  });
+
+  const collectionProviderMut = useMutation({
+    mutationFn: setCollectionProvider,
+    onSuccess: (provider) => {
+      toast.success(`Collection provider switched to ${provider === "ORCHARD" ? "Orchard" : "Paystack"}`);
+      qc.invalidateQueries({ queryKey: ["collection-provider"] });
+    },
+    onError: () => toast.error("Failed to switch collection provider"),
+  });
+
+  // ── Generic Trigger Collection (any loan, either provider) ────────────────
+  const [collectLoanRef, setCollectLoanRef] = useState("");
+  const [collectAmount, setCollectAmount] = useState("");
+  const [collectProviderOverride, setCollectProviderOverride] = useState<CollectionProviderName | "auto">("auto");
+
+  const triggerCollectionMut = useMutation({
+    mutationFn: triggerCollection,
+    onSuccess: (result) => {
+      toast.success(result?.message || "Collection attempt initiated");
+      setCollectAmount("");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to trigger collection");
+    },
+  });
+
+  // ── Orchard ──────────────────────────────────────────────────────────────
+  const { data: orchardData, isLoading: orchardLoading } = useQuery({
+    queryKey: ["orchard-config"],
+    queryFn: getOrchardConfig,
+  });
+
+  const orchardMut = useMutation({
+    mutationFn: updateOrchardConfig,
+    onSuccess: () => { toast.success("Orchard settings saved"); qc.invalidateQueries({ queryKey: ["orchard-config"] }); },
+    onError: () => toast.error("Failed to save Orchard settings"),
+  });
+
+  const orchard = orchardData?.data;
+  const orchardEnv = orchardData?.env;
+
+  // ── Orchard manual collection (any loan, custom amount) ──────────────────
+  const [orchardCollectLoanRef, setOrchardCollectLoanRef] = useState("");
+  const [orchardCollectAmount, setOrchardCollectAmount] = useState("");
+
+  const orchardCollectMut = useMutation({
+    mutationFn: ({ loanReference, amount }: { loanReference: string; amount?: number }) =>
+      triggerOrchardCollection(loanReference, amount),
+    onSuccess: (result) => {
+      toast.success(result?.message || "Orchard collection attempt initiated");
+      setOrchardCollectAmount("");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to trigger Orchard collection");
+    },
+  });
+
   // ── Direct Debit ─────────────────────────────────────────────────────────
   const { data: ddConfig, isLoading: ddLoading } = useQuery({
     queryKey: ["dd-config"],
@@ -353,10 +441,128 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
   }, [ddConfig]);
 
   return (
-    <Tabs defaultValue="uniwallet">
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Disbursement Provider</CardTitle>
+          <CardDescription>Which PSP actually sends the money when a loan is approved</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {providerLoading ? (
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          ) : (
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-medium text-sm">Active provider</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Switching takes effect on the next loan approval — in-flight disbursements aren't affected.
+                </p>
+              </div>
+              <Select
+                value={activeProvider ?? "PAYSTACK"}
+                onValueChange={(v) => providerMut.mutate(v as DisbursementProviderName)}
+                disabled={!canWrite || providerMut.isPending}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PAYSTACK">Paystack</SelectItem>
+                  <SelectItem value="ORCHARD">Orchard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Collection Provider</CardTitle>
+          <CardDescription>Which PSP the customer's USSD "Pay Now" (STK push) flow uses to collect repayments</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {collectionProviderLoading ? (
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          ) : (
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-medium text-sm">Active provider</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Switching takes effect on the next repayment attempt — in-flight collections aren't affected.
+                </p>
+              </div>
+              <Select
+                value={activeCollectionProvider ?? "PAYSTACK"}
+                onValueChange={(v) => collectionProviderMut.mutate(v as CollectionProviderName)}
+                disabled={!canWrite || collectionProviderMut.isPending}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PAYSTACK">Paystack</SelectItem>
+                  <SelectItem value="ORCHARD">Orchard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="border-t pt-4">
+            <p className="font-medium text-sm mb-0.5">Trigger Collection</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Manually start a live collection attempt for any loan — the customer gets a MoMo PIN prompt on their phone, same as the USSD flow.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+              <Input
+                placeholder="Loan reference (e.g. AM-BER-819-9YN)"
+                value={collectLoanRef}
+                onChange={(e) => setCollectLoanRef(e.target.value)}
+                className="sm:col-span-2"
+              />
+              <Input
+                type="number"
+                placeholder="Amount (optional)"
+                value={collectAmount}
+                onChange={(e) => setCollectAmount(e.target.value)}
+              />
+              <Select
+                value={collectProviderOverride}
+                onValueChange={(v) => setCollectProviderOverride(v as CollectionProviderName | "auto")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Active provider</SelectItem>
+                  <SelectItem value="PAYSTACK">Paystack</SelectItem>
+                  <SelectItem value="ORCHARD">Orchard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              className="mt-3"
+              size="sm"
+              disabled={!canWrite || !collectLoanRef.trim() || triggerCollectionMut.isPending}
+              onClick={() =>
+                triggerCollectionMut.mutate({
+                  loanReference: collectLoanRef.trim().toUpperCase(),
+                  amount: collectAmount ? Number(collectAmount) : undefined,
+                  provider: collectProviderOverride === "auto" ? undefined : collectProviderOverride,
+                })
+              }
+            >
+              {triggerCollectionMut.isPending ? "Triggering..." : "Trigger Collection"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="uniwallet">
       <TabsList className="bg-muted p-1 mb-4">
         <TabsTrigger value="uniwallet" className="data-[state=active]:bg-card">UniWallet (STK Push)</TabsTrigger>
         <TabsTrigger value="directdebit" className="data-[state=active]:bg-card">Direct Debit</TabsTrigger>
+        <TabsTrigger value="orchard" className="data-[state=active]:bg-card">Orchard</TabsTrigger>
       </TabsList>
 
       {/* ── UniWallet Tab ── */}
@@ -587,7 +793,131 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
           </CardContent>
         </Card>
       </TabsContent>
+
+      {/* ── Orchard Tab ── */}
+      <TabsContent value="orchard" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Orchard Products</CardTitle>
+            <CardDescription>Enable each product only once it's sandbox-verified — all default off</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {orchardLoading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : (
+              <>
+                <ToggleRow
+                  label="Disbursement Enabled"
+                  description="Allow loan disbursements via Orchard (MTC)"
+                  checked={orchard?.disbursementEnabled ?? false}
+                  onCheckedChange={v => orchardMut.mutate({ disbursementEnabled: v })}
+                  disabled={!canWrite || orchardMut.isPending}
+                />
+                <ToggleRow
+                  label="Auto-Debit Enabled"
+                  description="Allow recurring repayment collection via Orchard's auto-debit mandates"
+                  checked={orchard?.autoDebitEnabled ?? false}
+                  onCheckedChange={v => orchardMut.mutate({ autoDebitEnabled: v })}
+                  disabled={!canWrite || orchardMut.isPending}
+                />
+                <ToggleRow
+                  label="Airtime Top-Up Enabled"
+                  description="Tier 2 product — not yet built"
+                  checked={orchard?.airtimeEnabled ?? false}
+                  onCheckedChange={v => orchardMut.mutate({ airtimeEnabled: v })}
+                  disabled={!canWrite || orchardMut.isPending}
+                />
+                <ToggleRow
+                  label="Bill Pay Enabled"
+                  description="Tier 2 product — not yet built"
+                  checked={orchard?.billPayEnabled ?? false}
+                  onCheckedChange={v => orchardMut.mutate({ billPayEnabled: v })}
+                  disabled={!canWrite || orchardMut.isPending}
+                />
+                <ToggleRow
+                  label="Remittance Enabled"
+                  description="Tier 2 product — not yet built"
+                  checked={orchard?.remittanceEnabled ?? false}
+                  onCheckedChange={v => orchardMut.mutate({ remittanceEnabled: v })}
+                  disabled={!canWrite || orchardMut.isPending}
+                />
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Manual Collection</CardTitle>
+            <CardDescription>Trigger a one-off Orchard CTM charge against any loan — the customer gets a MoMo PIN prompt on their phone</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <Input
+                placeholder="Loan reference (e.g. AM-BER-819-9YN)"
+                value={orchardCollectLoanRef}
+                onChange={(e) => setOrchardCollectLoanRef(e.target.value)}
+                className="sm:col-span-2"
+              />
+              <Input
+                type="number"
+                placeholder="Amount (defaults to outstanding balance)"
+                value={orchardCollectAmount}
+                onChange={(e) => setOrchardCollectAmount(e.target.value)}
+              />
+            </div>
+            <Button
+              className="mt-3"
+              size="sm"
+              disabled={!canWrite || !orchardCollectLoanRef.trim() || orchardCollectMut.isPending}
+              onClick={() =>
+                orchardCollectMut.mutate({
+                  loanReference: orchardCollectLoanRef.trim().toUpperCase(),
+                  amount: orchardCollectAmount ? Number(orchardCollectAmount) : undefined,
+                })
+              }
+            >
+              {orchardCollectMut.isPending ? "Triggering..." : "Trigger Orchard Collection"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {orchardEnv && (
+          <Card className="border-dashed">
+            <CardHeader>
+              <CardTitle className="text-sm">Environment (read-only)</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Base URL</span>
+                <span className="font-mono text-xs">{orchardEnv.baseUrl || "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Environment</span>
+                <Badge variant="outline">{orchardEnv.nodeEnv}</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Client ID</span>
+                <CredentialDot ok={orchardEnv.clientIdConfigured} />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Client Secret</span>
+                <CredentialDot ok={orchardEnv.clientSecretConfigured} />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Service ID</span>
+                <CredentialDot ok={orchardEnv.serviceIdConfigured} />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Webhook Secret (ours)</span>
+                <CredentialDot ok={orchardEnv.webhookSecretConfigured} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </TabsContent>
     </Tabs>
+    </div>
   );
 }
 
