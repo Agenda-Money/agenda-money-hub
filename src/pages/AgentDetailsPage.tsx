@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { SecureKycImage } from "@/components/common/SecureKycImage";
 
 import { useQuery } from "@tanstack/react-query";
-import { getAdminAgentDetails, getAdminAgentCommissions } from "@/lib/api";
+import { getAdminAgentDetails, getAdminAgentCommissions, getAdminDeductions } from "@/lib/api";
 import { formatAmount, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -51,6 +51,16 @@ export default function AgentDetailsPage() {
     queryKey: ["agent-commissions", id, commPage],
     queryFn: () => getAdminAgentCommissions(id!, { page: commPage, limit: 50 }),
     enabled: !!id,
+  });
+
+  const agentDataRawForPhone = agentDataResponse?.data?.agent || agentDataResponse?.data || agentDataResponse || {};
+  const agentPhone = agentDataRawForPhone.phoneNumber || agentDataRawForPhone.phone || agentDataRawForPhone.msisdn;
+
+  // Fetch Default Penalty Deductions (Contractor Agreement §7.0) for this agent
+  const { data: deductionsResponse, isLoading: isDeductionsLoading } = useQuery({
+    queryKey: ["agent-default-deductions", agentPhone],
+    queryFn: () => getAdminDeductions({ agentMsisdn: agentPhone, deductionType: "DEFAULT_PENALTY", limit: 50 }),
+    enabled: !!agentPhone,
   });
 
   const agentDataRaw = agentDataResponse?.data?.agent || agentDataResponse?.data || agentDataResponse || {};
@@ -609,6 +619,86 @@ export default function AgentDetailsPage() {
                     </div>
                   );
                 })()}
+              </CardContent>
+            </Card>
+
+            {/* Default Penalty Deductions — Contractor Agreement §7.0 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                  Default Penalty Deductions
+                </CardTitle>
+                <CardDescription>
+                  30% of unpaid loan value, applied per Contractor Agreement §7.0 for loans that fully defaulted
+                  (zero repayment, 14+ days past due). Each row links to the loan that triggered it.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isDeductionsLoading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  </div>
+                ) : (deductionsResponse?.items || []).length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-muted-foreground uppercase bg-muted/30">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Date</th>
+                          <th className="px-4 py-3 font-medium">Loan / Borrower</th>
+                          <th className="px-4 py-3 font-medium text-right">Principal</th>
+                          <th className="px-4 py-3 font-medium text-right">Total Payable</th>
+                          <th className="px-4 py-3 font-medium text-right">Repaid</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                          <th className="px-4 py-3 font-medium text-right">Deduction</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y border-t">
+                        {(deductionsResponse?.items || []).map((item: any) => (
+                          <tr key={item._id} className="hover:bg-muted/30 transition-colors align-top">
+                            <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                              {new Date(item.createdAt).toLocaleDateString("en-GB")}
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="font-mono text-xs font-bold text-foreground">{item.linkedLoanReference || "—"}</p>
+                              <p className="text-xs text-muted-foreground">{item.loan?.borrowerName || "Unknown borrower"}</p>
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono">
+                              {item.loan ? `GHS ${formatGHS(item.loan.principal)}` : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono">
+                              {item.loan ? `GHS ${formatGHS(item.loan.totalPayable)}` : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono">
+                              {item.loan ? `GHS ${formatGHS(item.loan.amountRepaid)}` : "—"}
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge variant="outline" className={cn(
+                                "text-[10px] px-1.5 py-0",
+                                item.status === "CONFIRMED" ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800" :
+                                item.status === "REVERSED" ? "bg-muted text-muted-foreground" :
+                                "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                              )}>
+                                {item.status}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-right font-black font-mono text-red-600 dark:text-red-400">
+                              -GHS {formatGHS(item.amount)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-xl bg-muted/20">
+                    <CheckCircle2 className="h-10 w-10 text-emerald-500 mb-3 opacity-60" />
+                    <p className="text-sm font-medium text-foreground">No default penalty deductions</p>
+                    <p className="text-xs text-muted-foreground max-w-[280px] mt-1">
+                      This agent has no §7.0 full-default penalties on record.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

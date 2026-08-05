@@ -366,6 +366,16 @@ export const revokeFraud = async (borrowerMsisdn: string, reason: string) => {
   return response.data;
 };
 
+export const getDefaultPenaltyBackfillPreview = async (params?: { agentCode?: string }) => {
+  const response = await api.get('/api/admin/commissions/default-penalty-backfill/preview', { params });
+  return response.data;
+};
+
+export const runDefaultPenaltyBackfill = async (data?: { agentCode?: string }) => {
+  const response = await api.post('/api/admin/commissions/default-penalty-backfill/run', data);
+  return response.data;
+};
+
 export const resolveMomoName = async (id: string) => {
   const response = await api.get(`/api/admin/loans/${id}/resolve-momo`);
   return response.data;

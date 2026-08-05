@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
-  getAdminDeductions, 
-  confirmDeduction, 
+import {
+  getAdminDeductions,
+  confirmDeduction,
   reverseDeduction,
   createManualDeduction,
-  getAdminAuditLogs
+  getAdminAuditLogs,
+  getDefaultPenaltyBackfillPreview,
+  runDefaultPenaltyBackfill
 } from "@/lib/api";
 import { 
   CheckCircle2, 
@@ -22,7 +24,8 @@ import {
   ChevronDown,
   ChevronUp,
   User,
-  ExternalLink
+  ExternalLink,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,7 +90,10 @@ export default function AdminDeductionsPage() {
   const [isManualSheetOpen, setIsManualSheetOpen] = useState(false);
   const [selectedDeduction, setSelectedDeduction] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  
+  const [isBackfillDialogOpen, setIsBackfillDialogOpen] = useState(false);
+  const [backfillPreview, setBackfillPreview] = useState<any>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
   // Manual deduction form state
   const [manualData, setManualData] = useState({
     agentMsisdn: "",
@@ -153,6 +159,38 @@ export default function AdminDeductionsPage() {
     }
   });
 
+  const backfillMutation = useMutation({
+    mutationFn: () => runDefaultPenaltyBackfill(),
+    onSuccess: (data) => {
+      const result = data?.result || {};
+      toast({
+        title: "Backfill Applied",
+        description: `${result.loansProcessed ?? 0} loan(s) processed across ${result.agentsAffected ?? 0} agent(s) — GHS ${(result.totalDeducted ?? 0).toLocaleString('en-GH', { minimumFractionDigits: 2 })} deducted.`
+      });
+      setIsBackfillDialogOpen(false);
+      setBackfillPreview(null);
+      queryClient.invalidateQueries({ queryKey: ["adminDeductions"] });
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Backfill Failed", description: getFriendlyErrorMessage(error) });
+    }
+  });
+
+  const openBackfillDialog = async () => {
+    setIsBackfillDialogOpen(true);
+    setIsPreviewLoading(true);
+    setBackfillPreview(null);
+    try {
+      const res = await getDefaultPenaltyBackfillPreview();
+      setBackfillPreview(res?.preview || { loansCount: 0, totalDeducted: 0, agentsAffected: 0 });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Preview Failed", description: getFriendlyErrorMessage(error) });
+      setIsBackfillDialogOpen(false);
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
   const downloadCSV = () => {
     if (!deductions || deductions.length === 0) return;
     
@@ -195,7 +233,7 @@ export default function AdminDeductionsPage() {
                 Manual Deduction
               </Button>
             </SheetTrigger>
-            <Button 
+            <Button
               variant="outline"
               onClick={downloadCSV}
               disabled={deductions.length === 0}
@@ -203,6 +241,14 @@ export default function AdminDeductionsPage() {
             >
               <ExternalLink className="w-4 h-4" />
               Export CSV
+            </Button>
+            <Button
+              variant="outline"
+              onClick={openBackfillDialog}
+              className="h-12 rounded-xl border-red-200 text-red-700 dark:text-red-400 px-6 font-black gap-2 hover:bg-red-50 dark:hover:bg-red-950/20"
+            >
+              <Zap className="w-4 h-4" />
+              Run Default Penalty Backfill
             </Button>
             <SheetContent className="sm:max-w-md">
               <SheetHeader>
@@ -273,6 +319,68 @@ export default function AdminDeductionsPage() {
             </SheetContent>
           </Sheet>
         </div>
+
+        <Dialog open={isBackfillDialogOpen} onOpenChange={(open) => { if (!backfillMutation.isPending) { setIsBackfillDialogOpen(open); if (!open) setBackfillPreview(null); } }}>
+          <DialogContent className="rounded-2xl sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black flex items-center gap-2">
+                <Zap className="w-5 h-5 text-red-600" />
+                Run Default Penalty Backfill
+              </DialogTitle>
+              <DialogDescription>
+                Contractor Agreement §7.0 — deducts 30% of the unpaid loan for every full-default loan
+                (zero repayment, 14+ days past due) that hasn't already been penalized. This writes real
+                commission deductions across every affected agent, platform-wide.
+              </DialogDescription>
+            </DialogHeader>
+
+            {isPreviewLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : backfillPreview ? (
+              <div className="bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900 p-4 rounded-xl space-y-2">
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <span className="text-red-700 dark:text-red-400">Qualifying Loans</span>
+                  <span className="text-red-900 dark:text-red-300 font-black">{backfillPreview.loansCount ?? 0}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <span className="text-red-700 dark:text-red-400">Agents Affected</span>
+                  <span className="text-red-900 dark:text-red-300 font-black">{backfillPreview.agentsAffected ?? 0}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm font-black border-t border-red-200 dark:border-red-900 pt-2">
+                  <span className="text-red-800 dark:text-red-300">Total Deduction</span>
+                  <span className="text-red-900 dark:text-red-300">
+                    GHS {(backfillPreview.totalDeducted ?? 0).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                {(backfillPreview.loansCount ?? 0) === 0 && (
+                  <p className="text-xs text-muted-foreground pt-2">Nothing to apply — no qualifying loans found.</p>
+                )}
+              </div>
+            ) : null}
+
+            <DialogFooter className="gap-2 sm:gap-0 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setIsBackfillDialogOpen(false)}
+                disabled={backfillMutation.isPending}
+                className="h-12 rounded-xl font-bold flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="h-12 rounded-xl font-black flex-1"
+                disabled={isPreviewLoading || !backfillPreview || (backfillPreview.loansCount ?? 0) === 0 || backfillMutation.isPending}
+                onClick={() => backfillMutation.mutate()}
+              >
+                {backfillMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+                Apply Deductions
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
           {selectedDeduction && (
