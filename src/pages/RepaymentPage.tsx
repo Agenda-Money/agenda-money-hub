@@ -118,12 +118,19 @@ export const RepaymentPage: React.FC<RepaymentPageProps> = ({
           attemptsRef.current++;
           try {
               const userData = await getMe();
-              const currentBalance = userData.activeLoan?.outstandingBalance || 0;
-              const currentStatus = userData.activeLoan?.status;
-              
-              // Success Conditions: Balance decreased OR Status is REPAID
-              // Note: using < initialBalanceRef.current - 1 to handle small float diffs if any
-              if (currentBalance < initialBalanceRef.current || currentStatus === 'REPAID') {
+              // activeLoan lives under `summary` in the /api/users/me response, not top-level
+              const activeLoan = userData.summary?.activeLoan;
+              const hasActiveLoan = userData.summary?.hasActiveLoan;
+
+              // Success Conditions:
+              // - Loan fully repaid and dropped out of the active-loan set (hasActiveLoan flips to false), OR
+              // - Loan still active/partial but balance decreased or status is explicitly REPAID
+              const isFullyRepaid = hasActiveLoan === false && initialBalanceRef.current > 0;
+              const isPartiallyRepaid =
+                  !!activeLoan &&
+                  (activeLoan.outstandingBalance < initialBalanceRef.current || activeLoan.status === 'REPAID');
+
+              if (isFullyRepaid || isPartiallyRepaid) {
                   if (pollingRef.current) clearInterval(pollingRef.current);
                   setViewState("success");
               } else if (attemptsRef.current >= maxAttempts) {
