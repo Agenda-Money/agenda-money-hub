@@ -5,15 +5,21 @@
 
 export type Subdomain = "admin" | "agent" | "apply" | "collections" | "report";
 
+export type CollectionsProvider = "PAYSTACK" | "ORCHARD";
+
+function isLocalDevHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname.startsWith("192.168.")
+  );
+}
+
 export function getSubdomain(): Subdomain {
   const hostname = window.location.hostname;
 
   // Handle local development environments
-  if (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname.startsWith("192.168.")
-  ) {
+  if (isLocalDevHost(hostname)) {
     // Determine based on port (e.g., 8081 = admin, 8082 = agent)
     const port = window.location.port;
     if (port === "8085") return "report";
@@ -71,12 +77,23 @@ const APPLY_SANDBOX_OVERRIDE_URL = "https://sandbox.agendamoney.com";
 export function getApiBaseUrl(): string {
   const buildTimeUrl = (import.meta.env.VITE_API_URL as string | undefined) || "";
   const hostname = window.location.hostname;
-  const isLocalDev =
-    hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.");
+  const isLocalDev = isLocalDevHost(hostname);
 
   if (!isLocalDev && getSubdomain() === "apply") {
     return APPLY_SANDBOX_OVERRIDE_URL;
   }
 
   return buildTimeUrl;
+}
+
+export function getCollectionsProvider(): CollectionsProvider {
+  const hostname = window.location.hostname;
+
+  // Keep local development aligned with the current Paystack flow unless the
+  // backend is explicitly switched to a sandbox environment.
+  if (isLocalDevHost(hostname)) {
+    return "PAYSTACK";
+  }
+
+  return getSubdomain() === "apply" ? "ORCHARD" : "PAYSTACK";
 }

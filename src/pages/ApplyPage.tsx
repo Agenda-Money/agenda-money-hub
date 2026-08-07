@@ -733,7 +733,7 @@ export default function ApplyPage() {
     [setApplicant, setUserData, setView, setOnboardingStep],
   );
 
-  // Handle Paystack repayment WebSocket events
+  // Handle repayment WebSocket events
   useEffect(() => {
     if (!socket) return;
 
