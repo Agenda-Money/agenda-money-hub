@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 import { ManualDisbursementRequest } from "@/types/disbursement";
-import { getApiBaseUrl, getCollectionsProvider } from '@/lib/domain';
+import { getApiBaseUrl } from '@/lib/domain';
 
 export interface DecisionError {
   uiState: 'soft_block' | 'hard_block' | 'hard_block_date' | 'cap_state' | 'blacklisted';
@@ -147,12 +147,7 @@ api.interceptors.response.use(
 );
 
 export const initiateRepayment = async (amount: number) => {
-  const collectionsProvider = getCollectionsProvider();
-  const payload = collectionsProvider === "ORCHARD"
-    ? { amount, provider: collectionsProvider }
-    : { amount };
-
-  const response = await api.post('/api/repayments/initiate', payload);
+  const response = await api.post('/api/repayments/initiate', { amount });
   return response.data;
 };
 
