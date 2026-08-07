@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { getSubdomain } from './domain';
+import { getSubdomain, getApiBaseUrl } from './domain';
 
-const baseURL = import.meta.env.VITE_API_URL || '';
+const baseURL = getApiBaseUrl();
 
 const csaApi = axios.create({
   baseURL,

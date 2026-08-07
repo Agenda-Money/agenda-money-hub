@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 import { ManualDisbursementRequest } from "@/types/disbursement";
+import { getApiBaseUrl } from '@/lib/domain';
 
 export interface DecisionError {
   uiState: 'soft_block' | 'hard_block' | 'hard_block_date' | 'cap_state' | 'blacklisted';
@@ -50,7 +51,7 @@ const generateUUID = () => {
 };
 
 // Create axios instance with base URL
-const baseURL = import.meta.env.VITE_API_URL || '';
+const baseURL = getApiBaseUrl();
 
 if (!baseURL) {
   // This will help diagnose missing env var in production builds — check browser console/network

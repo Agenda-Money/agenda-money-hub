@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
 import { uploadToStorage } from "@/lib/storage";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
+import { getApiBaseUrl } from "@/lib/domain";
 
 type View = "landing" | "auth" | "otp" | "onboarding" | "success";
 
@@ -60,7 +61,7 @@ const REGIONS = [
 
 const OTP_LENGTH = 6;
 const OTP_SLOTS = Array.from({ length: OTP_LENGTH }, (_, i) => i);
-const baseApiUrl = import.meta.env.VITE_API_URL || "";
+const baseApiUrl = getApiBaseUrl();
 
 export default function AgentApplyPage() {
   const [view, setView] = useState<View>("landing");
