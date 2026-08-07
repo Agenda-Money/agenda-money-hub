@@ -34,6 +34,7 @@ import { useApplicant } from "@/contexts/ApplicantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocketContext } from "@/contexts/SocketContext";
 import api, { getUserLoansHistory, getUserRepaymentsHistory } from "@/lib/api";
+import { getApiBaseUrl } from "@/lib/domain";
 import { uploadToStorage } from "@/lib/storage";
 import { TIER_LIMITS, TIERS, type TierConfig } from "@/lib/constants";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
@@ -81,7 +82,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 
-const baseApiUrl = import.meta.env.VITE_API_URL || "";
+const baseApiUrl = getApiBaseUrl();
 const OTP_LENGTH = 6;
 const OTP_SLOTS = ["one", "two", "three", "four", "five", "six"];
 // Orchard's auto-repay confirmation code is 5 digits — distinct from our own

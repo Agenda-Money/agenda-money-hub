@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getApiBaseUrl } from '@/lib/domain';
 
 /**
  * TokenRefreshService
@@ -66,7 +67,7 @@ export class TokenRefreshService {
 
 
       
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/admin/auth/refresh`, {
+      const response = await axios.post(`${getApiBaseUrl()}/api/admin/auth/refresh`, {
         refreshToken
       }, {
         headers: {

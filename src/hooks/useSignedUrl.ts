@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getApiBaseUrl } from "@/lib/domain";
 
 /**
  * useSignedUrl - React hook to fetch a signed URL for a given file path
@@ -13,7 +14,7 @@ export function useSignedUrl(filePath?: string) {
       setSignedUrl(null);
       return;
     }
-    const base = import.meta.env.VITE_API_URL || '';
+    const base = getApiBaseUrl();
     fetch(`${base}/api/files/signed-url?path=${encodeURIComponent(filePath)}`)
       .then(res => res.json())
       .then(data => setSignedUrl(data.signedUrl))

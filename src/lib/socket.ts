@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
+import { getApiBaseUrl } from './domain';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = getApiBaseUrl() || 'http://localhost:3000';
 
 // Create a singleton socket instance with autoConnect: false to prevent connection spam
 // We explicitly connect when we have a valid user session (MSISDN)
