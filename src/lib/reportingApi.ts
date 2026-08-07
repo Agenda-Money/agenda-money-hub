@@ -1,7 +1,6 @@
 import axios from 'axios';
-import { getApiBaseUrl } from './domain';
 
-const baseURL = getApiBaseUrl();
+const baseURL = import.meta.env.VITE_API_URL || '';
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_REPORTING_API_BASE || `${baseURL}/api/reporting`,

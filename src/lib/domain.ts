@@ -58,25 +58,3 @@ export function getSubdomain(): Subdomain {
 
   return "admin";
 }
-
-/**
- * TEMPORARY: apply.agendamoney.com is pointed at sandbox while appsNmobile's
- * QA team tests the Orchard integration there (integration only exists on
- * sandbox, not yet promoted to production). Every other subdomain keeps
- * using the normal build-time VITE_API_URL. Remove this override once
- * Orchard testing wraps up and/or the integration ships to production.
- */
-const APPLY_SANDBOX_OVERRIDE_URL = "https://sandbox.agendamoney.com";
-
-export function getApiBaseUrl(): string {
-  const buildTimeUrl = (import.meta.env.VITE_API_URL as string | undefined) || "";
-  const hostname = window.location.hostname;
-  const isLocalDev =
-    hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.");
-
-  if (!isLocalDev && getSubdomain() === "apply") {
-    return APPLY_SANDBOX_OVERRIDE_URL;
-  }
-
-  return buildTimeUrl;
-}

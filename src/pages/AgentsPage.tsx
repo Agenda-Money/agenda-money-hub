@@ -36,7 +36,6 @@ import {
   getAdminAgentPortfolio 
 } from "@/lib/api";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
-import { getApiBaseUrl } from "@/lib/domain";
 import { io } from "socket.io-client";
 import { SecureKycImage } from "@/components/common/SecureKycImage";
 
@@ -82,7 +81,7 @@ const ImagePlaceholder = ({ icon: Icon, label }: { icon: React.ElementType; labe
   </div>
 );
 
-const baseApiUrl = getApiBaseUrl();
+const baseApiUrl = import.meta.env.VITE_API_URL || "";
 
 export default function AgentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
