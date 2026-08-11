@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -42,10 +42,14 @@ import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
 import { ProfileTab } from "./ProfileTab";
 import { LoanSummaryPage } from "./LoanSummaryPage";
-import {
-  LivenessCapture,
-  type LivenessResult,
-} from "@/components/liveliness/LivenessCapture";
+import type { LivenessResult } from "@/components/liveliness/LivenessCapture";
+
+// face-api.js pulls in ~800KB of face-detection models/WASM; defer it until
+// the user actually reaches the liveness-check step instead of paying for it
+// on every apply-page load.
+const LivenessCapture = lazy(() =>
+  import("@/components/liveliness/LivenessCapture").then((m) => ({ default: m.LivenessCapture })),
+);
 
 import { UserRewardsTab } from "./UserRewardsTab";
 import { UserNetworkTab } from "./UserNetworkTab";
@@ -3996,6 +4000,11 @@ export default function ApplyPage() {
                                       </Button>
                                     </div>
                                   ) : showLiveness ? (
+                                    <Suspense fallback={
+                                      <div className="flex items-center justify-center py-20 text-sm text-gray-500">
+                                        Loading camera…
+                                      </div>
+                                    }>
                                     <LivenessCapture
                                       userId={normalizedMsisdn || "unknown"}
                                       userName={`${onboardingData.firstName ?? ""} ${onboardingData.surname ?? ""}`.trim() || undefined}
@@ -4036,6 +4045,7 @@ export default function ApplyPage() {
                                         );
                                       }}
                                     />
+                                    </Suspense>
                                   ) : (
                                     <Button
                                       onClick={() => setShowLiveness(true)}

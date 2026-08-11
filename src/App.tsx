@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,63 +13,76 @@ import { ApplicantProvider } from "@/contexts/ApplicantContext";
 import { SocketProvider } from "@/contexts/SocketContext";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import RequireAgent from "@/components/auth/RequireAgent";
-import Index from "./pages/Index";
-import UsersPage from "./pages/UsersPage";
-import LoansPage from "./pages/LoansPage";
-import RepaymentsPage from "./pages/RepaymentsPage";
-import SettingsPage from "./pages/SettingsPage";
-import AgentsPage from "./pages/AgentsPage";
-import AgentDetailsPage from "./pages/AgentDetailsPage";
-import AnalyticsPage from "./pages/AnalyticsPage";
-import LoginPage from "./pages/LoginPage";
-import UserDetailsPage from "./pages/UserDetailsPage";
-import SignupPage from "./pages/SignupPage";
-import CheckEmailPage from "./pages/CheckEmailPage";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import ApplyPage from "./pages/ApplyPage";
-import AgentApplyPage from "./pages/AgentApplyPage";
-import NotFound from "./pages/NotFound";
 import AgentLayout from "./components/layout/AgentLayout";
-import AgentDashboard from "./pages/agent/AgentDashboard";
-import AgentOnboarding from "./pages/agent/AgentOnboarding";
-import AgentPortfolio from "./pages/agent/AgentPortfolio";
-import AgentProfile from "./pages/agent/AgentProfile";
-import AgentCommissionsPage from "./pages/agent/AgentCommissionsPage";
-import AgentEndorsementsPage from "./pages/agent/AgentEndorsementsPage";
-import AdminPayoutsPage from './pages/AdminPayoutsPage';
-import RewardTiersPage from "./pages/reward-tiers/RewardTiersPage";
-import PendingKycPage from "./pages/PendingKycPage";
-import AuditLogs from "./pages/AuditLogs";
-import AdminDeductionsPage from "./pages/AdminDeductionsPage";
-import AdminManualDisbursePage from "./pages/AdminManualDisbursePage";
-import DirectDebitPage from "./pages/DirectDebitPage";
-import OrchardPage from "./pages/OrchardPage";
-import {
-  CampaignHistoryPage,
-  MomoDisbursementPage,
-  SendAirtimePage,
-  SendSmsPage,
-} from "./pages/rewards/RewardsCommsPages";
 import { SessionManager } from "./components/auth/SessionManager";
 import InstallPWA from "./components/InstallPWA";
 import { CsaAuthProvider, useCsaAuth } from "@/contexts/CsaAuthContext";
 import CsaLayout from "./components/csa/CsaLayout";
-import CsaDashboard from "./pages/csa/CsaDashboard";
-import CsaLoginPage from "./pages/csa/CsaLoginPage";
-import CsaSignupPage from "./pages/csa/CsaSignupPage";
-import CsaActivityPage from "./pages/csa/CsaActivityPage";
-import CsaTemplatesPage from "./pages/csa/CsaTemplatesPage";
-import TeamActivityPage from "./pages/csa/TeamActivityPage";
-import { DevEligibilitySandbox } from "./pages/DevEligibilitySandbox";
 import { getSubdomain } from "@/lib/domain";
 import { ReportingGuard } from "./components/ReportingGuard";
 import { ReportingLayout } from "./components/layout/ReportingLayout";
-import ReportingDashboard from "./pages/reporting/ReportingDashboard";
-import ReportingLoginPage from "./pages/reporting/ReportingLoginPage";
-import ReportingInviteAccept from "./pages/reporting/ReportingInviteAccept";
-import ReportingForgotPasswordPage from "./pages/reporting/ReportingForgotPasswordPage";
-import ReportingResetPasswordPage from "./pages/reporting/ReportingResetPasswordPage";
+
+// Every page below is route-specific and only ever rendered on one subdomain
+// (admin/agent/apply/collections/report share a single build). Lazy-loading
+// them means a visitor only downloads the JS for the portal + page they're
+// actually on, instead of one ~3.2MB bundle shipped to every subdomain.
+const Index = lazy(() => import("./pages/Index"));
+const UsersPage = lazy(() => import("./pages/UsersPage"));
+const LoansPage = lazy(() => import("./pages/LoansPage"));
+const RepaymentsPage = lazy(() => import("./pages/RepaymentsPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const AgentsPage = lazy(() => import("./pages/AgentsPage"));
+const AgentDetailsPage = lazy(() => import("./pages/AgentDetailsPage"));
+const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const UserDetailsPage = lazy(() => import("./pages/UserDetailsPage"));
+const SignupPage = lazy(() => import("./pages/SignupPage"));
+const CheckEmailPage = lazy(() => import("./pages/CheckEmailPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const ApplyPage = lazy(() => import("./pages/ApplyPage"));
+const AgentApplyPage = lazy(() => import("./pages/AgentApplyPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const AgentDashboard = lazy(() => import("./pages/agent/AgentDashboard"));
+const AgentOnboarding = lazy(() => import("./pages/agent/AgentOnboarding"));
+const AgentPortfolio = lazy(() => import("./pages/agent/AgentPortfolio"));
+const AgentProfile = lazy(() => import("./pages/agent/AgentProfile"));
+const AgentCommissionsPage = lazy(() => import("./pages/agent/AgentCommissionsPage"));
+const AgentEndorsementsPage = lazy(() => import("./pages/agent/AgentEndorsementsPage"));
+const AdminPayoutsPage = lazy(() => import("./pages/AdminPayoutsPage"));
+const RewardTiersPage = lazy(() => import("./pages/reward-tiers/RewardTiersPage"));
+const PendingKycPage = lazy(() => import("./pages/PendingKycPage"));
+const AuditLogs = lazy(() => import("./pages/AuditLogs"));
+const AdminDeductionsPage = lazy(() => import("./pages/AdminDeductionsPage"));
+const AdminManualDisbursePage = lazy(() => import("./pages/AdminManualDisbursePage"));
+const DirectDebitPage = lazy(() => import("./pages/DirectDebitPage"));
+const OrchardPage = lazy(() => import("./pages/OrchardPage"));
+const CampaignHistoryPage = lazy(() =>
+  import("./pages/rewards/RewardsCommsPages").then((m) => ({ default: m.CampaignHistoryPage })),
+);
+const MomoDisbursementPage = lazy(() =>
+  import("./pages/rewards/RewardsCommsPages").then((m) => ({ default: m.MomoDisbursementPage })),
+);
+const SendAirtimePage = lazy(() =>
+  import("./pages/rewards/RewardsCommsPages").then((m) => ({ default: m.SendAirtimePage })),
+);
+const SendSmsPage = lazy(() =>
+  import("./pages/rewards/RewardsCommsPages").then((m) => ({ default: m.SendSmsPage })),
+);
+const CsaDashboard = lazy(() => import("./pages/csa/CsaDashboard"));
+const CsaLoginPage = lazy(() => import("./pages/csa/CsaLoginPage"));
+const CsaSignupPage = lazy(() => import("./pages/csa/CsaSignupPage"));
+const CsaActivityPage = lazy(() => import("./pages/csa/CsaActivityPage"));
+const CsaTemplatesPage = lazy(() => import("./pages/csa/CsaTemplatesPage"));
+const TeamActivityPage = lazy(() => import("./pages/csa/TeamActivityPage"));
+const DevEligibilitySandbox = lazy(() =>
+  import("./pages/DevEligibilitySandbox").then((m) => ({ default: m.DevEligibilitySandbox })),
+);
+const ReportingDashboard = lazy(() => import("./pages/reporting/ReportingDashboard"));
+const ReportingLoginPage = lazy(() => import("./pages/reporting/ReportingLoginPage"));
+const ReportingInviteAccept = lazy(() => import("./pages/reporting/ReportingInviteAccept"));
+const ReportingForgotPasswordPage = lazy(() => import("./pages/reporting/ReportingForgotPasswordPage"));
+const ReportingResetPasswordPage = lazy(() => import("./pages/reporting/ReportingResetPasswordPage"));
 
 const ReportingDomainRedirect = () => {
   useEffect(() => {
@@ -164,6 +177,7 @@ const App = () => {
               <Toaster />
               <Sonner />
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>}>
                 <Routes>
                   {subdomain === "collections" && (
                     <Route element={<CsaProviderLayout />}>
@@ -284,6 +298,7 @@ const App = () => {
                     </>
                   )}
                     </Routes>
+                </Suspense>
                   </BrowserRouter>
                 </TooltipProvider>
               </ThemeProvider>
