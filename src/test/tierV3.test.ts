@@ -33,22 +33,24 @@ describe('Tier V3 Logic', () => {
 
   test('Tenor options align with V3 rules', () => {
     const l1_l6 = [1, 2, 3, 4, 5, 6];
-    const l7_l9 = [7, 8, 9];
-    const l10_l20 = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+    const l7 = [7];
+    // Tier 8+ trades the 1-day option for 30-day; 20-day stays exclusive to
+    // tier 7 (must match backend's getAllowedTenuresForTier in loan.service.ts).
+    const l8_l20 = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
     l1_l6.forEach(level => {
       const tier = getTierByLevel(level);
       expect(tier?.tenures).toEqual([1, 5, 10, 14]);
     });
 
-    l7_l9.forEach(level => {
+    l7.forEach(level => {
       const tier = getTierByLevel(level);
       expect(tier?.tenures).toEqual([1, 5, 10, 14, 20]);
     });
 
-    l10_l20.forEach(level => {
+    l8_l20.forEach(level => {
       const tier = getTierByLevel(level);
-      expect(tier?.tenures).toEqual([1, 5, 10, 14, 20, 30]);
+      expect(tier?.tenures).toEqual([5, 10, 14, 30]);
     });
   });
 
