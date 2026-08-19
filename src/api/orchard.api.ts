@@ -43,6 +43,10 @@ export interface OrchardMandate {
   lastDebitStatus?: string;
   createdAt: string;
   updatedAt: string;
+  /** The mandate's linked loan's actual due date, attached server-side —
+   * not derived from startDate, since mandates predating the DD+4 grace
+   * period have startDate equal to the due date with no offset. */
+  loanDueDate?: string | null;
 }
 
 export async function getOrchardConfig(): Promise<{ data: OrchardConfig; env: OrchardEnvInfo }> {
@@ -93,6 +97,11 @@ export async function suspendOrchardMandate(msisdn: string) {
 
 export async function resumeOrchardMandate(msisdn: string) {
   const res = await api.post(`${BASE}/mandates/${msisdn}/resume`);
+  return res.data;
+}
+
+export async function forceRetryOrchardDebit(msisdn: string) {
+  const res = await api.post(`${BASE}/mandates/${msisdn}/force-retry`);
   return res.data;
 }
 

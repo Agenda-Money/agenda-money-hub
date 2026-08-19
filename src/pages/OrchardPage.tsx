@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import {
   RefreshCw, MoreHorizontal, AlertCircle, Clock,
   PauseCircle, XCircle, CheckCircle2, KeyRound,
-  Users, Wallet,
+  Users, Wallet, Zap,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   listOrchardMandates, suspendOrchardMandate, resumeOrchardMandate,
   cancelOrchardMandate, resendOrchardOtp, syncOrchardMandate,
-  checkOrchardWalletBalance,
+  forceRetryOrchardDebit, checkOrchardWalletBalance,
   type OrchardMandate, type OrchardMandateStatus,
 } from "@/api/orchard.api";
 import { cn } from "@/lib/utils";
@@ -58,6 +58,82 @@ function fmt(date?: string) {
 function fmtGhs(n?: number) {
   if (n === undefined || n === null) return "—";
   return `GHS ${n.toFixed(2)}`;
+}
+
+// Turns "wallet_balance" / "walletBalance" into "Wallet balance" for any
+// field Orchard's response happens to include beyond the standard
+// resp_code/resp_desc/trans_id envelope — keeps this working even if the
+// exact balance field name shifts, without falling back to a raw JSON dump.
+function humanizeKey(key: string): string {
+  const spaced = key.replace(/_/g, " ").replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  const lower = spaced.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+function formatBalanceValue(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "number") return v.toLocaleString();
+  return String(v);
+}
+
+function BalanceResult({ data }: { data: Record<string, unknown> }) {
+  const { resp_code, resp_desc, trans_id, ...rest } = data;
+  const otherEntries = Object.entries(rest).filter(([, v]) => v !== undefined);
+  const succeeded = resp_code === "000" || resp_code === "027" || String(resp_code ?? "").startsWith("000");
+
+  return (
+    <div className="rounded-md border bg-muted/30 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className={cn(
+          "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+          succeeded ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                    : "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+        )}>
+          {succeeded ? "Success" : "Attention"}
+        </span>
+        {typeof resp_desc === "string" && <span className="text-sm">{resp_desc}</span>}
+      </div>
+      {otherEntries.length > 0 && (
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          {otherEntries.map(([key, value]) => (
+            <div key={key} className="contents">
+              <dt className="text-muted-foreground">{humanizeKey(key)}</dt>
+              <dd className="font-medium text-right">{formatBalanceValue(value)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {typeof trans_id === "string" && (
+        <p className="text-xs text-muted-foreground font-mono pt-1 border-t">Ref: {trans_id}</p>
+      )}
+    </div>
+  );
+}
+
+// DD+4: the mandate's start_date is set 4 days after the loan's actual due
+// date (see AUTO_DEBIT_GRACE_DAYS in backend loan.service.ts), giving the
+// borrower room to self-repay before auto-debit kicks in. Reversing that
+// here recovers the loan's due date without a separate API call.
+const AUTO_DEBIT_GRACE_DAYS = 4;
+
+function fmtShortDate(date?: string) {
+  if (!date) return "—";
+  return format(new Date(date), "dd MMM yyyy");
+}
+
+function getLoanDueDate(startDate?: string): Date | undefined {
+  if (!startDate) return undefined;
+  const d = new Date(startDate);
+  d.setDate(d.getDate() - AUTO_DEBIT_GRACE_DAYS);
+  return d;
+}
+
+function getTriggerCountdown(startDate?: string): { label: string; tone: "muted" | "warning" | "done" } {
+  if (!startDate) return { label: "—", tone: "muted" };
+  const diffDays = Math.round((new Date(startDate).getTime() - Date.now()) / 86_400_000);
+  if (diffDays > 0) return { label: `in ${diffDays} day${diffDays === 1 ? "" : "s"}`, tone: "muted" };
+  if (diffDays === 0) return { label: "today", tone: "warning" };
+  return { label: `${-diffDays} day${diffDays === -1 ? "" : "s"} ago`, tone: "done" };
 }
 
 // ── Overview Tab ───────────────────────────────────────────────────────────────
@@ -139,16 +215,14 @@ function OverviewTab() {
           <CardTitle className="flex items-center gap-2 text-base">
             <Wallet className="h-4 w-4" /> Orchard Wallet Balance
           </CardTitle>
-          <CardDescription>Payout wallet needs bank-transfer funding — balance won't reflect same-day top-ups</CardDescription>
+          <CardDescription>This wallet is topped up via bank transfer — the balance below won't reflect a same-day top-up</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Button variant="outline" size="sm" onClick={() => balanceMut.mutate()} disabled={balanceMut.isPending}>
             <RefreshCw className={cn("h-3.5 w-3.5 mr-2", balanceMut.isPending && "animate-spin")} />
             {balanceMut.isPending ? "Checking..." : "Check Balance"}
           </Button>
-          {balanceMut.data && (
-            <pre className="text-xs bg-muted/50 rounded-md p-3 overflow-x-auto">{JSON.stringify(balanceMut.data, null, 2)}</pre>
-          )}
+          {balanceMut.data && <BalanceResult data={balanceMut.data} />}
         </CardContent>
       </Card>
     </div>
@@ -175,6 +249,11 @@ function MandatesTab() {
   const resumeMut = useMutation({ mutationFn: resumeOrchardMandate, onSuccess: () => { toast.success("Mandate resumed"); invalidate(); } });
   const resendOtpMut = useMutation({ mutationFn: resendOrchardOtp, onSuccess: () => { toast.success("OTP resent to customer"); invalidate(); } });
   const syncMut = useMutation({ mutationFn: syncOrchardMandate, onSuccess: () => { toast.success("Synced from Orchard"); invalidate(); } });
+  const forceRetryMut = useMutation({
+    mutationFn: forceRetryOrchardDebit,
+    onSuccess: () => { toast.success("Retry debit triggered"); invalidate(); },
+    onError: (e: any) => toast.error(e?.response?.data?.message || "Retry failed"),
+  });
   const cancelMut = useMutation({
     mutationFn: ({ msisdn, reason }: { msisdn: string; reason: string }) => cancelOrchardMandate(msisdn, reason),
     onSuccess: () => { toast.success("Mandate cancelled"); setCancelTarget(null); invalidate(); },
@@ -207,23 +286,37 @@ function MandatesTab() {
               <th className="px-4 py-3 text-left font-medium">Status</th>
               <th className="px-4 py-3 text-left font-medium">Loan Ref</th>
               <th className="px-4 py-3 text-left font-medium">Amount / Cycle</th>
+              <th className="px-4 py-3 text-left font-medium">Due Date / Auto-Debit (DD+4)</th>
               <th className="px-4 py-3 text-left font-medium">Last Debit</th>
-              <th className="px-4 py-3 text-left font-medium">Retries</th>
+              <th className="px-4 py-3 text-left font-medium">Orchard Retries</th>
               {canWrite && <th className="px-4 py-3 text-right font-medium">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {isLoading ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">Loading...</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">Loading...</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">No mandates found</td></tr>
-            ) : rows.map((m) => (
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No mandates found</td></tr>
+            ) : rows.map((m) => {
+              const dueDate = getLoanDueDate(m.startDate);
+              const countdown = getTriggerCountdown(m.startDate);
+              return (
               <tr key={m._id} className="hover:bg-muted/30 transition-colors">
                 <td className="px-4 py-3 font-mono text-xs">{m.msisdn}</td>
                 <td className="px-4 py-3">{m.network}</td>
                 <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
                 <td className="px-4 py-3 font-mono text-xs">{m.currentLoanReference ?? "—"}</td>
                 <td className="px-4 py-3">{fmtGhs(m.currentDebitAmount)}{m.cycle ? ` / ${m.cycle}` : ""}</td>
+                <td className="px-4 py-3 text-xs">
+                  <div className="text-muted-foreground">Due {dueDate ? fmtShortDate(dueDate.toISOString()) : "—"}</div>
+                  <div className={cn(
+                    "font-medium",
+                    countdown.tone === "warning" && "text-orange-600 dark:text-orange-400",
+                    countdown.tone === "done" && "text-muted-foreground",
+                  )}>
+                    Debit {fmtShortDate(m.startDate)} ({countdown.label})
+                  </div>
+                </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{fmt(m.lastDebitAt)}</td>
                 <td className="px-4 py-3">{m.retryCount}</td>
                 {canWrite && (
@@ -243,6 +336,11 @@ function MandatesTab() {
                         {m.status === "ACTIVE" && (
                           <DropdownMenuItem onClick={() => suspendMut.mutate(m.msisdn)}>
                             <PauseCircle className="h-3.5 w-3.5 mr-2" /> Suspend
+                          </DropdownMenuItem>
+                        )}
+                        {m.status === "ACTIVE" && !!m.currentDebitAmount && (
+                          <DropdownMenuItem onClick={() => forceRetryMut.mutate(m.msisdn)}>
+                            <Zap className="h-3.5 w-3.5 mr-2 text-amber-500" /> Force Retry Debit
                           </DropdownMenuItem>
                         )}
                         {m.status === "SUSPENDED" && (
@@ -265,7 +363,8 @@ function MandatesTab() {
                   </td>
                 )}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

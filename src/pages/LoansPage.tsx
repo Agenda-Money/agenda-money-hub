@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Eye, Clock, CheckCircle, AlertTriangle, Check, XCircle, Loader2,
   Filter, Search, Download, X, ChevronUp, ChevronDown, Calendar, SlidersHorizontal,
+  ShieldCheck, CircleDollarSign, Ban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoanReviewModal } from "@/components/loans/LoanReviewModal";
@@ -45,15 +46,18 @@ interface Loan {
 
 const statusConfig = {
   PENDING: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning border-warning/20" },
+  AWAITING_MANDATE: { label: "Awaiting Mandate", icon: ShieldCheck, color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20" },
   DISBURSING_INIT: { label: "Initiating", icon: Loader2, color: "bg-blue-500/10 text-blue-600 border-blue-200" },
   DISBURSING: { label: "Disbursing", icon: Loader2, color: "bg-blue-500/10 text-blue-600 border-blue-200" },
   DISBURSEMENT_REVIEW: { label: "Review Required", icon: AlertTriangle, color: "bg-red-500/10 text-red-600 border-red-300" },
   ACTIVE: { label: "Active", icon: CheckCircle, color: "bg-green-600/10 text-green-700 border-green-500/20" },
   REPAID: { label: "Closed", icon: Check, color: "bg-blue-600/10 text-blue-700 border-blue-500/20" },
   CLOSED: { label: "Closed", icon: Check, color: "bg-blue-600/10 text-blue-700 border-blue-500/20" },
+  PARTIAL_REPAID: { label: "Partially Repaid", icon: CircleDollarSign, color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20" },
   OVERDUE: { label: "Overdue", icon: AlertTriangle, color: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20" },
   DEFAULTED: { label: "Defaulted", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
   REJECTED: { label: "Rejected", icon: XCircle, color: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20" },
+  CANCELLED: { label: "Cancelled", icon: Ban, color: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20" },
   AWAITING_ENDORSEMENT: { label: "Awaiting Node", icon: Clock, color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" },
   "DUE TODAY": { label: "Due Today", icon: AlertTriangle, color: "bg-warning/10 text-warning border-warning/20" },
 };
@@ -425,13 +429,16 @@ export default function LoansPage() {
   const STATUS_OPTIONS = [
     { value: "all", label: "All Statuses" },
     { value: "PENDING", label: "Pending" },
+    { value: "AWAITING_MANDATE", label: "Awaiting Mandate" },
     { value: "AWAITING_ENDORSEMENT", label: "Awaiting Node" },
     { value: "DISBURSING", label: "Disbursing" },
     { value: "ACTIVE", label: "Active" },
+    { value: "PARTIAL_REPAID", label: "Partially Repaid" },
     { value: "OVERDUE", label: "Overdue" },
     { value: "DEFAULTED", label: "Defaulted" },
     { value: "REPAID,CLOSED", label: "Closed" },
     { value: "REJECTED", label: "Rejected" },
+    { value: "CANCELLED", label: "Cancelled" },
   ];
 
   return (
