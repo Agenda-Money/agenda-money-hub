@@ -996,6 +996,31 @@ export default function ApplyPage() {
     }
   }, [view, fetchActiveLoan]);
 
+  // A returning user whose loan is still AWAITING_MANDATE (they left before
+  // entering the auto-repay OTP) would otherwise land on the normal
+  // dashboard and see no active loan at all, since nothing routed them back
+  // into the confirmation screen — indistinguishable from having no loan,
+  // so they'd just start a fresh application. Resume them straight into the
+  // OTP screen instead, and fire a new code immediately: any code from their
+  // last visit is almost certainly expired by now.
+  const hasAutoResumedMandateRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoResumedMandateRef.current) return;
+    if (activeLoanDetails?.status !== "AWAITING_MANDATE" || !activeLoanDetails?.loanReference) return;
+    hasAutoResumedMandateRef.current = true;
+
+    setMandateLoanReference(activeLoanDetails.loanReference);
+    setMandateResendSeconds(60);
+    setView("mandate-otp");
+
+    fetch(`${baseApiUrl}/api/loans/${activeLoanDetails.loanReference}/mandate/resend-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+    }).catch(() => {
+      // Non-fatal — the OTP screen's own "Resend" button covers this once the cooldown clears.
+    });
+  }, [activeLoanDetails, baseApiUrl, authToken]);
+
   // ─── Recent Activity Fetching ───
   useEffect(() => {
     if (view === "loan-dashboard") {
