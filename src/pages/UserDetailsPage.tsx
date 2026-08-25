@@ -296,8 +296,85 @@ const BlockModal = ({ user, onClose, onConfirm, loading }: any) => {
   )
 }
 
+// ─── Swap Number Modal Component ────────────────────────────────────────────
+const SwapNumberModal = ({ user, userId, onClose, onSaved }: any) => {
+  const [newMsisdn, setNewMsisdn] = useState('')
+  const [reason, setReason] = useState('')
+
+  const { mutate: handleSwap, isPending } = useMutation({
+    mutationFn: () => editUser(user.msisdn, { newMsisdn, reason }),
+    onSuccess: () => {
+      toast.success(`Number swapped to ${newMsisdn}`)
+      onSaved()
+      onClose()
+    },
+    onError: (error: any) => toast.error(getFriendlyErrorMessage(error)),
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!/^[0-9+]{7,20}$/.test(newMsisdn)) {
+      toast.error("Invalid phone number format. Use 7-20 digits/plus.")
+      return
+    }
+    if (!reason.trim()) {
+      toast.error("Please provide a reason for this audit log.")
+      return
+    }
+    handleSwap()
+  }
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Swap Phone Number</DialogTitle>
+          <DialogDescription>
+            Moves this customer to a new primary number. Their loans and repayments move with them, the old number ({user.msisdn}) becomes their alternate contact, and any live auto-debit mandate follows to the new number so collections keep working.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Current Number</Label>
+              <Input value={user.msisdn} disabled className="font-mono text-muted-foreground" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="swapNewMsisdn">New Number</Label>
+              <Input
+                id="swapNewMsisdn"
+                placeholder="e.g. 233240000000"
+                value={newMsisdn}
+                onChange={(e) => setNewMsisdn(e.target.value)}
+                className="font-mono"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="swapReason" className="text-red-500 font-bold">Reason for Change (Audit Log) *</Label>
+              <Input
+                id="swapReason"
+                placeholder="e.g. Customer lost access to old SIM..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="border-red-200 focus:border-red-500"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+            <Button type="submit" disabled={isPending || !newMsisdn.trim() || !reason.trim()}>
+              {isPending ? "Swapping..." : "Swap Number"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ─── Main Page Components ────────────────────────────────────────────────────
-const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onRemoveFlag, onCall, canWrite }: any) => {
+const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onSwapNumber, onRemoveFlag, onCall, canWrite }: any) => {
   const activeFlag = user.flags?.slice(-1)[0] || null
   return (
     <Card className="p-4 sm:p-8 w-full min-w-0">
@@ -343,6 +420,7 @@ const ProfileHeader = ({ user, onFlag, onBlock, onEdit, onRemoveFlag, onCall, ca
           <button onClick={onBlock} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${user.isBlocked ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-900/20'}`}>
             {user.isBlocked ? 'Unblock' : 'Block'}
           </button>
+          <button onClick={onSwapNumber} className="px-4 py-2 rounded-xl border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 text-xs font-black uppercase tracking-widest hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all">Swap Number</button>
           <button onClick={onEdit} className="px-4 py-2 rounded-xl border border-pink-100 dark:border-gray-700 text-pink-600 dark:text-pink-400 text-xs font-black uppercase tracking-widest hover:bg-pink-50 dark:hover:bg-gray-800 transition-all">Edit</button>
         </div>
       </div>
@@ -361,6 +439,7 @@ export default function UserDetailsPage() {
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false)
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false)
   const [blockReason, setBlockReason] = useState('')
+  const [isSwapNumberModalOpen, setIsSwapNumberModalOpen] = useState(false)
   const [scoreSheetOpen, setScoreSheetOpen] = useState(false)
 
   const recalculateScoreMutation = useMutation({
@@ -517,11 +596,12 @@ export default function UserDetailsPage() {
         </div>
 
         {/* 1. Header & Summary */}
-        <ProfileHeader 
-          user={user} 
+        <ProfileHeader
+          user={user}
           onFlag={() => setFlagModalOpen(true)}
           onBlock={() => setIsBlockModalOpen(true)}
           onEdit={() => setIsEditDrawerOpen(true)}
+          onSwapNumber={() => setIsSwapNumberModalOpen(true)}
           onRemoveFlag={(flagId: string) => removeFlagMutation.mutate(flagId)}
           onCall={handleCall}
           canWrite={canWrite}
@@ -905,6 +985,14 @@ export default function UserDetailsPage() {
             userPhone={user.msisdn}
             userId={id!}
             initialData={user}
+          />
+        )}
+        {isSwapNumberModalOpen && (
+          <SwapNumberModal
+            user={user}
+            userId={id!}
+            onClose={() => setIsSwapNumberModalOpen(false)}
+            onSaved={() => queryClient.invalidateQueries({ queryKey: ['user-detail', id] })}
           />
         )}
 
