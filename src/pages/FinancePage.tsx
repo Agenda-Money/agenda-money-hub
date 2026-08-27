@@ -217,6 +217,13 @@ function PnlTab({ month }: { month: string }) {
     fill: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
   }));
 
+  const payrollByDept = pnl.indirectCosts.byCategory.filter((c) => c._id.category === "payroll");
+  const payrollTotal = payrollByDept.reduce((s, c) => s + c.total, 0);
+  const payrollRows = PAYROLL_DEPARTMENTS.map((dept) => ({
+    dept,
+    amount: payrollByDept.find((c) => c._id.department === dept)?.total ?? 0,
+  }));
+
   return (
     <div className="grid gap-6 lg:grid-cols-5">
       <Card className="lg:col-span-3">
@@ -270,6 +277,32 @@ function PnlTab({ month }: { month: string }) {
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-5">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><Wallet className="h-4 w-4 text-muted-foreground" /> Payroll by department</CardTitle>
+          <CardDescription>Salaries logged as ledger entries with category "Payroll", grouped by department for this period.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow><TableHead>Department</TableHead><TableHead className="text-right">Amount</TableHead></TableRow>
+            </TableHeader>
+            <TableBody>
+              {payrollRows.map((r) => (
+                <TableRow key={r.dept}>
+                  <TableCell className={cn(r.amount === 0 && "text-muted-foreground")}>{r.dept}</TableCell>
+                  <TableCell className={cn("text-right font-mono tabular-nums", r.amount === 0 && "text-muted-foreground")}>{fmtGhs(r.amount)}</TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="border-t-2">
+                <TableCell className="font-bold">Total payroll</TableCell>
+                <TableCell className="text-right font-mono tabular-nums font-bold">{fmtGhs(payrollTotal)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>
