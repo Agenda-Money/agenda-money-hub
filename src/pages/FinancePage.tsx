@@ -4,13 +4,19 @@ import { format } from "date-fns";
 import {
   DollarSign, TrendingDown, TrendingUp, Wallet, Percent,
   Plus, Trash2, CheckCircle2, XCircle, Clock, AlertTriangle,
+  Receipt, LayoutGrid, ArrowLeftRight, PieChart as PieChartIcon,
 } from "lucide-react";
+import {
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend,
+  ResponsiveContainer, CartesianGrid,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { KpiCard } from "@/components/analytics/KpiCard";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter,
 } from "@/components/ui/sheet";
@@ -43,21 +49,35 @@ function humanizeStatus(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase();
 }
 
-// ── Metric tile — deliberately no red/green traffic-lighting on financial
-// figures (a business being down 2% isn't an alarm; that pattern trains
-// people to stop trusting the color). ─────────────────────────────────────
-function MetricTile({ label, value, icon: Icon, sub }: { label: string; value: string; icon: any; sub?: string }) {
+// Shared chart theme — matches the Analytics dashboard's recharts styling.
+const chartTheme = {
+  grid: "#33415533",
+  tick: "#94a3b8",
+  tooltipBg: "hsl(var(--card))",
+  tooltipBorder: "hsl(var(--border))",
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  ACTIVE: "#1D9E75",
+  PARTIAL_REPAID: "#378ADD",
+  OVERDUE: "#FAC775",
+  DEFAULTED: "#F97316",
+  LOSS: "#A32D2D",
+};
+
+const CATEGORY_COLORS = ["#378ADD", "#1D9E75", "#FAC775", "#A855F7", "#F97316", "#EC4899", "#0EA5E9"];
+
+function ChartTooltip({ active, payload, label, formatter }: any) {
+  if (!active || !payload?.length) return null;
   return (
-    <Card>
-      <CardContent className="pt-5 pb-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Icon className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">{label}</span>
-        </div>
-        <p className="text-2xl font-bold">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
-      </CardContent>
-    </Card>
+    <div className="rounded-xl border bg-card px-3 py-2 text-xs shadow-lg" style={{ borderColor: chartTheme.tooltipBorder }}>
+      {label && <p className="font-semibold mb-1">{label}</p>}
+      {payload.map((p: any, i: number) => (
+        <p key={i} style={{ color: p.color || p.fill }}>
+          {p.name}: {formatter ? formatter(p.value) : p.value}
+        </p>
+      ))}
+    </div>
   );
 }
 
@@ -77,28 +97,93 @@ function MonthPicker({ month, onChange }: { month: string; onChange: (m: string)
 function OverviewTab({ month }: { month: string }) {
   const { data: pnl, isLoading } = useQuery({ queryKey: ["accounting-pnl", month], queryFn: () => getPnl(month) });
 
-  const activeLoan = pnl?.portfolio.find((p) => p.status === "ACTIVE");
   const lossLoan = pnl?.portfolio.find((p) => p.status === "LOSS");
   const totalOutstanding = pnl?.portfolio.reduce((s, p) => s + p.outstandingValue, 0) ?? 0;
+  const marginPct = pnl && pnl.revenue.total > 0 ? (pnl.grossMargin / pnl.revenue.total) * 100 : undefined;
+
+  const barData = pnl ? [
+    { name: "Revenue", value: pnl.revenue.total, fill: "#378ADD" },
+    { name: "Direct costs", value: pnl.directCosts.total, fill: "#FAC775" },
+    { name: "Indirect costs", value: pnl.indirectCosts.total, fill: "#F97316" },
+    { name: "Margin", value: pnl.grossMargin, fill: pnl.grossMargin >= 0 ? "#1D9E75" : "#A32D2D" },
+  ] : [];
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricTile label="Revenue" value={isLoading ? "—" : fmtGhs(pnl?.revenue.total)} icon={TrendingUp} sub={pnl ? `${pnl.revenue.repaidLoanCount} loans settled` : undefined} />
-        <MetricTile label="Gross Margin" value={isLoading ? "—" : fmtGhs(pnl?.grossMargin)} icon={DollarSign} />
-        <MetricTile label="Cost of Funds" value={isLoading ? "—" : fmtGhs(pnl?.directCosts.costOfFunds)} icon={Percent} sub={pnl ? `${pnl.directCosts.costOfFundsRatePercent}% of ${fmtGhs(pnl.directCosts.totalDisbursedThisMonth)} disbursed` : undefined} />
-        <MetricTile label="Loan Book (outstanding)" value={isLoading ? "—" : fmtGhs(totalOutstanding)} icon={Wallet} />
+      {/* Deliberately no red/green traffic-lighting on the KPI tone itself —
+          a business being down this month isn't an alarm; that pattern
+          trains people to stop trusting the color. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Revenue"
+          value={isLoading ? "—" : fmtGhs(pnl?.revenue.total)}
+          subtext={pnl ? `${pnl.revenue.repaidLoanCount} loans settled` : ""}
+          status="neutral"
+          icon={<TrendingUp className="h-4 w-4" />}
+          loading={isLoading}
+        />
+        <KpiCard
+          label="Gross Margin"
+          value={isLoading ? "—" : fmtGhs(pnl?.grossMargin)}
+          subtext={marginPct !== undefined ? `${marginPct.toFixed(1)}% of revenue` : ""}
+          status="neutral"
+          icon={<DollarSign className="h-4 w-4" />}
+          loading={isLoading}
+        />
+        <KpiCard
+          label="Cost of Funds"
+          value={isLoading ? "—" : fmtGhs(pnl?.directCosts.costOfFunds)}
+          subtext={pnl ? `${pnl.directCosts.costOfFundsRatePercent}% of ${fmtGhs(pnl.directCosts.totalDisbursedThisMonth)} disbursed` : ""}
+          status="neutral"
+          icon={<Percent className="h-4 w-4" />}
+          loading={isLoading}
+        />
+        <KpiCard
+          label="Loan Book (outstanding)"
+          value={isLoading ? "—" : fmtGhs(totalOutstanding)}
+          subtext="Active + overdue + defaulted"
+          status="neutral"
+          icon={<Wallet className="h-4 w-4" />}
+          loading={isLoading}
+        />
       </div>
+
       {lossLoan && lossLoan.count > 0 && (
-        <Card className="border-amber-200">
+        <Card className="border-amber-500/20 bg-amber-500/10">
           <CardContent className="pt-5 pb-4 flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-300 shrink-0" />
             <p className="text-sm">
               <span className="font-bold">{lossLoan.count}</span> loan{lossLoan.count === 1 ? "" : "s"} classified as loss this period — {fmtGhs(lossLoan.outstandingValue)} outstanding.
             </p>
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><LayoutGrid className="h-4 w-4 text-muted-foreground" /> Revenue vs. cost</CardTitle>
+          <CardDescription>{format(new Date(`${month}-01`), "MMMM yyyy")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading || !pnl ? (
+            <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : (
+            <div className="h-[260px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip content={<ChartTooltip formatter={fmtGhs} />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                    {barData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -111,31 +196,38 @@ function PnlTab({ month }: { month: string }) {
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (!pnl) return null;
 
-  const rows: { label: string; value: number; bold?: boolean }[] = [
-    { label: "Interest revenue", value: pnl.revenue.interest },
-    { label: "Fee revenue", value: pnl.revenue.fee },
+  const rows: { label: string; value: number; bold?: boolean; indent?: boolean }[] = [
+    { label: "Interest revenue", value: pnl.revenue.interest, indent: true },
+    { label: "Fee revenue", value: pnl.revenue.fee, indent: true },
     { label: "Total revenue", value: pnl.revenue.total, bold: true },
-    { label: "Cost of funds", value: -pnl.directCosts.costOfFunds },
-    { label: "Direct ledger costs", value: -pnl.directCosts.ledgerDirect },
+    { label: "Cost of funds", value: -pnl.directCosts.costOfFunds, indent: true },
+    { label: "Direct ledger costs", value: -pnl.directCosts.ledgerDirect, indent: true },
     { label: "Total direct costs", value: -pnl.directCosts.total, bold: true },
     { label: "Indirect costs (OpEx)", value: -pnl.indirectCosts.total, bold: true },
     { label: "Gross margin", value: pnl.grossMargin, bold: true },
   ];
 
+  const categoryData = pnl.indirectCosts.byCategory.map((c, i) => ({
+    name: EXPENSE_CATEGORIES.find((e) => e.id === c._id.category)?.label ?? c._id.category,
+    department: c._id.department,
+    value: c.total,
+    fill: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+  }));
+
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="grid gap-6 lg:grid-cols-5">
+      <Card className="lg:col-span-3">
         <CardHeader>
-          <CardTitle className="text-base">P&amp;L — {format(new Date(`${month}-01`), "MMMM yyyy")}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4 text-muted-foreground" /> P&amp;L — {format(new Date(`${month}-01`), "MMMM yyyy")}</CardTitle>
           <CardDescription>Revenue recognized in the month a loan settles, not the month it was disbursed.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={r.label}>
-                  <TableCell className={cn(r.bold && "font-bold")}>{r.label}</TableCell>
-                  <TableCell className={cn("text-right", r.bold && "font-bold", r.value < 0 && "text-muted-foreground")}>{fmtGhs(r.value)}</TableCell>
+                <TableRow key={r.label} className={cn(r.bold && "border-t-2")}>
+                  <TableCell className={cn(r.bold && "font-bold", r.indent && "pl-6 text-muted-foreground")}>{r.label}</TableCell>
+                  <TableCell className={cn("text-right font-mono tabular-nums", r.bold && "font-bold", r.value < 0 && "text-muted-foreground")}>{fmtGhs(r.value)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -143,27 +235,40 @@ function PnlTab({ month }: { month: string }) {
         </CardContent>
       </Card>
 
-      {pnl.indirectCosts.byCategory.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Indirect costs by category</CardTitle></CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow><TableHead>Category</TableHead><TableHead>Department</TableHead><TableHead className="text-right">Amount</TableHead></TableRow>
-              </TableHeader>
-              <TableBody>
-                {pnl.indirectCosts.byCategory.map((c, i) => (
-                  <TableRow key={i}>
-                    <TableCell>{EXPENSE_CATEGORIES.find((e) => e.id === c._id.category)?.label ?? c._id.category}</TableCell>
-                    <TableCell>{c._id.department ?? "—"}</TableCell>
-                    <TableCell className="text-right">{fmtGhs(c.total)}</TableCell>
-                  </TableRow>
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-muted-foreground" /> Indirect costs by category</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {categoryData.length === 0 ? (
+            <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">No indirect costs logged this period</div>
+          ) : (
+            <>
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={categoryData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
+                      {categoryData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip formatter={fmtGhs} />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-1.5 mt-2">
+                {categoryData.map((d, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
+                      {d.name}{d.department ? ` — ${d.department}` : ""}
+                    </span>
+                    <span className="font-mono tabular-nums">{fmtGhs(d.value)}</span>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -173,68 +278,164 @@ function PnlTab({ month }: { month: string }) {
 function PortfolioTab({ month }: { month: string }) {
   const { data: pnl, isLoading } = useQuery({ queryKey: ["accounting-pnl", month], queryFn: () => getPnl(month) });
 
+  const portfolio = pnl?.portfolio ?? [];
+  const total = portfolio.reduce((s, p) => s + p.outstandingValue, 0);
+  const chartData = portfolio.map((p) => ({
+    name: humanizeStatus(p.status),
+    status: p.status,
+    value: p.outstandingValue,
+    count: p.count,
+    fill: STATUS_COLOR[p.status] ?? "#94a3b8",
+  }));
+
   return (
-    <Card>
-      <CardHeader><CardTitle className="text-base">Portfolio composition</CardTitle></CardHeader>
-      <CardContent>
-        {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : (
-          <Table>
-            <TableHeader>
-              <TableRow><TableHead>Status</TableHead><TableHead className="text-right">Count</TableHead><TableHead className="text-right">Outstanding value</TableHead></TableRow>
-            </TableHeader>
-            <TableBody>
-              {pnl?.portfolio.map((p) => (
-                <TableRow key={p.status}>
-                  <TableCell>{humanizeStatus(p.status)}</TableCell>
-                  <TableCell className="text-right">{p.count}</TableCell>
-                  <TableCell className="text-right">{fmtGhs(p.outstandingValue)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+    <div className="grid gap-6 lg:grid-cols-5">
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-muted-foreground" /> Composition</CardTitle>
+          <CardDescription>By outstanding balance</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : chartData.length === 0 ? (
+            <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">No loans in the book</div>
+          ) : (
+            <>
+              <div className="h-[240px] w-full relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={chartData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={2}>
+                      {chartData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip formatter={fmtGhs} />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xs text-muted-foreground">Total book</span>
+                  <span className="text-lg font-bold font-mono">{fmtGhs(total)}</span>
+                </div>
+              </div>
+              <div className="space-y-1.5 mt-2">
+                {chartData.map((d, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
+                      {d.name}
+                    </span>
+                    <span className="font-mono tabular-nums">{d.count} loans</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-3">
+        <CardHeader><CardTitle className="text-base">Portfolio composition</CardTitle></CardHeader>
+        <CardContent>
+          {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : (
+            <Table>
+              <TableHeader>
+                <TableRow><TableHead>Status</TableHead><TableHead className="text-right">Count</TableHead><TableHead className="text-right">Outstanding value</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {portfolio.map((p) => (
+                  <TableRow key={p.status}>
+                    <TableCell>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLOR[p.status] ?? "#94a3b8" }} />
+                        {humanizeStatus(p.status)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{p.count}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{fmtGhs(p.outstandingValue)}</TableCell>
+                  </TableRow>
+                ))}
+                {portfolio.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">No loans in the book</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
 // ── Channels ─────────────────────────────────────────────────────────────
 
+function channelLabel(r: { channel?: string; provider?: string }) {
+  const parts = [r.channel, r.provider].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Unknown";
+}
+
+function ChannelPanel({
+  title, icon: Icon, rows, loading, barColor,
+}: {
+  title: string;
+  icon: any;
+  rows: { _id: { channel?: string; provider?: string }; count: number; volume: number }[] | undefined;
+  loading: boolean;
+  barColor: string;
+}) {
+  const chartData = (rows ?? [])
+    .map((r) => ({ name: channelLabel(r._id), volume: r.volume, count: r.count }))
+    .sort((a, b) => b.volume - a.volume);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2"><Icon className="h-4 w-4 text-muted-foreground" /> {title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : chartData.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">No data for this period</p>
+        ) : (
+          <div className="w-full" style={{ height: Math.max(160, chartData.length * 48) }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartTheme.grid} />
+                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} width={110} tick={{ fontSize: 12, fill: chartTheme.tick }} />
+                <Tooltip content={<ChartTooltip formatter={fmtGhs} />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} />
+                <Bar dataKey="volume" radius={[0, 6, 6, 0]} fill={barColor} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        <Table>
+          <TableHeader>
+            <TableRow><TableHead>Channel</TableHead><TableHead>Provider</TableHead><TableHead className="text-right">Count</TableHead><TableHead className="text-right">Volume</TableHead></TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows?.map((r, i) => (
+              <TableRow key={i}>
+                <TableCell>{r._id.channel ?? "—"}</TableCell>
+                <TableCell>{r._id.provider ?? "—"}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums">{r.count}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums">{fmtGhs(r.volume)}</TableCell>
+              </TableRow>
+            ))}
+            {rows?.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No data for this period</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ChannelsTab({ month }: { month: string }) {
   const { data: disbursement, isLoading: l1 } = useQuery({ queryKey: ["accounting-channels", "disbursement", month], queryFn: () => getChannelBreakdown("disbursement", month) });
   const { data: collection, isLoading: l2 } = useQuery({ queryKey: ["accounting-channels", "collection", month], queryFn: () => getChannelBreakdown("collection", month) });
 
-  const renderTable = (rows: { _id: { channel?: string; provider?: string }; count: number; volume: number }[] | undefined, loading: boolean) => (
-    loading ? <p className="text-sm text-muted-foreground">Loading…</p> : (
-      <Table>
-        <TableHeader>
-          <TableRow><TableHead>Channel</TableHead><TableHead>Provider</TableHead><TableHead className="text-right">Count</TableHead><TableHead className="text-right">Volume</TableHead></TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows?.map((r, i) => (
-            <TableRow key={i}>
-              <TableCell>{r._id.channel ?? "—"}</TableCell>
-              <TableCell>{r._id.provider ?? "—"}</TableCell>
-              <TableCell className="text-right">{r.count}</TableCell>
-              <TableCell className="text-right">{fmtGhs(r.volume)}</TableCell>
-            </TableRow>
-          ))}
-          {rows?.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No data for this period</TableCell></TableRow>}
-        </TableBody>
-      </Table>
-    )
-  );
-
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader><CardTitle className="text-base">Disbursements (outflow)</CardTitle></CardHeader>
-        <CardContent>{renderTable(disbursement?.breakdown, l1)}</CardContent>
-      </Card>
-      <Card>
-        <CardHeader><CardTitle className="text-base">Repayments (inflow)</CardTitle></CardHeader>
-        <CardContent>{renderTable(collection?.breakdown, l2)}</CardContent>
-      </Card>
+      <ChannelPanel title="Disbursements (outflow)" icon={TrendingDown} rows={disbursement?.breakdown} loading={l1} barColor="#F97316" />
+      <ChannelPanel title="Repayments (inflow)" icon={ArrowLeftRight} rows={collection?.breakdown} loading={l2} barColor="#1D9E75" />
     </div>
   );
 }
@@ -380,8 +581,15 @@ function LedgerTab({ month }: { month: string }) {
                   <TableRow key={entry._id}>
                     <TableCell>{EXPENSE_CATEGORIES.find((c) => c.id === entry.category)?.label ?? entry.category}{entry.department ? ` — ${entry.department}` : ""}</TableCell>
                     <TableCell className="max-w-xs truncate">{entry.description}</TableCell>
-                    <TableCell className="capitalize">{entry.costType}</TableCell>
-                    <TableCell className="text-right">{fmtGhs(entry.amount)}</TableCell>
+                    <TableCell>
+                      <span className={cn(
+                        "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize",
+                        entry.costType === "direct" ? "bg-orange-500/15 text-orange-700 dark:text-orange-300" : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+                      )}>
+                        {entry.costType}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{fmtGhs(entry.amount)}</TableCell>
                     <TableCell>
                       <span className={cn(
                         "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",

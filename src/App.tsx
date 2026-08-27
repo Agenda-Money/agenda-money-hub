@@ -58,6 +58,7 @@ const AdminDeductionsPage = lazy(() => import("./pages/AdminDeductionsPage"));
 const AdminManualDisbursePage = lazy(() => import("./pages/AdminManualDisbursePage"));
 const DirectDebitPage = lazy(() => import("./pages/DirectDebitPage"));
 const OrchardPage = lazy(() => import("./pages/OrchardPage"));
+const FinanceLoginPage = lazy(() => import("./pages/FinanceLoginPage"));
 const FinanceOverviewPage = lazy(() =>
   import("./pages/FinancePage").then((m) => ({ default: m.FinanceOverviewPage })),
 );
@@ -248,7 +249,7 @@ const App = () => {
                   )}
                   {subdomain === "finance" && (
                     <>
-                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/login" element={<FinanceLoginPage />} />
                       <Route element={<RequireAuth><FinanceRoute><FinanceLayout /></FinanceRoute></RequireAuth>}>
                         <Route path="/finance" element={<FinanceOverviewPage />} />
                         <Route path="/finance/pnl" element={<FinancePnlPage />} />
