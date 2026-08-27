@@ -5,10 +5,11 @@ import {
   DollarSign, TrendingDown, TrendingUp, Wallet, Percent,
   Plus, Trash2, CheckCircle2, XCircle, Clock, AlertTriangle,
   Receipt, LayoutGrid, ArrowLeftRight, PieChart as PieChartIcon,
+  Paperclip, Loader2, ExternalLink, Activity,
 } from "lucide-react";
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend,
-  ResponsiveContainer, CartesianGrid,
+  ResponsiveContainer, CartesianGrid, ComposedChart, Line,
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,13 +27,15 @@ import {
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSignedUrl } from "@/hooks/useSignedUrl";
+import { uploadToStorage } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import { EXPENSE_CATEGORIES, PAYROLL_DEPARTMENTS, type LedgerCategoryId } from "@/lib/constants";
 import {
   getAccountingSettings, updateAccountingSettings,
   listLedgerEntries, createLedgerEntry, requestLedgerDeletion, approveLedgerDeletion, rejectLedgerDeletion,
-  getPnl, getChannelBreakdown,
+  getPnl, getChannelBreakdown, getCashflow,
   type LedgerEntry,
 } from "@/api/accounting.api";
 
@@ -440,7 +443,94 @@ function ChannelsTab({ month }: { month: string }) {
   );
 }
 
+// ── Cash flow ────────────────────────────────────────────────────────────
+
+function CashflowTab({ month }: { month: string }) {
+  const { data: cf, isLoading } = useQuery({ queryKey: ["accounting-cashflow", month], queryFn: () => getCashflow(month) });
+
+  const chartData = (cf?.weeks ?? []).map((w) => ({
+    name: w.weekLabel,
+    inflow: w.expectedInflow,
+    loanCount: w.loanCount,
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard
+          label="Expected inflow"
+          value={isLoading ? "—" : fmtGhs(cf?.weeks.reduce((s, w) => s + w.expectedInflow, 0))}
+          subtext="Balance due this month, by week"
+          status="neutral"
+          icon={<TrendingUp className="h-4 w-4" />}
+          loading={isLoading}
+        />
+        <KpiCard
+          label="Known outflow"
+          value={isLoading ? "—" : fmtGhs(cf?.knownOutflow.total)}
+          subtext="Cost of funds + all ledger entries"
+          status="neutral"
+          icon={<TrendingDown className="h-4 w-4" />}
+          loading={isLoading}
+        />
+        <KpiCard
+          label="Net projected"
+          value={isLoading ? "—" : fmtGhs(cf?.netProjected)}
+          subtext="Expected inflow minus known outflow"
+          status="neutral"
+          icon={<Activity className="h-4 w-4" />}
+          loading={isLoading}
+        />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-muted-foreground" /> Expected collections by week</CardTitle>
+          <CardDescription>Outstanding balance on loans due each week — a forecast, not a guarantee; some will slip to overdue.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : chartData.length === 0 ? (
+            <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">No loans due this period</div>
+          ) : (
+            <div className="h-[260px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip content={<ChartTooltip formatter={fmtGhs} />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} />
+                  <Bar dataKey="inflow" name="Expected inflow" radius={[6, 6, 0, 0]} fill="#378ADD" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ── Ledger ───────────────────────────────────────────────────────────────
+
+function ReceiptCell({ receiptUrl }: { receiptUrl?: string }) {
+  const signedUrl = useSignedUrl(receiptUrl);
+  if (!receiptUrl) return <span className="text-muted-foreground text-xs">—</span>;
+  return (
+    <a
+      href={signedUrl ?? undefined}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        "inline-flex items-center gap-1 text-xs font-medium",
+        signedUrl ? "text-primary hover:underline" : "text-muted-foreground pointer-events-none",
+      )}
+    >
+      <Paperclip className="h-3 w-3" /> View <ExternalLink className="h-3 w-3" />
+    </a>
+  );
+}
 
 function LedgerTab({ month }: { month: string }) {
   const qc = useQueryClient();
@@ -448,6 +538,8 @@ function LedgerTab({ month }: { month: string }) {
   const { canWrite, canDelete } = useAuth();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [form, setForm] = useState({ category: "" as LedgerCategoryId | "", department: "", description: "", amount: "", periodMonth: month });
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<LedgerEntry | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [approvalTarget, setApprovalTarget] = useState<{ entry: LedgerEntry; action: "approve" | "reject" } | null>(null);
@@ -460,14 +552,27 @@ function LedgerTab({ month }: { month: string }) {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["ledger-entries"] });
 
   const createMut = useMutation({
-    mutationFn: createLedgerEntry,
+    mutationFn: async (payload: Parameters<typeof createLedgerEntry>[0]) => {
+      if (receiptFile) {
+        setUploadingReceipt(true);
+        const ext = receiptFile.name.split(".").pop() || "pdf";
+        const upload = await uploadToStorage(receiptFile, `ledger/${Date.now()}-${payload.category}.${ext}`);
+        setUploadingReceipt(false);
+        if (!upload.success || !upload.key) {
+          throw new Error(upload.error || "Receipt upload failed");
+        }
+        payload = { ...payload, receiptUrl: upload.key };
+      }
+      return createLedgerEntry(payload);
+    },
     onSuccess: () => {
       toast({ title: "Entry created" });
       setIsSheetOpen(false);
       setForm({ category: "", department: "", description: "", amount: "", periodMonth: month });
+      setReceiptFile(null);
       invalidate();
     },
-    onError: (e: any) => toast({ variant: "destructive", title: "Failed to create entry", description: getFriendlyErrorMessage(e) }),
+    onError: (e: any) => { setUploadingReceipt(false); toast({ variant: "destructive", title: "Failed to create entry", description: getFriendlyErrorMessage(e) }); },
   });
 
   const requestDeleteMut = useMutation({
@@ -542,10 +647,23 @@ function LedgerTab({ month }: { month: string }) {
                   <Label>Period</Label>
                   <Input type="month" value={form.periodMonth} onChange={(e) => setForm((f) => ({ ...f, periodMonth: e.target.value }))} />
                 </div>
+                <div className="space-y-2">
+                  <Label>Receipt (optional)</Label>
+                  <label className="flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-sm cursor-pointer hover:bg-muted transition-colors">
+                    <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="truncate text-muted-foreground">{receiptFile ? receiptFile.name : "Attach a receipt or invoice"}</span>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                </div>
               </div>
               <SheetFooter>
                 <Button
-                  disabled={!canSubmit || createMut.isPending}
+                  disabled={!canSubmit || createMut.isPending || uploadingReceipt}
                   onClick={() => createMut.mutate({
                     category: form.category as LedgerCategoryId,
                     department: form.department ? (form.department as any) : undefined,
@@ -554,7 +672,7 @@ function LedgerTab({ month }: { month: string }) {
                     periodMonth: form.periodMonth,
                   })}
                 >
-                  {createMut.isPending ? "Creating…" : "Create Entry"}
+                  {uploadingReceipt ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading receipt…</>) : createMut.isPending ? "Creating…" : "Create Entry"}
                 </Button>
               </SheetFooter>
             </SheetContent>
@@ -572,6 +690,7 @@ function LedgerTab({ month }: { month: string }) {
                   <TableHead>Description</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Receipt</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -590,6 +709,7 @@ function LedgerTab({ month }: { month: string }) {
                       </span>
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{fmtGhs(entry.amount)}</TableCell>
+                    <TableCell><ReceiptCell receiptUrl={entry.receiptUrl} /></TableCell>
                     <TableCell>
                       <span className={cn(
                         "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
@@ -619,7 +739,7 @@ function LedgerTab({ month }: { month: string }) {
                     </TableCell>
                   </TableRow>
                 ))}
-                {data?.data.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No ledger entries for this period</TableCell></TableRow>}
+                {data?.data.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No ledger entries for this period</TableCell></TableRow>}
               </TableBody>
             </Table>
           )}
@@ -766,6 +886,16 @@ export function FinanceChannelsPage() {
     <div>
       <PageHeader title="Channels" month={month} onMonth={setMonth} />
       <ChannelsTab month={month} />
+    </div>
+  );
+}
+
+export function FinanceCashflowPage() {
+  const [month, setMonth] = useState(currentMonth());
+  return (
+    <div>
+      <PageHeader title="Cash Flow" month={month} onMonth={setMonth} />
+      <CashflowTab month={month} />
     </div>
   );
 }

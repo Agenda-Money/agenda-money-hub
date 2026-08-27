@@ -74,6 +74,9 @@ const FinanceChannelsPage = lazy(() =>
 const FinancePortfolioPage = lazy(() =>
   import("./pages/FinancePage").then((m) => ({ default: m.FinancePortfolioPage })),
 );
+const FinanceCashflowPage = lazy(() =>
+  import("./pages/FinancePage").then((m) => ({ default: m.FinanceCashflowPage })),
+);
 const CampaignHistoryPage = lazy(() =>
   import("./pages/rewards/RewardsCommsPages").then((m) => ({ default: m.CampaignHistoryPage })),
 );
@@ -256,6 +259,7 @@ const App = () => {
                         <Route path="/finance/ledger" element={<FinanceLedgerPage />} />
                         <Route path="/finance/channels" element={<FinanceChannelsPage />} />
                         <Route path="/finance/portfolio" element={<FinancePortfolioPage />} />
+                        <Route path="/finance/cashflow" element={<FinanceCashflowPage />} />
                         <Route path="/" element={<Navigate to="/finance" replace />} />
                       </Route>
                       <Route path="*" element={<Navigate to="/finance" replace />} />

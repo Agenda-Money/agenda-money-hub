@@ -46,6 +46,13 @@ export interface ChannelBreakdownResponse {
   breakdown: { _id: { channel?: string; provider?: string }; count: number; volume: number }[];
 }
 
+export interface CashflowResponse {
+  month: string;
+  weeks: { weekLabel: string; weekStart: string; expectedInflow: number; loanCount: number }[];
+  knownOutflow: { costOfFunds: number; ledgerCosts: number; total: number };
+  netProjected: number;
+}
+
 export async function getAccountingSettings(): Promise<AccountingSettings> {
   const res = await api.get(`${BASE}/settings`);
   return res.data.data;
@@ -103,5 +110,10 @@ export async function getPnl(month: string): Promise<PnlResponse> {
 
 export async function getChannelBreakdown(type: "disbursement" | "collection", month: string): Promise<ChannelBreakdownResponse> {
   const res = await api.get(`${BASE}/channels`, { params: { type, month } });
+  return res.data.data;
+}
+
+export async function getCashflow(month: string): Promise<CashflowResponse> {
+  const res = await api.get(`${BASE}/cashflow`, { params: { month } });
   return res.data.data;
 }

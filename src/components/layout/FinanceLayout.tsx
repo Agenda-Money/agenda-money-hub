@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from "react-router-dom";
-import { Calculator, LogOut, LayoutGrid, Receipt, BookText, ArrowLeftRight, PieChart } from "lucide-react";
+import { Calculator, LogOut, LayoutGrid, Receipt, BookText, ArrowLeftRight, PieChart, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { to: "/finance/ledger", label: "Ledger", icon: BookText },
   { to: "/finance/channels", label: "Channels", icon: ArrowLeftRight },
   { to: "/finance/portfolio", label: "Portfolio", icon: PieChart },
+  { to: "/finance/cashflow", label: "Cash Flow", icon: Activity },
 ];
 
 // Deliberately its own subdomain rather than a gated section inside admin —
