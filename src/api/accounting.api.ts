@@ -53,6 +53,10 @@ export interface CashflowResponse {
   netProjected: number;
 }
 
+export interface PnlTrendResponse {
+  months: { month: string; revenue: number; directCosts: number; indirectCosts: number; grossMargin: number }[];
+}
+
 export async function getAccountingSettings(): Promise<AccountingSettings> {
   const res = await api.get(`${BASE}/settings`);
   return res.data.data;
@@ -115,5 +119,10 @@ export async function getChannelBreakdown(type: "disbursement" | "collection", m
 
 export async function getCashflow(month: string): Promise<CashflowResponse> {
   const res = await api.get(`${BASE}/cashflow`, { params: { month } });
+  return res.data.data;
+}
+
+export async function getPnlTrend(endMonth: string, months = 6): Promise<PnlTrendResponse> {
+  const res = await api.get(`${BASE}/pnl/trend`, { params: { endMonth, months } });
   return res.data.data;
 }

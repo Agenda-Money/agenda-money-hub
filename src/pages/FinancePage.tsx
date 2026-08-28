@@ -5,11 +5,11 @@ import {
   DollarSign, TrendingDown, TrendingUp, Wallet, Percent,
   Plus, Trash2, CheckCircle2, XCircle, Clock, AlertTriangle,
   Receipt, LayoutGrid, ArrowLeftRight, PieChart as PieChartIcon,
-  Paperclip, Loader2, ExternalLink, Activity,
+  Paperclip, Loader2, ExternalLink, Activity, Download,
 } from "lucide-react";
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend,
-  ResponsiveContainer, CartesianGrid, ComposedChart, Line,
+  ResponsiveContainer, CartesianGrid, ComposedChart, Line, Area,
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,7 @@ import { EXPENSE_CATEGORIES, PAYROLL_DEPARTMENTS, type LedgerCategoryId } from "
 import {
   getAccountingSettings, updateAccountingSettings,
   listLedgerEntries, createLedgerEntry, requestLedgerDeletion, approveLedgerDeletion, rejectLedgerDeletion,
-  getPnl, getChannelBreakdown, getCashflow,
+  getPnl, getPnlTrend, getChannelBreakdown, getCashflow,
   type LedgerEntry,
 } from "@/api/accounting.api";
 
@@ -97,12 +97,41 @@ function MonthPicker({ month, onChange }: { month: string; onChange: (m: string)
 
 // ── Overview ─────────────────────────────────────────────────────────────
 
+function pctChange(current: number, previous: number): number | undefined {
+  if (previous === 0) return undefined;
+  return ((current - previous) / Math.abs(previous)) * 100;
+}
+
+function trendFromSeries(current?: number, previous?: number): { direction: "up" | "down" | "flat"; value: string; label: string } | undefined {
+  if (current === undefined || previous === undefined) return undefined;
+  const delta = pctChange(current, previous);
+  if (delta === undefined) return undefined;
+  return {
+    direction: delta > 0.5 ? "up" : delta < -0.5 ? "down" : "flat",
+    value: `${Math.abs(delta).toFixed(1)}%`,
+    label: "vs. last month",
+  };
+}
+
 function OverviewTab({ month }: { month: string }) {
   const { data: pnl, isLoading } = useQuery({ queryKey: ["accounting-pnl", month], queryFn: () => getPnl(month) });
+  const { data: trend, isLoading: trendLoading } = useQuery({ queryKey: ["accounting-pnl-trend", month], queryFn: () => getPnlTrend(month, 6) });
 
   const lossLoan = pnl?.portfolio.find((p) => p.status === "LOSS");
   const totalOutstanding = pnl?.portfolio.reduce((s, p) => s + p.outstandingValue, 0) ?? 0;
   const marginPct = pnl && pnl.revenue.total > 0 ? (pnl.grossMargin / pnl.revenue.total) * 100 : undefined;
+
+  const trendMonths = trend?.months ?? [];
+  const thisMonthTrend = trendMonths[trendMonths.length - 1];
+  const lastMonthTrend = trendMonths[trendMonths.length - 2];
+  const revenueTrend = trendFromSeries(thisMonthTrend?.revenue, lastMonthTrend?.revenue);
+  const marginTrend = trendFromSeries(thisMonthTrend?.grossMargin, lastMonthTrend?.grossMargin);
+
+  const trendChartData = trendMonths.map((m) => ({
+    name: format(new Date(`${m.month}-01`), "MMM"),
+    revenue: m.revenue,
+    grossMargin: m.grossMargin,
+  }));
 
   const barData = pnl ? [
     { name: "Revenue", value: pnl.revenue.total, fill: "#378ADD" },
@@ -121,6 +150,7 @@ function OverviewTab({ month }: { month: string }) {
           label="Revenue"
           value={isLoading ? "—" : fmtGhs(pnl?.revenue.total)}
           subtext={pnl ? `${pnl.revenue.repaidLoanCount} loans settled` : ""}
+          trend={revenueTrend}
           status="neutral"
           icon={<TrendingUp className="h-4 w-4" />}
           loading={isLoading}
@@ -129,6 +159,7 @@ function OverviewTab({ month }: { month: string }) {
           label="Gross Margin"
           value={isLoading ? "—" : fmtGhs(pnl?.grossMargin)}
           subtext={marginPct !== undefined ? `${marginPct.toFixed(1)}% of revenue` : ""}
+          trend={marginTrend}
           status="neutral"
           icon={<DollarSign className="h-4 w-4" />}
           loading={isLoading}
@@ -164,12 +195,49 @@ function OverviewTab({ month }: { month: string }) {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-muted-foreground" /> Revenue &amp; margin trend</CardTitle>
+          <CardDescription>Last 6 months, ending {format(new Date(`${month}-01`), "MMMM yyyy")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {trendLoading ? (
+            <div className="h-[240px] w-full rounded-lg bg-muted/50 animate-pulse" />
+          ) : trendChartData.every((d) => d.revenue === 0 && d.grossMargin === 0) ? (
+            <div className="h-[240px] flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Activity className="h-8 w-8 opacity-30" />
+              No revenue recognized in this window yet
+            </div>
+          ) : (
+            <div className="h-[240px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={trendChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#378ADD" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#378ADD" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip content={<ChartTooltip formatter={fmtGhs} />} />
+                  <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+                  <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#378ADD" strokeWidth={2} fill="url(#revenueFill)" />
+                  <Line type="monotone" dataKey="grossMargin" name="Gross margin" stroke="#1D9E75" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><LayoutGrid className="h-4 w-4 text-muted-foreground" /> Revenue vs. cost</CardTitle>
           <CardDescription>{format(new Date(`${month}-01`), "MMMM yyyy")}</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading || !pnl ? (
-            <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+            <div className="h-[260px] w-full rounded-lg bg-muted/50 animate-pulse" />
           ) : (
             <div className="h-[260px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -576,11 +644,44 @@ function LedgerTab({ month }: { month: string }) {
   const [deleteTarget, setDeleteTarget] = useState<LedgerEntry | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [approvalTarget, setApprovalTarget] = useState<{ entry: LedgerEntry; action: "approve" | "reject" } | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<LedgerCategoryId | "all">("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["ledger-entries", month],
-    queryFn: () => listLedgerEntries({ periodMonth: month, limit: 100 }),
+    queryKey: ["ledger-entries", month, categoryFilter, departmentFilter],
+    queryFn: () => listLedgerEntries({
+      periodMonth: month,
+      limit: 100,
+      category: categoryFilter === "all" ? undefined : categoryFilter,
+      department: departmentFilter === "all" ? undefined : (departmentFilter as any),
+    }),
   });
+
+  const visibleEntries = (data?.data ?? []).filter((e) =>
+    !search.trim() || e.description.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+
+  const exportCsv = () => {
+    const header = ["Category", "Department", "Description", "Cost Type", "Amount (GHS)", "Period", "Status"];
+    const rows = visibleEntries.map((e) => [
+      EXPENSE_CATEGORIES.find((c) => c.id === e.category)?.label ?? e.category,
+      e.department ?? "",
+      `"${e.description.replace(/"/g, '""')}"`,
+      e.costType,
+      e.amount.toFixed(2),
+      e.periodMonth,
+      e.status,
+    ]);
+    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ledger-${month}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["ledger-entries"] });
 
@@ -636,7 +737,35 @@ function LedgerTab({ month }: { month: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as LedgerCategoryId | "all")}>
+            <SelectTrigger className="w-[170px]"><SelectValue placeholder="All categories" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All categories</SelectItem>
+              {EXPENSE_CATEGORIES.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {categoryFilter === "payroll" && (
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger className="w-[170px]"><SelectValue placeholder="All departments" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All departments</SelectItem>
+                {PAYROLL_DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+          <Input
+            placeholder="Search description…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full sm:w-[200px]"
+          />
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button size="sm" variant="outline" onClick={exportCsv} disabled={visibleEntries.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
         {canWrite && (
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
@@ -711,6 +840,7 @@ function LedgerTab({ month }: { month: string }) {
             </SheetContent>
           </Sheet>
         )}
+        </div>
       </div>
 
       <Card>
@@ -729,7 +859,7 @@ function LedgerTab({ month }: { month: string }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.data.map((entry) => (
+                {visibleEntries.map((entry) => (
                   <TableRow key={entry._id}>
                     <TableCell>{EXPENSE_CATEGORIES.find((c) => c.id === entry.category)?.label ?? entry.category}{entry.department ? ` — ${entry.department}` : ""}</TableCell>
                     <TableCell className="max-w-xs truncate">{entry.description}</TableCell>
@@ -772,7 +902,7 @@ function LedgerTab({ month }: { month: string }) {
                     </TableCell>
                   </TableRow>
                 ))}
-                {data?.data.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No ledger entries for this period</TableCell></TableRow>}
+                {visibleEntries.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{search.trim() ? "No entries match your search" : "No ledger entries for this period"}</TableCell></TableRow>}
               </TableBody>
             </Table>
           )}
