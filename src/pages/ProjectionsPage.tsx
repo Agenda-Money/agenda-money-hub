@@ -14,6 +14,7 @@ import {
 import {
   SlidersHorizontal, Users, TrendingUp, Landmark, Calculator, UsersRound, Repeat,
   Plus, Trash2, ShieldAlert, Boxes, ReceiptText, Cpu, Wallet, CheckCircle2, AlertTriangle,
+  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ import {
   listCapexEntries, createCapexEntry, listSubscriptionEntries, createSubscriptionEntry,
   listSalaryEntries, createSalaryEntry, deleteSalaryEntry, getProjectionExpenditure,
   getProjectionCommercials, getProjectionPnl, getProjectionBs, getProjectionCashflow,
+  getProjectionPerformance,
   type ProjectionAssumptions, type LenderType, type DebtRegion, type DebtFeeStructure,
   type DepreciationAssetCategory, type PnlMonth, type BsYear, type CashflowYear,
 } from "@/api/projections.api";
@@ -247,7 +249,134 @@ function ComingSoonPage({ title, description }: { title: string; description: st
 }
 
 export function ProjectionsSummaryPage() {
-  return <ComingSoonPage title="Plan Summary" description="The executive rollup — 5-year customer, revenue, and profitability trajectory — once the full projection engine is wired up." />;
+  const { data, isLoading } = useQuery({ queryKey: ["projection-performance"], queryFn: getProjectionPerformance });
+  const years = data?.years ?? [];
+  const latest = years[years.length - 1];
+  const year1 = years[0];
+
+  const revenueTrend = years.map((y) => ({ name: `Year ${y.yearIndex}`, Revenue: y.revenue, "Gross Margin": y.grossMargin, "Profit After Tax": y.profitAfterTax }));
+  const customerTrend = years.map((y) => ({ name: `Year ${y.yearIndex}`, customerBase: y.totalCustomerBase }));
+
+  const cagr = year1 && latest && year1.revenue > 0 && years.length > 1
+    ? Math.pow(latest.revenue / year1.revenue, 1 / (years.length - 1)) - 1
+    : null;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <LayoutDashboard className="h-5 w-5 text-muted-foreground" /> Plan Summary
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Executive rollup — 5-year customer, revenue, and profitability trajectory.</p>
+        </div>
+        {data && <IntegrityBadge balanced={data.integrityCheck.balanced} deltaGhs={data.integrityCheck.deltaGhs} />}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <KpiCard label="Customer base (year 5)" value={isLoading || !latest ? "—" : latest.totalCustomerBase.toLocaleString("en-GH")} subtext={latest ? `Up from ${year1?.totalCustomerBase.toLocaleString("en-GH")} in year 1` : ""} status="neutral" icon={<UsersRound className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Revenue (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.revenue)} subtext={cagr !== null ? `${(cagr * 100).toFixed(0)}% revenue CAGR` : ""} status="neutral" icon={<Wallet className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Profit after tax (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.profitAfterTax)} subtext={latest ? `${(latest.grossMarginPct * 100).toFixed(1)}% gross margin` : ""} status={latest && latest.profitAfterTax < 0 ? "red" : "green"} icon={<TrendingUp className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Total equity (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.totalEquity)} subtext="Stated capital + retained earnings" status={latest && latest.totalEquity < 0 ? "red" : "green"} icon={<Landmark className="h-4 w-4" />} loading={isLoading} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-muted-foreground" /> Revenue, Gross Margin &amp; Profit After Tax — 5 year view</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+            ) : (
+              <div className="h-[260px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={revenueTrend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                    <Tooltip content={<ChartTooltip formatter={fmtGhs} />} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="Revenue" fill="#378ADD" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Gross Margin" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Profit After Tax" fill="#1D9E75" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><UsersRound className="h-4 w-4 text-muted-foreground" /> Customer base growth</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+            ) : (
+              <div className="h-[260px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={customerTrend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="perfCustomerFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1D9E75" stopOpacity={0.6} /><stop offset="95%" stopColor="#1D9E75" stopOpacity={0.05} /></linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: number) => v.toLocaleString("en-GH")} />
+                    <Area type="monotone" dataKey="customerBase" name="Customer base" stroke="#1D9E75" strokeWidth={2} fill="url(#perfCustomerFill)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Performance Summary — by year</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {isLoading || years.length === 0 ? (
+            <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Metric</TableHead>
+                  {years.map((y) => <TableHead key={y.yearIndex} className="text-right">Year {y.yearIndex}</TableHead>)}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[
+                  { label: "New customers", key: "newCustomers" as const, fmt: (v: number) => v.toLocaleString("en-GH") },
+                  { label: "Total customer base", key: "totalCustomerBase" as const, fmt: (v: number) => v.toLocaleString("en-GH"), bold: true },
+                  { label: "Total disbursements", key: "totalDisbursements" as const, fmt: fmtGhs },
+                  { label: "Revenue", key: "revenue" as const, fmt: fmtGhs, bold: true },
+                  { label: "Gross margin", key: "grossMargin" as const, fmt: fmtGhs },
+                  { label: "Operating income (EBIT)", key: "operatingIncome" as const, fmt: fmtGhs },
+                  { label: "Profit after tax", key: "profitAfterTax" as const, fmt: fmtGhs, bold: true },
+                  { label: "Total assets", key: "totalAssets" as const, fmt: fmtGhs },
+                  { label: "Total equity", key: "totalEquity" as const, fmt: fmtGhs },
+                ].map((r) => (
+                  <TableRow key={r.label} className={cn(r.bold && "border-t-2")}>
+                    <TableCell className={cn(r.bold && "font-bold")}>{r.label}</TableCell>
+                    {years.map((y) => (
+                      <TableCell key={y.yearIndex} className={cn("text-right font-mono tabular-nums", r.bold && "font-bold", (y[r.key] as number) < 0 && "text-muted-foreground")}>
+                        {r.fmt(y[r.key] as number)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 const FUNNEL_COLORS = ["#378ADD", "#5BA3E5", "#7FBCED", "#1D9E75", "#0EA5E9"];

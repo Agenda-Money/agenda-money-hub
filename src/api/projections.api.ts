@@ -205,6 +205,45 @@ export async function getProjectionCashflow(): Promise<ProjectionCashflowRespons
   return res.data.data;
 }
 
+export interface PerformanceYear {
+  yearIndex: number;
+  startMonth: string;
+  endMonth: string;
+  newCustomers: number;
+  avgLoanSizeNC: number;
+  retainedCustomers: number;
+  avgLoanSizeRC: number;
+  totalCustomerBase: number;
+  totalDisbursements: number;
+  totalRepayments: number;
+  netDisbursement: number;
+  revenue: number;
+  directCost: number;
+  grossMargin: number;
+  grossMarginPct: number;
+  operatingExpenses: number;
+  operatingIncome: number;
+  operatingIncomePct: number;
+  profitBeforeTax: number;
+  profitAfterTax: number;
+  totalAssets: number;
+  totalEquity: number;
+  currentLiabilities: number;
+  nonCurrentLiabilities: number;
+}
+
+export interface ProjectionPerformanceResponse {
+  assumptionsVersion: number;
+  computedAt: string;
+  integrityCheck: IntegrityCheck;
+  years: PerformanceYear[];
+}
+
+export async function getProjectionPerformance(): Promise<ProjectionPerformanceResponse> {
+  const res = await api.get(`${BASE}/performance`);
+  return res.data.data;
+}
+
 // ── Debt Schedule (superadmin-only) ─────────────────────────────────────
 
 export type LenderType = "individual" | "institutional";
