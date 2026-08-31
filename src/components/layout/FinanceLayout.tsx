@@ -85,8 +85,8 @@ export default function FinanceLayout() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col w-full">
-      <div className="h-1 w-full bg-gradient-to-r from-primary via-emerald-500 to-sky-500" />
-      <header className="border-b bg-card px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+      <div className="h-1 w-full bg-gradient-to-r from-primary via-emerald-500 to-sky-500 print-hide" />
+      <header className="border-b bg-card px-4 sm:px-6 py-3 flex items-center justify-between gap-4 print-hide">
         <div className="flex items-center gap-3 shrink-0">
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
             <Calculator className="h-4 w-4 text-primary-foreground" />
@@ -102,7 +102,7 @@ export default function FinanceLayout() {
           </Button>
         </div>
       </header>
-      <nav className="border-b bg-card/60 px-4 sm:px-6 py-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+      <nav className="border-b bg-card/60 px-4 sm:px-6 py-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar print-hide">
         <NavGroup items={activeItems} />
       </nav>
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">

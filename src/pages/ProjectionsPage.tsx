@@ -27,10 +27,12 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter,
 } from "@/components/ui/sheet";
 import { KpiCard } from "@/components/analytics/KpiCard";
+import { ExportMenu } from "@/components/analytics/ExportMenu";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import { cn } from "@/lib/utils";
+import { exportRowsToXlsx, exportTransposedToXlsx } from "@/lib/exportUtils";
 import {
   PROJECTION_ASSUMPTION_FIELDS, PROJECTION_ASSUMPTION_GROUP_LABELS,
   type ProjectionAssumptionGroup,
@@ -44,7 +46,7 @@ import {
   getProjectionCommercials, getProjectionPnl, getProjectionBs, getProjectionCashflow,
   getProjectionPerformance,
   type ProjectionAssumptions, type LenderType, type DebtRegion, type DebtFeeStructure,
-  type DepreciationAssetCategory, type PnlMonth, type BsYear, type CashflowYear,
+  type DepreciationAssetCategory, type PnlMonth, type BsYear, type CashflowYear, type PerformanceYear,
 } from "@/api/projections.api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PAYROLL_DEPARTMENTS } from "@/lib/constants";
@@ -142,19 +144,38 @@ export function ProjectionsAssumptionsPage() {
             {isLoading ? "Loading…" : `Version ${assumptions?.version} — drives every projected sheet in the Plan section.`}
           </p>
         </div>
-        {hasEdits && (
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="What changed and why? (optional)"
-              value={changeNote}
-              onChange={(e) => setChangeNote(e.target.value)}
-              className="w-64"
-            />
-            <Button onClick={handleSave} disabled={mut.isPending}>
-              {mut.isPending ? "Saving…" : `Save ${Object.keys(edits).length} change${Object.keys(edits).length === 1 ? "" : "s"}`}
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {hasEdits && (
+            <>
+              <Input
+                placeholder="What changed and why? (optional)"
+                value={changeNote}
+                onChange={(e) => setChangeNote(e.target.value)}
+                className="w-64"
+              />
+              <Button onClick={handleSave} disabled={mut.isPending}>
+                {mut.isPending ? "Saving…" : `Save ${Object.keys(edits).length} change${Object.keys(edits).length === 1 ? "" : "s"}`}
+              </Button>
+            </>
+          )}
+          <ExportMenu
+            disabled={!assumptions}
+            onExportXlsx={() => {
+              if (!assumptions) return;
+              exportRowsToXlsx(
+                `plan-assumptions-v${assumptions.version}`,
+                "Growth Ramp",
+                [
+                  { header: "Month", accessor: (d: (typeof driverChartData)[number]) => d.month },
+                  { header: "Sales Agents", accessor: (d: (typeof driverChartData)[number]) => d.agents },
+                  { header: "Avg Loan Size (New Customer)", accessor: (d: (typeof driverChartData)[number]) => d.avgLoanNC },
+                  { header: "Avg Loan Amount (Returning Customer)", accessor: (d: (typeof driverChartData)[number]) => d.avgLoanRC },
+                ],
+                driverChartData,
+              );
+            }}
+          />
+        </div>
       </div>
 
       {isLoading || !assumptions ? (
@@ -248,6 +269,18 @@ function ComingSoonPage({ title, description }: { title: string; description: st
   );
 }
 
+const PERFORMANCE_ROWS: Array<{ label: string; key: keyof PerformanceYear; fmt: (v: number) => string; bold?: boolean }> = [
+  { label: "New customers", key: "newCustomers", fmt: (v: number) => v.toLocaleString("en-GH") },
+  { label: "Total customer base", key: "totalCustomerBase", fmt: (v: number) => v.toLocaleString("en-GH"), bold: true },
+  { label: "Total disbursements", key: "totalDisbursements", fmt: fmtGhs },
+  { label: "Revenue", key: "revenue", fmt: fmtGhs, bold: true },
+  { label: "Gross margin", key: "grossMargin", fmt: fmtGhs },
+  { label: "Operating income (EBIT)", key: "operatingIncome", fmt: fmtGhs },
+  { label: "Profit after tax", key: "profitAfterTax", fmt: fmtGhs, bold: true },
+  { label: "Total assets", key: "totalAssets", fmt: fmtGhs },
+  { label: "Total equity", key: "totalEquity", fmt: fmtGhs },
+];
+
 export function ProjectionsSummaryPage() {
   const { data, isLoading } = useQuery({ queryKey: ["projection-performance"], queryFn: getProjectionPerformance });
   const years = data?.years ?? [];
@@ -270,7 +303,18 @@ export function ProjectionsSummaryPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">Executive rollup — 5-year customer, revenue, and profitability trajectory.</p>
         </div>
-        {data && <IntegrityBadge balanced={data.integrityCheck.balanced} deltaGhs={data.integrityCheck.deltaGhs} />}
+        <div className="flex items-center gap-2">
+          {data && <IntegrityBadge balanced={data.integrityCheck.balanced} deltaGhs={data.integrityCheck.deltaGhs} />}
+          <ExportMenu
+            disabled={years.length === 0}
+            onExportXlsx={() => exportTransposedToXlsx(
+              "plan-summary",
+              "Performance Summary",
+              years.map((y) => `Year ${y.yearIndex}`),
+              PERFORMANCE_ROWS.map((r) => ({ label: r.label, values: years.map((y) => y[r.key] as number) })),
+            )}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -350,17 +394,7 @@ export function ProjectionsSummaryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {[
-                  { label: "New customers", key: "newCustomers" as const, fmt: (v: number) => v.toLocaleString("en-GH") },
-                  { label: "Total customer base", key: "totalCustomerBase" as const, fmt: (v: number) => v.toLocaleString("en-GH"), bold: true },
-                  { label: "Total disbursements", key: "totalDisbursements" as const, fmt: fmtGhs },
-                  { label: "Revenue", key: "revenue" as const, fmt: fmtGhs, bold: true },
-                  { label: "Gross margin", key: "grossMargin" as const, fmt: fmtGhs },
-                  { label: "Operating income (EBIT)", key: "operatingIncome" as const, fmt: fmtGhs },
-                  { label: "Profit after tax", key: "profitAfterTax" as const, fmt: fmtGhs, bold: true },
-                  { label: "Total assets", key: "totalAssets" as const, fmt: fmtGhs },
-                  { label: "Total equity", key: "totalEquity" as const, fmt: fmtGhs },
-                ].map((r) => (
+                {PERFORMANCE_ROWS.map((r) => (
                   <TableRow key={r.label} className={cn(r.bold && "border-t-2")}>
                     <TableCell className={cn(r.bold && "font-bold")}>{r.label}</TableCell>
                     {years.map((y) => (
@@ -411,11 +445,28 @@ export function ProjectionsGrowthPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-muted-foreground" /> Growth
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">Customer acquisition funnel and 5-year customer base trajectory.</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-muted-foreground" /> Growth
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Customer acquisition funnel and 5-year customer base trajectory.</p>
+        </div>
+        <ExportMenu
+          disabled={months.length === 0}
+          onExportXlsx={() => exportRowsToXlsx(
+            "plan-growth",
+            "Customer Growth",
+            [
+              { header: "Month", accessor: (m: (typeof months)[number]) => m.month },
+              { header: "Sales Agents", accessor: (m: (typeof months)[number]) => m.salesAgents },
+              { header: "New Customers", accessor: (m: (typeof months)[number]) => Math.round(m.customersPerMonth) },
+              { header: "Retained Customers", accessor: (m: (typeof months)[number]) => Math.round(m.retainedCustomers) },
+              { header: "Customer Base", accessor: (m: (typeof months)[number]) => Math.round(m.customerBase) },
+            ],
+            months,
+          )}
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -677,6 +728,24 @@ function ProjectionsDebtPageContent() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">Lender-by-lender terms and projected commitment fees. Superadmin only.</p>
         </div>
+        <div className="flex items-center gap-2">
+        <ExportMenu
+          disabled={entries.length === 0}
+          onExportXlsx={() => exportRowsToXlsx(
+            "plan-debt-schedule",
+            "Lenders",
+            [
+              { header: "Lender", accessor: (e: (typeof entries)[number]) => e.lenderName },
+              { header: "Type", accessor: (e: (typeof entries)[number]) => e.lenderType },
+              { header: "Region", accessor: (e: (typeof entries)[number]) => e.region },
+              { header: "Principal (GHS)", accessor: (e: (typeof entries)[number]) => e.principal },
+              { header: "Fee Structure", accessor: (e: (typeof entries)[number]) => e.feeStructure },
+              { header: "Disbursed Month", accessor: (e: (typeof entries)[number]) => e.disbursedMonth },
+              { header: "Status", accessor: (e: (typeof entries)[number]) => e.status },
+            ],
+            entries,
+          )}
+        />
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
           <SheetTrigger asChild>
             <Button size="sm"><Plus className="h-4 w-4 mr-2" /> Add Lender</Button>
@@ -762,6 +831,7 @@ function ProjectionsDebtPageContent() {
             </SheetFooter>
           </SheetContent>
         </Sheet>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -950,11 +1020,29 @@ export function ProjectionsExpenditurePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <ReceiptText className="h-5 w-5 text-muted-foreground" /> Expenditure
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">Salaries, digital-platform CapEx, subscriptions, and depreciation — rolled into the projected Expenditure Schedule.</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <ReceiptText className="h-5 w-5 text-muted-foreground" /> Expenditure
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Salaries, digital-platform CapEx, subscriptions, and depreciation — rolled into the projected Expenditure Schedule.</p>
+        </div>
+        <ExportMenu
+          disabled={expenditureMonths.length === 0}
+          onExportXlsx={() => exportRowsToXlsx(
+            "plan-expenditure-schedule",
+            "Expenditure",
+            [
+              { header: "Month", accessor: (m: (typeof expenditureMonths)[number]) => m.month },
+              { header: "Personnel", accessor: (m: (typeof expenditureMonths)[number]) => m.personnel },
+              { header: "Director's Remuneration", accessor: (m: (typeof expenditureMonths)[number]) => m.directorsRemuneration },
+              { header: "Subscriptions", accessor: (m: (typeof expenditureMonths)[number]) => m.subscriptions },
+              { header: "Depreciation", accessor: (m: (typeof expenditureMonths)[number]) => m.depreciation },
+              { header: "Total", accessor: (m: (typeof expenditureMonths)[number]) => m.total },
+            ],
+            expenditureMonths,
+          )}
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -1481,6 +1569,27 @@ function PnlStatementTab() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ExportMenu
+          disabled={months.length === 0}
+          onExportXlsx={() => exportRowsToXlsx(
+            "plan-pnl",
+            "P&L",
+            [
+              { header: "Month", accessor: (m: (typeof months)[number]) => m.month },
+              { header: "Revenue", accessor: (m: (typeof months)[number]) => m.revenue },
+              { header: "Direct Cost", accessor: (m: (typeof months)[number]) => m.directCost },
+              { header: "Gross Profit", accessor: (m: (typeof months)[number]) => m.grossProfit },
+              { header: "Operating Expenses", accessor: (m: (typeof months)[number]) => m.operatingExpenses },
+              { header: "Operating Income", accessor: (m: (typeof months)[number]) => m.operatingIncome },
+              { header: "Profit Before Tax", accessor: (m: (typeof months)[number]) => m.profitBeforeTax },
+              { header: "CIT", accessor: (m: (typeof months)[number]) => m.cit },
+              { header: "Profit After Tax", accessor: (m: (typeof months)[number]) => m.profitAfterTax },
+            ],
+            months,
+          )}
+        />
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <KpiCard label="Revenue (this month)" value={isLoading || !latest ? "—" : fmtGhs(latest.revenue)} subtext="Fee + interest revenue" status="neutral" icon={<Wallet className="h-4 w-4" />} loading={isLoading} />
         <KpiCard label="Gross profit (this month)" value={isLoading || !latest ? "—" : fmtGhs(latest.grossProfit)} subtext={latest ? `${(latest.grossMarginPct * 100).toFixed(1)}% margin` : ""} status={latest && latest.grossProfit < 0 ? "red" : "green"} icon={<TrendingUp className="h-4 w-4" />} loading={isLoading} />
@@ -1570,7 +1679,18 @@ function BsStatementTab() {
 
   return (
     <div className="space-y-6">
-      {data && <IntegrityBadge balanced={data.integrityCheck.balanced} deltaGhs={data.integrityCheck.deltaGhs} />}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        {data ? <IntegrityBadge balanced={data.integrityCheck.balanced} deltaGhs={data.integrityCheck.deltaGhs} /> : <span />}
+        <ExportMenu
+          disabled={years.length === 0}
+          onExportXlsx={() => exportTransposedToXlsx(
+            "plan-balance-sheet",
+            "Balance Sheet",
+            years.map((y) => `Year ${y.yearIndex}`),
+            BS_ROWS.map((r) => ({ label: r.label, values: years.map((y) => y[r.key] as number) })),
+          )}
+        />
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KpiCard label="Total assets (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.totalAssets)} subtext={latest ? `Through ${latest.endMonth}` : ""} status="neutral" icon={<Landmark className="h-4 w-4" />} loading={isLoading} />
@@ -1666,6 +1786,17 @@ function CashflowStatementTab() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ExportMenu
+          disabled={years.length === 0}
+          onExportXlsx={() => exportTransposedToXlsx(
+            "plan-cashflow",
+            "Cashflow",
+            years.map((y) => `Year ${y.yearIndex}`),
+            CASHFLOW_ROWS.map((r) => ({ label: r.label, values: years.map((y) => y[r.key] as number) })),
+          )}
+        />
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KpiCard label="Net cash from operations (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.netCashFromOperations)} subtext="PAT + depreciation − working capital" status={latest && latest.netCashFromOperations < 0 ? "red" : "green"} icon={<TrendingUp className="h-4 w-4" />} loading={isLoading} />
         <KpiCard label="Net change in cash (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.netChangeInCash)} subtext="Operating + investing + financing" status={latest && latest.netChangeInCash < 0 ? "red" : "green"} icon={<Wallet className="h-4 w-4" />} loading={isLoading} />
