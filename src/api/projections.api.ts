@@ -137,6 +137,74 @@ export async function getProjectionPnl(): Promise<ProjectionPnlResponse> {
   return res.data.data;
 }
 
+export interface IntegrityCheck {
+  balanced: boolean;
+  deltaGhs: number;
+}
+
+export interface BsYear {
+  yearIndex: number;
+  startMonth: string;
+  endMonth: string;
+  cash: number;
+  loansAndAdvances: number;
+  tradeReceivables: number;
+  totalCurrentAssets: number;
+  ppeNetBookValue: number;
+  totalNonCurrentAssets: number;
+  totalAssets: number;
+  statedCapital: number;
+  retainedEarnings: number;
+  totalEquity: number;
+  nonCurrentLiabilities: number;
+  currentLiabilities: number;
+  totalEquityAndLiabilities: number;
+  integrityCheck: IntegrityCheck;
+}
+
+export interface ProjectionBsResponse {
+  assumptionsVersion: number;
+  computedAt: string;
+  integrityCheck: IntegrityCheck;
+  years: BsYear[];
+}
+
+export async function getProjectionBs(): Promise<ProjectionBsResponse> {
+  const res = await api.get(`${BASE}/bs`);
+  return res.data.data;
+}
+
+export interface CashflowYear {
+  yearIndex: number;
+  startMonth: string;
+  endMonth: string;
+  profitAfterTax: number;
+  depreciationAddBack: number;
+  changeInTradeReceivables: number;
+  changeInLoansAndAdvances: number;
+  loansAndAdvances: number;
+  netCashFromOperations: number;
+  capex: number;
+  netCashFromInvesting: number;
+  newDebtDrawn: number;
+  dividendsPaid: number;
+  netCashFromFinancing: number;
+  netChangeInCash: number;
+  openingCash: number;
+  closingCash: number;
+}
+
+export interface ProjectionCashflowResponse {
+  assumptionsVersion: number;
+  computedAt: string;
+  years: CashflowYear[];
+}
+
+export async function getProjectionCashflow(): Promise<ProjectionCashflowResponse> {
+  const res = await api.get(`${BASE}/cashflow`);
+  return res.data.data;
+}
+
 // ── Debt Schedule (superadmin-only) ─────────────────────────────────────
 
 export type LenderType = "individual" | "institutional";

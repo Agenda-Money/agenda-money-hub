@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import {
   SlidersHorizontal, Users, TrendingUp, Landmark, Calculator, UsersRound, Repeat,
-  Plus, Trash2, ShieldAlert, Boxes, ReceiptText, Cpu, Wallet,
+  Plus, Trash2, ShieldAlert, Boxes, ReceiptText, Cpu, Wallet, CheckCircle2, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,10 +40,11 @@ import {
   listDepreciationEntries, createDepreciationEntry, deleteDepreciationEntry,
   listCapexEntries, createCapexEntry, listSubscriptionEntries, createSubscriptionEntry,
   listSalaryEntries, createSalaryEntry, deleteSalaryEntry, getProjectionExpenditure,
-  getProjectionCommercials, getProjectionPnl,
+  getProjectionCommercials, getProjectionPnl, getProjectionBs, getProjectionCashflow,
   type ProjectionAssumptions, type LenderType, type DebtRegion, type DebtFeeStructure,
-  type DepreciationAssetCategory, type PnlMonth,
+  type DepreciationAssetCategory, type PnlMonth, type BsYear, type CashflowYear,
 } from "@/api/projections.api";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PAYROLL_DEPARTMENTS } from "@/lib/constants";
 
 const chartTheme = {
@@ -1305,6 +1306,42 @@ const PNL_ROWS: Array<{ label: string; key: keyof PnlMonth; bold?: boolean; inde
 ];
 
 export function ProjectionsStatementsPage() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <ReceiptText className="h-5 w-5 text-muted-foreground" /> Statements
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">Projected P&L, Balance Sheet, and Cashflow.</p>
+      </div>
+
+      <Tabs defaultValue="pnl">
+        <TabsList>
+          <TabsTrigger value="pnl">P&amp;L</TabsTrigger>
+          <TabsTrigger value="bs">Balance Sheet</TabsTrigger>
+          <TabsTrigger value="cashflow">Cashflow</TabsTrigger>
+        </TabsList>
+        <TabsContent value="pnl" className="mt-6"><PnlStatementTab /></TabsContent>
+        <TabsContent value="bs" className="mt-6"><BsStatementTab /></TabsContent>
+        <TabsContent value="cashflow" className="mt-6"><CashflowStatementTab /></TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function IntegrityBadge({ balanced, deltaGhs }: { balanced: boolean; deltaGhs: number }) {
+  return (
+    <div className={cn(
+      "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium",
+      balanced ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    )}>
+      {balanced ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
+      {balanced ? "Balance sheet balances (Assets = Equity + Liabilities)" : `Imbalance detected: ${fmtGhs(Math.abs(deltaGhs))} — see engine simplifications`}
+    </div>
+  );
+}
+
+function PnlStatementTab() {
   const { data, isLoading } = useQuery({ queryKey: ["projection-pnl"], queryFn: getProjectionPnl });
   const months = data?.months ?? [];
   const latest = months[0];
@@ -1315,13 +1352,6 @@ export function ProjectionsStatementsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <ReceiptText className="h-5 w-5 text-muted-foreground" /> Statements
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">Projected P&L — Balance Sheet and Cashflow land in a later phase.</p>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <KpiCard label="Revenue (this month)" value={isLoading || !latest ? "—" : fmtGhs(latest.revenue)} subtext="Fee + interest revenue" status="neutral" icon={<Wallet className="h-4 w-4" />} loading={isLoading} />
         <KpiCard label="Gross profit (this month)" value={isLoading || !latest ? "—" : fmtGhs(latest.grossProfit)} subtext={latest ? `${(latest.grossMarginPct * 100).toFixed(1)}% margin` : ""} status={latest && latest.grossProfit < 0 ? "red" : "green"} icon={<TrendingUp className="h-4 w-4" />} loading={isLoading} />
@@ -1377,6 +1407,197 @@ export function ProjectionsStatementsPage() {
                     </TableRow>
                   );
                 })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const BS_ROWS: Array<{ label: string; key: keyof BsYear; bold?: boolean; indent?: boolean }> = [
+  { label: "Cash and Cash Equivalents", key: "cash", indent: true },
+  { label: "Loans and Advances", key: "loansAndAdvances", indent: true },
+  { label: "Trade and Other Receivables", key: "tradeReceivables", indent: true },
+  { label: "Total Current Assets", key: "totalCurrentAssets", bold: true },
+  { label: "PPE (Net Book Value)", key: "ppeNetBookValue", indent: true },
+  { label: "Total Non-Current Assets", key: "totalNonCurrentAssets", bold: true },
+  { label: "Total Assets", key: "totalAssets", bold: true },
+  { label: "Stated Capital", key: "statedCapital", indent: true },
+  { label: "Retained Earnings", key: "retainedEarnings", indent: true },
+  { label: "Total Equity", key: "totalEquity", bold: true },
+  { label: "Non-Current Liabilities", key: "nonCurrentLiabilities", indent: true },
+  { label: "Current Liabilities", key: "currentLiabilities", indent: true },
+  { label: "Total Equity & Liabilities", key: "totalEquityAndLiabilities", bold: true },
+];
+
+function BsStatementTab() {
+  const { data, isLoading } = useQuery({ queryKey: ["projection-bs"], queryFn: getProjectionBs });
+  const years = data?.years ?? [];
+  const latest = years[years.length - 1];
+
+  const trendChartData = years.map((y) => ({ name: `Year ${y.yearIndex}`, "Total Assets": y.totalAssets, "Total Equity & Liabilities": y.totalEquityAndLiabilities }));
+
+  return (
+    <div className="space-y-6">
+      {data && <IntegrityBadge balanced={data.integrityCheck.balanced} deltaGhs={data.integrityCheck.deltaGhs} />}
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard label="Total assets (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.totalAssets)} subtext={latest ? `Through ${latest.endMonth}` : ""} status="neutral" icon={<Landmark className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Total equity (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.totalEquity)} subtext="Stated capital + retained earnings" status={latest && latest.totalEquity < 0 ? "red" : "green"} icon={<Boxes className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Cash (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.cash)} subtext="Closing balance" status={latest && latest.cash < 0 ? "red" : "green"} icon={<Wallet className="h-4 w-4" />} loading={isLoading} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-muted-foreground" /> Total Assets vs. Total Equity &amp; Liabilities — 5 year view</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : (
+            <div className="h-[240px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={trendChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                  <Tooltip content={<ChartTooltip formatter={fmtGhs} />} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="Total Assets" fill="#378ADD" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Total Equity & Liabilities" fill="#1D9E75" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Balance Sheet — by year</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {isLoading || years.length === 0 ? (
+            <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Line item</TableHead>
+                  {years.map((y) => <TableHead key={y.yearIndex} className="text-right">Year {y.yearIndex}</TableHead>)}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {BS_ROWS.map((r) => (
+                  <TableRow key={r.label} className={cn(r.bold && "border-t-2")}>
+                    <TableCell className={cn(r.bold && "font-bold", r.indent && "pl-6 text-muted-foreground")}>{r.label}</TableCell>
+                    {years.map((y) => {
+                      const raw = y[r.key] as number;
+                      return (
+                        <TableCell key={y.yearIndex} className={cn("text-right font-mono tabular-nums", r.bold && "font-bold", raw < 0 && "text-muted-foreground")}>
+                          {fmtGhs(raw)}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const CASHFLOW_ROWS: Array<{ label: string; key: keyof CashflowYear; bold?: boolean; indent?: boolean }> = [
+  { label: "Profit After Tax", key: "profitAfterTax", indent: true },
+  { label: "Depreciation Add-back", key: "depreciationAddBack", indent: true },
+  { label: "Change in Trade Receivables", key: "changeInTradeReceivables", indent: true },
+  { label: "Change in Loans & Advances", key: "changeInLoansAndAdvances", indent: true },
+  { label: "Net Cash from Operations", key: "netCashFromOperations", bold: true },
+  { label: "CapEx", key: "capex", indent: true },
+  { label: "Net Cash from Investing", key: "netCashFromInvesting", bold: true },
+  { label: "New Debt Drawn", key: "newDebtDrawn", indent: true },
+  { label: "Dividends Paid", key: "dividendsPaid", indent: true },
+  { label: "Net Cash from Financing", key: "netCashFromFinancing", bold: true },
+  { label: "Net Change in Cash", key: "netChangeInCash", bold: true },
+  { label: "Opening Cash", key: "openingCash", indent: true },
+  { label: "Closing Cash", key: "closingCash", bold: true },
+];
+
+function CashflowStatementTab() {
+  const { data, isLoading } = useQuery({ queryKey: ["projection-cashflow"], queryFn: getProjectionCashflow });
+  const years = data?.years ?? [];
+  const latest = years[years.length - 1];
+
+  const trendChartData = years.map((y) => ({ name: `Year ${y.yearIndex}`, closingCash: y.closingCash }));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard label="Net cash from operations (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.netCashFromOperations)} subtext="PAT + depreciation − working capital" status={latest && latest.netCashFromOperations < 0 ? "red" : "green"} icon={<TrendingUp className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Net change in cash (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.netChangeInCash)} subtext="Operating + investing + financing" status={latest && latest.netChangeInCash < 0 ? "red" : "green"} icon={<Wallet className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Closing cash (year 5)" value={isLoading || !latest ? "—" : fmtGhs(latest.closingCash)} subtext="End-of-horizon cash balance" status={latest && latest.closingCash < 0 ? "red" : "green"} icon={<Landmark className="h-4 w-4" />} loading={isLoading} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-muted-foreground" /> Closing cash balance — 5 year view</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : (
+            <div className="h-[240px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="cashFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#378ADD" stopOpacity={0.6} /><stop offset="95%" stopColor="#378ADD" stopOpacity={0.05} /></linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                  <Tooltip content={<ChartTooltip formatter={fmtGhs} />} />
+                  <Area type="monotone" dataKey="closingCash" name="Closing cash" stroke="#378ADD" strokeWidth={2} fill="url(#cashFill)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Cashflow — by year</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {isLoading || years.length === 0 ? (
+            <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Line item</TableHead>
+                  {years.map((y) => <TableHead key={y.yearIndex} className="text-right">Year {y.yearIndex}</TableHead>)}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {CASHFLOW_ROWS.map((r) => (
+                  <TableRow key={r.label} className={cn(r.bold && "border-t-2")}>
+                    <TableCell className={cn(r.bold && "font-bold", r.indent && "pl-6 text-muted-foreground")}>{r.label}</TableCell>
+                    {years.map((y) => {
+                      const raw = y[r.key] as number;
+                      return (
+                        <TableCell key={y.yearIndex} className={cn("text-right font-mono tabular-nums", r.bold && "font-bold", raw < 0 && "text-muted-foreground")}>
+                          {fmtGhs(raw)}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
