@@ -61,3 +61,77 @@ export const TIER_LIMITS: Record<number, TierConfig> = TIERS.reduce((acc, tier) 
   acc[tier.level] = tier;
   return acc;
 }, {} as Record<number, TierConfig>);
+
+// Accounting ledger categories — single source of truth for the ledger
+// entry form's category dropdown AND the P&L's line-item structure.
+// Must mirror the backend's src/core/accounting/expense-categories.ts
+// exactly (same id strings) — same class of drift risk as TIERS/tenure
+// rules above, so keep both sides pointing at each other in comments.
+export type LedgerCostType = "direct" | "indirect";
+
+export const PAYROLL_DEPARTMENTS = [
+  "Leadership",
+  "Finance & Admin",
+  "Engineering",
+  "Collections & Operations",
+  "Sales",
+  "Field Agents",
+  "Customer Support",
+  "Back Office",
+] as const;
+
+export type PayrollDepartment = (typeof PAYROLL_DEPARTMENTS)[number];
+
+export type LedgerCategoryId =
+  | "sms_ussd_gateway"
+  | "credit_bureau_kyc"
+  | "payroll"
+  | "vehicle_maintenance"
+  | "bank_charges"
+  | "directors_remuneration"
+  | "registration_licensing"
+  | "travelling_expenses"
+  | "printing_stationery"
+  | "repairs_maintenance"
+  | "insurance"
+  | "entertainment"
+  | "subscriptions"
+  | "utilities"
+  | "fuel_consumables"
+  | "audit_fees"
+  | "other";
+
+export interface LedgerCategoryConfig {
+  id: LedgerCategoryId;
+  label: string;
+  defaultCostType: LedgerCostType;
+  requiresDepartment: boolean;
+}
+
+export const EXPENSE_CATEGORIES: LedgerCategoryConfig[] = [
+  { id: "sms_ussd_gateway", label: "SMS / USSD Gateway", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "credit_bureau_kyc", label: "Credit Bureau & KYC", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "payroll", label: "Payroll", defaultCostType: "indirect", requiresDepartment: true },
+  { id: "vehicle_maintenance", label: "Vehicle & Maintenance", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "bank_charges", label: "Bank Charges", defaultCostType: "indirect", requiresDepartment: false },
+  // Mirrors the Expenditure Schedule sheet of the business's own 5-year
+  // financial model spreadsheet, kept in that order — see
+  // src/core/accounting/expense-categories.ts on the backend.
+  { id: "directors_remuneration", label: "Director's Remuneration", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "registration_licensing", label: "Registration & Licensing", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "travelling_expenses", label: "Travelling Expenses", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "printing_stationery", label: "Printing & Stationery", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "repairs_maintenance", label: "Repairs & Maintenance", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "insurance", label: "Insurance", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "entertainment", label: "Entertainment", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "subscriptions", label: "Subscriptions", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "utilities", label: "Utilities (Electricity & Water)", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "fuel_consumables", label: "Fuel & Consumables", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "audit_fees", label: "Audit Fees", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "other", label: "Other", defaultCostType: "indirect", requiresDepartment: false },
+];
+
+export const EXPENSE_CATEGORY_MAP: Record<LedgerCategoryId, LedgerCategoryConfig> = EXPENSE_CATEGORIES.reduce((acc, c) => {
+  acc[c.id] = c;
+  return acc;
+}, {} as Record<LedgerCategoryId, LedgerCategoryConfig>);

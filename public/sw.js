@@ -21,9 +21,15 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Network-First strategy
+// Network-First strategy — only for same-origin app-shell/static requests.
+// Cross-origin API calls (e.g. GET /api/admin/auth/me on a different
+// origin/port than the frontend) must never be intercepted here: a failure
+// re-fetching them from the SW thread falls through to the synthetic 503
+// below, which silently breaks auth checks even though the real network
+// call would have succeeded from the page itself.
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
+    if (new URL(event.request.url).origin !== self.location.origin) return;
 
     event.respondWith(
         fetch(event.request)

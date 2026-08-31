@@ -38,6 +38,11 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isViewer: boolean;
   canWrite: boolean;
+  /** Superadmin-only actions (e.g. approving a ledger entry deletion) —
+   * mirrors canWrite's shape exactly. permissions.delete is typed on
+   * AdminUser but not populated by the backend today; role is the
+   * reliable signal until that changes. */
+  canDelete: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -342,6 +347,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isAuthenticated: !!user,
       isViewer: user?.role === "viewer",
       canWrite: user?.permissions?.write !== false && user?.role !== "viewer",
+      canDelete: user?.permissions?.delete === true || user?.role === "superadmin",
     }),
     [
       user,

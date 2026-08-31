@@ -70,9 +70,9 @@ export function KpiCard({ label, value, subtext, trend, badge, status, icon, loa
   }
 
   return (
-    <div className={`relative flex min-h-[160px] flex-col justify-between rounded-[14px] border p-5 shadow-sm ${cardToneMap[status]}`}>
+    <div className={`group relative flex min-h-[160px] flex-col justify-between rounded-[14px] border p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${cardToneMap[status]}`}>
       {icon && (
-        <div className={`absolute right-5 top-5 flex h-[34px] w-[34px] items-center justify-center rounded-lg ${iconToneMap[status]}`}>
+        <div className={`absolute right-5 top-5 flex h-[34px] w-[34px] items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-110 ${iconToneMap[status]}`}>
           {icon}
         </div>
       )}

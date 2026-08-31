@@ -21,6 +21,7 @@ import CsaLayout from "./components/csa/CsaLayout";
 import { getSubdomain } from "@/lib/domain";
 import { ReportingGuard } from "./components/ReportingGuard";
 import { ReportingLayout } from "./components/layout/ReportingLayout";
+import FinanceLayout from "./components/layout/FinanceLayout";
 
 // Every page below is route-specific and only ever rendered on one subdomain
 // (admin/agent/apply/collections/report share a single build). Lazy-loading
@@ -57,6 +58,43 @@ const AdminDeductionsPage = lazy(() => import("./pages/AdminDeductionsPage"));
 const AdminManualDisbursePage = lazy(() => import("./pages/AdminManualDisbursePage"));
 const DirectDebitPage = lazy(() => import("./pages/DirectDebitPage"));
 const OrchardPage = lazy(() => import("./pages/OrchardPage"));
+const FinanceLoginPage = lazy(() => import("./pages/FinanceLoginPage"));
+const FinanceOverviewPage = lazy(() =>
+  import("./pages/FinancePage").then((m) => ({ default: m.FinanceOverviewPage })),
+);
+const FinancePnlPage = lazy(() =>
+  import("./pages/FinancePage").then((m) => ({ default: m.FinancePnlPage })),
+);
+const FinanceLedgerPage = lazy(() =>
+  import("./pages/FinancePage").then((m) => ({ default: m.FinanceLedgerPage })),
+);
+const FinanceChannelsPage = lazy(() =>
+  import("./pages/FinancePage").then((m) => ({ default: m.FinanceChannelsPage })),
+);
+const FinancePortfolioPage = lazy(() =>
+  import("./pages/FinancePage").then((m) => ({ default: m.FinancePortfolioPage })),
+);
+const FinanceCashflowPage = lazy(() =>
+  import("./pages/FinancePage").then((m) => ({ default: m.FinanceCashflowPage })),
+);
+const ProjectionsSummaryPage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsSummaryPage })),
+);
+const ProjectionsGrowthPage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsGrowthPage })),
+);
+const ProjectionsDebtPage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsDebtPage })),
+);
+const ProjectionsExpenditurePage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsExpenditurePage })),
+);
+const ProjectionsStatementsPage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsStatementsPage })),
+);
+const ProjectionsAssumptionsPage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsAssumptionsPage })),
+);
 const CampaignHistoryPage = lazy(() =>
   import("./pages/rewards/RewardsCommsPages").then((m) => ({ default: m.CampaignHistoryPage })),
 );
@@ -144,8 +182,18 @@ function CsaGuard() {
 function AdminRoute({ children }: { readonly children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
-  const isAllowed = user?.role === "admin" || user?.role === "viewer";
+  const isAllowed = user?.role === "admin" || user?.role === "viewer" || user?.role === "superadmin";
   if (!isAllowed) return <Navigate to="/agent" replace />;
+  return <>{children}</>;
+}
+
+// Finance data (cost of funds, margin, payroll) is more sensitive than most
+// of what's behind AdminRoute, so it's admin/superadmin only — no viewer.
+function FinanceRoute({ children }: { readonly children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
+  const isAllowed = user?.role === "admin" || user?.role === "superadmin";
+  if (!isAllowed) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
@@ -220,6 +268,28 @@ const App = () => {
                       <Route path="*" element={<Navigate to="/reporting/login" replace />} />
                     </>
                   )}
+                  {subdomain === "finance" && (
+                    <>
+                      <Route path="/login" element={<FinanceLoginPage />} />
+                      <Route element={<RequireAuth><FinanceRoute><FinanceLayout /></FinanceRoute></RequireAuth>}>
+                        <Route path="/finance" element={<FinanceOverviewPage />} />
+                        <Route path="/finance/pnl" element={<FinancePnlPage />} />
+                        <Route path="/finance/ledger" element={<FinanceLedgerPage />} />
+                        <Route path="/finance/channels" element={<FinanceChannelsPage />} />
+                        <Route path="/finance/portfolio" element={<FinancePortfolioPage />} />
+                        <Route path="/finance/cashflow" element={<FinanceCashflowPage />} />
+                        <Route path="/finance/plan" element={<ProjectionsSummaryPage />} />
+                        <Route path="/finance/plan/growth" element={<ProjectionsGrowthPage />} />
+                        <Route path="/finance/plan/debt" element={<ProjectionsDebtPage />} />
+                        <Route path="/finance/plan/expenditure" element={<ProjectionsExpenditurePage />} />
+                        <Route path="/finance/plan/statements" element={<ProjectionsStatementsPage />} />
+                        <Route path="/finance/plan/assumptions" element={<ProjectionsAssumptionsPage />} />
+                        <Route path="/" element={<Navigate to="/finance" replace />} />
+                      </Route>
+                      <Route path="*" element={<Navigate to="/finance" replace />} />
+                    </>
+                  )}
+
                   {subdomain === "agent" && (
                     <>
                       {/* Public Agent Routes */}
