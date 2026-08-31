@@ -9,23 +9,38 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  BarChart, Bar, Cell,
+  BarChart, Bar, Cell, PieChart, Pie, Legend,
 } from "recharts";
-import { SlidersHorizontal, Users, TrendingUp, Landmark, Calculator, UsersRound, Repeat } from "lucide-react";
+import {
+  SlidersHorizontal, Users, TrendingUp, Landmark, Calculator, UsersRound, Repeat,
+  Plus, Trash2, ShieldAlert, Boxes, ReceiptText, Cpu,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter,
+} from "@/components/ui/sheet";
 import { KpiCard } from "@/components/analytics/KpiCard";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
+import { cn } from "@/lib/utils";
 import {
   PROJECTION_ASSUMPTION_FIELDS, PROJECTION_ASSUMPTION_GROUP_LABELS,
   type ProjectionAssumptionGroup,
 } from "@/lib/projectionConstants";
 import {
   getProjectionAssumptions, updateProjectionAssumptions, getProjectionGrowth,
-  type ProjectionAssumptions,
+  listDebtEntries, createDebtEntry, deleteDebtEntry,
+  listDepreciationEntries, createDepreciationEntry, deleteDepreciationEntry,
+  listCapexEntries, createCapexEntry, listSubscriptionEntries, createSubscriptionEntry,
+  type ProjectionAssumptions, type LenderType, type DebtRegion, type DebtFeeStructure,
+  type DepreciationAssetCategory,
 } from "@/api/projections.api";
 
 const chartTheme = {
@@ -344,12 +359,643 @@ export function ProjectionsGrowthPage() {
   );
 }
 
-export function ProjectionsDebtPage() {
-  return <ComingSoonPage title="Debt Schedule" description="Lender-by-lender commitment fees and debt summary. Superadmin-only once it ships — real people's loan terms." />;
+const DEBT_STATUS_STYLE: Record<string, string> = {
+  active: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  planned: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  repaid: "bg-slate-500/10 text-slate-500 border-slate-500/20",
+};
+
+const REGION_COLORS: Record<string, string> = { local: "#378ADD", foreign: "#1D9E75" };
+
+function fmtGhs(n: number): string {
+  return `GHS ${n.toLocaleString("en-GH", { maximumFractionDigits: 0 })}`;
 }
 
+function useIsSuperadmin() {
+  const { user } = useAuth();
+  return user?.role === "superadmin" || user?.role === "super_admin";
+}
+
+export function ProjectionsDebtPage() {
+  const isSuperadmin = useIsSuperadmin();
+
+  if (!isSuperadmin) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-foreground">Debt Schedule</h1>
+        <Card>
+          <CardContent className="py-16 flex flex-col items-center justify-center text-center gap-2">
+            <ShieldAlert className="h-8 w-8 text-muted-foreground/40 mb-2" />
+            <p className="font-medium">Superadmin access required</p>
+            <p className="text-sm text-muted-foreground max-w-sm">Lender terms are personal financial data. This page is restricted to superadmins.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return <ProjectionsDebtPageContent />;
+}
+
+function ProjectionsDebtPageContent() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [form, setForm] = useState({
+    lenderName: "", lenderType: "individual" as LenderType, region: "local" as DebtRegion,
+    principal: "", feeStructure: "rate_based" as DebtFeeStructure,
+    fixedAnnualAmount: "", overrideMonthlyRate: "", disbursedMonth: "",
+  });
+
+  const { data, isLoading } = useQuery({ queryKey: ["projection-debt"], queryFn: listDebtEntries });
+  const entries = data?.data ?? [];
+  const commitmentFees = data?.commitmentFees ?? [];
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["projection-debt"] });
+
+  const createMut = useMutation({
+    mutationFn: createDebtEntry,
+    onSuccess: () => {
+      toast({ title: "Lender added" });
+      setIsSheetOpen(false);
+      setForm({ lenderName: "", lenderType: "individual", region: "local", principal: "", feeStructure: "rate_based", fixedAnnualAmount: "", overrideMonthlyRate: "", disbursedMonth: "" });
+      invalidate();
+    },
+    onError: (e: any) => toast({ variant: "destructive", title: "Failed to add lender", description: getFriendlyErrorMessage(e) }),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: deleteDebtEntry,
+    onSuccess: () => { toast({ title: "Lender removed" }); invalidate(); },
+    onError: (e: any) => toast({ variant: "destructive", title: "Failed to remove", description: getFriendlyErrorMessage(e) }),
+  });
+
+  const activeEntries = entries.filter((e) => e.status === "active");
+  const totalPrincipal = activeEntries.reduce((sum, e) => sum + e.principal, 0);
+  const localPrincipal = activeEntries.filter((e) => e.region === "local").reduce((sum, e) => sum + e.principal, 0);
+  const foreignPrincipal = totalPrincipal - localPrincipal;
+  const latestFee = commitmentFees[0]?.totalMonthlyFee ?? 0;
+
+  const donutData = [
+    { name: "Local", value: localPrincipal },
+    { name: "Foreign", value: foreignPrincipal },
+  ].filter((d) => d.value > 0);
+
+  const feeChartData = commitmentFees.slice(0, 24).map((m) => ({ name: m.month, fee: m.totalMonthlyFee }));
+
+  const canSubmit = form.lenderName.trim() && Number(form.principal) > 0 && form.disbursedMonth &&
+    (form.feeStructure === "rate_based" || Number(form.fixedAnnualAmount) > 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Landmark className="h-5 w-5 text-muted-foreground" /> Debt Schedule
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Lender-by-lender terms and projected commitment fees. Superadmin only.</p>
+        </div>
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetTrigger asChild>
+            <Button size="sm"><Plus className="h-4 w-4 mr-2" /> Add Lender</Button>
+          </SheetTrigger>
+          <SheetContent className="sm:max-w-md">
+            <SheetHeader>
+              <SheetTitle>Add Lender</SheetTitle>
+              <SheetDescription>Feeds the commitment-fee schedule and the debt-ask comparison metric.</SheetDescription>
+            </SheetHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Lender name</Label>
+                <Input value={form.lenderName} onChange={(e) => setForm((f) => ({ ...f, lenderName: e.target.value }))} placeholder="e.g. Jane Doe" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Type</Label>
+                  <Select value={form.lenderType} onValueChange={(v) => setForm((f) => ({ ...f, lenderType: v as LenderType }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="individual">Individual</SelectItem>
+                      <SelectItem value="institutional">Institutional</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Region</Label>
+                  <Select value={form.region} onValueChange={(v) => setForm((f) => ({ ...f, region: v as DebtRegion }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="local">Local</SelectItem>
+                      <SelectItem value="foreign">Foreign</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Principal (GHS)</Label>
+                <Input type="number" value={form.principal} onChange={(e) => setForm((f) => ({ ...f, principal: e.target.value }))} placeholder="0.00" />
+              </div>
+              <div className="space-y-2">
+                <Label>Fee structure</Label>
+                <Select value={form.feeStructure} onValueChange={(v) => setForm((f) => ({ ...f, feeStructure: v as DebtFeeStructure }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rate_based">Rate-based (monthly)</SelectItem>
+                    <SelectItem value="fixed_annual">Fixed annual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {form.feeStructure === "fixed_annual" ? (
+                <div className="space-y-2">
+                  <Label>Fixed annual amount (GHS)</Label>
+                  <Input type="number" value={form.fixedAnnualAmount} onChange={(e) => setForm((f) => ({ ...f, fixedAnnualAmount: e.target.value }))} placeholder="0.00" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Override monthly rate (optional, %)</Label>
+                  <Input type="number" step="any" value={form.overrideMonthlyRate} onChange={(e) => setForm((f) => ({ ...f, overrideMonthlyRate: e.target.value }))} placeholder="Uses the assumptions default if blank" />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Disbursed month</Label>
+                <Input type="month" value={form.disbursedMonth} onChange={(e) => setForm((f) => ({ ...f, disbursedMonth: e.target.value }))} />
+              </div>
+            </div>
+            <SheetFooter>
+              <Button
+                disabled={!canSubmit || createMut.isPending}
+                onClick={() => createMut.mutate({
+                  lenderName: form.lenderName.trim(),
+                  lenderType: form.lenderType,
+                  region: form.region,
+                  principal: Number(form.principal),
+                  feeStructure: form.feeStructure,
+                  fixedAnnualAmount: form.fixedAnnualAmount ? Number(form.fixedAnnualAmount) : undefined,
+                  overrideMonthlyRate: form.overrideMonthlyRate ? Number(form.overrideMonthlyRate) / 100 : undefined,
+                  disbursedMonth: form.disbursedMonth,
+                })}
+              >
+                {createMut.isPending ? "Adding…" : "Add Lender"}
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard label="Active principal" value={isLoading ? "—" : fmtGhs(totalPrincipal)} subtext={`${activeEntries.length} active lender${activeEntries.length === 1 ? "" : "s"}`} status="neutral" icon={<Landmark className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Current monthly commitment fee" value={isLoading ? "—" : fmtGhs(latestFee)} subtext="This month across all lenders" status="neutral" icon={<Calculator className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Local vs foreign" value={isLoading ? "—" : `${fmtGhs(localPrincipal)} / ${fmtGhs(foreignPrincipal)}`} subtext="Active principal split" status="neutral" icon={<Boxes className="h-4 w-4" />} loading={isLoading} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-muted-foreground" /> Commitment fees — 24 month view</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+            ) : (
+              <div className="h-[240px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={feeChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: chartTheme.tick }} interval={2} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                    <Tooltip content={<ChartTooltip formatter={fmtGhs} />} />
+                    <Line type="monotone" dataKey="fee" name="Commitment fee" stroke="#378ADD" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><Boxes className="h-4 w-4 text-muted-foreground" /> Debt by region</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading || donutData.length === 0 ? (
+              <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">{isLoading ? "Loading…" : "No active debt"}</div>
+            ) : (
+              <div className="h-[240px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={donutData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
+                      {donutData.map((d) => <Cell key={d.name} fill={REGION_COLORS[d.name.toLowerCase()]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => fmtGhs(v)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Lenders</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Lender</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Region</TableHead>
+                <TableHead className="text-right">Principal</TableHead>
+                <TableHead>Fee structure</TableHead>
+                <TableHead>Disbursed</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map((e) => (
+                <TableRow key={e._id}>
+                  <TableCell className="font-medium">{e.lenderName}</TableCell>
+                  <TableCell className="capitalize text-muted-foreground">{e.lenderType}</TableCell>
+                  <TableCell className="capitalize text-muted-foreground">{e.region}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{fmtGhs(e.principal)}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {e.feeStructure === "fixed_annual" ? `Fixed ${fmtGhs(e.fixedAnnualAmount ?? 0)}/yr` : `Rate-based${e.overrideMonthlyRate ? ` (${(e.overrideMonthlyRate * 100).toFixed(2)}%/mo)` : ""}`}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{e.disbursedMonth}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn("capitalize", DEBT_STATUS_STYLE[e.status])}>{e.status}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteMut.mutate(e._id)} disabled={deleteMut.isPending}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!isLoading && entries.length === 0 && (
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No lenders yet</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const DEPRECIATION_CATEGORY_LABEL: Record<DepreciationAssetCategory, string> = {
+  software_digital_platform: "Software / Digital Platform",
+  motor_vehicle: "Motor Vehicle",
+  computers_accessories: "Computers & Accessories",
+  office_equipment: "Office Equipment",
+};
+
 export function ProjectionsExpenditurePage() {
-  return <ComingSoonPage title="Expenditure" description="Salaries, OpEx, depreciation, and digital-platform costs, rolled into the projected Expenditure Schedule." />;
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [depSheetOpen, setDepSheetOpen] = useState(false);
+  const [capexSheetOpen, setCapexSheetOpen] = useState(false);
+  const [subSheetOpen, setSubSheetOpen] = useState(false);
+
+  const [depForm, setDepForm] = useState({ category: "office_equipment" as DepreciationAssetCategory, description: "", costBasis: "", usefulLifeMonths: "36", acquiredMonth: "" });
+  const [capexForm, setCapexForm] = useState({ item: "", costAmount: "", currency: "GHS" as "GHS" | "EUR" | "USD", fxRateToGhs: "", plannedMonth: "" });
+  const [subForm, setSubForm] = useState({ item: "", monthlyAmount: "", currency: "GHS" as "GHS" | "EUR" | "USD", fxRateToGhs: "", effectiveFrom: "" });
+
+  const { data: depData, isLoading: depLoading } = useQuery({ queryKey: ["projection-depreciation"], queryFn: listDepreciationEntries });
+  const { data: capexData, isLoading: capexLoading } = useQuery({ queryKey: ["projection-capex"], queryFn: listCapexEntries });
+  const { data: subData, isLoading: subLoading } = useQuery({ queryKey: ["projection-subscriptions"], queryFn: listSubscriptionEntries });
+
+  const depEntries = depData?.data ?? [];
+  const capexEntries = capexData ?? [];
+  const subEntries = subData?.data ?? [];
+  const subSchedule = subData?.schedule ?? [];
+
+  const invalidateDep = () => qc.invalidateQueries({ queryKey: ["projection-depreciation"] });
+
+  const createDepMut = useMutation({
+    mutationFn: createDepreciationEntry,
+    onSuccess: () => { toast({ title: "Asset added" }); setDepSheetOpen(false); setDepForm({ category: "office_equipment", description: "", costBasis: "", usefulLifeMonths: "36", acquiredMonth: "" }); invalidateDep(); },
+    onError: (e: any) => toast({ variant: "destructive", title: "Failed to add asset", description: getFriendlyErrorMessage(e) }),
+  });
+  const deleteDepMut = useMutation({
+    mutationFn: deleteDepreciationEntry,
+    onSuccess: () => { toast({ title: "Asset removed" }); invalidateDep(); },
+    onError: (e: any) => toast({ variant: "destructive", title: "Failed to remove", description: getFriendlyErrorMessage(e) }),
+  });
+
+  const createCapexMut = useMutation({
+    mutationFn: createCapexEntry,
+    onSuccess: () => {
+      toast({ title: "CapEx item added", description: "A matching depreciation entry was created automatically." });
+      setCapexSheetOpen(false);
+      setCapexForm({ item: "", costAmount: "", currency: "GHS", fxRateToGhs: "", plannedMonth: "" });
+      qc.invalidateQueries({ queryKey: ["projection-capex"] });
+      invalidateDep();
+    },
+    onError: (e: any) => toast({ variant: "destructive", title: "Failed to add CapEx item", description: getFriendlyErrorMessage(e) }),
+  });
+
+  const createSubMut = useMutation({
+    mutationFn: createSubscriptionEntry,
+    onSuccess: () => {
+      toast({ title: "Subscription added" });
+      setSubSheetOpen(false);
+      setSubForm({ item: "", monthlyAmount: "", currency: "GHS", fxRateToGhs: "", effectiveFrom: "" });
+      qc.invalidateQueries({ queryKey: ["projection-subscriptions"] });
+    },
+    onError: (e: any) => toast({ variant: "destructive", title: "Failed to add subscription", description: getFriendlyErrorMessage(e) }),
+  });
+
+  const totalCapex = capexEntries.reduce((sum, c) => sum + (c.currency === "GHS" ? c.costAmount : c.costAmount * (c.fxRateToGhs ?? 1)), 0);
+  const currentMonthlySubs = subSchedule[0]?.total ?? 0;
+  const activeAssets = depEntries.filter((d) => d.status === "active");
+  const currentMonthlyDep = activeAssets.reduce((sum, a) => sum + a.costBasis / a.usefulLifeMonths, 0);
+
+  const subsChartData = subSchedule.slice(0, 24).map((m) => ({ name: m.month, total: m.total }));
+
+  const needsFx = (c: string) => c !== "GHS";
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <ReceiptText className="h-5 w-5 text-muted-foreground" /> Expenditure
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">Digital-platform CapEx, subscriptions, and depreciation. Salaries land in a later phase.</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard label="Total platform CapEx" value={capexLoading ? "—" : fmtGhs(totalCapex)} subtext={`${capexEntries.length} item${capexEntries.length === 1 ? "" : "s"}`} status="neutral" icon={<Cpu className="h-4 w-4" />} loading={capexLoading} />
+        <KpiCard label="Monthly subscriptions" value={subLoading ? "—" : fmtGhs(currentMonthlySubs)} subtext="Current month" status="neutral" icon={<Repeat className="h-4 w-4" />} loading={subLoading} />
+        <KpiCard label="Monthly depreciation" value={depLoading ? "—" : fmtGhs(currentMonthlyDep)} subtext={`${activeAssets.length} active asset${activeAssets.length === 1 ? "" : "s"}`} status="neutral" icon={<Boxes className="h-4 w-4" />} loading={depLoading} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-muted-foreground" /> Subscription cost — 24 month view</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {subLoading ? (
+            <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : (
+            <div className="h-[220px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={subsChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: chartTheme.tick }} interval={2} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                  <Tooltip content={<ChartTooltip formatter={fmtGhs} />} />
+                  <Line type="monotone" dataKey="total" name="Subscriptions" stroke="#1D9E75" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2"><Cpu className="h-4 w-4 text-muted-foreground" /> Digital Platform CapEx</CardTitle>
+              <CardDescription>Each item auto-creates a paired depreciation entry.</CardDescription>
+            </div>
+            <Sheet open={capexSheetOpen} onOpenChange={setCapexSheetOpen}>
+              <SheetTrigger asChild><Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-2" /> Add</Button></SheetTrigger>
+              <SheetContent className="sm:max-w-md">
+                <SheetHeader>
+                  <SheetTitle>Add CapEx Item</SheetTitle>
+                  <SheetDescription>Creates a matching depreciation asset (36-month default useful life) automatically.</SheetDescription>
+                </SheetHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Item</Label>
+                    <Input value={capexForm.item} onChange={(e) => setCapexForm((f) => ({ ...f, item: e.target.value }))} placeholder="e.g. Core platform build" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Cost</Label>
+                      <Input type="number" value={capexForm.costAmount} onChange={(e) => setCapexForm((f) => ({ ...f, costAmount: e.target.value }))} placeholder="0.00" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Currency</Label>
+                      <Select value={capexForm.currency} onValueChange={(v) => setCapexForm((f) => ({ ...f, currency: v as any }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="GHS">GHS</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="USD">USD</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {needsFx(capexForm.currency) && (
+                    <div className="space-y-2">
+                      <Label>FX rate to GHS</Label>
+                      <Input type="number" step="any" value={capexForm.fxRateToGhs} onChange={(e) => setCapexForm((f) => ({ ...f, fxRateToGhs: e.target.value }))} placeholder="e.g. 15.20" />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label>Planned month</Label>
+                    <Input type="month" value={capexForm.plannedMonth} onChange={(e) => setCapexForm((f) => ({ ...f, plannedMonth: e.target.value }))} />
+                  </div>
+                </div>
+                <SheetFooter>
+                  <Button
+                    disabled={!capexForm.item.trim() || !Number(capexForm.costAmount) || !capexForm.plannedMonth || createCapexMut.isPending}
+                    onClick={() => createCapexMut.mutate({
+                      item: capexForm.item.trim(), costAmount: Number(capexForm.costAmount), currency: capexForm.currency,
+                      fxRateToGhs: capexForm.fxRateToGhs ? Number(capexForm.fxRateToGhs) : undefined, plannedMonth: capexForm.plannedMonth,
+                    })}
+                  >
+                    {createCapexMut.isPending ? "Adding…" : "Add CapEx Item"}
+                  </Button>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Cost (GHS)</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {capexEntries.map((c) => (
+                  <TableRow key={c._id}>
+                    <TableCell>{c.item}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{fmtGhs(c.currency === "GHS" ? c.costAmount : c.costAmount * (c.fxRateToGhs ?? 1))}</TableCell>
+                    <TableCell><Badge variant="outline" className="capitalize">{c.status}</Badge></TableCell>
+                  </TableRow>
+                ))}
+                {!capexLoading && capexEntries.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">No CapEx items yet</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2"><Repeat className="h-4 w-4 text-muted-foreground" /> Subscriptions</CardTitle>
+              <CardDescription>Recurring platform costs, feeds the Expenditure Schedule.</CardDescription>
+            </div>
+            <Sheet open={subSheetOpen} onOpenChange={setSubSheetOpen}>
+              <SheetTrigger asChild><Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-2" /> Add</Button></SheetTrigger>
+              <SheetContent className="sm:max-w-md">
+                <SheetHeader>
+                  <SheetTitle>Add Subscription</SheetTitle>
+                </SheetHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Item</Label>
+                    <Input value={subForm.item} onChange={(e) => setSubForm((f) => ({ ...f, item: e.target.value }))} placeholder="e.g. Cloud hosting" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Monthly amount</Label>
+                      <Input type="number" value={subForm.monthlyAmount} onChange={(e) => setSubForm((f) => ({ ...f, monthlyAmount: e.target.value }))} placeholder="0.00" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Currency</Label>
+                      <Select value={subForm.currency} onValueChange={(v) => setSubForm((f) => ({ ...f, currency: v as any }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="GHS">GHS</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="USD">USD</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {needsFx(subForm.currency) && (
+                    <div className="space-y-2">
+                      <Label>FX rate to GHS</Label>
+                      <Input type="number" step="any" value={subForm.fxRateToGhs} onChange={(e) => setSubForm((f) => ({ ...f, fxRateToGhs: e.target.value }))} placeholder="e.g. 15.20" />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label>Effective from</Label>
+                    <Input type="month" value={subForm.effectiveFrom} onChange={(e) => setSubForm((f) => ({ ...f, effectiveFrom: e.target.value }))} />
+                  </div>
+                </div>
+                <SheetFooter>
+                  <Button
+                    disabled={!subForm.item.trim() || !Number(subForm.monthlyAmount) || !subForm.effectiveFrom || createSubMut.isPending}
+                    onClick={() => createSubMut.mutate({
+                      item: subForm.item.trim(), monthlyAmount: Number(subForm.monthlyAmount), currency: subForm.currency,
+                      fxRateToGhs: subForm.fxRateToGhs ? Number(subForm.fxRateToGhs) : undefined, effectiveFrom: subForm.effectiveFrom,
+                    })}
+                  >
+                    {createSubMut.isPending ? "Adding…" : "Add Subscription"}
+                  </Button>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Monthly (GHS)</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {subEntries.map((s) => (
+                  <TableRow key={s._id}>
+                    <TableCell>{s.item}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{fmtGhs(s.currency === "GHS" ? s.monthlyAmount : s.monthlyAmount * (s.fxRateToGhs ?? 1))}</TableCell>
+                    <TableCell><Badge variant="outline" className="capitalize">{s.status}</Badge></TableCell>
+                  </TableRow>
+                ))}
+                {!subLoading && subEntries.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">No subscriptions yet</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-base flex items-center gap-2"><Boxes className="h-4 w-4 text-muted-foreground" /> Depreciation schedule</CardTitle>
+          <Sheet open={depSheetOpen} onOpenChange={setDepSheetOpen}>
+            <SheetTrigger asChild><Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-2" /> Add Asset</Button></SheetTrigger>
+            <SheetContent className="sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>Add Depreciable Asset</SheetTitle>
+                <SheetDescription>Straight-line depreciation over the useful life you set.</SheetDescription>
+              </SheetHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select value={depForm.category} onValueChange={(v) => setDepForm((f) => ({ ...f, category: v as DepreciationAssetCategory }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(DEPRECIATION_CATEGORY_LABEL).map(([id, label]) => <SelectItem key={id} value={id}>{label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Input value={depForm.description} onChange={(e) => setDepForm((f) => ({ ...f, description: e.target.value }))} placeholder="e.g. Company vehicle" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Cost basis (GHS)</Label>
+                    <Input type="number" value={depForm.costBasis} onChange={(e) => setDepForm((f) => ({ ...f, costBasis: e.target.value }))} placeholder="0.00" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Useful life (months)</Label>
+                    <Input type="number" value={depForm.usefulLifeMonths} onChange={(e) => setDepForm((f) => ({ ...f, usefulLifeMonths: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Acquired month</Label>
+                  <Input type="month" value={depForm.acquiredMonth} onChange={(e) => setDepForm((f) => ({ ...f, acquiredMonth: e.target.value }))} />
+                </div>
+              </div>
+              <SheetFooter>
+                <Button
+                  disabled={!depForm.description.trim() || !Number(depForm.costBasis) || !Number(depForm.usefulLifeMonths) || !depForm.acquiredMonth || createDepMut.isPending}
+                  onClick={() => createDepMut.mutate({
+                    category: depForm.category, description: depForm.description.trim(), costBasis: Number(depForm.costBasis),
+                    usefulLifeMonths: Number(depForm.usefulLifeMonths), acquiredMonth: depForm.acquiredMonth,
+                  })}
+                >
+                  {createDepMut.isPending ? "Adding…" : "Add Asset"}
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Description</TableHead><TableHead>Category</TableHead>
+                <TableHead className="text-right">Cost basis</TableHead><TableHead className="text-right">Monthly dep.</TableHead>
+                <TableHead>Acquired</TableHead><TableHead>Status</TableHead><TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {depEntries.map((d) => (
+                <TableRow key={d._id}>
+                  <TableCell>{d.description}</TableCell>
+                  <TableCell className="text-muted-foreground">{DEPRECIATION_CATEGORY_LABEL[d.category]}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{fmtGhs(d.costBasis)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{fmtGhs(d.costBasis / d.usefulLifeMonths)}</TableCell>
+                  <TableCell className="text-muted-foreground">{d.acquiredMonth}</TableCell>
+                  <TableCell><Badge variant="outline" className="capitalize">{d.status}</Badge></TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteDepMut.mutate(d._id)} disabled={deleteDepMut.isPending}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!depLoading && depEntries.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No depreciable assets yet</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 export function ProjectionsStatementsPage() {

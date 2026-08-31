@@ -85,3 +85,126 @@ export async function getProjectionGrowth(): Promise<ProjectionGrowthResponse> {
   const res = await api.get(`${BASE}/growth`);
   return res.data.data;
 }
+
+// ── Debt Schedule (superadmin-only) ─────────────────────────────────────
+
+export type LenderType = "individual" | "institutional";
+export type DebtRegion = "local" | "foreign";
+export type DebtFeeStructure = "fixed_annual" | "rate_based";
+export type DebtEntryStatus = "active" | "repaid" | "planned";
+
+export interface DebtScheduleEntry {
+  _id: string;
+  lenderName: string;
+  lenderType: LenderType;
+  region: DebtRegion;
+  principal: number;
+  feeStructure: DebtFeeStructure;
+  fixedAnnualAmount?: number;
+  overrideMonthlyRate?: number;
+  disbursedMonth: string;
+  status: DebtEntryStatus;
+  createdAt: string;
+}
+
+export interface CommitmentFeesMonth {
+  monthIndex: number;
+  month: string;
+  totalMonthlyFee: number;
+  localPrincipal: number;
+  foreignPrincipal: number;
+}
+
+export async function listDebtEntries(): Promise<{ data: DebtScheduleEntry[]; commitmentFees: CommitmentFeesMonth[] }> {
+  const res = await api.get(`${BASE}/debt`);
+  return { data: res.data.data, commitmentFees: res.data.commitmentFees };
+}
+
+export async function createDebtEntry(payload: {
+  lenderName: string; lenderType: LenderType; region: DebtRegion; principal: number;
+  feeStructure: DebtFeeStructure; fixedAnnualAmount?: number; overrideMonthlyRate?: number; disbursedMonth: string;
+}): Promise<DebtScheduleEntry> {
+  const res = await api.post(`${BASE}/debt`, payload);
+  return res.data.data;
+}
+
+export async function deleteDebtEntry(id: string): Promise<void> {
+  await api.delete(`${BASE}/debt/${id}`);
+}
+
+// ── Depreciation ─────────────────────────────────────────────────────────
+
+export type DepreciationAssetCategory = "software_digital_platform" | "motor_vehicle" | "computers_accessories" | "office_equipment";
+
+export interface DepreciationAssetEntry {
+  _id: string;
+  category: DepreciationAssetCategory;
+  description: string;
+  costBasis: number;
+  usefulLifeMonths: number;
+  acquiredMonth: string;
+  status: "active" | "disposed";
+  createdAt: string;
+}
+
+export async function listDepreciationEntries(): Promise<{ data: DepreciationAssetEntry[] }> {
+  const res = await api.get(`${BASE}/depreciation`);
+  return { data: res.data.data };
+}
+
+export async function createDepreciationEntry(payload: {
+  category: DepreciationAssetCategory; description: string; costBasis: number; usefulLifeMonths: number; acquiredMonth: string;
+}): Promise<DepreciationAssetEntry> {
+  const res = await api.post(`${BASE}/depreciation`, payload);
+  return res.data.data;
+}
+
+export async function deleteDepreciationEntry(id: string): Promise<void> {
+  await api.delete(`${BASE}/depreciation/${id}`);
+}
+
+// ── Digital Platform: CapEx + Subscriptions ────────────────────────────
+
+export interface CapexEntry {
+  _id: string;
+  item: string;
+  costAmount: number;
+  currency: "GHS" | "EUR" | "USD";
+  fxRateToGhs?: number;
+  plannedMonth: string;
+  status: "planned" | "committed" | "live";
+}
+
+export interface SubscriptionEntry {
+  _id: string;
+  item: string;
+  monthlyAmount: number;
+  currency: "GHS" | "EUR" | "USD";
+  fxRateToGhs?: number;
+  effectiveFrom: string;
+  status: "active" | "inactive";
+}
+
+export async function listCapexEntries(): Promise<CapexEntry[]> {
+  const res = await api.get(`${BASE}/platform/capex`);
+  return res.data.data;
+}
+
+export async function createCapexEntry(payload: {
+  item: string; costAmount: number; currency: "GHS" | "EUR" | "USD"; fxRateToGhs?: number; plannedMonth: string; autoCreateDepreciationEntry?: boolean;
+}): Promise<CapexEntry> {
+  const res = await api.post(`${BASE}/platform/capex`, payload);
+  return res.data.data;
+}
+
+export async function listSubscriptionEntries(): Promise<{ data: SubscriptionEntry[]; schedule: { monthIndex: number; month: string; total: number }[] }> {
+  const res = await api.get(`${BASE}/platform/subscriptions`);
+  return { data: res.data.data, schedule: res.data.schedule };
+}
+
+export async function createSubscriptionEntry(payload: {
+  item: string; monthlyAmount: number; currency: "GHS" | "EUR" | "USD"; fxRateToGhs?: number; effectiveFrom: string;
+}): Promise<SubscriptionEntry> {
+  const res = await api.post(`${BASE}/platform/subscriptions`, payload);
+  return res.data.data;
+}
