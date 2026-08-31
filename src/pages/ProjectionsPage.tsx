@@ -40,6 +40,7 @@ import {
   listDepreciationEntries, createDepreciationEntry, deleteDepreciationEntry,
   listCapexEntries, createCapexEntry, listSubscriptionEntries, createSubscriptionEntry,
   listSalaryEntries, createSalaryEntry, deleteSalaryEntry, getProjectionExpenditure,
+  getProjectionCommercials,
   type ProjectionAssumptions, type LenderType, type DebtRegion, type DebtFeeStructure,
   type DepreciationAssetCategory,
 } from "@/api/projections.api";
@@ -252,8 +253,15 @@ const FUNNEL_COLORS = ["#378ADD", "#5BA3E5", "#7FBCED", "#1D9E75", "#0EA5E9"];
 
 export function ProjectionsGrowthPage() {
   const { data, isLoading } = useQuery({ queryKey: ["projection-growth"], queryFn: getProjectionGrowth });
+  const { data: commercialsData, isLoading: commercialsLoading } = useQuery({ queryKey: ["projection-commercials"], queryFn: getProjectionCommercials });
 
   const months = data?.months ?? [];
+  const commercialsMonths = commercialsData?.months ?? [];
+  const latestCommercials = commercialsMonths[0];
+  const commercialsChartData = commercialsMonths.slice(0, 24).map((m) => ({
+    name: m.month, Revenue: m.totalRevenue, "Direct Cost": Math.abs(m.totalDirectCost), "Gross Profit": m.grossProfit,
+  }));
+  const marginChartData = commercialsMonths.slice(0, 24).map((m) => ({ name: m.month, margin: m.grossMargin * 100 }));
   const latest = months[months.length - 1];
   const year1 = months[11];
   const year5 = months[59] ?? months[months.length - 1];
@@ -305,6 +313,88 @@ export function ProjectionsGrowthPage() {
           icon={<Repeat className="h-4 w-4" />}
           loading={isLoading}
         />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard
+          label="Total revenue (this month)"
+          value={commercialsLoading || !latestCommercials ? "—" : fmtGhs(latestCommercials.totalRevenue)}
+          subtext="Fee + interest revenue"
+          status="neutral"
+          icon={<Wallet className="h-4 w-4" />}
+          loading={commercialsLoading}
+        />
+        <KpiCard
+          label="Gross profit (this month)"
+          value={commercialsLoading || !latestCommercials ? "—" : fmtGhs(latestCommercials.grossProfit)}
+          subtext="Revenue minus direct cost"
+          status={latestCommercials && latestCommercials.grossProfit < 0 ? "negative" : "positive"}
+          icon={<TrendingUp className="h-4 w-4" />}
+          loading={commercialsLoading}
+        />
+        <KpiCard
+          label="Gross margin (this month)"
+          value={commercialsLoading || !latestCommercials ? "—" : `${(latestCommercials.grossMargin * 100).toFixed(1)}%`}
+          subtext="Gross profit ÷ total revenue"
+          status={latestCommercials && latestCommercials.grossMargin < 0 ? "negative" : "positive"}
+          icon={<Calculator className="h-4 w-4" />}
+          loading={commercialsLoading}
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><Wallet className="h-4 w-4 text-muted-foreground" /> Commercials Reworked — revenue vs. direct cost</CardTitle>
+            <CardDescription>24 month view</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {commercialsLoading ? (
+              <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+            ) : (
+              <div className="h-[240px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={commercialsChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: chartTheme.tick }} interval={2} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                    <Tooltip content={<ChartTooltip formatter={fmtGhs} />} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="Revenue" fill="#378ADD" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Direct Cost" fill="#EF4444" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Gross Profit" fill="#1D9E75" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><Calculator className="h-4 w-4 text-muted-foreground" /> Gross margin trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {commercialsLoading ? (
+              <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+            ) : (
+              <div className="h-[240px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={marginChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="marginFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1D9E75" stopOpacity={0.6} /><stop offset="95%" stopColor="#1D9E75" stopOpacity={0.05} /></linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: chartTheme.tick }} interval={2} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+                    <Tooltip content={<ChartTooltip formatter={(v: number) => `${v.toFixed(1)}%`} />} />
+                    <Area type="monotone" dataKey="margin" name="Gross margin" stroke="#1D9E75" strokeWidth={2} fill="url(#marginFill)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">

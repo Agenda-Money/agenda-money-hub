@@ -86,6 +86,28 @@ export async function getProjectionGrowth(): Promise<ProjectionGrowthResponse> {
   return res.data.data;
 }
 
+export interface CommercialsMonth {
+  monthIndex: number;
+  month: string;
+  totalDisbursement: number;
+  totalRepayments: number;
+  totalRevenue: number;
+  totalDirectCost: number;
+  grossProfit: number;
+  grossMargin: number;
+}
+
+export interface ProjectionCommercialsResponse {
+  assumptionsVersion: number;
+  computedAt: string;
+  months: CommercialsMonth[];
+}
+
+export async function getProjectionCommercials(): Promise<ProjectionCommercialsResponse> {
+  const res = await api.get(`${BASE}/commercials`);
+  return res.data.data;
+}
+
 // ── Debt Schedule (superadmin-only) ─────────────────────────────────────
 
 export type LenderType = "individual" | "institutional";
