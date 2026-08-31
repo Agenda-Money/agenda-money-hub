@@ -9,19 +9,24 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  BarChart, Bar, Cell,
 } from "recharts";
-import { SlidersHorizontal, Users, TrendingUp, Landmark, Calculator } from "lucide-react";
+import { SlidersHorizontal, Users, TrendingUp, Landmark, Calculator, UsersRound, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { KpiCard } from "@/components/analytics/KpiCard";
 import { useToast } from "@/hooks/use-toast";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
 import {
   PROJECTION_ASSUMPTION_FIELDS, PROJECTION_ASSUMPTION_GROUP_LABELS,
   type ProjectionAssumptionGroup,
 } from "@/lib/projectionConstants";
-import { getProjectionAssumptions, updateProjectionAssumptions, type ProjectionAssumptions } from "@/api/projections.api";
+import {
+  getProjectionAssumptions, updateProjectionAssumptions, getProjectionGrowth,
+  type ProjectionAssumptions,
+} from "@/api/projections.api";
 
 const chartTheme = {
   grid: "#33415533",
@@ -226,8 +231,117 @@ export function ProjectionsSummaryPage() {
   return <ComingSoonPage title="Plan Summary" description="The executive rollup — 5-year customer, revenue, and profitability trajectory — once the full projection engine is wired up." />;
 }
 
+const FUNNEL_COLORS = ["#378ADD", "#5BA3E5", "#7FBCED", "#1D9E75", "#0EA5E9"];
+
 export function ProjectionsGrowthPage() {
-  return <ComingSoonPage title="Growth" description="Customer growth funnel and unit-economics engine, built once Assumptions has real numbers to work from." />;
+  const { data, isLoading } = useQuery({ queryKey: ["projection-growth"], queryFn: getProjectionGrowth });
+
+  const months = data?.months ?? [];
+  const latest = months[months.length - 1];
+  const year1 = months[11];
+  const year5 = months[59] ?? months[months.length - 1];
+
+  const funnelData = latest ? [
+    { stage: "Sales agents", value: latest.salesAgents },
+    { stage: "Nodes/day", value: Math.round(latest.nodesPerDay) },
+    { stage: "Connections/mo", value: Math.round(latest.connectionsPerMonth) },
+    { stage: "Potential customers", value: Math.round(latest.potentialCustomersPerMonth) },
+    { stage: "New customers/mo", value: Math.round(latest.customersPerMonth) },
+  ] : [];
+
+  const growthChartData = months.map((m) => ({
+    name: m.month,
+    customerBase: Math.round(m.customerBase),
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-muted-foreground" /> Growth
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">Customer acquisition funnel and 5-year customer base trajectory.</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard
+          label="Customer Base (latest month)"
+          value={isLoading || !latest ? "—" : latest.customerBase.toLocaleString("en-GH", { maximumFractionDigits: 0 })}
+          subtext={latest ? `Month ${latest.monthIndex} of the horizon` : ""}
+          status="neutral"
+          icon={<UsersRound className="h-4 w-4" />}
+          loading={isLoading}
+        />
+        <KpiCard
+          label="Customer Base (year 1)"
+          value={isLoading || !year1 ? "—" : year1.customerBase.toLocaleString("en-GH", { maximumFractionDigits: 0 })}
+          subtext="Month 12"
+          status="neutral"
+          icon={<Users className="h-4 w-4" />}
+          loading={isLoading}
+        />
+        <KpiCard
+          label="Customer Base (year 5)"
+          value={isLoading || !year5 ? "—" : year5.customerBase.toLocaleString("en-GH", { maximumFractionDigits: 0 })}
+          subtext={`Month ${year5?.monthIndex ?? 60}`}
+          status="neutral"
+          icon={<Repeat className="h-4 w-4" />}
+          loading={isLoading}
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4 text-muted-foreground" /> Acquisition funnel</CardTitle>
+            <CardDescription>Latest projected month</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+            ) : (
+              <div className="h-[260px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={funnelData} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#33415533" />
+                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                    <YAxis type="category" dataKey="stage" axisLine={false} tickLine={false} width={110} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                    <Tooltip />
+                    <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                      {funnelData.map((_, i) => <Cell key={i} fill={FUNNEL_COLORS[i % FUNNEL_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-muted-foreground" /> Customer base — 5 year trajectory</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+            ) : (
+              <div className="h-[260px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={growthChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#33415533" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8" }} interval={5} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="customerBase" name="Customer base" stroke="#1D9E75" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 }
 
 export function ProjectionsDebtPage() {

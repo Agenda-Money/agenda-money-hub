@@ -61,3 +61,27 @@ export async function updateProjectionAssumptions(
   const res = await api.put(`${BASE}/assumptions`, updates);
   return res.data.data;
 }
+
+export interface CustomerGrowthMonth {
+  monthIndex: number;
+  month: string;
+  salesAgents: number;
+  nodesPerDay: number;
+  connectionsPerMonth: number;
+  potentialCustomersPerMonth: number;
+  customersPerMonth: number;
+  retainedCustomers: number;
+  cumulativeRetainedCustomers: number;
+  customerBase: number;
+}
+
+export interface ProjectionGrowthResponse {
+  assumptionsVersion: number;
+  computedAt: string;
+  months: CustomerGrowthMonth[];
+}
+
+export async function getProjectionGrowth(): Promise<ProjectionGrowthResponse> {
+  const res = await api.get(`${BASE}/growth`);
+  return res.data.data;
+}
