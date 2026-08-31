@@ -88,6 +88,17 @@ export type LedgerCategoryId =
   | "payroll"
   | "vehicle_maintenance"
   | "bank_charges"
+  | "directors_remuneration"
+  | "registration_licensing"
+  | "travelling_expenses"
+  | "printing_stationery"
+  | "repairs_maintenance"
+  | "insurance"
+  | "entertainment"
+  | "subscriptions"
+  | "utilities"
+  | "fuel_consumables"
+  | "audit_fees"
   | "other";
 
 export interface LedgerCategoryConfig {
@@ -103,6 +114,20 @@ export const EXPENSE_CATEGORIES: LedgerCategoryConfig[] = [
   { id: "payroll", label: "Payroll", defaultCostType: "indirect", requiresDepartment: true },
   { id: "vehicle_maintenance", label: "Vehicle & Maintenance", defaultCostType: "indirect", requiresDepartment: false },
   { id: "bank_charges", label: "Bank Charges", defaultCostType: "indirect", requiresDepartment: false },
+  // Mirrors the Expenditure Schedule sheet of the business's own 5-year
+  // financial model spreadsheet, kept in that order — see
+  // src/core/accounting/expense-categories.ts on the backend.
+  { id: "directors_remuneration", label: "Director's Remuneration", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "registration_licensing", label: "Registration & Licensing", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "travelling_expenses", label: "Travelling Expenses", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "printing_stationery", label: "Printing & Stationery", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "repairs_maintenance", label: "Repairs & Maintenance", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "insurance", label: "Insurance", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "entertainment", label: "Entertainment", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "subscriptions", label: "Subscriptions", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "utilities", label: "Utilities (Electricity & Water)", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "fuel_consumables", label: "Fuel & Consumables", defaultCostType: "indirect", requiresDepartment: false },
+  { id: "audit_fees", label: "Audit Fees", defaultCostType: "indirect", requiresDepartment: false },
   { id: "other", label: "Other", defaultCostType: "indirect", requiresDepartment: false },
 ];
 

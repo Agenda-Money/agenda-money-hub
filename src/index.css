@@ -274,3 +274,22 @@
 .animate-pulse-soft {
   animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Print export — see src/components/analytics/ExportMenu.tsx. Elements
+   marked .print-hide (page chrome: header, nav, action buttons) are
+   omitted from the printed/PDF output; everything else prints as-is. */
+@media print {
+  .print-hide {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+  }
+  main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .print-avoid-break {
+    break-inside: avoid;
+  }
+}
