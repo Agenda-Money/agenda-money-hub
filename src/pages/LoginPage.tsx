@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, LogIn, CircleAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AuthShell } from "@/components/auth/AuthShell";
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -39,8 +40,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-6">
+    <AuthShell>
         <div className="text-center space-y-2">
           <div className="flex justify-center">
             <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
@@ -118,21 +118,14 @@ const LoginPage = () => {
                 </Label>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col space-y-4">
+            <CardFooter>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Signing In..." : "Sign In"}
               </Button>
-              <p className="text-sm text-center text-muted-foreground">
-                Don't have an account?{" "}
-                <Link to="/signup" className="text-primary hover:underline font-medium">
-                  Sign up
-                </Link>
-              </p>
             </CardFooter>
           </form>
         </Card>
-      </div>
-    </div>
+    </AuthShell>
   );
 };
 

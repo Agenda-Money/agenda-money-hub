@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, Calculator, CircleAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AuthShell } from "@/components/auth/AuthShell";
 
 export default function FinanceLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -37,8 +38,7 @@ export default function FinanceLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-6">
+    <AuthShell>
         <div className="text-center space-y-2">
           <div className="flex justify-center">
             <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
@@ -108,7 +108,6 @@ export default function FinanceLoginPage() {
             </CardFooter>
           </form>
         </Card>
-      </div>
-    </div>
+    </AuthShell>
   );
 }

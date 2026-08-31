@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Eye, EyeOff, Lock, CircleAlert, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
+import { AuthShell } from "@/components/auth/AuthShell";
 
 const ResetPasswordPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -80,8 +81,7 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-6">
+    <AuthShell>
         <div className="text-center space-y-2">
           <div className="flex justify-center">
             <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
@@ -161,8 +161,7 @@ const ResetPasswordPage = () => {
             </CardFooter>
           </form>
         </Card>
-      </div>
-    </div>
+    </AuthShell>
   );
 };
 
