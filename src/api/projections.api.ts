@@ -108,6 +108,35 @@ export async function getProjectionCommercials(): Promise<ProjectionCommercialsR
   return res.data.data;
 }
 
+export interface PnlMonth {
+  monthIndex: number;
+  month: string;
+  revenue: number;
+  directCost: number;
+  grossProfit: number;
+  grossMarginPct: number;
+  operatingExpenses: number;
+  operatingIncome: number;
+  operatingIncomePct: number;
+  otherIncome: number;
+  profitBeforeTax: number;
+  cit: number;
+  profitAfterTax: number;
+  patPct: number;
+  cumulativeLossCarryforward: number;
+}
+
+export interface ProjectionPnlResponse {
+  assumptionsVersion: number;
+  computedAt: string;
+  months: PnlMonth[];
+}
+
+export async function getProjectionPnl(): Promise<ProjectionPnlResponse> {
+  const res = await api.get(`${BASE}/pnl`);
+  return res.data.data;
+}
+
 // ── Debt Schedule (superadmin-only) ─────────────────────────────────────
 
 export type LenderType = "individual" | "institutional";

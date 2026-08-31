@@ -40,9 +40,9 @@ import {
   listDepreciationEntries, createDepreciationEntry, deleteDepreciationEntry,
   listCapexEntries, createCapexEntry, listSubscriptionEntries, createSubscriptionEntry,
   listSalaryEntries, createSalaryEntry, deleteSalaryEntry, getProjectionExpenditure,
-  getProjectionCommercials,
+  getProjectionCommercials, getProjectionPnl,
   type ProjectionAssumptions, type LenderType, type DebtRegion, type DebtFeeStructure,
-  type DepreciationAssetCategory,
+  type DepreciationAssetCategory, type PnlMonth,
 } from "@/api/projections.api";
 import { PAYROLL_DEPARTMENTS } from "@/lib/constants";
 
@@ -328,7 +328,7 @@ export function ProjectionsGrowthPage() {
           label="Gross profit (this month)"
           value={commercialsLoading || !latestCommercials ? "—" : fmtGhs(latestCommercials.grossProfit)}
           subtext="Revenue minus direct cost"
-          status={latestCommercials && latestCommercials.grossProfit < 0 ? "negative" : "positive"}
+          status={latestCommercials && latestCommercials.grossProfit < 0 ? "red" : "green"}
           icon={<TrendingUp className="h-4 w-4" />}
           loading={commercialsLoading}
         />
@@ -336,7 +336,7 @@ export function ProjectionsGrowthPage() {
           label="Gross margin (this month)"
           value={commercialsLoading || !latestCommercials ? "—" : `${(latestCommercials.grossMargin * 100).toFixed(1)}%`}
           subtext="Gross profit ÷ total revenue"
-          status={latestCommercials && latestCommercials.grossMargin < 0 ? "negative" : "positive"}
+          status={latestCommercials && latestCommercials.grossMargin < 0 ? "red" : "green"}
           icon={<Calculator className="h-4 w-4" />}
           loading={commercialsLoading}
         />
@@ -1289,6 +1289,99 @@ function SalariesSectionContent() {
   );
 }
 
+const PNL_ROWS: Array<{ label: string; key: keyof PnlMonth; bold?: boolean; indent?: boolean; percent?: boolean }> = [
+  { label: "Revenue", key: "revenue", bold: true },
+  { label: "Direct Cost", key: "directCost", indent: true },
+  { label: "Gross Profit", key: "grossProfit", bold: true },
+  { label: "Gross Margin %", key: "grossMarginPct", percent: true, indent: true },
+  { label: "Operating Expenses", key: "operatingExpenses", indent: true },
+  { label: "Operating Income", key: "operatingIncome", bold: true },
+  { label: "Operating Income %", key: "operatingIncomePct", percent: true, indent: true },
+  { label: "Other Income", key: "otherIncome", indent: true },
+  { label: "Profit Before Tax", key: "profitBeforeTax", bold: true },
+  { label: "CIT (Corporate Tax)", key: "cit", indent: true },
+  { label: "Profit After Tax", key: "profitAfterTax", bold: true },
+  { label: "PAT %", key: "patPct", percent: true, indent: true },
+];
+
 export function ProjectionsStatementsPage() {
-  return <ComingSoonPage title="Statements" description="Projected P&L, Balance Sheet, and Cashflow, once the engine composes everything above it." />;
+  const { data, isLoading } = useQuery({ queryKey: ["projection-pnl"], queryFn: getProjectionPnl });
+  const months = data?.months ?? [];
+  const latest = months[0];
+
+  const trendChartData = months.slice(0, 24).map((m) => ({
+    name: m.month, Revenue: m.revenue, "Operating Expenses": Math.abs(m.operatingExpenses), "Profit After Tax": m.profitAfterTax,
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <ReceiptText className="h-5 w-5 text-muted-foreground" /> Statements
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">Projected P&L — Balance Sheet and Cashflow land in a later phase.</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <KpiCard label="Revenue (this month)" value={isLoading || !latest ? "—" : fmtGhs(latest.revenue)} subtext="Fee + interest revenue" status="neutral" icon={<Wallet className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Gross profit (this month)" value={isLoading || !latest ? "—" : fmtGhs(latest.grossProfit)} subtext={latest ? `${(latest.grossMarginPct * 100).toFixed(1)}% margin` : ""} status={latest && latest.grossProfit < 0 ? "red" : "green"} icon={<TrendingUp className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Profit after tax (this month)" value={isLoading || !latest ? "—" : fmtGhs(latest.profitAfterTax)} subtext={latest ? `${(latest.patPct * 100).toFixed(1)}% of revenue` : ""} status={latest && latest.profitAfterTax < 0 ? "red" : "green"} icon={<Calculator className="h-4 w-4" />} loading={isLoading} />
+        <KpiCard label="Loss carryforward" value={isLoading || !latest ? "—" : fmtGhs(latest.cumulativeLossCarryforward)} subtext="Offsets future taxable profit" status={latest && latest.cumulativeLossCarryforward > 0 ? "amber" : "neutral"} icon={<ShieldAlert className="h-4 w-4" />} loading={isLoading} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-muted-foreground" /> Revenue, OpEx & Profit After Tax — 24 month view</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : (
+            <div className="h-[260px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: chartTheme.tick }} interval={2} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                  <Tooltip content={<ChartTooltip formatter={fmtGhs} />} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Line type="monotone" dataKey="Revenue" stroke="#378ADD" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="Operating Expenses" stroke="#EF4444" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="Profit After Tax" stroke="#1D9E75" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">P&L — latest month{latest ? ` (${latest.month})` : ""}</CardTitle>
+          <CardDescription>Operating Expenses covers Personnel, Director's Remuneration, Subscriptions, and Depreciation — the source model's smaller fixed OpEx lines (insurance, utilities, etc.) aren't modeled as separate projection inputs yet.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading || !latest ? (
+            <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : (
+            <Table>
+              <TableBody>
+                {PNL_ROWS.map((r) => {
+                  const raw = latest[r.key] as number;
+                  return (
+                    <TableRow key={r.label} className={cn(r.bold && "border-t-2")}>
+                      <TableCell className={cn(r.bold && "font-bold", r.indent && "pl-6 text-muted-foreground")}>{r.label}</TableCell>
+                      <TableCell className={cn("text-right font-mono tabular-nums", r.bold && "font-bold", raw < 0 && "text-muted-foreground")}>
+                        {r.percent ? `${(raw * 100).toFixed(1)}%` : fmtGhs(raw)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
