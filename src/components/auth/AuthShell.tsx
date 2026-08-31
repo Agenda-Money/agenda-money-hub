@@ -1,5 +1,18 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { FinanceIllustration } from "./FinanceIllustration";
+
+/** Drop-in replacement for <Card> on auth pages — softer elevated shadow,
+ * no harsh border, larger radius. Pass to <Card className={AUTH_CARD_CLASS}>. */
+export const AUTH_CARD_CLASS = "rounded-2xl border-border/40 shadow-[0_1px_2px_rgb(0,0,0,0.04),0_24px_48px_-16px_rgb(0,0,0,0.16)]";
+
+/** Premium submit button treatment for auth pages. */
+export const AUTH_BUTTON_CLASS = cn(
+  "w-full h-12 rounded-xl text-sm font-semibold tracking-wide",
+  "bg-gradient-to-r from-primary to-[hsl(322,86%,46%)]",
+  "shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30",
+  "transition-all duration-200 hover:-translate-y-0.5",
+);
 
 /** Shared two-panel layout for every admin-facing auth page (login,
  * forgot/reset password, finance login) — a form panel plus a decorative

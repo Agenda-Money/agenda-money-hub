@@ -2,13 +2,13 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, LogIn, CircleAlert } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Eye, EyeOff, LogIn, CircleAlert, Mail, Lock } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AuthShell } from "@/components/auth/AuthShell";
+import { AuthShell, AUTH_CARD_CLASS, AUTH_BUTTON_CLASS } from "@/components/auth/AuthShell";
+import { AuthInput } from "@/components/auth/AuthInput";
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -47,11 +47,11 @@ const LoginPage = () => {
               <LogIn className="h-6 w-6 text-primary-foreground" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
+          <h1 className="font-serif text-3xl tracking-tight">Welcome back</h1>
           <p className="text-muted-foreground">Sign in to your account to continue</p>
         </div>
 
-        <Card>
+        <Card className={AUTH_CARD_CLASS}>
           <form onSubmit={handleSubmit}>
             <CardHeader>
               <CardTitle>Sign In</CardTitle>
@@ -65,39 +65,38 @@ const LoginPage = () => {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+              <AuthInput
+                id="email"
+                label="Email"
+                icon={<Mail className="h-4 w-4" />}
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <AuthInput
+                id="password"
+                label="Password"
+                icon={<Lock className="h-4 w-4" />}
+                labelRight={
+                  <Link to="/forgot-password" className="text-xs font-medium text-primary hover:underline">
                     Forgot password?
                   </Link>
-                </div>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                }
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                trailing={
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    className="h-8 w-8 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -105,8 +104,8 @@ const LoginPage = () => {
                       <Eye className="h-4 w-4 text-muted-foreground" />
                     )}
                   </Button>
-                </div>
-              </div>
+                }
+              />
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="remember"
@@ -119,7 +118,7 @@ const LoginPage = () => {
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className={AUTH_BUTTON_CLASS} disabled={loading}>
                 {loading ? "Signing In..." : "Sign In"}
               </Button>
             </CardFooter>

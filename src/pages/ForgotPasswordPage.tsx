@@ -2,13 +2,12 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, KeyRound, CircleAlert } from "lucide-react";
+import { ArrowLeft, KeyRound, CircleAlert, Mail } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
-import { AuthShell } from "@/components/auth/AuthShell";
+import { AuthShell, AUTH_CARD_CLASS, AUTH_BUTTON_CLASS } from "@/components/auth/AuthShell";
+import { AuthInput } from "@/components/auth/AuthInput";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
@@ -46,11 +45,11 @@ const ForgotPasswordPage = () => {
               <KeyRound className="h-6 w-6 text-primary-foreground" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Forgot password?</h1>
+          <h1 className="font-serif text-3xl tracking-tight">Forgot password?</h1>
           <p className="text-muted-foreground">No worries, we'll send you reset instructions.</p>
         </div>
 
-        <Card>
+        <Card className={AUTH_CARD_CLASS}>
           <form onSubmit={handleSubmit}>
             <CardHeader>
               <CardTitle>Reset Password</CardTitle>
@@ -68,26 +67,25 @@ const ForgotPasswordPage = () => {
                 <Alert className="border-green-500 text-green-600 bg-green-50">
                   <AlertTitle>Success</AlertTitle>
                   <AlertDescription>
-                    If an account exists for {email}, we have sent a password reset link to it. 
+                    If an account exists for {email}, we have sent a password reset link to it.
                     Please check your spam folder if you don't see it.
                   </AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading || success}
-                />
-              </div>
+              <AuthInput
+                id="email"
+                label="Email"
+                icon={<Mail className="h-4 w-4" />}
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading || success}
+              />
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={loading || success}>
+              <Button type="submit" className={AUTH_BUTTON_CLASS} disabled={loading || success}>
                 {loading ? "Sending link..." : "Send Reset Link"}
               </Button>
               <Link to="/login" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">

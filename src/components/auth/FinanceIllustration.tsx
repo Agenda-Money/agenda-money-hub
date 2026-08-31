@@ -58,18 +58,6 @@ export function FinanceIllustration() {
               </div>
             </div>
           </div>
-
-          {/* Floating stat chips */}
-          <div className="mt-4 flex justify-between gap-3">
-            <div className="auth-float rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 backdrop-blur-sm" style={{ animationDelay: "0.2s" }}>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-white/50">Active Loans</p>
-              <p className="text-lg font-bold text-white font-mono tabular-nums">12,489</p>
-            </div>
-            <div className="auth-float rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 backdrop-blur-sm" style={{ animationDelay: "0.6s" }}>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-white/50">Repayment Rate</p>
-              <p className="text-lg font-bold text-emerald-300 font-mono tabular-nums">96.4%</p>
-            </div>
-          </div>
         </div>
 
         <div className="mt-10 text-center max-w-xs">
