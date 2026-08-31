@@ -77,6 +77,24 @@ const FinancePortfolioPage = lazy(() =>
 const FinanceCashflowPage = lazy(() =>
   import("./pages/FinancePage").then((m) => ({ default: m.FinanceCashflowPage })),
 );
+const ProjectionsSummaryPage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsSummaryPage })),
+);
+const ProjectionsGrowthPage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsGrowthPage })),
+);
+const ProjectionsDebtPage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsDebtPage })),
+);
+const ProjectionsExpenditurePage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsExpenditurePage })),
+);
+const ProjectionsStatementsPage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsStatementsPage })),
+);
+const ProjectionsAssumptionsPage = lazy(() =>
+  import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsAssumptionsPage })),
+);
 const CampaignHistoryPage = lazy(() =>
   import("./pages/rewards/RewardsCommsPages").then((m) => ({ default: m.CampaignHistoryPage })),
 );
@@ -260,6 +278,12 @@ const App = () => {
                         <Route path="/finance/channels" element={<FinanceChannelsPage />} />
                         <Route path="/finance/portfolio" element={<FinancePortfolioPage />} />
                         <Route path="/finance/cashflow" element={<FinanceCashflowPage />} />
+                        <Route path="/finance/plan" element={<ProjectionsSummaryPage />} />
+                        <Route path="/finance/plan/growth" element={<ProjectionsGrowthPage />} />
+                        <Route path="/finance/plan/debt" element={<ProjectionsDebtPage />} />
+                        <Route path="/finance/plan/expenditure" element={<ProjectionsExpenditurePage />} />
+                        <Route path="/finance/plan/statements" element={<ProjectionsStatementsPage />} />
+                        <Route path="/finance/plan/assumptions" element={<ProjectionsAssumptionsPage />} />
                         <Route path="/" element={<Navigate to="/finance" replace />} />
                       </Route>
                       <Route path="*" element={<Navigate to="/finance" replace />} />

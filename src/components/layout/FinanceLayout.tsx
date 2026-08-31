@@ -1,10 +1,13 @@
 import { Outlet, NavLink } from "react-router-dom";
-import { Calculator, LogOut, LayoutGrid, Receipt, BookText, ArrowLeftRight, PieChart, Activity } from "lucide-react";
+import {
+  Calculator, LogOut, LayoutGrid, Receipt, BookText, ArrowLeftRight, PieChart, Activity,
+  SlidersHorizontal, TrendingUp, Landmark, Wallet, FileBarChart, Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
+const ACTUALS_NAV_ITEMS = [
   { to: "/finance", label: "Overview", end: true, icon: LayoutGrid },
   { to: "/finance/pnl", label: "P&L", icon: Receipt },
   { to: "/finance/ledger", label: "Ledger", icon: BookText },
@@ -12,6 +15,41 @@ const NAV_ITEMS = [
   { to: "/finance/portfolio", label: "Portfolio", icon: PieChart },
   { to: "/finance/cashflow", label: "Cash Flow", icon: Activity },
 ];
+
+const PLAN_NAV_ITEMS = [
+  { to: "/finance/plan", label: "Summary", end: true, icon: Sparkles },
+  { to: "/finance/plan/growth", label: "Growth", icon: TrendingUp },
+  { to: "/finance/plan/debt", label: "Debt", icon: Landmark },
+  { to: "/finance/plan/expenditure", label: "Expenditure", icon: Wallet },
+  { to: "/finance/plan/statements", label: "Statements", icon: FileBarChart },
+  { to: "/finance/plan/assumptions", label: "Assumptions", icon: SlidersHorizontal },
+];
+
+function NavGroup({ label, items }: { label: string; items: typeof ACTUALS_NAV_ITEMS }) {
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-1.5 hidden lg:inline">
+        {label}
+      </span>
+      {items.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.end}
+          className={({ isActive }) =>
+            cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
+              isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted",
+            )
+          }
+        >
+          <item.icon className="h-3.5 w-3.5" />
+          {item.label}
+        </NavLink>
+      ))}
+    </div>
+  );
+}
 
 // Deliberately its own subdomain rather than a gated section inside admin —
 // finance data (cost of funds, margin, payroll) is more sensitive than most
@@ -30,24 +68,6 @@ export default function FinanceLayout() {
           </div>
           <span className="font-bold hidden sm:inline">Agenda Money Finance</span>
         </div>
-        <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
-                  isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted",
-                )
-              }
-            >
-              <item.icon className="h-3.5 w-3.5" />
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-sm text-muted-foreground hidden sm:inline">{user?.fullName || "Admin"}</span>
           <Button variant="ghost" size="icon" onClick={() => logout()}>
@@ -55,6 +75,11 @@ export default function FinanceLayout() {
           </Button>
         </div>
       </header>
+      <nav className="border-b bg-card/60 px-4 sm:px-6 py-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <NavGroup label="Actuals" items={ACTUALS_NAV_ITEMS} />
+        <div className="h-5 w-px bg-border shrink-0 mx-1" />
+        <NavGroup label="Plan" items={PLAN_NAV_ITEMS} />
+      </nav>
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         <Outlet />
       </main>
