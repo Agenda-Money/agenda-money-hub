@@ -9,11 +9,11 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  BarChart, Bar, Cell, PieChart, Pie, Legend,
+  BarChart, Bar, Cell, PieChart, Pie, Legend, AreaChart, Area,
 } from "recharts";
 import {
   SlidersHorizontal, Users, TrendingUp, Landmark, Calculator, UsersRound, Repeat,
-  Plus, Trash2, ShieldAlert, Boxes, ReceiptText, Cpu,
+  Plus, Trash2, ShieldAlert, Boxes, ReceiptText, Cpu, Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,9 +39,11 @@ import {
   listDebtEntries, createDebtEntry, deleteDebtEntry,
   listDepreciationEntries, createDepreciationEntry, deleteDepreciationEntry,
   listCapexEntries, createCapexEntry, listSubscriptionEntries, createSubscriptionEntry,
+  listSalaryEntries, createSalaryEntry, deleteSalaryEntry, getProjectionExpenditure,
   type ProjectionAssumptions, type LenderType, type DebtRegion, type DebtFeeStructure,
   type DepreciationAssetCategory,
 } from "@/api/projections.api";
+import { PAYROLL_DEPARTMENTS } from "@/lib/constants";
 
 const chartTheme = {
   grid: "#33415533",
@@ -667,6 +669,7 @@ export function ProjectionsExpenditurePage() {
   const { data: depData, isLoading: depLoading } = useQuery({ queryKey: ["projection-depreciation"], queryFn: listDepreciationEntries });
   const { data: capexData, isLoading: capexLoading } = useQuery({ queryKey: ["projection-capex"], queryFn: listCapexEntries });
   const { data: subData, isLoading: subLoading } = useQuery({ queryKey: ["projection-subscriptions"], queryFn: listSubscriptionEntries });
+  const { data: expenditureData, isLoading: expenditureLoading } = useQuery({ queryKey: ["projection-expenditure"], queryFn: getProjectionExpenditure });
 
   const depEntries = depData?.data ?? [];
   const capexEntries = capexData ?? [];
@@ -716,6 +719,13 @@ export function ProjectionsExpenditurePage() {
 
   const subsChartData = subSchedule.slice(0, 24).map((m) => ({ name: m.month, total: m.total }));
 
+  const expenditureMonths = expenditureData?.months ?? [];
+  const expenditureChartData = expenditureMonths.slice(0, 24).map((m) => ({
+    name: m.month, Personnel: m.personnel, "Director's Remuneration": m.directorsRemuneration,
+    Subscriptions: m.subscriptions, Depreciation: m.depreciation,
+  }));
+  const currentExpenditureTotal = expenditureMonths[0]?.total ?? 0;
+
   const needsFx = (c: string) => c !== "GHS";
 
   return (
@@ -724,14 +734,49 @@ export function ProjectionsExpenditurePage() {
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <ReceiptText className="h-5 w-5 text-muted-foreground" /> Expenditure
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Digital-platform CapEx, subscriptions, and depreciation. Salaries land in a later phase.</p>
+        <p className="text-sm text-muted-foreground mt-1">Salaries, digital-platform CapEx, subscriptions, and depreciation — rolled into the projected Expenditure Schedule.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <KpiCard label="Total expenditure (this month)" value={expenditureLoading ? "—" : fmtGhs(currentExpenditureTotal)} subtext="Personnel + subscriptions + depreciation" status="neutral" icon={<Wallet className="h-4 w-4" />} loading={expenditureLoading} />
         <KpiCard label="Total platform CapEx" value={capexLoading ? "—" : fmtGhs(totalCapex)} subtext={`${capexEntries.length} item${capexEntries.length === 1 ? "" : "s"}`} status="neutral" icon={<Cpu className="h-4 w-4" />} loading={capexLoading} />
         <KpiCard label="Monthly subscriptions" value={subLoading ? "—" : fmtGhs(currentMonthlySubs)} subtext="Current month" status="neutral" icon={<Repeat className="h-4 w-4" />} loading={subLoading} />
         <KpiCard label="Monthly depreciation" value={depLoading ? "—" : fmtGhs(currentMonthlyDep)} subtext={`${activeAssets.length} active asset${activeAssets.length === 1 ? "" : "s"}`} status="neutral" icon={<Boxes className="h-4 w-4" />} loading={depLoading} />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><Wallet className="h-4 w-4 text-muted-foreground" /> Expenditure Schedule — 24 month view</CardTitle>
+          <CardDescription>Personnel, director's remuneration, subscriptions, and depreciation, stacked.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {expenditureLoading ? (
+            <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          ) : (
+            <div className="h-[260px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={expenditureChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="expPersonnel" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#378ADD" stopOpacity={0.7} /><stop offset="95%" stopColor="#378ADD" stopOpacity={0.05} /></linearGradient>
+                    <linearGradient id="expDirectors" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#F59E0B" stopOpacity={0.7} /><stop offset="95%" stopColor="#F59E0B" stopOpacity={0.05} /></linearGradient>
+                    <linearGradient id="expSubs" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1D9E75" stopOpacity={0.7} /><stop offset="95%" stopColor="#1D9E75" stopOpacity={0.05} /></linearGradient>
+                    <linearGradient id="expDep" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#94A3B8" stopOpacity={0.7} /><stop offset="95%" stopColor="#94A3B8" stopOpacity={0.05} /></linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: chartTheme.tick }} interval={2} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: chartTheme.tick }} />
+                  <Tooltip content={<ChartTooltip formatter={fmtGhs} />} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Area type="monotone" dataKey="Personnel" stackId="1" stroke="#378ADD" fill="url(#expPersonnel)" />
+                  <Area type="monotone" dataKey="Director's Remuneration" stackId="1" stroke="#F59E0B" fill="url(#expDirectors)" />
+                  <Area type="monotone" dataKey="Subscriptions" stackId="1" stroke="#1D9E75" fill="url(#expSubs)" />
+                  <Area type="monotone" dataKey="Depreciation" stackId="1" stroke="#94A3B8" fill="url(#expDep)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -994,7 +1039,163 @@ export function ProjectionsExpenditurePage() {
           </Table>
         </CardContent>
       </Card>
+
+      <SalariesSection />
     </div>
+  );
+}
+
+function SalariesSection() {
+  const isSuperadmin = useIsSuperadmin();
+
+  if (!isSuperadmin) {
+    return (
+      <Card>
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4 text-muted-foreground" /> Salaries</CardTitle></CardHeader>
+        <CardContent className="py-10 flex flex-col items-center justify-center text-center gap-2">
+          <ShieldAlert className="h-7 w-7 text-muted-foreground/40 mb-1" />
+          <p className="font-medium text-sm">Superadmin access required</p>
+          <p className="text-xs text-muted-foreground max-w-sm">Individual compensation is personal data — this section is restricted to superadmins. The totals above already include salaries in aggregate.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return <SalariesSectionContent />;
+}
+
+function SalariesSectionContent() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [form, setForm] = useState({ staffName: "", role: "", department: PAYROLL_DEPARTMENTS[0] as string, isDirector: false, monthlySalary: "", otherStaffCostMonthly: "", effectiveFrom: "" });
+
+  const { data, isLoading } = useQuery({ queryKey: ["projection-salaries"], queryFn: listSalaryEntries });
+  const entries = data?.data ?? [];
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["projection-salaries"] });
+
+  const createMut = useMutation({
+    mutationFn: createSalaryEntry,
+    onSuccess: () => {
+      toast({ title: "Staff member added" });
+      setSheetOpen(false);
+      setForm({ staffName: "", role: "", department: PAYROLL_DEPARTMENTS[0], isDirector: false, monthlySalary: "", otherStaffCostMonthly: "", effectiveFrom: "" });
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["projection-expenditure"] });
+    },
+    onError: (e: any) => toast({ variant: "destructive", title: "Failed to add", description: getFriendlyErrorMessage(e) }),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: deleteSalaryEntry,
+    onSuccess: () => { toast({ title: "Staff member removed" }); invalidate(); qc.invalidateQueries({ queryKey: ["projection-expenditure"] }); },
+    onError: (e: any) => toast({ variant: "destructive", title: "Failed to remove", description: getFriendlyErrorMessage(e) }),
+  });
+
+  const activeStaff = entries.filter((e) => e.status === "active");
+  const totalMonthly = activeStaff.reduce((sum, e) => sum + e.monthlySalary + e.otherStaffCostMonthly, 0);
+  const canSubmit = form.staffName.trim() && form.role.trim() && Number(form.monthlySalary) > 0 && form.effectiveFrom;
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <div>
+          <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4 text-muted-foreground" /> Salaries</CardTitle>
+          <CardDescription>Superadmin only — named staff compensation, rolled into Personnel Expenses above.</CardDescription>
+        </div>
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-2" /> Add Staff</Button></SheetTrigger>
+          <SheetContent className="sm:max-w-md">
+            <SheetHeader>
+              <SheetTitle>Add Staff Member</SheetTitle>
+              <SheetDescription>A raise or departure should be a new row (or edit status), not overwriting history.</SheetDescription>
+            </SheetHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Staff name</Label>
+                <Input value={form.staffName} onChange={(e) => setForm((f) => ({ ...f, staffName: e.target.value }))} placeholder="e.g. Ama Owusu" />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Input value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} placeholder="e.g. Field Agent Lead" />
+              </div>
+              <div className="space-y-2">
+                <Label>Department</Label>
+                <Select value={form.department} onValueChange={(v) => setForm((f) => ({ ...f, department: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PAYROLL_DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={form.isDirector} onChange={(e) => setForm((f) => ({ ...f, isDirector: e.target.checked }))} className="h-4 w-4 rounded border-input" />
+                Director (routes to Director's Remuneration, not Personnel)
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Monthly salary (GHS)</Label>
+                  <Input type="number" value={form.monthlySalary} onChange={(e) => setForm((f) => ({ ...f, monthlySalary: e.target.value }))} placeholder="0.00" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Other cost (optional)</Label>
+                  <Input type="number" value={form.otherStaffCostMonthly} onChange={(e) => setForm((f) => ({ ...f, otherStaffCostMonthly: e.target.value }))} placeholder="0.00" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Effective from</Label>
+                <Input type="month" value={form.effectiveFrom} onChange={(e) => setForm((f) => ({ ...f, effectiveFrom: e.target.value }))} />
+              </div>
+            </div>
+            <SheetFooter>
+              <Button
+                disabled={!canSubmit || createMut.isPending}
+                onClick={() => createMut.mutate({
+                  staffName: form.staffName.trim(), role: form.role.trim(), department: form.department, isDirector: form.isDirector,
+                  monthlySalary: Number(form.monthlySalary), otherStaffCostMonthly: form.otherStaffCostMonthly ? Number(form.otherStaffCostMonthly) : undefined,
+                  effectiveFrom: form.effectiveFrom,
+                })}
+              >
+                {createMut.isPending ? "Adding…" : "Add Staff Member"}
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="text-sm text-muted-foreground">
+          Total active monthly cost: <span className="font-mono tabular-nums font-medium text-foreground">{fmtGhs(totalMonthly)}</span> across {activeStaff.length} staff member{activeStaff.length === 1 ? "" : "s"}
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>Department</TableHead>
+              <TableHead className="text-right">Monthly cost</TableHead><TableHead>Effective from</TableHead>
+              <TableHead>Status</TableHead><TableHead className="w-10" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {entries.map((e) => (
+              <TableRow key={e._id}>
+                <TableCell className="font-medium">{e.staffName}{e.isDirector && <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0">Director</Badge>}</TableCell>
+                <TableCell className="text-muted-foreground">{e.role}</TableCell>
+                <TableCell className="text-muted-foreground">{e.department}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums">{fmtGhs(e.monthlySalary + e.otherStaffCostMonthly)}</TableCell>
+                <TableCell className="text-muted-foreground">{e.effectiveFrom}</TableCell>
+                <TableCell><Badge variant="outline" className="capitalize">{e.status}</Badge></TableCell>
+                <TableCell>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteMut.mutate(e._id)} disabled={deleteMut.isPending}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {!isLoading && entries.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No staff added yet</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 

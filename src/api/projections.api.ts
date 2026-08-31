@@ -208,3 +208,68 @@ export async function createSubscriptionEntry(payload: {
   const res = await api.post(`${BASE}/platform/subscriptions`, payload);
   return res.data.data;
 }
+
+// ── Salaries (superadmin-only) ──────────────────────────────────────────
+
+export interface StaffSalaryEntry {
+  _id: string;
+  staffName: string;
+  role: string;
+  department: string;
+  isDirector: boolean;
+  monthlySalary: number;
+  otherStaffCostMonthly: number;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  status: "active" | "inactive";
+  createdAt: string;
+}
+
+export interface SalariesMonth {
+  monthIndex: number;
+  month: string;
+  byDepartment: Record<string, number>;
+  directorsRemuneration: number;
+  totalPersonnel: number;
+  total: number;
+}
+
+export async function listSalaryEntries(): Promise<{ data: StaffSalaryEntry[]; schedule: SalariesMonth[] }> {
+  const res = await api.get(`${BASE}/salaries`);
+  return { data: res.data.data, schedule: res.data.schedule };
+}
+
+export async function createSalaryEntry(payload: {
+  staffName: string; role: string; department: string; isDirector?: boolean;
+  monthlySalary: number; otherStaffCostMonthly?: number; effectiveFrom: string;
+}): Promise<StaffSalaryEntry> {
+  const res = await api.post(`${BASE}/salaries`, payload);
+  return res.data.data;
+}
+
+export async function deleteSalaryEntry(id: string): Promise<void> {
+  await api.delete(`${BASE}/salaries/${id}`);
+}
+
+// ── Expenditure Schedule ─────────────────────────────────────────────────
+
+export interface ExpenditureMonth {
+  monthIndex: number;
+  month: string;
+  personnel: number;
+  directorsRemuneration: number;
+  subscriptions: number;
+  depreciation: number;
+  total: number;
+}
+
+export interface ProjectionExpenditureResponse {
+  assumptionsVersion: number;
+  computedAt: string;
+  months: ExpenditureMonth[];
+}
+
+export async function getProjectionExpenditure(): Promise<ProjectionExpenditureResponse> {
+  const res = await api.get(`${BASE}/expenditure`);
+  return res.data.data;
+}
