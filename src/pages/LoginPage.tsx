@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, LogIn, CircleAlert } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Eye, EyeOff, LogIn, CircleAlert, Mail, Lock } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AuthShell, AUTH_CARD_CLASS, AUTH_BUTTON_CLASS } from "@/components/auth/AuthShell";
+import { AuthInput } from "@/components/auth/AuthInput";
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -17,6 +18,7 @@ const LoginPage = () => {
 
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const [error, setError] = useState<string | null>(null);
 
@@ -24,34 +26,37 @@ const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     // Call real login
     const result = await login(email, password);
     if (result.success) {
       const target = result.user?.role === "agent" ? "/agent" : "/";
-      // Force full reload to ensure auth state and headers are cleanly initialized
-      globalThis.location.href = target;
+      // login() already writes the token/user to localStorage and React
+      // state synchronously (see AuthContext.tsx) — the API client reads
+      // the token fresh per request and SocketContext reacts to user
+      // changes, so a client-side navigate is enough; no need to pay for
+      // a full bundle re-fetch/parse/boot on every login.
+      navigate(target, { replace: true });
     } else {
       setError(result.message || "Authentication failed");
     }
-    
+
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-6">
+    <AuthShell>
         <div className="text-center space-y-2">
           <div className="flex justify-center">
             <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
               <LogIn className="h-6 w-6 text-primary-foreground" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
+          <h1 className="font-serif text-3xl tracking-tight">Welcome back</h1>
           <p className="text-muted-foreground">Sign in to your account to continue</p>
         </div>
 
-        <Card>
+        <Card className={AUTH_CARD_CLASS}>
           <form onSubmit={handleSubmit}>
             <CardHeader>
               <CardTitle>Sign In</CardTitle>
@@ -65,39 +70,38 @@ const LoginPage = () => {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+              <AuthInput
+                id="email"
+                label="Email"
+                icon={<Mail className="h-4 w-4" />}
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <AuthInput
+                id="password"
+                label="Password"
+                icon={<Lock className="h-4 w-4" />}
+                labelRight={
+                  <Link to="/forgot-password" className="text-xs font-medium text-primary hover:underline">
                     Forgot password?
                   </Link>
-                </div>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                }
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                trailing={
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    className="h-8 w-8 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -105,8 +109,8 @@ const LoginPage = () => {
                       <Eye className="h-4 w-4 text-muted-foreground" />
                     )}
                   </Button>
-                </div>
-              </div>
+                }
+              />
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="remember"
@@ -118,21 +122,14 @@ const LoginPage = () => {
                 </Label>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={loading}>
+            <CardFooter>
+              <Button type="submit" className={AUTH_BUTTON_CLASS} disabled={loading}>
                 {loading ? "Signing In..." : "Sign In"}
               </Button>
-              <p className="text-sm text-center text-muted-foreground">
-                Don't have an account?{" "}
-                <Link to="/signup" className="text-primary hover:underline font-medium">
-                  Sign up
-                </Link>
-              </p>
             </CardFooter>
           </form>
         </Card>
-      </div>
-    </div>
+    </AuthShell>
   );
 };
 

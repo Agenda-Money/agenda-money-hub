@@ -158,7 +158,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { success: false, message: "Invalid credentials. Please try again." };
       }
 
-      const response = await api.post("/api/admin/auth/login", { email, password });
+      // portal tells the backend which login surface this is — it rejects
+      // agent-role accounts server-side when portal is "admin", closing the
+      // gap where a direct API call could bypass the client-side role gate
+      // below. See admin-auth.service.ts's login() for the enforcement.
+      const response = await api.post("/api/admin/auth/login", { email, password, portal: sub });
 
       if (response.status !== 200 && response.status !== 201) {
         const msg = response.data.message || "Invalid credentials";

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ const ReportingLoginPage = () => {
 
   const { login } = useReportingAuthStore();
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const [error, setError] = useState<string | null>(null);
 
@@ -25,11 +26,14 @@ const ReportingLoginPage = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await reportingLogin(email, password);
       login(result.token, result.displayName || result.user?.name || result.user?.email || "Reporting Viewer");
-      window.location.href = "/reporting/dashboard";
+      // login() writes the token to sessionStorage and zustand state
+      // synchronously, and ReportingGuard reads that store reactively — a
+      // client-side navigate is enough, no full page reload needed.
+      navigate("/reporting/dashboard", { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message || "Authentication failed");
     } finally {

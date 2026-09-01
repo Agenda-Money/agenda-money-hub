@@ -2,12 +2,12 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, Lock, CircleAlert, ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getFriendlyErrorMessage } from "@/lib/errorUtils";
+import { AuthShell, AUTH_CARD_CLASS, AUTH_BUTTON_CLASS } from "@/components/auth/AuthShell";
+import { AuthInput } from "@/components/auth/AuthInput";
 
 const ResetPasswordPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -80,26 +80,24 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-6">
+    <AuthShell>
         <div className="text-center space-y-2">
           <div className="flex justify-center">
             <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
               <Lock className="h-6 w-6 text-primary-foreground" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Set new password</h1>
+          <h1 className="font-serif text-3xl tracking-tight">Set new password</h1>
           <p className="text-muted-foreground">Must be at least 6 characters.</p>
         </div>
 
-        <Card>
+        <Card className={AUTH_CARD_CLASS}>
           <form onSubmit={handleSubmit}>
             <CardHeader>
               <CardTitle>Reset Password</CardTitle>
               <CardDescription>Enter your new password below</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              
               {error && (
                 <Alert variant="destructive">
                   <CircleAlert className="h-4 w-4" />
@@ -107,26 +105,26 @@ const ResetPasswordPage = () => {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">New Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter new password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={!resetToken}
-                  />
+
+              <AuthInput
+                id="password"
+                label="New Password"
+                icon={<Lock className="h-4 w-4" />}
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter new password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={!resetToken}
+                trailing={
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    className="h-8 w-8 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
                     disabled={!resetToken}
+                    tabIndex={-1}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -134,24 +132,23 @@ const ResetPasswordPage = () => {
                       <Eye className="h-4 w-4 text-muted-foreground" />
                     )}
                   </Button>
-                </div>
-              </div>
+                }
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="Confirm new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  disabled={!resetToken}
-                />
-              </div>
+              <AuthInput
+                id="confirmPassword"
+                label="Confirm Password"
+                icon={<Lock className="h-4 w-4" />}
+                type="password"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={!resetToken}
+              />
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={loading || !resetToken}>
+              <Button type="submit" className={AUTH_BUTTON_CLASS} disabled={loading || !resetToken}>
                 {loading ? "Resetting password..." : "Reset Password"}
               </Button>
               <Link to="/login" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
@@ -161,8 +158,7 @@ const ResetPasswordPage = () => {
             </CardFooter>
           </form>
         </Card>
-      </div>
-    </div>
+    </AuthShell>
   );
 };
 
