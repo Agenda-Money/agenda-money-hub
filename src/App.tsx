@@ -204,7 +204,10 @@ function RoleHome() {
   const sub = getSubdomain();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="h-6 w-40" /></div>;
   
-  const isAdminOrViewer = user?.role === "admin" || user?.role === "viewer";
+  // Matches AuthContext's own permitted-role list for the admin subdomain
+  // (superadmin/super_admin were missing here, which sent any superadmin
+  // login straight back to /login instead of the dashboard).
+  const isAdminOrViewer = ["admin", "superadmin", "super_admin", "viewer"].includes(user?.role ?? "");
   if (sub === "admin" && isAdminOrViewer) return <Index />;
   if (sub === "agent" && user?.role === "agent") return <Navigate to="/agent" replace />;
   return <Navigate to="/login" replace />;

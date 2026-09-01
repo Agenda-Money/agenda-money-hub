@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,7 @@ const LoginPage = () => {
 
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const [error, setError] = useState<string | null>(null);
 
@@ -25,17 +26,21 @@ const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     // Call real login
     const result = await login(email, password);
     if (result.success) {
       const target = result.user?.role === "agent" ? "/agent" : "/";
-      // Force full reload to ensure auth state and headers are cleanly initialized
-      globalThis.location.href = target;
+      // login() already writes the token/user to localStorage and React
+      // state synchronously (see AuthContext.tsx) — the API client reads
+      // the token fresh per request and SocketContext reacts to user
+      // changes, so a client-side navigate is enough; no need to pay for
+      // a full bundle re-fetch/parse/boot on every login.
+      navigate(target, { replace: true });
     } else {
       setError(result.message || "Authentication failed");
     }
-    
+
     setLoading(false);
   };
 

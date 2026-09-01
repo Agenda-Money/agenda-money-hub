@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,7 @@ export default function FinanceLoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +30,9 @@ export default function FinanceLoginPage() {
         setLoading(false);
         return;
       }
-      globalThis.location.href = "/finance";
+      // See LoginPage.tsx's handleSubmit for why a client-side navigate is
+      // enough here — no full page reload needed.
+      navigate("/finance", { replace: true });
     } else {
       setError(result.message || "Authentication failed");
     }
