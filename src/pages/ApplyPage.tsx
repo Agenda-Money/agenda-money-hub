@@ -117,6 +117,7 @@ const GHANA_REGIONS = [
 ];
 
 const GENDERS = ["Male", "Female"];
+const REFERENCE_RELATIONSHIPS = ["Spouse", "Parent", "Sibling", "Friend", "Colleague", "Other"];
 const ACCOMMODATION_TYPES = ["Owned", "Rented", "Family", "Other"];
 const EDUCATION_LEVELS = ["Basic", "Secondary", "Tertiary", "Advanced"];
 const EMPLOYMENT_OPTIONS = [
@@ -148,6 +149,8 @@ interface OnboardingData {
   region: string;
   address: string;
   alternatePhone: string;
+  referenceMsisdn: string;
+  referenceRelationship: string;
   accommodationType: string;
   yearsAtAddress: string;
   educationLevel: string;
@@ -405,6 +408,98 @@ function normalizeMsisdn(msisdn: string | undefined): string {
   return `233${msisdnStr}`;
 }
 
+function ReferenceContactPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const [supportsPicker, setSupportsPicker] = useState(false);
+
+  useEffect(() => {
+    setSupportsPicker(
+      typeof navigator !== "undefined" &&
+        "contacts" in navigator &&
+        "ContactsManager" in window,
+    );
+  }, []);
+
+  const pickContact = async () => {
+    try {
+      const contacts = await (navigator as any).contacts.select(["tel"], {
+        multiple: false,
+      });
+      const rawNumber = contacts?.[0]?.tel?.[0];
+      if (rawNumber) {
+        onChange(sanitizeMsisdnEntryInput(rawNumber));
+      }
+    } catch {
+      // User cancelled the picker or denied permission — leave value unset.
+    }
+  };
+
+  if (supportsPicker) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium text-gray-500">
+          Reference Contact Number <span className="text-red-500">*</span>
+        </Label>
+        {value ? (
+          <div className="flex items-center justify-between w-full h-12 bg-[#F8FAFC] border border-gray-300 rounded-lg px-4">
+            <span className="font-mono font-medium text-gray-800">
+              +233 {value}
+            </span>
+            <button
+              type="button"
+              onClick={pickContact}
+              className="text-xs font-bold text-[#EC1B84]"
+            >
+              Change
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={pickContact}
+            className="w-full h-12 rounded-lg border border-dashed border-gray-300 text-gray-500 font-medium text-sm flex items-center justify-center gap-2 hover:border-gray-400 transition-all"
+          >
+            Pick from Contacts
+          </button>
+        )}
+        <p className="text-[10px] text-gray-400 font-medium">
+          Someone who can vouch for you and confirm your details
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium text-gray-500">
+        Reference Contact Number <span className="text-red-500">*</span>
+      </Label>
+      <div className="relative flex items-center w-full h-12 bg-[#F8FAFC] border border-gray-300 rounded-lg px-4">
+        <span className="text-gray-600 font-bold text-sm pr-3 border-r border-gray-200">
+          +233
+        </span>
+        <Input
+          type="tel"
+          inputMode="numeric"
+          maxLength={10}
+          value={value || ""}
+          onChange={(e) => onChange(sanitizeMsisdnEntryInput(e.target.value))}
+          placeholder="24 XXX XXXX"
+          className="flex-1 bg-transparent border-0 h-full font-mono font-medium text-gray-800 focus:ring-0 focus:outline-none placeholder:text-gray-400 ml-2"
+        />
+      </div>
+      <p className="text-[10px] text-gray-400 font-medium">
+        Someone who can vouch for you and confirm your details
+      </p>
+    </div>
+  );
+}
+
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export default function ApplyPage() {
   // Prefill node code from URL path (e.g., /BLE232)
@@ -472,6 +567,8 @@ export default function ApplyPage() {
     region: "",
     address: "",
     alternatePhone: "",
+    referenceMsisdn: "",
+    referenceRelationship: "",
     accommodationType: "",
     yearsAtAddress: "",
     educationLevel: "",
@@ -1356,6 +1453,27 @@ export default function ApplyPage() {
           normalizeToGhanaE164(onboardingData.alternatePhone) === normalizeToGhanaE164(primaryPhoneNorm)
         )
           return "Alternate phone cannot be the same as primary phone.";
+        if (!onboardingData.referenceMsisdn)
+          return "Provide a reference contact number.";
+        if (
+          onboardingData.referenceMsisdn &&
+          !isValidGhanaLocalPhone(onboardingData.referenceMsisdn)
+        )
+          return "Enter a valid Ghana phone number for your reference.";
+        if (
+          onboardingData.referenceMsisdn &&
+          primaryPhoneNorm &&
+          normalizeToGhanaE164(onboardingData.referenceMsisdn) === normalizeToGhanaE164(primaryPhoneNorm)
+        )
+          return "Reference number cannot be the same as your primary phone.";
+        if (
+          onboardingData.referenceMsisdn &&
+          onboardingData.alternatePhone &&
+          normalizeToGhanaE164(onboardingData.referenceMsisdn) === normalizeToGhanaE164(onboardingData.alternatePhone)
+        )
+          return "Reference number cannot be the same as your alternate phone number.";
+        if (!onboardingData.referenceRelationship)
+          return "Select your relationship to the reference contact.";
         return null;
       case 2:
         if (!onboardingData.accommodationType || !onboardingData.yearsAtAddress)
@@ -1550,6 +1668,8 @@ export default function ApplyPage() {
           region: onboardingData.region,
           address: onboardingData.address,
           alternatePhone: onboardingData.alternatePhone ? normalizeToGhanaE164(onboardingData.alternatePhone).replace('+', '') : undefined,
+          referenceMsisdn: onboardingData.referenceMsisdn ? normalizeToGhanaE164(onboardingData.referenceMsisdn).replace('+', '') : undefined,
+          referenceRelationship: onboardingData.referenceRelationship,
           accommodationType: onboardingData.accommodationType,
           yearsAtAddress: onboardingData.yearsAtAddress,
           educationLevel: onboardingData.educationLevel,
@@ -3464,6 +3584,45 @@ export default function ApplyPage() {
                       </p>
                     </div>
 
+                    <ReferenceContactPicker
+                      value={onboardingData.referenceMsisdn}
+                      onChange={(v) =>
+                        handleOnboardingChange("referenceMsisdn" as any, v)
+                      }
+                    />
+
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-gray-500">
+                        Relationship to Reference{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={onboardingData.referenceRelationship}
+                        onValueChange={(v) =>
+                          handleOnboardingChange(
+                            "referenceRelationship" as any,
+                            v,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-12 rounded-lg border-gray-300 focus:border-gray-900 focus:ring-0 transition-all font-medium text-gray-900">
+                          <SelectValue placeholder="Select relationship" />
+                        </SelectTrigger>
+                        <SelectContent
+                          position="popper"
+                          side="bottom"
+                          sideOffset={4}
+                          className="max-h-60 overflow-y-auto"
+                        >
+                          {REFERENCE_RELATIONSHIPS.map((r) => (
+                            <SelectItem key={r} value={r}>
+                              {r}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <Button
                       onClick={handleOnboardingNext}
                       disabled={
@@ -3475,6 +3634,9 @@ export default function ApplyPage() {
                         !onboardingData.address ||
                         !onboardingData.alternatePhone ||
                         !isValidGhanaLocalPhone(onboardingData.alternatePhone) ||
+                        !onboardingData.referenceMsisdn ||
+                        !isValidGhanaLocalPhone(onboardingData.referenceMsisdn) ||
+                        !onboardingData.referenceRelationship ||
                         onboardingData.address?.trim().split(/\s+/).length < 3
                       }
                       className={cn(
@@ -3487,6 +3649,9 @@ export default function ApplyPage() {
                           onboardingData.address &&
                           onboardingData.alternatePhone &&
                           isValidGhanaLocalPhone(onboardingData.alternatePhone) &&
+                          onboardingData.referenceMsisdn &&
+                          isValidGhanaLocalPhone(onboardingData.referenceMsisdn) &&
+                          onboardingData.referenceRelationship &&
                           onboardingData.address?.trim().split(/\s+/).length >=
                             3
                           ? "bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200"
