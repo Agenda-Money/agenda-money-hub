@@ -257,6 +257,7 @@ function MandatesTab() {
   const cancelMut = useMutation({
     mutationFn: ({ msisdn, reason }: { msisdn: string; reason: string }) => cancelOrchardMandate(msisdn, reason),
     onSuccess: () => { toast.success("Mandate cancelled"); setCancelTarget(null); invalidate(); },
+    onError: (e: any) => toast.error(e?.response?.data?.message || "Cancel failed"),
   });
 
   const rows = mandates ?? [];
