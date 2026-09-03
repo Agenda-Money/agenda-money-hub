@@ -248,7 +248,18 @@ function MandatesTab() {
   const suspendMut = useMutation({ mutationFn: suspendOrchardMandate, onSuccess: () => { toast.success("Mandate suspended"); invalidate(); } });
   const resumeMut = useMutation({ mutationFn: resumeOrchardMandate, onSuccess: () => { toast.success("Mandate resumed"); invalidate(); } });
   const resendOtpMut = useMutation({ mutationFn: resendOrchardOtp, onSuccess: () => { toast.success("OTP resent to customer"); invalidate(); } });
-  const syncMut = useMutation({ mutationFn: syncOrchardMandate, onSuccess: () => { toast.success("Synced from Orchard"); invalidate(); } });
+  const syncMut = useMutation({
+    mutationFn: syncOrchardMandate,
+    onSuccess: (res: any) => {
+      const respCode = res?.data?.resp_code;
+      const respDesc = res?.data?.resp_desc;
+      toast.success("Orchard status check", {
+        description: respCode ? `${respCode} — ${respDesc || "no description"}` : "No response details returned",
+      });
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || "Sync failed"),
+  });
   const forceRetryMut = useMutation({
     mutationFn: forceRetryOrchardDebit,
     onSuccess: () => { toast.success("Retry debit triggered"); invalidate(); },
