@@ -33,8 +33,9 @@ import {
   getUserSessions, 
   addFlag, 
   deleteFlag, 
-  blockUser, 
-  unblockUser, 
+  blockUser,
+  unblockUser,
+  liftUserBlacklist,
   verifyUserKyc,
   softRejectUserKyc,
   failUserKyc,
@@ -464,7 +465,7 @@ export default function UserDetailsPage() {
   })
 
   const payload = detailRes?.data || {}
-  const { user, activeLoan, loanHistory, sessions, deviceConflicts, weeklyUsage, referrals, referralQuality, agendaScore } = payload
+  const { user, activeLoan, loanHistory, sessions, deviceConflicts, weeklyUsage, referrals, referralQuality, agendaScore, blacklistStatus } = payload
   const scoreValue: number | null = agendaScore?.totalScore ?? user?.agendaScore?.score ?? null
 
   // 2) Paginated Sessions (for Activity tab)
@@ -525,6 +526,19 @@ export default function UserDetailsPage() {
     onError: (err) => toast.error(getFriendlyErrorMessage(err))
   })
 
+  const [isLiftBlacklistModalOpen, setIsLiftBlacklistModalOpen] = useState(false)
+  const [liftBlacklistReason, setLiftBlacklistReason] = useState('')
+  const liftBlacklistMutation = useMutation({
+    mutationFn: (reason: string) => liftUserBlacklist(user.msisdn, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-detail', id] })
+      toast.success('Blacklist lifted')
+      setIsLiftBlacklistModalOpen(false)
+      setLiftBlacklistReason('')
+    },
+    onError: (err) => toast.error(getFriendlyErrorMessage(err))
+  })
+
   if (isLoading) return (
     <DashboardLayout>
       <div className="flex h-[60vh] items-center justify-center">
@@ -553,7 +567,14 @@ export default function UserDetailsPage() {
   const reliabilityRate = completedLoans.length === 0
     ? null
     : Math.round((repaidLoans.length / completedLoans.length) * 100);
-  const isBlacklisted = !!user.blacklistedUntil && new Date(user.blacklistedUntil) > new Date();
+  // blacklistStatus comes from the backend's getBlacklistDecision() — the
+  // same source of truth used to gate loan requests — and correctly covers
+  // both the temporary (blacklistedUntil in the future) and permanent
+  // (blacklistedUntil === null) cases. Fall back to the old date-only check
+  // if an older cached response doesn't have blacklistStatus yet.
+  const isBlacklisted = blacklistStatus
+    ? true
+    : !!user.blacklistedUntil && new Date(user.blacklistedUntil) > new Date();
   const hasDefaults   = defaultedLoans.length > 0;
   const hasOverdue    = overdueLoans.length > 0;
 
@@ -564,7 +585,9 @@ export default function UserDetailsPage() {
     healthMessage = hasDefaults
       ? `Account has ${defaultedLoans.length} default${defaultedLoans.length !== 1 ? 's' : ''} on record. Not currently eligible for advancement.`
       : isBlacklisted
-        ? `Account blacklisted until ${formatDate(user.blacklistedUntil)}.`
+        ? blacklistStatus?.decision === 'BLACKLISTED_PERMANENT'
+          ? 'Account permanently blacklisted for severe delinquency.'
+          : `Account blacklisted until ${formatDate(blacklistStatus?.until ?? user.blacklistedUntil)}.`
         : 'Account is blocked. Review before advancing.';
   } else if (hasOverdue) {
     healthStatus = 'amber';
@@ -912,8 +935,18 @@ export default function UserDetailsPage() {
                           <p className="text-lg font-black text-gray-900 dark:text-gray-100">{referrals?.length || 0}</p>
                        </div>
                     </div>
-                    <div className="pt-2">
+                    <div className="pt-2 flex items-center justify-between gap-3">
                        <p className={`text-[10px] font-bold ${healthTheme.msg}`}>{healthMessage}</p>
+                       {isBlacklisted && canWrite && (
+                         <Button
+                           size="sm"
+                           variant="outline"
+                           className="shrink-0 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+                           onClick={() => setIsLiftBlacklistModalOpen(true)}
+                         >
+                           Lift Blacklist
+                         </Button>
+                       )}
                     </div>
                   </div>
                 </Card>
@@ -1048,6 +1081,54 @@ export default function UserDetailsPage() {
                   )}
                 >
                   {blockMutation.isPending ? "Processing..." : (user.isBlocked ? "Confirm Unblock" : "Confirm Block")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {isLiftBlacklistModalOpen && (
+          <Dialog open={isLiftBlacklistModalOpen} onOpenChange={setIsLiftBlacklistModalOpen}>
+            <DialogContent className="max-w-md rounded-3xl p-6">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <ShieldAlert className="text-teal-600" size={20} />
+                  Lift Blacklist
+                </DialogTitle>
+                <DialogDescription className="text-xs font-bold text-gray-500 uppercase tracking-tight mt-2">
+                  {blacklistStatus?.decision === 'BLACKLISTED_PERMANENT'
+                    ? `${user.fullName} is permanently blacklisted for severe delinquency. This will restore their ability to apply for new loans immediately.`
+                    : `${user.fullName} is blacklisted until ${formatDate(blacklistStatus?.until ?? user.blacklistedUntil)}. This will restore their ability to apply for new loans immediately.`
+                  }
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="py-6 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Reason for lifting</Label>
+                  <Input
+                    value={liftBlacklistReason}
+                    onChange={(e) => setLiftBlacklistReason(e.target.value)}
+                    placeholder="e.g. Genuine hardship, verified with customer..."
+                    className="rounded-xl border-pink-100/50 focus:ring-pink-500"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsLiftBlacklistModalOpen(false)}
+                  className="rounded-xl border-pink-100 text-gray-500 font-bold uppercase text-[10px] tracking-widest"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => liftBlacklistMutation.mutate(liftBlacklistReason)}
+                  disabled={liftBlacklistMutation.isPending || !liftBlacklistReason.trim()}
+                  className="rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg bg-teal-600 hover:bg-teal-700 text-white shadow-teal-900/20"
+                >
+                  {liftBlacklistMutation.isPending ? "Processing..." : "Confirm Lift"}
                 </Button>
               </DialogFooter>
             </DialogContent>
