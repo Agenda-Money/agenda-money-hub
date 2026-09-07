@@ -508,6 +508,11 @@ export const unblockUser = async (msisdn: string, reason?: string) => {
   return response.data;
 };
 
+export const liftUserBlacklist = async (msisdn: string, reason?: string) => {
+  const response = await api.patch(`/api/admin/users/${msisdn}/blacklist/lift`, { reason });
+  return response.data;
+};
+
 export const verifyUserKyc = async (msisdn: string, reason?: string) => {
   const response = await api.patch(`/api/admin/users/${msisdn}/kyc/verify`, { reason });
   return response.data;
