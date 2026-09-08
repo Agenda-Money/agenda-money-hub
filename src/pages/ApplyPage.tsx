@@ -3392,6 +3392,9 @@ export default function ApplyPage() {
   if (onboardingStep === 3 && showEligibilityTransition) {
     return (
       <EligibilityCheckTransition
+        // Didit already verified them; showing that check as pending makes the
+        // applicant wait on work that's finished.
+        initialCompleted={diditCaptureComplete ? 1 : 0}
         onComplete={() => {
           setShowEligibilityTransition(false);
           setOnboardingDirection(1);

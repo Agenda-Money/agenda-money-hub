@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface EligibilityCheckTransitionProps {
   onComplete: () => void;
+  /** How many checks to show as already done. Identity verification is handled
+   * by the KYC provider on that path, so replaying it as pending is a lie the
+   * applicant has to sit through. */
+  initialCompleted?: number;
 }
 
 const CHECKS = [
@@ -17,12 +21,21 @@ const FINAL_DELAY_MS = 600;
 
 export const EligibilityCheckTransition: React.FC<
   EligibilityCheckTransitionProps
-> = ({ onComplete }) => {
-  const [completedCount, setCompletedCount] = useState(0);
+> = ({ onComplete, initialCompleted = 0 }) => {
+  const [completedCount, setCompletedCount] = useState(initialCompleted);
+
+  // onComplete is passed as an inline arrow, so its identity changes on every
+  // parent render. Depending on it directly meant each re-render cleared the
+  // pending timer and started a new one — and the parent re-renders about once
+  // a second, so the timer never survived to fire and the spinner ran forever.
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (completedCount >= CHECKS.length) {
-      const finalTimer = setTimeout(onComplete, FINAL_DELAY_MS);
+      const finalTimer = setTimeout(() => onCompleteRef.current(), FINAL_DELAY_MS);
       return () => clearTimeout(finalTimer);
     }
     const timer = setTimeout(
@@ -30,7 +43,7 @@ export const EligibilityCheckTransition: React.FC<
       STEP_DURATION_MS,
     );
     return () => clearTimeout(timer);
-  }, [completedCount, onComplete]);
+  }, [completedCount]);
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center animate-in fade-in duration-300">
