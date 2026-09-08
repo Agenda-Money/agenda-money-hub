@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getApiBaseUrl } from "@/lib/domain";
 import * as faceapi from "face-api.js";
 import {
   Eye,
@@ -346,7 +347,7 @@ export function LivenessCapture({
   const logLivenessEvent = useCallback(
     (eventType: string, details?: Record<string, unknown>) => {
       try {
-        fetch("/api/liveness/log", {
+        fetch(`${getApiBaseUrl()}/api/liveness/log`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
