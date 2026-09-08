@@ -1248,7 +1248,13 @@ export default function ApplyPage() {
   };
   const isValidGhanaCard = (v: string) => /^GHA-\d{9}-\d$/.test(v);
   const handleGhanaCardChange = (v: string) => {
-    if (!v.startsWith("GHA-")) return;
+    // Never reject the keystroke. This previously bailed unless the value
+    // still began with a literal "GHA-", which froze the field: backspacing
+    // over the dash produced a value that failed the guard, so the change was
+    // dropped and nothing the applicant typed had any effect. It also made an
+    // unpunctuated number arriving from KYC (GHA7213469770) impossible to
+    // correct by hand. formatGhanaCardNumber already rebuilds from the digits,
+    // so just always run it.
     handleOnboardingChange("ghanaCardNumber", formatGhanaCardNumber(v));
   };
 
