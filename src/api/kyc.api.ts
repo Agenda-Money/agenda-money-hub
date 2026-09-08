@@ -69,8 +69,20 @@ export async function createDiditSession(returnUrl: string): Promise<DiditSessio
   return { sessionId: res.data.session_id ?? res.data.sessionId, url: res.data.url };
 }
 
+export interface DiditSyncResult {
+  matched: boolean;
+  status: string;
+  approved?: boolean;
+  ghanaCardNumber?: string;
+  selfieUrl?: string;
+  ghanaCardFrontUrl?: string;
+  ghanaCardBackUrl?: string;
+}
+
 /** Pull the result for a session we just came back from. Used instead of
- * waiting on a webhook, so the applicant sees their outcome immediately. */
-export async function syncDiditSession(sessionId: string): Promise<void> {
-  await api.post(`/api/kyc/didit/session/${encodeURIComponent(sessionId)}/sync`);
+ * waiting on a webhook, so the applicant sees their outcome immediately.
+ * Returns what was captured so the apply form can hydrate its local state. */
+export async function syncDiditSession(sessionId: string): Promise<DiditSyncResult> {
+  const res = await api.post(`/api/kyc/didit/session/${encodeURIComponent(sessionId)}/sync`);
+  return res.data;
 }

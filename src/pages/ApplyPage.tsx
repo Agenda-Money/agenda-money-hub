@@ -1551,24 +1551,41 @@ export default function ApplyPage() {
     window.history.replaceState({}, "", window.location.pathname);
     if (!sessionId) return;
 
-    // Pull the result, then re-read the profile so the KYC status and the
-    // images Didit captured are reflected without a manual refresh.
-    const refreshProfile = async () => {
-      const token = globalThis.sessionStorage.getItem("agenda_token");
-      if (!token) return;
-      const r = await fetch(`${baseApiUrl}/api/auth/me`, {
-        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-      });
-      const payload = await r.json();
-      if (r.ok && (payload?.user || payload?.msisdn)) handleAuthResponse(payload);
-    };
-
     setIsReturningFromDidit(true);
     syncDiditSession(sessionId)
-      .then(() => refreshProfile())
+      .then((result) => {
+        // Deliberately not routing on getMe()'s nextStep here. The user record
+        // isn't written until the final submit, so the backend still reports
+        // ONBOARDING_PERSONAL and would throw the applicant back to step 1
+        // with everything they'd already filled in. Their answers are safe in
+        // sessionStorage; what's missing locally is only what Didit captured,
+        // so fold that in and carry on from where they left off.
+        setOnboardingData((prev) => ({
+          ...prev,
+          ghanaCardNumber: result.ghanaCardNumber || prev.ghanaCardNumber,
+          selfieUrl: result.selfieUrl || prev.selfieUrl,
+          ghanaCardFrontUrl: result.ghanaCardFrontUrl || prev.ghanaCardFrontUrl,
+          ghanaCardBackUrl: result.ghanaCardBackUrl || prev.ghanaCardBackUrl,
+        }));
+
+        setView("onboarding");
+        setOnboardingStep(3);
+        setIdentityStep("upload");
+
+        if (!result.ghanaCardNumber) {
+          // Didit didn't hand back a card number, so step 3 can't validate.
+          // Leave them on the upload screen with the images prefilled rather
+          // than bouncing them somewhere that will fail.
+          setErrorMessage(
+            "We captured your documents but couldn't read your Ghana Card number. Please enter it to continue.",
+          );
+        }
+      })
       .catch(() => {
+        setView("onboarding");
+        setOnboardingStep(3);
         setErrorMessage(
-          "We couldn't confirm your verification yet. It may still be processing — please continue and we'll review it.",
+          "We couldn't confirm your verification yet. It may still be processing — please try again in a moment.",
         );
       })
       .finally(() => setIsReturningFromDidit(false));
