@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone, CheckCircle2, XCircle, Database, RefreshCw, BarChart2, Loader2, AlertTriangle, Banknote, ScanFace, ArrowDownToLine } from "lucide-react";
+import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone, CheckCircle2, XCircle, Database, RefreshCw, BarChart2, Loader2, AlertTriangle, Banknote, ScanFace, ArrowDownToLine, Wallet, Receipt, CalendarClock, KeyRound, CalendarDays, Boxes, HandCoins, User, ShieldCheck, SlidersHorizontal, Palette, BellRing } from "lucide-react";
 import { AuthorizeAgentModal } from "@/components/agents/AuthorizeAgentModal";
 import { InviteCsaModal } from "@/components/csa/InviteCsaModal";
 import { InviteReportingModal } from "@/components/reporting/InviteReportingModal";
@@ -225,7 +225,7 @@ function NotificationPreferences() {
   return (
     <Card className="mb-6 border-primary/20">
       <CardHeader>
-        <CardTitle>Admin Notifications</CardTitle>
+        <CardTitle className="flex items-center gap-2"><Bell className="h-4 w-4 text-muted-foreground" />Admin Notifications</CardTitle>
         <CardDescription>
           Receive secure alerts for verification requests, large payouts, and
           system issues.
@@ -314,11 +314,10 @@ function ToggleRow({
 }
 
 
-/** The three provider switches are the same object three times over: a thing
- * being routed, who it routes to right now, and the ability to change it. Give
- * them one shape so the state is readable at a glance rather than parsed out
- * of prose. */
-function ProviderCardHeader({
+/** One header shape for every settings card: an icon to anchor it, the title,
+ * the description, and — where a card represents a live choice — a pill showing
+ * what that choice currently is, so state is a glance rather than a read. */
+function SettingsCardHeader({
   icon: Icon,
   title,
   description,
@@ -525,7 +524,7 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
   return (
     <div className="space-y-4">
       <Card>
-        <ProviderCardHeader
+        <SettingsCardHeader
           icon={Banknote}
           title="Disbursement Provider"
           description="Which PSP sends the money when a loan is approved"
@@ -561,7 +560,7 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
       </Card>
 
       <Card>
-        <ProviderCardHeader
+        <SettingsCardHeader
           icon={ScanFace}
           title="Identity Verification"
           description="Which flow applicants use to submit their Ghana Card and selfie"
@@ -624,7 +623,7 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
       </Card>
 
       <Card>
-        <ProviderCardHeader
+        <SettingsCardHeader
           icon={ArrowDownToLine}
           title="Collection Provider"
           description="Which PSP collects repayments on the customer's Pay Now flow"
@@ -708,19 +707,16 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
       </Card>
 
       <Tabs defaultValue="uniwallet">
-      <TabsList className="bg-muted p-1 mb-4">
-        <TabsTrigger value="uniwallet" className="data-[state=active]:bg-card">UniWallet (STK Push)</TabsTrigger>
-        <TabsTrigger value="directdebit" className="data-[state=active]:bg-card">Direct Debit</TabsTrigger>
-        <TabsTrigger value="orchard" className="data-[state=active]:bg-card">Orchard</TabsTrigger>
+      <TabsList className="bg-muted p-1 mb-4 grid grid-cols-3 gap-1 h-auto w-full sm:flex sm:w-fit">
+        <TabsTrigger value="uniwallet" className="data-[state=active]:bg-card w-full sm:w-auto">UniWallet (STK Push)</TabsTrigger>
+        <TabsTrigger value="directdebit" className="data-[state=active]:bg-card w-full sm:w-auto">Direct Debit</TabsTrigger>
+        <TabsTrigger value="orchard" className="data-[state=active]:bg-card w-full sm:w-auto">Orchard</TabsTrigger>
       </TabsList>
 
       {/* ── UniWallet Tab ── */}
       <TabsContent value="uniwallet" className="space-y-4">
         <Card>
-          <CardHeader>
-            <CardTitle>UniWallet Configuration</CardTitle>
-            <CardDescription>Control disbursements and STK push collections</CardDescription>
-          </CardHeader>
+          <SettingsCardHeader icon={Wallet} title="UniWallet Configuration" description="Control disbursements and STK push collections" />
           <CardContent className="space-y-3">
             {uwLoading ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
@@ -753,10 +749,7 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Transaction Narrations</CardTitle>
-            <CardDescription>What shows on the customer's MoMo statement</CardDescription>
-          </CardHeader>
+          <SettingsCardHeader icon={Receipt} title="Transaction Narrations" description="What shows on the customer's MoMo statement" />
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
               <Label>Disbursement Narration</Label>
@@ -839,10 +832,7 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
       {/* ── Direct Debit Tab ── */}
       <TabsContent value="directdebit" className="space-y-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Direct Debit Configuration</CardTitle>
-            <CardDescription>ITC standing orders — auto-debit on loan due date</CardDescription>
-          </CardHeader>
+          <SettingsCardHeader icon={CalendarClock} title="Direct Debit Configuration" description="ITC standing orders — auto-debit on loan due date" />
           <CardContent className="space-y-3">
             {ddLoading ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
@@ -882,10 +872,7 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>ITC Credentials</CardTitle>
-            <CardDescription>Product and merchant identifiers from ITC onboarding</CardDescription>
-          </CardHeader>
+          <SettingsCardHeader icon={KeyRound} title="ITC Credentials" description="Product and merchant identifiers from ITC onboarding" />
           <CardContent className="space-y-4">
             {[
               { label: "Product ID", value: productId, set: setProductId, key: "productId" as const, placeholder: "e.g. PROD_67890" },
@@ -905,10 +892,7 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Debit Schedule Defaults</CardTitle>
-            <CardDescription>Default values used when setting up a standing order</CardDescription>
-          </CardHeader>
+          <SettingsCardHeader icon={CalendarDays} title="Debit Schedule Defaults" description="Default values used when setting up a standing order" />
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
               <Label>Default Debit Time (24h)</Label>
@@ -946,10 +930,7 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
       {/* ── Orchard Tab ── */}
       <TabsContent value="orchard" className="space-y-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Orchard Products</CardTitle>
-            <CardDescription>Enable each product only once it's sandbox-verified — all default off</CardDescription>
-          </CardHeader>
+          <SettingsCardHeader icon={Boxes} title="Orchard Products" description="Enable each product only once it's sandbox-verified — all default off" />
           <CardContent className="space-y-3">
             {orchardLoading ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
@@ -996,10 +977,7 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Manual Collection</CardTitle>
-            <CardDescription>Trigger a one-off Orchard CTM charge against any loan — the customer gets a MoMo PIN prompt on their phone</CardDescription>
-          </CardHeader>
+          <SettingsCardHeader icon={HandCoins} title="Manual Collection" description="Trigger a one-off Orchard CTM charge against any loan — the customer gets a MoMo PIN prompt on their phone" />
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <Input
@@ -1421,40 +1399,44 @@ export default function SettingsPage() {
           value={activeTab}
           onValueChange={(val) => navigate(`/settings/${val}`)}
         >
-          <TabsList className="bg-muted p-1 flex overflow-x-auto w-full sm:w-fit no-scrollbar">
+          {/* Wraps to a grid on small screens rather than scrolling horizontally
+              with a hidden scrollbar — six tabs off the edge with no visible
+              affordance meant Payments and System were effectively undiscoverable
+              on a phone. */}
+          <TabsList className="bg-muted p-1 grid grid-cols-3 gap-1 h-auto w-full sm:flex sm:w-fit">
             <TabsTrigger
               value="profile"
-              className="data-[state=active]:bg-card"
+              className="data-[state=active]:bg-card w-full sm:w-auto"
             >
               Profile
             </TabsTrigger>
             <TabsTrigger
               value="general"
-              className="data-[state=active]:bg-card"
+              className="data-[state=active]:bg-card w-full sm:w-auto"
             >
               General
             </TabsTrigger>
             <TabsTrigger
               value="appearance"
-              className="data-[state=active]:bg-card"
+              className="data-[state=active]:bg-card w-full sm:w-auto"
             >
               Appearance
             </TabsTrigger>
             <TabsTrigger
               value="notifications"
-              className="data-[state=active]:bg-card"
+              className="data-[state=active]:bg-card w-full sm:w-auto"
             >
               Notifications
             </TabsTrigger>
             <TabsTrigger
               value="payments"
-              className="data-[state=active]:bg-card"
+              className="data-[state=active]:bg-card w-full sm:w-auto"
             >
               Payments
             </TabsTrigger>
             <TabsTrigger
               value="system"
-              className="data-[state=active]:bg-card"
+              className="data-[state=active]:bg-card w-full sm:w-auto"
             >
               System
             </TabsTrigger>
@@ -1463,7 +1445,7 @@ export default function SettingsPage() {
           <TabsContent value="profile" className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Profile Settings</CardTitle>
+                <CardTitle className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground" />Profile Settings</CardTitle>
                 <CardDescription>
                   Manage your public profile and private information.
                 </CardDescription>
@@ -1500,7 +1482,7 @@ export default function SettingsPage() {
 
             <Card className="mt-6 border-primary/20 bg-primary/5">
               <CardHeader>
-                <CardTitle>Admin Privileges</CardTitle>
+                <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-muted-foreground" />Admin Privileges</CardTitle>
                 <CardDescription>
                   Authorize a new admin or higher-level agent to access this
                   platform.
@@ -1554,7 +1536,7 @@ export default function SettingsPage() {
           <TabsContent value="general" className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>General Settings</CardTitle>
+                <CardTitle className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4 text-muted-foreground" />General Settings</CardTitle>
                 <CardDescription>
                   Configure general platform settings
                 </CardDescription>
@@ -1601,7 +1583,7 @@ export default function SettingsPage() {
           <TabsContent value="appearance" className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Appearance</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Palette className="h-4 w-4 text-muted-foreground" />Appearance</CardTitle>
                 <CardDescription>
                   Customize the look and feel of the dashboard
                 </CardDescription>
@@ -1638,7 +1620,7 @@ export default function SettingsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Notification Settings</CardTitle>
+                <CardTitle className="flex items-center gap-2"><BellRing className="h-4 w-4 text-muted-foreground" />Notification Settings</CardTitle>
                 <CardDescription>
                   Configure SMS and notification preferences
                 </CardDescription>
