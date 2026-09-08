@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone, CheckCircle2, XCircle, Database, RefreshCw, BarChart2, Loader2, AlertTriangle } from "lucide-react";
+import { Moon, Sun, Monitor, UserPlus, Bell, Smartphone, CheckCircle2, XCircle, Database, RefreshCw, BarChart2, Loader2, AlertTriangle, Banknote, ScanFace, ArrowDownToLine } from "lucide-react";
 import { AuthorizeAgentModal } from "@/components/agents/AuthorizeAgentModal";
 import { InviteCsaModal } from "@/components/csa/InviteCsaModal";
 import { InviteReportingModal } from "@/components/reporting/InviteReportingModal";
@@ -313,6 +313,57 @@ function ToggleRow({
   );
 }
 
+
+/** The three provider switches are the same object three times over: a thing
+ * being routed, who it routes to right now, and the ability to change it. Give
+ * them one shape so the state is readable at a glance rather than parsed out
+ * of prose. */
+function ProviderCardHeader({
+  icon: Icon,
+  title,
+  description,
+  active,
+  tone = "neutral",
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  active?: string;
+  tone?: "neutral" | "accent";
+}) {
+  return (
+    <CardHeader className="pb-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3 min-w-0">
+          <div
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+              tone === "accent"
+                ? "bg-pink-50 text-[#EC1B84]"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            <Icon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <CardTitle className="text-base">{title}</CardTitle>
+            <CardDescription className="mt-0.5">{description}</CardDescription>
+          </div>
+        </div>
+        {active && (
+          <Badge
+            variant="secondary"
+            className="shrink-0 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 font-medium"
+          >
+            <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            {active}
+          </Badge>
+        )}
+      </div>
+    </CardHeader>
+  );
+}
+
 function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
   const qc = useQueryClient();
 
@@ -474,10 +525,12 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader>
-          <CardTitle>Disbursement Provider</CardTitle>
-          <CardDescription>Which PSP actually sends the money when a loan is approved</CardDescription>
-        </CardHeader>
+        <ProviderCardHeader
+          icon={Banknote}
+          title="Disbursement Provider"
+          description="Which PSP sends the money when a loan is approved"
+          active={providerLoading ? undefined : (activeProvider === "ORCHARD" ? "Orchard" : "Paystack")}
+        />
         <CardContent>
           {providerLoading ? (
             <p className="text-sm text-muted-foreground">Loading...</p>
@@ -508,10 +561,13 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Identity Verification</CardTitle>
-          <CardDescription>Which flow applicants use to submit their Ghana Card and selfie</CardDescription>
-        </CardHeader>
+        <ProviderCardHeader
+          icon={ScanFace}
+          title="Identity Verification"
+          description="Which flow applicants use to submit their Ghana Card and selfie"
+          active={kycProviderLoading ? undefined : (kycProvider?.activeProvider === "DIDIT" ? "Didit" : "In-app")}
+          tone="accent"
+        />
         <CardContent className="space-y-4">
           {kycProviderLoading ? (
             <p className="text-sm text-muted-foreground">Loading...</p>
@@ -568,10 +624,12 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Collection Provider</CardTitle>
-          <CardDescription>Which PSP the customer's USSD "Pay Now" (STK push) flow uses to collect repayments</CardDescription>
-        </CardHeader>
+        <ProviderCardHeader
+          icon={ArrowDownToLine}
+          title="Collection Provider"
+          description="Which PSP collects repayments on the customer's Pay Now flow"
+          active={collectionProviderLoading ? undefined : (activeCollectionProvider === "ORCHARD" ? "Orchard" : "Paystack")}
+        />
         <CardContent className="space-y-4">
           {collectionProviderLoading ? (
             <p className="text-sm text-muted-foreground">Loading...</p>
