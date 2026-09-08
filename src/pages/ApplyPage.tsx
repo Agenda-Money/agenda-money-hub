@@ -643,6 +643,18 @@ export default function ApplyPage() {
   const [kycProvider, setKycProvider] = useState<KycProviderName>("INTERNAL");
   const [isStartingDidit, setIsStartingDidit] = useState(false);
   const [isReturningFromDidit, setIsReturningFromDidit] = useState(false);
+  // Escape hatch: if the captured details look wrong to the applicant, fall
+  // back to the normal upload screen so they can correct them by hand.
+  const [diditShowManualEdit, setDiditShowManualEdit] = useState(false);
+  // Everything the upload screen would have asked for is already in hand, so
+  // there's nothing left for the applicant to do but confirm.
+  const diditCaptureComplete =
+    !diditShowManualEdit &&
+    kycProvider === "DIDIT" &&
+    Boolean(onboardingData.ghanaCardNumber) &&
+    Boolean(onboardingData.ghanaCardFrontUrl) &&
+    Boolean(onboardingData.ghanaCardBackUrl) &&
+    Boolean(onboardingData.selfieUrl);
   const [identityConsent, setIdentityConsent] = useState(false);
   const [expandedUpload, setExpandedUpload] = useState<"id" | "selfie" | null>(
     null,
@@ -4202,7 +4214,52 @@ export default function ApplyPage() {
                   )}
 
                   {/* ─── Screen 2: Uploads ─── */}
-                  {identityStep === "upload" && (
+                  {identityStep === "upload" && diditCaptureComplete && (
+                    <div className="space-y-6">
+                      <div className="mt-2">
+                        <h2 className="text-2xl font-bold text-gray-900">
+                          Identity verified
+                        </h2>
+                        <p className="mt-1 text-sm text-gray-500">
+                          We got everything we need. Just confirm to continue.
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
+                        {[
+                          { label: "Ghana Card number", value: onboardingData.ghanaCardNumber },
+                          { label: "Ghana Card (front)", value: "Captured" },
+                          { label: "Ghana Card (back)", value: "Captured" },
+                          { label: "Selfie & liveness check", value: "Passed" },
+                        ].map((row) => (
+                          <div key={row.label} className="flex items-center gap-3">
+                            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900">{row.label}</p>
+                              <p className="truncate text-xs text-gray-500">{row.value}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setDiditShowManualEdit(true)}
+                        className="text-xs font-medium text-gray-500 underline underline-offset-4 hover:text-gray-700"
+                      >
+                        Something looks wrong? Edit my details
+                      </button>
+
+                      <Button
+                        onClick={handleIdentityUploadContinue}
+                        className="w-full h-12 rounded-full font-bold bg-[#EC1B84] text-white hover:bg-[#D41574] shadow-lg shadow-pink-200"
+                      >
+                        Continue
+                      </Button>
+                    </div>
+                  )}
+
+                  {identityStep === "upload" && !diditCaptureComplete && (
                     <div className="space-y-6">
                       <div className="mt-2">
                         <Button
