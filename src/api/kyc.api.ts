@@ -62,8 +62,10 @@ export interface DiditSession {
   url: string;
 }
 
-export async function createDiditSession(redirectUrl?: string): Promise<DiditSession> {
-  const res = await api.post('/api/kyc/didit/session', { redirectUrl });
+/** returnUrl is where Didit sends the applicant's browser when they finish.
+ * The backend validates it against an allowlist before passing it on. */
+export async function createDiditSession(returnUrl: string): Promise<DiditSession> {
+  const res = await api.post('/api/kyc/didit/session', { returnUrl });
   return { sessionId: res.data.session_id ?? res.data.sessionId, url: res.data.url };
 }
 

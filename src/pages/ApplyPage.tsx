@@ -1538,7 +1538,13 @@ export default function ApplyPage() {
     const params = new URLSearchParams(window.location.search);
     if (!params.get("didit_return")) return;
 
-    const sessionId = globalThis.localStorage.getItem(DIDIT_SESSION_KEY);
+    // Didit appends verificationSessionId to the return URL. Prefer that, and
+    // fall back to the id we stashed before redirecting in case the parameter
+    // naming ever shifts.
+    const sessionId =
+      params.get("verificationSessionId") ||
+      params.get("session_id") ||
+      globalThis.localStorage.getItem(DIDIT_SESSION_KEY);
     globalThis.localStorage.removeItem(DIDIT_SESSION_KEY);
 
     // Clear the marker so a refresh doesn't re-run this.
