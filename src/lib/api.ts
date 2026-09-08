@@ -327,6 +327,16 @@ export const rejectAgentApplication = async (agentId: string, reason: string) =>
   return response.data;
 };
 
+export const deactivateAgent = async (agentId: string, reason?: string) => {
+  const response = await api.patch(`/api/admin/agents/${agentId}/deactivate`, { reason });
+  return response.data;
+};
+
+export const reactivateAgent = async (agentId: string, reason?: string) => {
+  const response = await api.patch(`/api/admin/agents/${agentId}/reactivate`, { reason });
+  return response.data;
+};
+
 export const getAdminAgentPortfolio = async (nodeCode: string, params?: any) => {
   const response = await api.get(`/api/admin/agents/${nodeCode}/portfolio`, { params });
   return response.data;

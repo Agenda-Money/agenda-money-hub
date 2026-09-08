@@ -9,10 +9,16 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { Power, PowerOff } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { SecureKycImage } from "@/components/common/SecureKycImage";
 
-import { useQuery } from "@tanstack/react-query";
-import { getAdminAgentDetails, getAdminAgentCommissions, getAdminDeductions } from "@/lib/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getAdminAgentDetails, getAdminAgentCommissions, getAdminDeductions, deactivateAgent, reactivateAgent } from "@/lib/api";
 import { formatAmount, formatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -35,6 +41,8 @@ export default function AgentDetailsPage() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [commPage, setCommPage] = useState(1);
+  const [isTogglingActive, setIsTogglingActive] = useState(false);
+  const queryClient = useQueryClient();
 
   // Fetch Agent Profile
   const { data: agentDataResponse, isLoading: isAgentLoading, error: agentError } = useQuery({
@@ -196,10 +204,65 @@ export default function AgentDetailsPage() {
                        </>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={agent.status === "active" ? "default" : "secondary"} className={cn("px-2.5 py-0.5", agent.status === "active" ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm text-white" : "")}>
                        {agent.status}
                     </Badge>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isTogglingActive}
+                          className={cn(
+                            "h-7 px-2.5 text-xs font-medium",
+                            agent.status === "active"
+                              ? "text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                              : "text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                          )}
+                        >
+                          {agent.status === "active"
+                            ? <><PowerOff className="h-3.5 w-3.5 mr-1.5" />Deactivate</>
+                            : <><Power className="h-3.5 w-3.5 mr-1.5" />Reactivate</>}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            {agent.status === "active" ? `Deactivate ${agent.name}?` : `Reactivate ${agent.name}?`}
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {agent.status === "active"
+                              ? `Code ${agent.nodeCode} will stop working for new customer signups. Customers they already referred keep their attribution, and commission on those continues to accrue. This can be undone.`
+                              : `Code ${agent.nodeCode} will work for new customer signups again.`}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              setIsTogglingActive(true);
+                              const goingInactive = agent.status === "active";
+                              try {
+                                const res = goingInactive
+                                  ? await deactivateAgent(agent.id)
+                                  : await reactivateAgent(agent.id);
+                                toast.success(res?.message || (goingInactive ? "Agent deactivated" : "Agent reactivated"));
+                                queryClient.invalidateQueries({ queryKey: ["agent", id] });
+                                queryClient.invalidateQueries({ queryKey: ["agents"] });
+                              } catch (err: any) {
+                                toast.error(err?.response?.data?.message || "Couldn't update this agent. Try again.");
+                              } finally {
+                                setIsTogglingActive(false);
+                              }
+                            }}
+                            className={agent.status === "active" ? "bg-red-600 hover:bg-red-700" : ""}
+                          >
+                            {agent.status === "active" ? "Deactivate" : "Reactivate"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     <Badge variant="outline" className={cn(
                       "px-2.5 py-0.5 font-bold uppercase tracking-widest text-[10px]",
                       agent.role === 'manager' ? "bg-purple-50 text-purple-700 border-purple-200" :
