@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Loader2,
   RefreshCw,
+  VideoOff,
   ShieldCheck,
 } from "lucide-react";
 
@@ -45,6 +46,7 @@ type Stage =
   | "loading"
   | "permission"
   | "permission-denied"
+  | "camera-error"
   | "precheck"
   | "challenge"
   | "capture"
@@ -119,6 +121,66 @@ const MOUTH_EMA_ALPHA = 0.25;
 const FACE_DISAPPEAR_THRESHOLD_MS = 2200;
 
 const FACE_MIN_CONFIDENCE = 0.38;
+
+/**
+ * Why the camera couldn't start. Only NotAllowedError is a true "denied";
+ * the rest were previously collapsed into a dead-end "not available on this
+ * device", which is wrong and unactionable for the two most common real
+ * causes — another app holding the camera, and in-app browsers.
+ */
+type CameraErrorKind = "busy" | "not-found" | "in-app-browser" | "insecure" | "unknown";
+
+/** WhatsApp / Facebook / Instagram / TikTok in-app browsers, where getUserMedia
+ * is commonly unavailable or silently blocked. Customers reach the apply link
+ * from SMS and WhatsApp, so this is a large real-world bucket. */
+function isInAppBrowser(): boolean {
+  const ua = navigator.userAgent || "";
+  return /FBAN|FBAV|FB_IAB|Instagram|Line\/|WhatsApp|TikTok|Snapchat/i.test(ua);
+}
+
+function classifyCameraError(err: unknown): CameraErrorKind {
+  if (!window.isSecureContext) return "insecure";
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return isInAppBrowser() ? "in-app-browser" : "not-found";
+  }
+  const name = (err as { name?: string } | undefined)?.name;
+  if (name === "NotReadableError" || name === "TrackStartError" || name === "AbortError") {
+    return "busy";
+  }
+  if (
+    name === "NotFoundError" ||
+    name === "DevicesNotFoundError" ||
+    name === "OverconstrainedError" ||
+    name === "ConstraintNotSatisfiedError"
+  ) {
+    return "not-found";
+  }
+  if (isInAppBrowser()) return "in-app-browser";
+  return "unknown";
+}
+
+const CAMERA_ERROR_COPY: Record<CameraErrorKind, { title: string; body: string }> = {
+  busy: {
+    title: "Your camera is in use",
+    body: "Another app is using the camera. Close apps like WhatsApp, Zoom or your camera app, then try again.",
+  },
+  "not-found": {
+    title: "No camera found",
+    body: "We couldn't find a front camera on this device. Try a different phone to finish verification.",
+  },
+  "in-app-browser": {
+    title: "Open in your browser",
+    body: "The camera doesn't work inside this app's built-in browser. Tap the menu and choose “Open in Chrome” or “Open in Safari”, then continue.",
+  },
+  insecure: {
+    title: "Insecure connection",
+    body: "The camera only works over a secure (https) connection. Reopen this page from the link we sent you.",
+  },
+  unknown: {
+    title: "Camera didn't start",
+    body: "Something stopped the camera from opening. Try again, or switch to another browser if it keeps happening.",
+  },
+};
 
 // â”€â”€â”€ Helper: generate UUID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -319,6 +381,7 @@ export function LivenessCapture({
   const [sessionId] = useState(generateUUID());
   const [capturedFrame, setCapturedFrame] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [cameraErrorKind, setCameraErrorKind] = useState<CameraErrorKind>("unknown");
   const [feedbackMessage, setFeedbackMessage] = useState<string>("");
   const [headTurnProgress, setHeadTurnProgress] = useState(0);
   const [antiFraudFlags, setAntiFraudFlags] = useState<string[]>([]);
@@ -481,6 +544,12 @@ export function LivenessCapture({
 
   const startCamera = useCallback(async () => {
     try {
+      // In-app browsers and insecure contexts leave mediaDevices undefined,
+      // which would otherwise throw a TypeError and be misreported as a
+      // generic device failure.
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("getUserMedia unavailable");
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: 640, height: 480 },
       });
@@ -492,21 +561,30 @@ export function LivenessCapture({
       setStage("precheck");
     } catch (err: any) {
       if (
-        err.name === "NotAllowedError" ||
-        err.name === "PermissionDeniedError"
+        err?.name === "NotAllowedError" ||
+        err?.name === "PermissionDeniedError"
       ) {
+        logLivenessEvent("camera_permission_denied");
         setStage("permission-denied");
-      } else {
-        // DEV bypass — skip camera and proceed to precheck
-        if (import.meta.env.DEV) {
-          setStage("precheck");
-          return;
-        }
-        setErrorMessage("Camera not available on this device.");
-        setStage("failure");
+        return;
       }
+
+      // DEV bypass — skip camera and proceed to precheck
+      if (import.meta.env.DEV) {
+        setStage("precheck");
+        return;
+      }
+
+      const kind = classifyCameraError(err);
+      logLivenessEvent("camera_start_failed", {
+        kind,
+        errorName: err?.name ?? null,
+        userAgent: navigator.userAgent,
+      });
+      setCameraErrorKind(kind);
+      setStage("camera-error");
     }
-  }, []);
+  }, [logLivenessEvent]);
 
   // â”€â”€â”€ Model loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -1127,6 +1205,40 @@ export function LivenessCapture({
         >
           <RefreshCw className="w-4 h-4 mr-2" /> Try Again
         </Button>
+      </motion.div>
+    );
+  }
+
+  if (stage === "camera-error") {
+    const copy = CAMERA_ERROR_COPY[cameraErrorKind];
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6 py-4 text-center"
+      >
+        <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto">
+          <VideoOff className="w-10 h-10 text-amber-500" />
+        </div>
+        <div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">{copy.title}</h3>
+          <p className="text-sm text-gray-500 leading-relaxed px-4">{copy.body}</p>
+        </div>
+        <div className="space-y-3">
+          <Button
+            onClick={() => {
+              setStage("permission");
+              void startCamera();
+            }}
+            className="w-full h-12 rounded-full bg-[#EC1B84] font-bold text-white hover:bg-[#D41574]"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" /> Try Again
+          </Button>
+        </div>
+        <p className="text-xs text-gray-400 px-6">
+          Your details are saved. You can finish this step on another phone or
+          browser and pick up where you left off.
+        </p>
       </motion.div>
     );
   }
