@@ -543,7 +543,19 @@ export default function ApplyPage() {
     null,
   );
 
-  const [onboardingStep, setOnboardingStep] = useState(1);
+  // How far the applicant got. Never persisted before, so any reload — or
+  // simply switching apps and coming back — dropped them at step 1 with their
+  // answers intact but their position lost.
+  const [onboardingStep, setOnboardingStep] = useState<number>(() => {
+    const saved = Number(globalThis.localStorage.getItem("agenda_onboarding_step"));
+    return Number.isFinite(saved) && saved >= 1 && saved <= 4 ? saved : 1;
+  });
+
+  useEffect(() => {
+    if (onboardingStep >= 1) {
+      globalThis.localStorage.setItem("agenda_onboarding_step", String(onboardingStep));
+    }
+  }, [onboardingStep]);
   const [onboardingDirection, setOnboardingDirection] = useState(0);
   const [showEligibilityTransition, setShowEligibilityTransition] =
     useState(false);
@@ -588,15 +600,26 @@ export default function ApplyPage() {
       hasAcceptedTerms: false,
     };
 
+  // Draft lives in localStorage, not sessionStorage. The flow now sends the
+  // applicant out to a verification provider and back, and a mobile browser
+  // routinely evicts the tab while they're away — which takes sessionStorage
+  // with it and would cost them a paid verification to redo. Cleared on
+  // successful submit so the PII doesn't outlive the application.
   const [onboardingData, setOnboardingData] = useState<OnboardingData>(() => {
-    const saved = globalThis.sessionStorage.getItem("agenda_onboarding_data");
-    return saved
-      ? { ...DEFAULT_ONBOARDING_DATA, ...JSON.parse(saved) }
-      : DEFAULT_ONBOARDING_DATA;
+    const saved =
+      globalThis.localStorage.getItem("agenda_onboarding_data") ??
+      globalThis.sessionStorage.getItem("agenda_onboarding_data");
+    try {
+      return saved
+        ? { ...DEFAULT_ONBOARDING_DATA, ...JSON.parse(saved) }
+        : DEFAULT_ONBOARDING_DATA;
+    } catch {
+      return DEFAULT_ONBOARDING_DATA;
+    }
   });
 
   useEffect(() => {
-    globalThis.sessionStorage.setItem(
+    globalThis.localStorage.setItem(
       "agenda_onboarding_data",
       JSON.stringify(onboardingData),
     );
@@ -672,6 +695,7 @@ export default function ApplyPage() {
         throw new Error(p?.message || "That code didn't work. Please try again.");
       }
       setFinalLoanStatus(p?.loan?.status || "PENDING");
+      clearOnboardingDraft();
       setView("success");
     } catch (err: any) {
       setMandateOtp("");
@@ -761,6 +785,13 @@ export default function ApplyPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // ─── Backend-Driven Navigation Helper ───
+  /** The backend's view of progress vs. what this device remembers — take
+   * whichever is further, so a reload never costs the applicant work. */
+  const furthestStep = (backendStep: number): number => {
+    const saved = Number(globalThis.localStorage.getItem("agenda_onboarding_step"));
+    return Number.isFinite(saved) ? Math.max(backendStep, Math.min(saved, 4)) : backendStep;
+  };
+
   const handleAuthResponse = useCallback(
     (data: any) => {
       // 🎯 Use data.user if wrapped, else assume 'data' IS the user profile
@@ -820,11 +851,16 @@ export default function ApplyPage() {
           break;
         case "ONBOARDING_KYC":
           setView("onboarding");
-          setOnboardingStep(3); // Direct to ID upload step
+          setOnboardingStep(furthestStep(3));
           break;
         case "ONBOARDING_PERSONAL":
           setView("onboarding");
-          setOnboardingStep(1); // Direct to Bio-data
+          // The backend only knows what's been submitted, and nothing is
+          // written until the final submit — so mid-onboarding it always
+          // reports PERSONAL. Honouring that literally would send someone who
+          // had already finished identity verification back to their name and
+          // address. Resume from whichever point is further along.
+          setOnboardingStep(furthestStep(1));
           break;
         default:
           // Safety fallback: If backend doesn't provide a valid nextStep
@@ -1663,6 +1699,15 @@ export default function ApplyPage() {
     setShowEligibilityTransition(true);
   };
 
+  /** The application is in — drop the local draft so a stranger picking up the
+   * phone can't read the applicant's name, address and Ghana Card number out
+   * of storage. */
+  const clearOnboardingDraft = () => {
+    globalThis.localStorage.removeItem("agenda_onboarding_data");
+    globalThis.localStorage.removeItem("agenda_onboarding_step");
+    globalThis.sessionStorage.removeItem("agenda_onboarding_data");
+  };
+
   const handleOnboardingSubmit = async () => {
     setErrorMessage(null);
     const err = validateOnboardingStep(onboardingStep);
@@ -1855,6 +1900,7 @@ export default function ApplyPage() {
       }
 
       setFinalLoanStatus(loanStatus);
+      clearOnboardingDraft();
       setView("success");
     } catch (e: any) {
       setErrorMessage(e?.message || "Onboarding failed.");
