@@ -21,6 +21,12 @@ import {
   type CollectionProviderName,
 } from "@/api/orchard.api";
 import {
+  getKycProvider,
+  setKycProvider,
+  getDiditHealth,
+  type KycProviderName,
+} from "@/api/kyc.api";
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useTheme } from "next-themes";
@@ -365,6 +371,31 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
     onError: () => toast.error("Failed to switch collection provider"),
   });
 
+  // ── KYC Provider Switch (governs which identity flow applicants get) ─────
+  const { data: kycProvider, isLoading: kycProviderLoading } = useQuery({
+    queryKey: ["kyc-provider"],
+    queryFn: getKycProvider,
+  });
+
+  const { data: diditHealth } = useQuery({
+    queryKey: ["didit-health"],
+    queryFn: getDiditHealth,
+  });
+
+  const kycProviderMut = useMutation({
+    mutationFn: setKycProvider,
+    onSuccess: (provider) => {
+      toast.success(
+        provider === "DIDIT"
+          ? "New applicants will now verify through Didit"
+          : "New applicants will now use the in-app liveness check",
+      );
+      qc.invalidateQueries({ queryKey: ["kyc-provider"] });
+    },
+    onError: (err: any) =>
+      toast.error(err?.response?.data?.message || "Failed to switch KYC provider"),
+  });
+
   // ── Generic Trigger Collection (any loan, either provider) ────────────────
   const [collectLoanRef, setCollectLoanRef] = useState("");
   const [collectAmount, setCollectAmount] = useState("");
@@ -472,6 +503,66 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
                 </SelectContent>
               </Select>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Identity Verification</CardTitle>
+          <CardDescription>Which flow applicants use to submit their Ghana Card and selfie</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {kycProviderLoading ? (
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium text-sm">Active provider</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Applies to applicants who reach the KYC step after the switch. Anyone
+                    already mid-verification finishes on the flow they started, and their
+                    result still lands.
+                  </p>
+                </div>
+                <Select
+                  value={kycProvider?.activeProvider ?? "INTERNAL"}
+                  onValueChange={(v) => kycProviderMut.mutate(v as KycProviderName)}
+                  disabled={!canWrite || kycProviderMut.isPending}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INTERNAL">In-app (current)</SelectItem>
+                    <SelectItem value="DIDIT" disabled={!kycProvider?.diditConfigured}>
+                      Didit
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {!kycProvider?.diditConfigured && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                  <p className="text-xs font-medium text-amber-900">Didit not configured here</p>
+                  <p className="text-xs text-amber-800 mt-0.5">
+                    Set DIDIT_API_KEY and DIDIT_WORKFLOW_ID on this environment to enable it.
+                  </p>
+                </div>
+              )}
+
+              {kycProvider?.diditConfigured && diditHealth && !diditHealth.webhookSecretConfigured && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                  <p className="text-xs font-medium text-amber-900">Running without webhooks</p>
+                  <p className="text-xs text-amber-800 mt-0.5">
+                    DIDIT_WEBHOOK_SECRET isn't set, so results are collected when the applicant
+                    returns to the page rather than pushed by Didit. Fine for testing; set the
+                    secret before relying on it in production.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

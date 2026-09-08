@@ -35,6 +35,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSocketContext } from "@/contexts/SocketContext";
 import api, { getUserLoansHistory, getUserRepaymentsHistory } from "@/lib/api";
 import { getApiBaseUrl } from "@/lib/domain";
+import {
+  getActiveKycProvider,
+  createDiditSession,
+  syncDiditSession,
+  type KycProviderName,
+} from "@/api/kyc.api";
 import { uploadToStorage } from "@/lib/storage";
 import { TIER_LIMITS, TIERS, type TierConfig } from "@/lib/constants";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
@@ -609,6 +615,11 @@ export default function ApplyPage() {
 
   // Identity Verification Sub-step State
   const [identityStep, setIdentityStep] = useState<"intro" | "upload">("intro");
+  // Which identity flow this applicant gets. Resolved from the backend so the
+  // provider can be switched from the admin dashboard without a deploy.
+  const [kycProvider, setKycProvider] = useState<KycProviderName>("INTERNAL");
+  const [isStartingDidit, setIsStartingDidit] = useState(false);
+  const [isReturningFromDidit, setIsReturningFromDidit] = useState(false);
   const [identityConsent, setIdentityConsent] = useState(false);
   const [expandedUpload, setExpandedUpload] = useState<"id" | "selfie" | null>(
     null,
@@ -1504,6 +1515,76 @@ export default function ApplyPage() {
     }
   };
 
+  const DIDIT_SESSION_KEY = "agenda.didit.sessionId";
+
+  // Resolve the active provider once. Failure falls back to INTERNAL, so a
+  // backend hiccup can never leave an applicant with no way to verify.
+  useEffect(() => {
+    let cancelled = false;
+    getActiveKycProvider()
+      .then((p) => {
+        if (!cancelled) setKycProvider(p);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Coming back from Didit's hosted flow. The session id is stashed before we
+  // redirect rather than read from the URL, so it can't be tampered with on
+  // the way back — and the backend re-checks ownership regardless.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get("didit_return")) return;
+
+    const sessionId = globalThis.localStorage.getItem(DIDIT_SESSION_KEY);
+    globalThis.localStorage.removeItem(DIDIT_SESSION_KEY);
+
+    // Clear the marker so a refresh doesn't re-run this.
+    window.history.replaceState({}, "", window.location.pathname);
+    if (!sessionId) return;
+
+    // Pull the result, then re-read the profile so the KYC status and the
+    // images Didit captured are reflected without a manual refresh.
+    const refreshProfile = async () => {
+      const token = globalThis.sessionStorage.getItem("agenda_token");
+      if (!token) return;
+      const r = await fetch(`${baseApiUrl}/api/auth/me`, {
+        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+      });
+      const payload = await r.json();
+      if (r.ok && (payload?.user || payload?.msisdn)) handleAuthResponse(payload);
+    };
+
+    setIsReturningFromDidit(true);
+    syncDiditSession(sessionId)
+      .then(() => refreshProfile())
+      .catch(() => {
+        setErrorMessage(
+          "We couldn't confirm your verification yet. It may still be processing — please continue and we'll review it.",
+        );
+      })
+      .finally(() => setIsReturningFromDidit(false));
+  }, []);
+
+  const startDiditVerification = async () => {
+    setIsStartingDidit(true);
+    setErrorMessage(null);
+    try {
+      const returnUrl = `${window.location.origin}${window.location.pathname}?didit_return=1`;
+      const session = await createDiditSession(returnUrl);
+      globalThis.localStorage.setItem(DIDIT_SESSION_KEY, session.sessionId);
+      window.location.href = session.url;
+    } catch (err: any) {
+      setIsStartingDidit(false);
+      setErrorMessage(
+        err?.response?.data?.message ||
+          "We couldn't start identity verification. Please try again.",
+      );
+    }
+  };
+
   const handleOnboardingNext = () => {
     // If on Step 3 (Identity) and in 'intro' mode, move to 'upload'
     if (onboardingStep === 3 && identityStep === "intro") {
@@ -1511,8 +1592,15 @@ export default function ApplyPage() {
         setErrorMessage("Please agree to the terms to continue.");
         return;
       }
-      setIdentityStep("upload");
       setErrorMessage(null);
+      // Didit collects the Ghana Card and the liveness check in its own hosted
+      // flow, so it replaces the whole upload screen rather than sitting
+      // alongside it.
+      if (kycProvider === "DIDIT") {
+        void startDiditVerification();
+        return;
+      }
+      setIdentityStep("upload");
       return;
     }
 
@@ -3924,6 +4012,18 @@ export default function ApplyPage() {
                 </div>
               )}
 
+              {isReturningFromDidit && (
+                <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-white px-6 text-center">
+                  <Loader2 className="mb-6 h-10 w-10 animate-spin text-[#EC1B84]" />
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Confirming your verification
+                  </h3>
+                  <p className="mt-2 max-w-xs text-sm text-gray-500">
+                    This only takes a moment.
+                  </p>
+                </div>
+              )}
+
               {/* Step 3: Identity Verification */}
               {onboardingStep === 3 && (
                 <div className="space-y-6">
@@ -3969,6 +4069,12 @@ export default function ApplyPage() {
                               A Quick Selfie
                             </li>
                           </ul>
+                          {kycProvider === "DIDIT" && (
+                            <p className="text-sm text-gray-500 font-medium leading-relaxed pt-1">
+                              You'll be taken to our verification partner to capture these,
+                              then brought straight back here.
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -4000,7 +4106,7 @@ export default function ApplyPage() {
 
                       <Button
                         onClick={handleOnboardingNext}
-                        disabled={!identityConsent}
+                        disabled={!identityConsent || isStartingDidit}
                         className={cn(
                           "w-full h-12 rounded-full font-bold hover:bg-gray-300 disabled:opacity-50 transition-all",
                           identityConsent
@@ -4008,7 +4114,14 @@ export default function ApplyPage() {
                             : "bg-gray-200 text-gray-500",
                         )}
                       >
-                        Continue
+                        {isStartingDidit ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Opening verification...
+                          </>
+                        ) : (
+                          "Continue"
+                        )}
                       </Button>
                     </div>
                   )}
