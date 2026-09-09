@@ -36,7 +36,14 @@ export const LoansTab: React.FC<LoansTabProps> = ({ onBack, onRepay, loan, repay
   // Urgency Logic
   const loanStatus = loan?.status || loan?.loanStatus;
   const isUrgent = activeLoan ? (activeLoan.daysRemaining < 3 && activeLoan.daysRemaining >= 0) : false;
-  const isOverdue = activeLoan ? (activeLoan.daysRemaining < 0 || String(loanStatus).toUpperCase() === 'DEFAULTED') : false;
+  // OVERDUE is the status a loan carries from the day after its due date;
+  // DEFAULTED only arrives 30 days later. Checking only DEFAULTED meant a loan
+  // in that first month rendered as a normal active loan — no red banner, no
+  // days count — which the clamped daysRemaining could not rescue either.
+  const isOverdue = activeLoan
+    ? activeLoan.daysRemaining < 0 ||
+      ['OVERDUE', 'DEFAULTED'].includes(String(loanStatus).toUpperCase())
+    : false;
 
   const renderTopCard = () => {
       const loanStatus = loan?.status || loan?.loanStatus;

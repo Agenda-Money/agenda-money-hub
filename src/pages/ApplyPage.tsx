@@ -1428,6 +1428,14 @@ export default function ApplyPage() {
             console.error("Post-login profile fetch failed", err);
             handleAuthResponse(p);
           }
+
+          // The loan card is fed by /api/loans/active, which until now was only
+          // triggered by an effect watching `view`. On a fresh login that fired
+          // before the token had settled into state, so a borrower who owed
+          // money saw an empty dashboard until they reloaded the page. Ask for
+          // it here, where the token is definitely in hand.
+          void fetchActiveLoan();
+          void fetchRecentActivity();
         }
       } catch (e: any) {
         setErrorMessage(getFriendlyErrorMessage(e));
@@ -1435,7 +1443,15 @@ export default function ApplyPage() {
         setIsVerifying(false);
       }
     },
-    [normalizedMsisdn, otp, setApplicant, isVerifying, handleAuthResponse],
+    [
+      normalizedMsisdn,
+      otp,
+      setApplicant,
+      isVerifying,
+      handleAuthResponse,
+      fetchActiveLoan,
+      fetchRecentActivity,
+    ],
   );
 
   const handleResend = async () => {
