@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { DashboardLayout } from "@/components/layout/DashboardLayout"
 import { useAuth } from "@/contexts/AuthContext"
+import { resetRollingWindow } from "@/lib/api"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 // FORCE RELOAD: Ensuring UserCheck is imported from lucide-react
@@ -22,7 +23,8 @@ import {
   ShieldAlert,
   Phone,
   PhoneCall,
-  UserCheck
+  UserCheck,
+  RefreshCw,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -539,6 +541,21 @@ export default function UserDetailsPage() {
     onError: (err) => toast.error(getFriendlyErrorMessage(err))
   })
 
+  // Clears the 30-day loan-request count. Kept behind a typed reason like the
+  // other overrides here, since it hands someone back borrowing capacity.
+  const [isResetWindowModalOpen, setIsResetWindowModalOpen] = useState(false)
+  const [resetWindowReason, setResetWindowReason] = useState('')
+  const resetWindowMutation = useMutation({
+    mutationFn: (reason: string) => resetRollingWindow(user.msisdn, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-detail', id] })
+      toast.success('Monthly loan limit reset')
+      setIsResetWindowModalOpen(false)
+      setResetWindowReason('')
+    },
+    onError: (err) => toast.error(getFriendlyErrorMessage(err))
+  })
+
   if (isLoading) return (
     <DashboardLayout>
       <div className="flex h-[60vh] items-center justify-center">
@@ -947,6 +964,16 @@ export default function UserDetailsPage() {
                            Lift Blacklist
                          </Button>
                        )}
+                       {canWrite && (
+                         <Button
+                           size="sm"
+                           variant="outline"
+                           className="shrink-0"
+                           onClick={() => setIsResetWindowModalOpen(true)}
+                         >
+                           Reset Loan Limit
+                         </Button>
+                       )}
                     </div>
                   </div>
                 </Card>
@@ -1081,6 +1108,53 @@ export default function UserDetailsPage() {
                   )}
                 >
                   {blockMutation.isPending ? "Processing..." : (user.isBlocked ? "Confirm Unblock" : "Confirm Block")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {isResetWindowModalOpen && (
+          <Dialog open={isResetWindowModalOpen} onOpenChange={setIsResetWindowModalOpen}>
+            <DialogContent className="max-w-md rounded-3xl p-6">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <RefreshCw className="text-pink-600" size={20} />
+                  Reset Loan Limit
+                </DialogTitle>
+                <DialogDescription className="text-xs font-bold text-gray-500 uppercase tracking-tight mt-2">
+                  Clears the rolling 30-day loan-request count for {user.fullName}, letting
+                  them apply again straight away. Use when the count is wrong — a loan
+                  removed directly from the database, or one that never disbursed.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="py-6 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Reason for reset</Label>
+                  <Input
+                    value={resetWindowReason}
+                    onChange={(e) => setResetWindowReason(e.target.value)}
+                    placeholder="e.g. Mandate setup failed, loan never disbursed..."
+                    className="rounded-xl border-pink-100/50 focus:ring-pink-500"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsResetWindowModalOpen(false)}
+                  className="rounded-xl border-pink-100 text-gray-500 font-bold uppercase text-[10px] tracking-widest"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => resetWindowMutation.mutate(resetWindowReason)}
+                  disabled={resetWindowMutation.isPending || !resetWindowReason.trim()}
+                  className="rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg bg-pink-600 hover:bg-pink-700 text-white shadow-pink-900/20"
+                >
+                  {resetWindowMutation.isPending ? "Processing..." : "Confirm Reset"}
                 </Button>
               </DialogFooter>
             </DialogContent>

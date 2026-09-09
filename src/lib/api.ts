@@ -518,6 +518,19 @@ export const unblockUser = async (msisdn: string, reason?: string) => {
   return response.data;
 };
 
+/**
+ * Clears the Redis rolling-window count for a customer.
+ *
+ * The window counts loan *requests* over 30 days, and its entries outlive the
+ * loans themselves — a row deleted straight from Mongo, or historically a loan
+ * that never disbursed, leaves a phantom entry that keeps blocking new
+ * applications. Redis is authoritative, so this is the only way to clear one.
+ */
+export const resetRollingWindow = async (msisdn: string, reason?: string) => {
+  const response = await api.patch(`/api/admin/loans/rolling-window/${msisdn}/reset`, { reason });
+  return response.data;
+};
+
 export const liftUserBlacklist = async (msisdn: string, reason?: string) => {
   const response = await api.patch(`/api/admin/users/${msisdn}/blacklist/lift`, { reason });
   return response.data;
