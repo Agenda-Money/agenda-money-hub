@@ -29,8 +29,22 @@ export interface DiditHealth {
   baseUrl: string;
 }
 
-export async function getDiditHealth(): Promise<DiditHealth> {
-  const res = await api.get('/api/kyc/didit/health');
+export interface DiditBalance {
+  available: number | null;
+  currency?: string;
+  raw: unknown;
+}
+
+/**
+ * Admin-only. This used to be a public /api/kyc route, which published the
+ * Didit account balance to anyone who asked for it.
+ */
+export async function getDiditHealth(
+  opts: { balance?: boolean } = {},
+): Promise<DiditHealth & { balance?: DiditBalance | null }> {
+  const res = await api.get('/api/admin/settings/kyc-provider/didit/health', {
+    params: opts.balance ? { balance: 1 } : undefined,
+  });
   return res.data;
 }
 

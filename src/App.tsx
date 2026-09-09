@@ -15,7 +15,6 @@ import { RequireAuth } from "@/components/auth/RequireAuth";
 import RequireAgent from "@/components/auth/RequireAgent";
 import AgentLayout from "./components/layout/AgentLayout";
 import { SessionManager } from "./components/auth/SessionManager";
-import InstallPWA from "./components/InstallPWA";
 import { CsaAuthProvider, useCsaAuth } from "@/contexts/CsaAuthContext";
 import CsaLayout from "./components/csa/CsaLayout";
 import { getSubdomain } from "@/lib/domain";
@@ -223,7 +222,6 @@ const App = () => {
         <ApplicantProvider>
           <SocketProvider>
             <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-              <InstallPWA />
               <TooltipProvider>
               <Toaster />
               <Sonner />

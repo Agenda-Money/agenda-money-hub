@@ -430,7 +430,9 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
 
   const { data: diditHealth } = useQuery({
     queryKey: ["didit-health"],
-    queryFn: getDiditHealth,
+    // Asks for the credit balance too — this is the admin dashboard, and the
+    // balance is the thing worth seeing next to the provider switch.
+    queryFn: () => getDiditHealth({ balance: true }),
   });
 
   // Mint a verification link for one borrower and hand it to the admin to send.
@@ -675,6 +677,30 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
                   )}
                 </div>
               )}
+
+              {/* Credit is the thing that silently stops Didit working: custom
+                  branding is billed per session with no free allowance, and a
+                  session Didit cannot charge for is refused outright, so an
+                  empty balance blocks every applicant at the identity step. */}
+              {kycProvider?.diditConfigured &&
+                typeof diditHealth?.balance?.available === "number" && (
+                  <div
+                    className={`rounded-md border px-3 py-2 ${
+                      diditHealth.balance.available <= 10
+                        ? "border-amber-200 bg-amber-50"
+                        : "border-slate-200 bg-slate-50"
+                    }`}
+                  >
+                    <p className="text-xs font-medium text-slate-900">
+                      Didit credit: ${diditHealth.balance.available.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      About {Math.floor(diditHealth.balance.available / 0.2)} more branded
+                      verifications. At zero, Didit refuses new sessions and applicants cannot
+                      pass the identity step.
+                    </p>
+                  </div>
+                )}
 
               {kycProvider?.diditConfigured && diditHealth && !diditHealth.webhookSecretConfigured && (
                 <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
