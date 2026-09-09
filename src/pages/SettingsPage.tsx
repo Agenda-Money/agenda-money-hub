@@ -34,6 +34,7 @@ import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
+import { sendTestAlert, type TestAlertResult } from "@/api/alerts.api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -1406,6 +1407,30 @@ export default function SettingsPage() {
   const [isInviteCsaModalOpen, setIsInviteCsaModalOpen] = useState(false);
   const [isInviteReportingModalOpen, setIsInviteReportingModalOpen] = useState(false);
 
+  // Test alert. Deliberately shows the raw per-channel result rather than a
+  // toast: "sent" is exactly what a broken alert path says too, and the reason
+  // a channel failed is the only useful part.
+  const [testingAlert, setTestingAlert] = useState(false);
+  const [alertTestResult, setAlertTestResult] = useState<TestAlertResult | null>(null);
+  const runTestAlert = async () => {
+    setTestingAlert(true);
+    setAlertTestResult(null);
+    try {
+      const result = await sendTestAlert();
+      setAlertTestResult(result);
+      if (result.sms.ok && result.email.ok) {
+        toast.success("Test alert delivered on both channels");
+      } else {
+        toast.warning("Test alert finished with a failing channel — see the detail below");
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Could not send the test alert");
+    } finally {
+      setTestingAlert(false);
+    }
+  };
+
+
   // General settings states
   const [platformName, setPlatformName] = useState("");
   const [supportPhone, setSupportPhone] = useState("");
@@ -1708,6 +1733,54 @@ export default function SettingsPage() {
               </p>
             </div>
             <SystemJobsPanel canWrite={canWrite} />
+
+            <Card className="mt-4">
+              <SettingsCardHeader
+                icon={BellRing}
+                title="Operational alerts"
+                description="Critical failures text ADMIN_PHONE; warnings email ALERT_EMAIL. Send a test to prove both actually arrive."
+              />
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Alerts are built to swallow their own failures, so a dead SMS account
+                  or an ALERT_EMAIL the running process never received looks exactly
+                  like a quiet week. This sends one real alert down each channel.
+                </p>
+                <Button
+                  variant="outline"
+                  disabled={!canWrite || testingAlert}
+                  onClick={runTestAlert}
+                >
+                  {testingAlert ? "Sending…" : "Send test alert"}
+                </Button>
+
+                {alertTestResult && (
+                  <div className="space-y-2">
+                    {(["sms", "email"] as const).map((channel) => {
+                      const r = alertTestResult[channel];
+                      const label = channel === "sms" ? "SMS to ADMIN_PHONE" : "Email to ALERT_EMAIL";
+                      return (
+                        <div
+                          key={channel}
+                          className={`rounded-md border px-3 py-2 ${
+                            r.ok
+                              ? "border-emerald-200 bg-emerald-50"
+                              : "border-red-200 bg-red-50"
+                          }`}
+                        >
+                          <p className="text-xs font-medium text-slate-900">
+                            {label}: {r.ok ? "delivered" : r.attempted ? "failed" : "not attempted"}
+                          </p>
+                          {r.detail && (
+                            <p className="text-xs text-slate-700 mt-0.5 break-words">{r.detail}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="notifications" className="mt-4">
