@@ -717,6 +717,19 @@ export default function ApplyPage() {
     }
   };
 
+  /** Leaves the confirmation screen without abandoning the loan.
+   *
+   * The loan stays AWAITING_MANDATE and the expiry job still governs it, so
+   * nothing is lost — the borrower simply is not trapped. The auto-resume
+   * effect is disarmed for this session so it does not immediately drag them
+   * back; a fresh login resumes as before. */
+  const handleSkipMandateForNow = () => {
+    hasAutoResumedMandateRef.current = true;
+    setMandateOtp("");
+    setMandateError(null);
+    setView("loan-dashboard");
+  };
+
   const handleResendMandateOtp = async () => {
     if (mandateResendSeconds > 0 || isMandateResending || !mandateLoanReference)
       return;
@@ -2483,6 +2496,18 @@ export default function ApplyPage() {
               : mandateResendSeconds > 0
                 ? `Resend code in ${mandateResendSeconds}s`
                 : "Resend code"}
+          </button>
+
+          {/* An escape. This screen used to have only Confirm and Resend, and
+              if neither could work — no mandate on Orchard's side, their
+              service down — the borrower was held here permanently, with
+              re-login putting them straight back. Someone who has just been
+              approved for a loan must always be able to reach their dashboard. */}
+          <button
+            onClick={handleSkipMandateForNow}
+            className="text-sm text-gray-500 font-medium hover:underline block mx-auto pt-1"
+          >
+            I'll do this later
           </button>
         </div>
       </div>
