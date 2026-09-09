@@ -25,6 +25,7 @@ import {
   setKycProvider,
   getDiditHealth,
   type KycProviderName,
+  createDiditLinkForCustomer,
 } from "@/api/kyc.api";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -432,6 +433,19 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
     queryFn: getDiditHealth,
   });
 
+  // Mint a verification link for one borrower and hand it to the admin to send.
+  const [linkMsisdn, setLinkMsisdn] = useState("");
+  const [mintedLink, setMintedLink] = useState<{ url: string; fullName?: string } | null>(null);
+  const diditLinkMut = useMutation({
+    mutationFn: createDiditLinkForCustomer,
+    onSuccess: (res) => {
+      setMintedLink({ url: res.url, fullName: res.fullName });
+      toast.success(`Verification link ready for ${res.fullName || res.msisdn}`);
+    },
+    onError: (err: any) =>
+      toast.error(err?.response?.data?.message || "Couldn't create a verification link"),
+  });
+
   const kycProviderMut = useMutation({
     mutationFn: setKycProvider,
     onSuccess: (provider) => {
@@ -604,6 +618,61 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
                   <p className="text-xs text-amber-800 mt-0.5">
                     Set DIDIT_API_KEY and DIDIT_WORKFLOW_ID on this environment to enable it.
                   </p>
+                </div>
+              )}
+
+              {kycProvider?.diditConfigured && (
+                <div className="border-t pt-4">
+                  <p className="font-medium text-sm mb-0.5">Send a verification link</p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Creates a link for one customer. Because it's tied to their number, whatever
+                    they submit files itself against their record — a generic link from Didit's
+                    dashboard has nothing to attach to.
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      placeholder="Customer number (e.g. 0541234567)"
+                      value={linkMsisdn}
+                      onChange={(e) => setLinkMsisdn(e.target.value)}
+                      className="sm:flex-1"
+                    />
+                    <Button
+                      onClick={() => diditLinkMut.mutate(linkMsisdn.trim())}
+                      disabled={!canWrite || !linkMsisdn.trim() || diditLinkMut.isPending}
+                      className="shrink-0"
+                    >
+                      {diditLinkMut.isPending ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating</>
+                      ) : (
+                        "Create link"
+                      )}
+                    </Button>
+                  </div>
+
+                  {mintedLink && (
+                    <div className="mt-3 rounded-md border bg-muted/40 p-3">
+                      <p className="text-xs text-muted-foreground mb-1.5">
+                        Link for {mintedLink.fullName || "this customer"} — single use, expires per
+                        your Didit settings.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 truncate rounded bg-background px-2 py-1.5 text-xs">
+                          {mintedLink.url}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => {
+                            void navigator.clipboard.writeText(mintedLink.url);
+                            toast.success("Link copied");
+                          }}
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

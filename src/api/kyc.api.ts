@@ -86,3 +86,18 @@ export async function syncDiditSession(sessionId: string): Promise<DiditSyncResu
   const res = await api.post(`/api/kyc/didit/session/${encodeURIComponent(sessionId)}/sync`);
   return res.data;
 }
+
+export interface DiditLinkResult {
+  msisdn: string;
+  fullName?: string;
+  sessionId: string;
+  url: string;
+}
+
+/** Mints a verification link tied to one borrower. Unlike a reusable link from
+ * Didit's dashboard, the session carries their msisdn, so the result files
+ * itself against their record when they finish. */
+export async function createDiditLinkForCustomer(msisdn: string): Promise<DiditLinkResult> {
+  const res = await api.post('/api/admin/settings/kyc-provider/didit/link', { msisdn });
+  return res.data;
+}

@@ -83,8 +83,8 @@ const InstallPWA: React.FC = () => {
     <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
       <DialogContent className="sm:max-w-[400px] rounded-3xl p-6 border-none shadow-2xl bg-white/95 backdrop-blur-md">
         <DialogHeader className="items-center text-center">
-          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-slate-100 overflow-hidden p-3">
-            <img src="/logo.png?v=2" alt="Agenda Money" className="w-full h-full object-contain" />
+          <div className="w-16 h-16 rounded-2xl mb-4 shadow-sm overflow-hidden">
+            <img src="/icon-192.png?v=5" alt="Agenda Money" className="w-full h-full object-cover" />
           </div>
           <DialogTitle className="text-2xl font-bold text-slate-900">Install Agenda Money</DialogTitle>
           <DialogDescription className="text-slate-600 mt-2">
