@@ -2667,6 +2667,12 @@ export default function ApplyPage() {
                 <ProfileTab
                   onboardingData={onboardingData}
                   userData={userData || applicant}
+                  msisdn={
+                    normalizedMsisdn ||
+                    (userData as any)?.msisdn ||
+                    (applicant as any)?.msisdn ||
+                    null
+                  }
                   isGraduatedNode={
                     applicant?.isGraduatedNode === true ||
                     applicant?.isGraduatedNode === "true" ||

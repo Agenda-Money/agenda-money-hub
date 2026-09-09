@@ -21,6 +21,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 interface ProfileTabProps {
   onboardingData?: any; // Made optional
   userData?: any; // Made optional
+  /** The number this session authenticated with. Last resort for the header:
+   * userData's shape varies by the route that populated it, and straight after
+   * onboarding it can arrive without an msisdn at all. */
+  msisdn?: string | null;
   onShowTerms?: () => void; // Made optional
   onShowPrivacy?: () => void; // Made optional
   onHelp?: () => void; // Made optional
@@ -30,9 +34,21 @@ interface ProfileTabProps {
   onNetwork?: () => void; // Added
 }
 
+/** Renders a Ghanaian number as +233 24 123 4567. */
+function formatGhanaMsisdn(value?: string | null): string | null {
+  if (!value) return null;
+  let digits = String(value).replace(/\D/g, "");
+  if (digits.startsWith("0")) digits = `233${digits.slice(1)}`;
+  if (digits.length === 9) digits = `233${digits}`;
+  if (!digits.startsWith("233") || digits.length !== 12) return null;
+  const local = digits.slice(3);
+  return `+233 ${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5)}`;
+}
+
 export const ProfileTab: React.FC<ProfileTabProps> = ({
   onboardingData,
   userData,
+  msisdn,
   onShowTerms,
   onShowPrivacy,
   onHelp,
@@ -65,7 +81,18 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
   const surname = displaySurname || ""; // Removed "Name" default
   const fullName = `${firstName} ${surname}`.trim().toUpperCase();
   const initials = `${firstName?.[0] || ""}${surname?.[0] || ""}`.toUpperCase();
-  const phone = userData?.mobileNumber || userData?.msisdn || onboardingData?.mobileNumber || "+233 -- --- ----";
+  // getMe nests the profile under .user while other responses flatten it, and
+  // onboardingData never carried mobileNumber at all — so the old lookup found
+  // nothing on a freshly onboarded account and showed the placeholder until the
+  // customer logged out and back in.
+  const rawPhone =
+    userData?.msisdn ||
+    userData?.mobileNumber ||
+    userData?.user?.msisdn ||
+    msisdn ||
+    onboardingData?.msisdn ||
+    onboardingData?.mobileNumber;
+  const phone = formatGhanaMsisdn(rawPhone) || "+233 -- --- ----";
   const personalNodeCode = userData?.personalNodeCode || (userData as any)?.user?.personalNodeCode || userData?.nodeCode;
 
   const handleShare = async () => {
