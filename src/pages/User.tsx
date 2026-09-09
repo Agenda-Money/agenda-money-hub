@@ -86,7 +86,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
   const summary = applicant?.summary || applicant?.activeLoan || {};
   const isKycVerified = applicant?.isKycVerified === true || applicant?.isKycVerified === "true" || (applicant as any)?.user?.isKycVerified === true;
   const isAwaitingEndorsement = summary.status === 'AWAITING_ENDORSEMENT' || activeLoanDetails?.status === 'AWAITING_ENDORSEMENT';
-  const isPending = summary.isPending || (activeLoanDetails?.status === 'PENDING' && !isAwaitingEndorsement) || summary.status === 'PENDING' || loanStatus === 'PENDING' || applicant?.loanStatus === 'PENDING';
+  // AWAITING_MANDATE is pending too — approved, but nothing disbursed until the
+  // borrower confirms the auto-repay code. Without it the card claimed an
+  // active loan with a balance to repay against money never received.
+  const isAwaitingMandate =
+    summary.status === 'AWAITING_MANDATE' || activeLoanDetails?.status === 'AWAITING_MANDATE';
+  const isPending = summary.isPending || isAwaitingMandate || (activeLoanDetails?.status === 'PENDING' && !isAwaitingEndorsement) || summary.status === 'PENDING' || loanStatus === 'PENDING' || applicant?.loanStatus === 'PENDING';
   const isOverdue = summary.isOverdue || activeLoanDetails?.isOverdue;
   const isActive = hasActiveLoan && !isPending && !isOverdue && !isAwaitingEndorsement;
   const isEligible = !isActive && !isPending && !isOverdue && !isAwaitingEndorsement;

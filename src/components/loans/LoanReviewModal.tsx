@@ -149,6 +149,11 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
   const isDisbursing = status === "DISBURSING" || status === "DISBURSING_INIT";
   const isDisbursingReview = status === "DISBURSEMENT_REVIEW";
   const isAwaitingEndorsement = status === "AWAITING_ENDORSEMENT";
+  // Approved but undisbursed, waiting on the borrower's auto-repay code. These
+  // are the loans that get stuck when a mandate cannot be created, and until
+  // now the review actions were hidden for them — so the one status most
+  // likely to need cancelling was the one an admin could not cancel.
+  const isAwaitingMandate = status === "AWAITING_MANDATE";
   const disbursementProvider = actualLoan?.disbursementProvider || loan?.disbursementProvider || "PAYSTACK";
   const providerLabel = disbursementProvider === "ORCHARD" ? "Orchard" : "Paystack";
 
@@ -574,7 +579,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
             </div>
           )}
 
-          {(isPending || isDisbursing || isAwaitingEndorsement) && canWrite && (
+          {(isPending || isDisbursing || isAwaitingEndorsement || isAwaitingMandate) && canWrite && (
             <div className="sticky bottom-0 border-t border-border bg-background/95 p-6 backdrop-blur">
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                 {isAwaitingEndorsement ? (
@@ -602,6 +607,12 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                   </Button>
                 ) : (
                   <>
+                    {isAwaitingMandate && (
+                      <div className="flex w-full items-center justify-center p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 text-sm font-medium">
+                        <Clock className="w-4 h-4 mr-2" />
+                        Waiting on the borrower's auto-repay code — cancel only
+                      </div>
+                    )}
                     <Button
                       variant="outline"
                       className="w-full sm:w-auto text-destructive border-destructive/30 hover:bg-destructive/10"
@@ -617,6 +628,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                         </>
                       )}
                     </Button>
+                    {!isAwaitingMandate && (
                     <Button
                       className={cn(
                         "w-full sm:w-auto transition-colors",
@@ -643,6 +655,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                         </>
                       )}
                     </Button>
+                    )}
                   </>
                 )}
               </div>

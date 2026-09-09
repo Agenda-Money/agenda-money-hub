@@ -2703,6 +2703,7 @@ export default function ApplyPage() {
                   isPending={
                     (applicant as any)?.summary?.isPending ||
                     activeLoanDetails?.status === "PENDING" ||
+                    activeLoanDetails?.status === "AWAITING_MANDATE" ||
                     activeLoanDetails?.status === "AWAITING_ENDORSEMENT" ||
                     (applicant as any)?.activeLoan?.status === "PENDING" ||
                     (userData as any)?.loanStatus === "PENDING" ||
