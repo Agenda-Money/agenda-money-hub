@@ -1688,6 +1688,17 @@ export default function ApplyPage() {
     }
 
     setErrorMessage(null);
+
+    // On Didit, step 3's intro screen is a page whose only content is that
+    // another page is coming — Didit's own flow opens with consent and the
+    // document picker. Go straight there from step 2 rather than making the
+    // applicant read an interstitial and tick a box to see it.
+    if (onboardingStep === 2 && kycProvider === "DIDIT") {
+      setIdentityStep("intro");
+      void startDiditVerification();
+      return;
+    }
+
     setOnboardingDirection(1);
     setOnboardingStep((p) => p + 1);
 
@@ -4537,14 +4548,15 @@ export default function ApplyPage() {
               <Button
                 onClick={handleOnboardingNext}
                 disabled={
-                  onboardingStep === 2 &&
-                  !(
-                    onboardingData.accommodationType &&
-                    onboardingData.yearsAtAddress &&
-                    onboardingData.educationLevel &&
-                    onboardingData.employmentStatus &&
-                    onboardingData.monthlyIncome
-                  )
+                  isStartingDidit ||
+                  (onboardingStep === 2 &&
+                    !(
+                      onboardingData.accommodationType &&
+                      onboardingData.yearsAtAddress &&
+                      onboardingData.educationLevel &&
+                      onboardingData.employmentStatus &&
+                      onboardingData.monthlyIncome
+                    ))
                 }
                 className={cn(
                   "flex-1 h-12 rounded-full shadow-lg transition-all",
@@ -4559,8 +4571,17 @@ export default function ApplyPage() {
                     : "bg-primary text-primary-foreground hover:bg-primary/90",
                 )}
               >
-                {onboardingStep === 2 ? "Continue" : "Next"}{" "}
-                <ArrowRight className="h-4 w-4 ml-1" />
+                {isStartingDidit ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Opening verification
+                  </>
+                ) : (
+                  <>
+                    {onboardingStep === 2 ? "Continue" : "Next"}{" "}
+                    <ArrowRight className="h-4 w-4 ml-1" />
+                  </>
+                )}
               </Button>
             </div>
           </div>
