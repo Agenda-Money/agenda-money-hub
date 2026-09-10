@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
-import { socket, joinUserRooms } from "@/lib/socket";
+import { socket, joinUserRooms, getSocketToken } from "@/lib/socket";
 import { useAuth } from "./AuthContext";
 import { useApplicant } from "./ApplicantContext";
 import { getSubdomain } from "@/lib/domain";
@@ -32,9 +32,14 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         return;
     }
 
-    // Connect to the socket server using the singleton
+    // Connect to the socket server using the singleton. The token goes on the
+    // handshake so the server's io.use() middleware can attach the user before
+    // any join is attempted; joinUserRooms sends it again as a fallback for a
+    // reconnect that happens after the token has been refreshed.
     if (!socket.connected) {
-        (socket as any).io.opts.query = { msisdn };
+        const token = getSocketToken();
+        (socket as any).io.opts.query = { msisdn, ...(token ? { token } : {}) };
+        (socket as any).auth = token ? { token } : {};
         socket.connect();
     }
 

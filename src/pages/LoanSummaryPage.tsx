@@ -300,6 +300,17 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
                   ? `Resend code in ${mandateResendSeconds}s`
                   : "Resend code"}
               </button>
+
+              {/* The same escape as the apply flow's copy of this screen. Two
+                  components render "One more step"; fixing only one left this
+                  path still able to trap a borrower whose mandate cannot be
+                  confirmed, with Confirm and Resend as the only controls. */}
+              <button
+                onClick={onHome}
+                className="text-sm text-gray-500 font-medium hover:underline block mx-auto pt-1"
+              >
+                I'll do this later
+              </button>
             </div>
         </div>
       );
