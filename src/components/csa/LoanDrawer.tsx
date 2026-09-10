@@ -205,10 +205,19 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{(loan.user as any).region}</span>
                           )}
                           <span className="flex items-center gap-1"><Wifi className="h-3 w-3" />{formatNetwork(loan?.network ?? '', loan?.userMsisdn)}</span>
-                          <span className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" />
-                            <span className="font-semibold">Alt:</span>&nbsp;{(loan?.user as any)?.alternatePhone ?? 'N/A'}
-                          </span>
+                          {/* Was Alt. Phone, which read alternatePhone — dropped from
+                              the collection projections, so it showed N/A for every
+                              borrower. The reference is the contact that is actually
+                              on file and actually useful when a borrower goes quiet. */}
+                          {(loan?.user as any)?.referenceMsisdn && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              <span className="font-semibold">
+                                {(loan.user as any).referenceRelationship || 'Ref'}:
+                              </span>
+                              &nbsp;{(loan.user as any).referenceMsisdn}
+                            </span>
+                          )}
                           {(loan?.user as any)?.address && (
                             <span className="col-span-2 flex items-center gap-1 truncate">{(loan.user as any).address}</span>
                           )}
@@ -519,9 +528,47 @@ function ResearchPanel({ loan }: { loan: any }) {
           <ResearchField label="Full Name" value={loan.user?.fullName || loan.userMsisdn} />
           <ResearchField label="Employment" value={loan.user?.employmentStatus} icon={Briefcase} />
           <ResearchField label="Region" value={loan.user?.region} icon={MapPin} />
-          <ResearchField label="Alt. Phone" value={loan.user?.alternatePhone ?? 'N/A'} icon={Phone} />
           <ResearchField label="Address" value={loan.user?.address} icon={Home} />
         </div>
+      </ResearchSection>
+
+      {/* Personal reference — who to try when the borrower stops answering.
+          Taken at onboarding and, until now, never shown to anyone. Replaces
+          the Alt. Phone field above, which rendered alternatePhone: that was
+          dropped from the collection projections deliberately, so it had been
+          showing N/A for everyone regardless of what was on file. */}
+      <ResearchSection title="Personal Reference">
+        {(loan.user as any)?.referenceMsisdn ? (
+          <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-4 border border-amber-100 dark:border-amber-900/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                  {(loan.user as any).referenceRelationship || 'Relationship not recorded'}
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                  {(loan.user as any).referenceMsisdn}
+                </p>
+              </div>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => handleCall((loan.user as any).referenceMsisdn)}
+                  className="flex items-center gap-1 text-[10px] font-bold text-white bg-amber-600 hover:bg-amber-700 px-2.5 py-1.5 rounded-lg transition-all active:scale-95"
+                >
+                  <PhoneCall className="h-3 w-3" />
+                  Call
+                </button>
+                <button
+                  onClick={() => copyPhone((loan.user as any).referenceMsisdn)}
+                  className="flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 px-2.5 py-1.5 rounded-lg transition-all active:scale-95"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground px-1">No reference on file</p>
+        )}
       </ResearchSection>
 
       {/* Guarantor */}

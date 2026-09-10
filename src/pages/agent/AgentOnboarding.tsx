@@ -42,7 +42,9 @@ const YEARS_AT_ADDRESS = [
   { label: "More than 5 Years", value: "5" }
 ];
 
-const REFERENCE_RELATIONSHIPS = ["Spouse", "Parent", "Sibling", "Friend", "Colleague", "Other"];
+// "Other" removed: a reference whose relationship is unknown tells
+// collections nothing, and it was the default escape hatch people picked.
+const REFERENCE_RELATIONSHIPS = ["Spouse", "Parent", "Sibling", "Friend", "Colleague"];
 
 interface FormData {
   firstName: string;

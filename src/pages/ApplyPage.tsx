@@ -123,7 +123,9 @@ const GHANA_REGIONS = [
 ];
 
 const GENDERS = ["Male", "Female"];
-const REFERENCE_RELATIONSHIPS = ["Spouse", "Parent", "Sibling", "Friend", "Colleague", "Other"];
+// "Other" removed: a reference whose relationship is unknown tells
+// collections nothing, and it was the default escape hatch people picked.
+const REFERENCE_RELATIONSHIPS = ["Spouse", "Parent", "Sibling", "Friend", "Colleague"];
 const ACCOMMODATION_TYPES = ["Owned", "Rented", "Family", "Other"];
 const EDUCATION_LEVELS = ["Basic", "Secondary", "Tertiary", "Advanced"];
 const EMPLOYMENT_OPTIONS = [

@@ -25,6 +25,7 @@ import {
   PhoneCall,
   UserCheck,
   RefreshCw,
+  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -720,6 +721,12 @@ export default function UserDetailsPage() {
                         <DetailItem label="Birthday" value={(user.metadata?.dob || user.dob) ? formatDate(user.metadata?.dob || user.dob) : 'N/A'} icon={Calendar} />
                         <DetailItem label="Accommodation" value={user.metadata?.accommodationType || user.metadata?.accomodation || user.accommodationType} icon={MapPin} />
                         <DetailItem label="Alt Phone" value={user.metadata?.alternatePhone || user.alternatePhone || 'N/A'} icon={Phone} onCall={handleCall} />
+                        {/* Personal reference. Captured at onboarding by both the
+                            applicant and agent flows and, until now, read by
+                            nothing — it was already in this endpoint's response,
+                            just never rendered. */}
+                        <DetailItem label="Reference Phone" value={user.referenceMsisdn || 'N/A'} icon={Phone} onCall={handleCall} />
+                        <DetailItem label="Reference Relationship" value={user.referenceRelationship || 'N/A'} icon={Users} />
                         <DetailItem label="Status" value={user.isBlocked ? 'Blocked' : 'Active'} icon={User} />
                         <DetailItem label="Assigned To" value={user.currentAssignedAgent?.name || 'Unassigned'} icon={UserCheck} />
                       </div>
