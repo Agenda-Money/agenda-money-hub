@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-sandbox
 dist-ssr
 *.local
 
@@ -25,6 +26,9 @@ dist-ssr
 .env
 
 .env
+# Keep the sandbox build target tracked — it carries no secret, only the API
+# host, and a server needs it to build the sandbox bundle.
+!.env.sandbox
 docs
 
 # AI Assistant artifacts
