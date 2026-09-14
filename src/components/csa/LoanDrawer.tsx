@@ -205,10 +205,13 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{(loan.user as any).region}</span>
                           )}
                           <span className="flex items-center gap-1"><Wifi className="h-3 w-3" />{formatNetwork(loan?.network ?? '', loan?.userMsisdn)}</span>
-                          {/* Was Alt. Phone, which read alternatePhone — dropped from
-                              the collection projections, so it showed N/A for every
-                              borrower. The reference is the contact that is actually
-                              on file and actually useful when a borrower goes quiet. */}
+                          {(loan?.user as any)?.alternatePhone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              <span className="font-semibold">Alt:</span>
+                              &nbsp;{(loan.user as any).alternatePhone}
+                            </span>
+                          )}
                           {(loan?.user as any)?.referenceMsisdn && (
                             <span className="flex items-center gap-1">
                               <Phone className="h-3 w-3" />
@@ -528,15 +531,13 @@ function ResearchPanel({ loan }: { loan: any }) {
           <ResearchField label="Full Name" value={loan.user?.fullName || loan.userMsisdn} />
           <ResearchField label="Employment" value={loan.user?.employmentStatus} icon={Briefcase} />
           <ResearchField label="Region" value={loan.user?.region} icon={MapPin} />
+          <ResearchField label="Alt. Phone" value={(loan.user as any)?.alternatePhone || 'N/A'} icon={Phone} />
           <ResearchField label="Address" value={loan.user?.address} icon={Home} />
         </div>
       </ResearchSection>
 
       {/* Personal reference — who to try when the borrower stops answering.
-          Taken at onboarding and, until now, never shown to anyone. Replaces
-          the Alt. Phone field above, which rendered alternatePhone: that was
-          dropped from the collection projections deliberately, so it had been
-          showing N/A for everyone regardless of what was on file. */}
+          Taken at onboarding and, until now, never shown to anyone. */}
       <ResearchSection title="Personal Reference">
         {(loan.user as any)?.referenceMsisdn ? (
           <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-4 border border-amber-100 dark:border-amber-900/30">
