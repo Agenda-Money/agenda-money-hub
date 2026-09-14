@@ -36,3 +36,6 @@ docs
 FRONTEND_AUDIT.md
 tsc_output.txt
 tsc_output_*.txt
+# Local Vercel CLI link — machine-specific, never committed.
+.vercel
+
