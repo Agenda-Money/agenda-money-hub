@@ -70,6 +70,34 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
     if (showingMandateScreen) setMandateResendSeconds(60);
   }, [showingMandateScreen]);
 
+  // Watch the loan while the code screen is open, so a confirmation made
+  // elsewhere (approved on the handset, USSD, another tab) moves the borrower
+  // on instead of leaving them on a screen that only advances on its own
+  // successful confirm.
+  useEffect(() => {
+    if (!showingMandateScreen || isAgentMode || mandateConfirmed || !loanReference) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const res = await api.get("/api/loans/active");
+        const details = res.data?.loanDetails;
+        if (cancelled || !details || details.loanReference !== loanReference) return;
+        if (details.status !== "AWAITING_MANDATE") {
+          setMandateError(null);
+          setLoanStatus(details.status);
+          setMandateConfirmed(true);
+        }
+      } catch {
+        // Transient; the next tick tries again.
+      }
+    };
+    const id = setInterval(check, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [showingMandateScreen, isAgentMode, mandateConfirmed, loanReference]);
+
   const handleConfirmMandateOtp = async (otpValue?: string) => {
     const code = otpValue ?? mandateOtp;
     if (code.length !== MANDATE_OTP_LENGTH || isMandateSubmitting || !loanReference) return;

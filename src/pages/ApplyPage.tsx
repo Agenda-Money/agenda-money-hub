@@ -1192,6 +1192,30 @@ export default function ApplyPage() {
     });
   }, [activeLoanDetails, baseApiUrl, authToken]);
 
+  // While the code screen is open, keep checking the loan. It can move past
+  // AWAITING_MANDATE without this screen confirming anything — approved on the
+  // handset, confirmed over USSD or in another tab — and the screen used to
+  // sit there regardless, since it only ever moved on a successful confirm.
+  useEffect(() => {
+    if (view !== "mandate-otp") return;
+    const id = setInterval(() => {
+      fetchActiveLoan();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [view, fetchActiveLoan]);
+
+  useEffect(() => {
+    if (view !== "mandate-otp" || !mandateLoanReference) return;
+    const loan = activeLoanDetails;
+    if (!loan || loan.loanReference !== mandateLoanReference) return;
+    if (loan.status === "AWAITING_MANDATE") return;
+    setMandateError(null);
+    setFinalLoanStatus(loan.status);
+    clearOnboardingDraft();
+    setView("success");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, mandateLoanReference, activeLoanDetails]);
+
   // ─── Recent Activity Fetching ───
   useEffect(() => {
     if (view === "loan-dashboard") {
