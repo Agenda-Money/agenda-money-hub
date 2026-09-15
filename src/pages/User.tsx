@@ -108,6 +108,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ applicant, tierLim
 
   if (currentLoanStatus === 'AWAITING_ENDORSEMENT') {
       feedStatus = "awaiting_endorsement";
+  } else if (isAwaitingMandate || currentLoanStatus === 'AWAITING_MANDATE') {
+      // Checked before the generic pending branch, which also matches it.
+      feedStatus = "awaiting_mandate";
   } else if (isPending || currentLoanStatus === 'PENDING') {
       feedStatus = "review";
   } else if (isOverdue || currentLoanStatus === 'OVERDUE' || currentLoanStatus === 'DEFAULTED') {

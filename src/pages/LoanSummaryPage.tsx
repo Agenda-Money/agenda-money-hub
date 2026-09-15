@@ -62,6 +62,14 @@ export const LoanSummaryPage: React.FC<LoanSummaryPageProps> = ({ loanData, appl
     return () => clearTimeout(timer);
   }, [mandateResendSeconds]);
 
+  // The countdown starts when this page mounts, on the summary, not when the
+  // code screen appears. By then "Resend code" was usually already live, and
+  // tapping it while the first code is in transit cancels that code.
+  const showingMandateScreen = isSuccess && loanStatus === "AWAITING_MANDATE";
+  useEffect(() => {
+    if (showingMandateScreen) setMandateResendSeconds(60);
+  }, [showingMandateScreen]);
+
   const handleConfirmMandateOtp = async (otpValue?: string) => {
     const code = otpValue ?? mandateOtp;
     if (code.length !== MANDATE_OTP_LENGTH || isMandateSubmitting || !loanReference) return;

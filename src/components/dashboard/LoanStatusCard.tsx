@@ -1,9 +1,9 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Send, Share2, Crown, Lock, Clock, CheckCircle2, Shield } from "lucide-react";
+import { Send, Share2, Crown, Lock, Clock, CheckCircle2, Shield, ShieldCheck } from "lucide-react";
 
-export type LoanStatus = "eligible" | "active" | "overdue" | "review" | "progress" | "node" | "awaiting_endorsement" | "kyc_awaiting";
+export type LoanStatus = "eligible" | "active" | "overdue" | "review" | "progress" | "node" | "awaiting_endorsement" | "kyc_awaiting" | "awaiting_mandate";
 
 interface LoanStatusCardProps {
   status: LoanStatus;
@@ -69,6 +69,23 @@ export const LoanStatusCard: React.FC<LoanStatusCardProps> = ({
       buttonAction: "apply",
       bgClass: "bg-white border border-pink-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
       btnClass: "bg-[#EC1B84] text-white hover:bg-[#D41472] rounded-full px-8 py-3 text-sm font-bold shadow-lg shadow-pink-200 transform transition hover:scale-105",
+    },
+    // Approved, but nothing moves until the borrower enters the auto-repay
+    // code. This used to render as "Application under review", which read as
+    // "wait" when the only thing that could advance the loan was the
+    // borrower, and the request quietly expired 24 hours later.
+    awaiting_mandate: {
+      title: "Confirm auto-repay to get your loan",
+      subtext: "Enter the code sent to your phone. Unconfirmed requests expire after 24 hours.",
+      icon: ShieldCheck,
+      mainText: `GHS ${amount ? amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}`,
+      mainTextClass: "text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900 mt-2 mb-1 whitespace-nowrap",
+      bottomText: "Waiting for your code",
+      bottomTextClass: "text-amber-600",
+      buttonLabel: "Enter code",
+      buttonAction: "confirm-mandate",
+      bgClass: "bg-white border border-pink-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
+      btnClass: "bg-[#EC1B84] text-white hover:bg-[#D41472] rounded-full px-6 py-3 text-sm font-bold shadow-lg shadow-pink-200 transform transition hover:scale-105",
     },
     review: {
       title: titleOverride || "Application under review",

@@ -1955,6 +1955,10 @@ export default function ApplyPage() {
         // Auto-repay code confirmation gates disbursement — hold off on the
         // success/dashboard screen until it's confirmed.
         setMandateLoanReference(p.loan.loanReference);
+        // The countdown has been running since the page loaded, so without a
+        // reset "Resend code" was usually live on arrival — and tapping it while
+        // the first code is still in transit cancels that code.
+        setMandateResendSeconds(RESEND_SECONDS);
         setView("mandate-otp");
         return;
       }
@@ -2681,6 +2685,21 @@ export default function ApplyPage() {
                   tierLimit={tierMax}
                   onAction={(action) => {
                     if (action === "apply") setActiveTab("application");
+                    if (action === "confirm-mandate") {
+                      // Back from "I'll do this later". No automatic resend:
+                      // the code they already received may still be valid, and
+                      // asking Orchard for another cancels it. Resend is left
+                      // available straight away instead, for when it isn't.
+                      const reference =
+                        activeLoanDetails?.loanReference || mandateLoanReference;
+                      if (reference) {
+                        setMandateLoanReference(reference);
+                        setMandateOtp("");
+                        setMandateError(null);
+                        setMandateResendSeconds(0);
+                        setView("mandate-otp");
+                      }
+                    }
                     if (action === "repay") setIsRepaymentOpen(true);
                     if (action === "share") setIsShareOpen(true);
                     if (action === "history" || action === "details")
