@@ -21,6 +21,8 @@ import { getOrchardTransactionStatus } from "@/api/orchard.api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import api from "@/lib/api";
+import { CampaignSettlementPanel } from "@/components/collections/CampaignSettlementPanel";
 import { cn, deduplicateWords } from "@/lib/utils";
 
 type LoanReviewUser = {
@@ -154,6 +156,12 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
   // now the review actions were hidden for them — so the one status most
   // likely to need cancelling was the one an admin could not cancel.
   const isAwaitingMandate = status === "AWAITING_MANDATE";
+  // Campaign settlement applies to a disbursed loan that is still owed, plus
+  // REPAID so an already-settled one can still show what was waived.
+  const isSettleableStatus = ["DEFAULTED", "OVERDUE", "PARTIAL_REPAID", "ACTIVE", "REPAID"].includes(
+    String(status),
+  );
+  const loanRefForSettlement = loan.loanReference || loan.reference;
   const disbursementProvider = actualLoan?.disbursementProvider || loan?.disbursementProvider || "PAYSTACK";
   const providerLabel = disbursementProvider === "ORCHARD" ? "Orchard" : "Paystack";
 
@@ -362,6 +370,18 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-14">
+            {/* Collections-campaign settlement. Only meaningful for a loan that is
+                out and overdue, and the panel itself explains when it is not
+                available, so this only gates on having a reference to ask about. */}
+            {isSettleableStatus && loanRefForSettlement && (
+              <CampaignSettlementPanel
+                loanReference={loanRefForSettlement}
+                client={api}
+                basePath="/api/admin/loans"
+                invalidateKeys={[["loans"], ["admin-loans"], ["dashboard"]]}
+              />
+            )}
+
             {activeFlag && (
               <div className={cn(
                 "rounded-xl border p-4 text-sm font-medium flex flex-col gap-2 shadow-sm animate-fade-in",

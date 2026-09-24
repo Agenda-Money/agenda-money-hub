@@ -30,6 +30,7 @@ const Index = lazy(() => import("./pages/Index"));
 const UsersPage = lazy(() => import("./pages/UsersPage"));
 const LoansPage = lazy(() => import("./pages/LoansPage"));
 const RepaymentsPage = lazy(() => import("./pages/RepaymentsPage"));
+const CollectionsCampaignPage = lazy(() => import("./pages/CollectionsCampaignPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const AgentsPage = lazy(() => import("./pages/AgentsPage"));
 const AgentDetailsPage = lazy(() => import("./pages/AgentDetailsPage"));
@@ -343,6 +344,7 @@ const App = () => {
                       <Route path="/loans/awaiting-node" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
                       <Route path="/loans/defaulted" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
                       <Route path="/repayments" element={<RequireAuth><AdminRoute><RepaymentsPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/repayments/campaign" element={<RequireAuth><AdminRoute><CollectionsCampaignPage /></AdminRoute></RequireAuth>} />
                       <Route path="/payouts" element={<RequireAuth><AdminRoute><AdminPayoutsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/admin/commissions/deductions" element={<RequireAuth><AdminRoute><AdminDeductionsPage /></AdminRoute></RequireAuth>} />
                       <Route path="/admin/loans/manual-disburse" element={<RequireAuth><AdminRoute><AdminManualDisbursePage /></AdminRoute></RequireAuth>} />
