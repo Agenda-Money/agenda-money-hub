@@ -161,7 +161,10 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
   const isSettleableStatus = ["DEFAULTED", "OVERDUE", "PARTIAL_REPAID", "ACTIVE", "REPAID"].includes(
     String(status),
   );
-  const loanRefForSettlement = loan.loanReference || loan.reference;
+  // Optional-chained like every other read of `loan` in this component: it is
+  // undefined while the modal mounts, and without the `?.` this line threw and
+  // took the whole loans page down.
+  const loanRefForSettlement = loan?.loanReference || loan?.reference;
   const disbursementProvider = actualLoan?.disbursementProvider || loan?.disbursementProvider || "PAYSTACK";
   const providerLabel = disbursementProvider === "ORCHARD" ? "Orchard" : "Paystack";
 
