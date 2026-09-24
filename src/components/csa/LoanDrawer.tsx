@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import csaApi from '@/lib/csaApi';
+import { CampaignSettlementPanel } from '@/components/collections/CampaignSettlementPanel';
 import { getBucketMeta, formatGHS, formatOutcome, outcomeColor, formatNetwork } from '@/lib/bucketUtils';
 
 const OUTCOMES = [
@@ -167,6 +168,21 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                 <>
                   {activeTab === 'detail' && (
                     <div className="p-5 space-y-5">
+                      {/* Campaign settlement first: it is the figure an agent has to
+                          quote, and the reason most of these calls are happening. */}
+                      {loan?.loanReference && (
+                        <CampaignSettlementPanel
+                          loanReference={loan.loanReference}
+                          client={csaApi}
+                          basePath="/api/csa/collections/loans"
+                          invalidateKeys={[
+                            ['csa-loans'],
+                            ['csa-loan-detail', loanId],
+                            ['csa-me-stats'],
+                          ]}
+                        />
+                      )}
+
                       {/* Borrower info card */}
                       <div className="bg-muted/30 rounded-2xl p-4 space-y-3 border border-border/50">
                         <div className="flex items-center justify-between">

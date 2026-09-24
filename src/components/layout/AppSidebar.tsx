@@ -213,6 +213,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         { to: "/repayments", label: "Repayment Logs" },
         { to: "/admin/collections/monitoring", label: "Team Monitoring" },
         { to: "/repayments?tab=collections", label: "Collections List" },
+        { to: "/repayments/campaign", label: "Campaign SMS" },
       ]
     },
     // Admin/Viewer only items (bottom)
