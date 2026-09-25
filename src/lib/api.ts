@@ -584,6 +584,18 @@ export const getUserSessions = async (userId: string, page = 1, limit = 20) => {
   return response.data;
 };
 
+/**
+ * The SMS we have sent this customer, newest first.
+ *
+ * Keyed by msisdn rather than user id — the record follows the number the
+ * message actually went to, which is what you are checking against when
+ * someone says they never received anything.
+ */
+export const getUserSmsHistory = async (msisdn: string, page = 1, limit = 25) => {
+  const response = await api.get(`/api/admin/users/${msisdn}/sms`, { params: { page, limit } });
+  return response.data;
+};
+
 export const getCollectionActivities = async (params?: { page?: number; limit?: number; loanReference?: string }) => {
   const response = await api.get('/api/admin/collections/activities', { params });
   return response.data;

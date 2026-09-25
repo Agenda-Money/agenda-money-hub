@@ -26,6 +26,8 @@ import {
   UserCheck,
   RefreshCw,
   Users,
+  MessageSquare,
+  XCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -34,6 +36,7 @@ import { Button } from "@/components/ui/button"
 import { 
   getUserDetail, 
   getUserSessions, 
+  getUserSmsHistory, 
   addFlag, 
   deleteFlag, 
   blockUser,
@@ -480,6 +483,17 @@ export default function UserDetailsPage() {
     refetchOnWindowFocus: true,
     refetchInterval: 60000, // Poll every minute for live status
   });
+
+  // 3) SMS history. Keyed by msisdn because that is what the message was sent
+  // to — the record has to match the number, not the account.
+  const [smsPage, setSmsPage] = useState(1)
+  const { data: smsRes, isFetching: isFetchingSms } = useQuery({
+    queryKey: ['user-sms', user?.msisdn, smsPage],
+    queryFn: () => getUserSmsHistory(user.msisdn, smsPage),
+    enabled: !!user?.msisdn,
+  })
+
+  const smsMessages = smsRes?.messages ?? []
 
   const lastSeenInfo = useMemo(() => {
     const latestFromQuery = sessionsRes?.sessions?.[0];
@@ -1005,6 +1019,95 @@ export default function UserDetailsPage() {
                       )
                     })}
                   </div>
+                </div>
+              </Card>
+
+              {/* Messages sent. The status column is the point of this card:
+                  a send Rancard refused is indistinguishable from a delivered
+                  one on the customer's side, so without it "I never got the
+                  reminder" can only be taken on trust. */}
+              <Card className="p-4 sm:p-8 w-full min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <SectionHeader>Messages Sent</SectionHeader>
+                  {smsRes?.failed > 0 && (
+                    <Pill color="red" className="shrink-0">{smsRes.failed} failed</Pill>
+                  )}
+                </div>
+
+                <div className="mt-6 space-y-3">
+                  {smsMessages.map((m: any) => (
+                    <div
+                      key={m._id}
+                      className="p-4 rounded-2xl border bg-gray-50/50 dark:bg-gray-800/50 w-full min-w-0"
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div
+                          className={cn(
+                            "w-7 h-7 shrink-0 rounded-full flex items-center justify-center",
+                            m.status === 'FAILED'
+                              ? "bg-red-100 text-red-600 dark:bg-red-900/30"
+                              : "bg-green-100 text-green-600 dark:bg-green-900/30",
+                          )}
+                        >
+                          {m.status === 'FAILED'
+                            ? <XCircle className="w-3.5 h-3.5" />
+                            : <MessageSquare className="w-3.5 h-3.5" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-gray-900 dark:text-gray-100 break-words whitespace-pre-wrap">
+                            {m.body}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                              {formatDate(m.createdAt)}
+                            </span>
+                            {m.kind === 'BULK' && (
+                              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                Campaign
+                              </span>
+                            )}
+                            {m.status === 'FAILED' && m.error && (
+                              <span className="text-[9px] font-bold text-red-500 break-words">
+                                {m.error}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {smsMessages.length === 0 && (
+                    <p className="text-[10px] font-bold text-gray-400 text-center py-4">
+                      {isFetchingSms
+                        ? 'Loading messages…'
+                        : 'No messages recorded for this number yet.'}
+                    </p>
+                  )}
+
+                  {(smsPage > 1 || smsRes?.hasMore) && (
+                    <div className="flex items-center justify-between pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={smsPage === 1 || isFetchingSms}
+                        onClick={() => setSmsPage((p) => Math.max(1, p - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                        Page {smsPage}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!smsRes?.hasMore || isFetchingSms}
+                        onClick={() => setSmsPage((p) => p + 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </Card>
 
