@@ -6,6 +6,7 @@ import { RecentRepaymentsWidget } from "@/components/dashboard/RecentRepaymentsW
 import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
 import { useSocket } from "@/hooks/useSocket";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { CashflowProjectionCard } from "@/components/analytics/CashflowProjection";
 import { Users, TrendingDown, BookOpen, AlertTriangle } from "lucide-react";
 import { formatAmount, formatNumber } from "@/lib/utils";
 
@@ -94,6 +95,11 @@ export default function Dashboard() {
           icon={TrendingDown}
         />
       </div>
+
+      {/* Liquidity for the week ahead. Sits directly under the hero metrics
+          because it is a float decision someone makes on a cadence, not
+          something they navigate to look up. */}
+      <CashflowProjectionCard days={7} />
 
       {/* Row 1: MoM Disbursement Growth */}
       <MoMDisbursementCard 

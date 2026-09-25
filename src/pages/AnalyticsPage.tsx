@@ -23,6 +23,7 @@ import {
   useReferralAnalytics
 } from "@/components/analytics/analytics.hooks";
 import { ReferralAnalytics } from "@/components/analytics/ReferralAnalytics";
+import { CashflowProjectionPanel } from "@/components/analytics/CashflowProjection";
 import { 
   safeNum, 
   fGHS, 
@@ -213,6 +214,14 @@ export default function AnalyticsPage() {
         <div>
           <SectionHead title="Summary KPIs" />
           {renderSummaryCards()}
+        </div>
+
+        {/* Section 1b: Cashflow. Placed straight after the summary because it
+            is the only forward-looking panel here — everything below reports
+            what already happened. */}
+        <div>
+          <SectionHead title="Cashflow projection" />
+          <CashflowProjectionPanel days={7} />
         </div>
 
         {/* Section 2: Performance Metrics */}

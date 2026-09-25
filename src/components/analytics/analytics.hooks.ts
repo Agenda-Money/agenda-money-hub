@@ -76,3 +76,21 @@ export function useReferralAnalytics() {
   });
   return { data: q.data, error: q.isError, loading: q.isPending || q.isFetching, refetch: q.refetch };
 }
+
+/**
+ * Near-term liquidity: loans falling due in the window and what serving those
+ * borrowers again would cost. Slower than the other panels — it prices every
+ * borrower's next ceiling and measures the re-borrow rate over 90 days — so it
+ * is cached for longer. The answer moves by the day, not the minute.
+ */
+export function useCashflowProjection(days = 7) {
+  const q = useQuery({
+    queryKey: ['analytics-cashflow-projection', days],
+    queryFn: async () => {
+      const res = await api.get('/api/admin/analytics/cashflow-projection', { params: { days } });
+      return res.data?.data || res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  return { data: q.data, error: q.isError, loading: q.isPending || q.isFetching, refetch: q.refetch };
+}
