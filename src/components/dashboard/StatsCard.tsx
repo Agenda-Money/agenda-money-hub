@@ -20,13 +20,16 @@ export function StatsCard({ title, value, icon: Icon, trend, className, isLive, 
 
   const formatDisplayValue = (val: number | string) => {
     if (typeof val === 'string') return val;
-    if (typeof value === 'string' && value.includes('GH₵')) {
-      return `GH₵ ${val.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-    } else if (typeof value === 'string' && value.includes('%')) {
+    if (typeof value === 'string' && value.trim().endsWith('%')) {
       return `${val.toFixed(1)}%`;
-    } else {
-      return val.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     }
+
+    // Keep whatever the caller put in front of the number. This used to test
+    // for the literal "GH₵", which no caller passes — they write "₵ " or
+    // "GHS ", so every currency card fell through to the bare-number branch
+    // and rendered an amount with no currency on it at all.
+    const prefix = typeof value === 'string' ? (/^[^\d-]*/.exec(value)?.[0] ?? '') : '';
+    return `${prefix}${val.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
   };
 
   const displayValue = isNumeric ? formatDisplayValue(numericValue) : String(value);
