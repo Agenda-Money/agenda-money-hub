@@ -110,22 +110,9 @@ function BalanceResult({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-// DD+4: the mandate's start_date is set 4 days after the loan's actual due
-// date (see AUTO_DEBIT_GRACE_DAYS in backend loan.service.ts), giving the
-// borrower room to self-repay before auto-debit kicks in. Reversing that
-// here recovers the loan's due date without a separate API call.
-const AUTO_DEBIT_GRACE_DAYS = 4;
-
 function fmtShortDate(date?: string) {
   if (!date) return "—";
   return format(new Date(date), "dd MMM yyyy");
-}
-
-function getLoanDueDate(startDate?: string): Date | undefined {
-  if (!startDate) return undefined;
-  const d = new Date(startDate);
-  d.setDate(d.getDate() - AUTO_DEBIT_GRACE_DAYS);
-  return d;
 }
 
 function getTriggerCountdown(startDate?: string): { label: string; tone: "muted" | "warning" | "done" } {
@@ -298,7 +285,7 @@ function MandatesTab() {
               <th className="px-4 py-3 text-left font-medium">Status</th>
               <th className="px-4 py-3 text-left font-medium">Loan Ref</th>
               <th className="px-4 py-3 text-left font-medium">Amount / Cycle</th>
-              <th className="px-4 py-3 text-left font-medium">Due Date / Auto-Debit (DD+4)</th>
+              <th className="px-4 py-3 text-left font-medium">Due Date / Auto-Debit</th>
               <th className="px-4 py-3 text-left font-medium">Last Debit</th>
               <th className="px-4 py-3 text-left font-medium">Orchard Retries</th>
               {canWrite && <th className="px-4 py-3 text-right font-medium">Actions</th>}
@@ -310,7 +297,14 @@ function MandatesTab() {
             ) : rows.length === 0 ? (
               <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No mandates found</td></tr>
             ) : rows.map((m) => {
-              const dueDate = getLoanDueDate(m.startDate);
+              // The loan's own due date, sent by the API. It used to be worked
+              // back from startDate by subtracting a grace period hardcoded
+              // here as 4 — which was already wrong when the backend moved to
+              // 3, and is wrong again at 1. Mandates created under every one
+              // of those graces are live at once, since Orchard fixes
+              // start_date at subscribe, so no single constant could have got
+              // this right.
+              const dueDate = m.loanDueDate ?? undefined;
               const countdown = getTriggerCountdown(m.startDate);
               return (
               <tr key={m._id} className="hover:bg-muted/30 transition-colors">
@@ -320,7 +314,7 @@ function MandatesTab() {
                 <td className="px-4 py-3 font-mono text-xs">{m.currentLoanReference ?? "—"}</td>
                 <td className="px-4 py-3">{fmtGhs(m.currentDebitAmount)}{m.cycle ? ` / ${m.cycle}` : ""}</td>
                 <td className="px-4 py-3 text-xs">
-                  <div className="text-muted-foreground">Due {dueDate ? fmtShortDate(dueDate.toISOString()) : "—"}</div>
+                  <div className="text-muted-foreground">Due {fmtShortDate(dueDate)}</div>
                   <div className={cn(
                     "font-medium",
                     countdown.tone === "warning" && "text-orange-600 dark:text-orange-400",
