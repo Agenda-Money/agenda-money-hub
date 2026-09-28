@@ -42,7 +42,7 @@ import {
   type KycProviderName,
 } from "@/api/kyc.api";
 import { uploadToStorage } from "@/lib/storage";
-import { TIER_LIMITS, TIERS, type TierConfig } from "@/lib/constants";
+import { MIN_LOAN_AMOUNT, TIER_LIMITS, type TierConfig } from "@/lib/constants";
 import agendaLogo from "@/assets/agenda-money-logo.jpg";
 import { UserDashboard } from "@/pages/User";
 import { LoansTab } from "@/pages/LoansTab";
@@ -787,8 +787,10 @@ export default function ApplyPage() {
 
   const currentTier = Number(userData?.currentTier ?? 1);
   const activeTier = TIER_LIMITS[currentTier];
-  const tierMin = activeTier?.minAmount ?? TIERS[0].minAmount;
+  // Global floor, not the tier's own minAmount — an L12 who wants GHS 200
+  // should be able to ask for it. The ceiling stays per-tier.
   const tierMax = activeTier?.maxAmount ?? 300;
+  const tierMin = Math.min(MIN_LOAN_AMOUNT, tierMax);
   const tierMaxTenure = activeTier?.maxTenure ?? 14;
   const tenureOptions = useMemo(() => {
     const options = buildTenureOptions(activeTier);

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowRight } from "lucide-react";
-import { TIERS } from "@/lib/constants";
+import { MIN_LOAN_AMOUNT } from "@/lib/constants";
 
 interface CappedApplyCardProps {
   capAmount: number;
@@ -10,8 +10,7 @@ interface CappedApplyCardProps {
 }
 
 export const CappedApplyCard: React.FC<CappedApplyCardProps> = ({ capAmount, onApply, isLoading }) => {
-  const minAmount = TIERS[0]?.minAmount || 50;
-  const safeMin = Math.min(minAmount, capAmount); 
+  const safeMin = Math.min(MIN_LOAN_AMOUNT, capAmount);
   const [selectedAmount, setSelectedAmount] = useState<number>(capAmount);
   const [showConfirm, setShowConfirm] = useState(false);
 

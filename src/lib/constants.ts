@@ -11,6 +11,20 @@ export type TierConfig = {
   tenures?: number[];
 };
 
+/**
+ * The smallest loan anyone may take, at any tier.
+ *
+ * Each tier below still carries a minAmount, and it rises with the ladder, but
+ * that field is no longer the borrowing floor on either side of the wire. The
+ * backend dropped it for the same reason: the flat processing fee falls as the
+ * tier rises, so a rising minimum was never covering cost — it only refused the
+ * customers with the best repayment history when they wanted a small amount.
+ *
+ * 50 is what L1 already permitted, so nothing became more restrictive.
+ * Keep this in step with MIN_LOAN_AMOUNT in the backend's tier.constants.ts.
+ */
+export const MIN_LOAN_AMOUNT = 50;
+
 export const TIERS: TierConfig[] = [
   { level: 1,  minAmount: 50,   maxAmount: 300,  maxTenure: 14, processingFee: 30, tenures: [1, 5, 10, 14] },
   { level: 2,  minAmount: 100,  maxAmount: 360,  maxTenure: 14, processingFee: 30, tenures: [1, 5, 10, 14] },
