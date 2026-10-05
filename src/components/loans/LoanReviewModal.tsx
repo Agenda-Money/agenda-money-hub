@@ -10,6 +10,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { ApplicantFraudChecks } from "@/components/fraud/ApplicantFraudChecks";
 import {
   getAdminUserProfile,
   approveLoan,
@@ -408,6 +409,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                 )}
               </div>
             )}
+
+            <ApplicantFraudChecks msisdn={loan.userMsisdn || loan.phone} enabled={isOpen} />
 
             <div className="rounded-xl border border-border bg-muted/60 p-4">
               <p className="text-sm font-semibold text-muted-foreground mb-3">KYC Verification</p>
