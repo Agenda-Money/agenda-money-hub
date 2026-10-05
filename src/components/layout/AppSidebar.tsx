@@ -19,6 +19,7 @@ import {
   Gift,
   Repeat2,
   TreePine,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -239,6 +240,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
               { to: "/admin/direct-debit/delinquent", label: "Delinquent Customers" },
             ],
           },
+          { to: "/admin/fraud", icon: ShieldAlert, label: "Fraud review" },
           {
             to: "/admin/orchard",
             icon: TreePine,
