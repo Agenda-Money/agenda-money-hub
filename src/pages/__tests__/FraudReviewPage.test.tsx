@@ -12,6 +12,14 @@ vi.mock("@/lib/api", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+// The real layout needs login and socket providers. What matters here is that
+// the page renders inside it, so the stub marks its presence.
+vi.mock("@/components/layout/DashboardLayout", () => ({
+  DashboardLayout: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dashboard-layout">{children}</div>
+  ),
+}));
+
 const get = api.get as unknown as ReturnType<typeof vi.fn>;
 const post = api.post as unknown as ReturnType<typeof vi.fn>;
 
@@ -54,6 +62,18 @@ function openTab(name: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   post.mockResolvedValue({ data: { success: true } });
+});
+
+describe("the page frame", () => {
+  it("renders inside the dashboard layout, so it has the sidebar and fills the screen", async () => {
+    // It once rendered bare: no sidebar, no header, and a strip of the page
+    // background showing below the content.
+    respondWith([]);
+    renderPage();
+
+    const layout = await screen.findByTestId("dashboard-layout");
+    expect(within(layout).getByText("Fraud review")).toBeTruthy();
+  });
 });
 
 describe("the queue", () => {

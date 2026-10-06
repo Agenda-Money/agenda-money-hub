@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 /**
  * Collections campaign broadcast.
@@ -132,212 +133,214 @@ export default function CollectionsCampaignPage() {
   const busy = (a: typeof lastAction) => run.isPending && lastAction === a;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Collections campaign</h1>
-        <p className="text-sm text-muted-foreground">
-          Preview the figures, prove the sender ID arrives, then send to the cohort.
-        </p>
-      </div>
-
-      {/* Cohort */}
-      <div className="space-y-2 rounded-lg border p-4">
-        <Label>Cohort</Label>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {([1, 2] as const).map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => {
-                setCohort(c);
-                setMessage(COHORT_COPY[c].suggested);
-                setResult(null);
-              }}
-              className={cn(
-                'rounded-lg border p-3 text-left text-sm transition',
-                cohort === c ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-muted/50',
-              )}
-            >
-              <div className="font-semibold">{COHORT_COPY[c].label}</div>
-              <div className="mt-1 text-xs text-muted-foreground">{COHORT_COPY[c].terms}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Sender */}
-      <div className="space-y-2 rounded-lg border p-4">
-        <Label htmlFor="senderId">Sender ID</Label>
-        <Input
-          id="senderId"
-          value={senderId}
-          onChange={(e) => setSenderId(e.target.value)}
-          placeholder="233XXXXXXXXX — the number registered with Rancard"
-        />
-        <p className="text-xs text-muted-foreground">
-          No default. Leaving this blank is refused rather than falling back to the usual sender,
-          which is the one some of these customers have blocked.
-        </p>
-      </div>
-
-      {/* Message */}
-      <div className="space-y-2 rounded-lg border p-4">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="message">Message</Label>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground">{worstCase.length} chars at worst case</span>
-            <Badge variant={segments === 1 ? 'secondary' : 'destructive'}>
-              {segments} segment{segments > 1 ? 's' : ''}
-            </Badge>
-          </div>
-        </div>
-        <Textarea
-          id="message"
-          rows={4}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-        />
-        <p className="text-xs text-muted-foreground">
-          <code>[firstname]</code> and <code>[amount]</code> are filled per customer. Length is
-          measured with a long name and a four-figure amount, since that is what decides the cost.
-        </p>
-        {hasCurly && (
-          <p className="flex items-start gap-1.5 text-xs text-amber-700">
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            Curly quotes or dashes halve the limit to 70 characters and double the cost. Use
-            straight ones.
-          </p>
-        )}
-      </div>
-
-      {/* Seeds */}
-      <div className="space-y-3 rounded-lg border p-4">
+    <DashboardLayout>
+      <div className="mx-auto max-w-4xl space-y-6">
         <div>
-          <Label>Your numbers</Label>
-          <p className="text-xs text-muted-foreground">
-            These ride along so somebody sees the handset view. They get sample values, never a real
-            customer's.
+          <h1 className="text-2xl font-bold">Collections campaign</h1>
+          <p className="text-sm text-muted-foreground">
+            Preview the figures, prove the sender ID arrives, then send to the cohort.
           </p>
         </div>
-        {seeds.map((s, i) => (
-          <div key={i} className="flex gap-2">
-            <Input
-              value={s.name}
-              onChange={(e) =>
-                setSeeds(seeds.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))
-              }
-              placeholder="Name"
-              className="w-40"
-            />
-            <Input
-              value={s.msisdn}
-              onChange={(e) =>
-                setSeeds(seeds.map((x, j) => (j === i ? { ...x, msisdn: e.target.value } : x)))
-              }
-              placeholder="233XXXXXXXXX"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSeeds(seeds.filter((_, j) => j !== i))}
-              disabled={seeds.length === 1}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+
+        {/* Cohort */}
+        <div className="space-y-2 rounded-lg border p-4">
+          <Label>Cohort</Label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {([1, 2] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => {
+                  setCohort(c);
+                  setMessage(COHORT_COPY[c].suggested);
+                  setResult(null);
+                }}
+                className={cn(
+                  'rounded-lg border p-3 text-left text-sm transition',
+                  cohort === c ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-muted/50',
+                )}
+              >
+                <div className="font-semibold">{COHORT_COPY[c].label}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{COHORT_COPY[c].terms}</div>
+              </button>
+            ))}
           </div>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => setSeeds([...seeds, { msisdn: '', name: '' }])}>
-          <Plus className="mr-1 h-3.5 w-3.5" /> Add number
-        </Button>
-      </div>
+        </div>
 
-      {/* Actions */}
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => go('preview')} disabled={run.isPending}>
-          {busy('preview') && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          1. Preview
-        </Button>
+        {/* Sender */}
+        <div className="space-y-2 rounded-lg border p-4">
+          <Label htmlFor="senderId">Sender ID</Label>
+          <Input
+            id="senderId"
+            value={senderId}
+            onChange={(e) => setSenderId(e.target.value)}
+            placeholder="233XXXXXXXXX — the number registered with Rancard"
+          />
+          <p className="text-xs text-muted-foreground">
+            No default. Leaving this blank is refused rather than falling back to the usual sender,
+            which is the one some of these customers have blocked.
+          </p>
+        </div>
 
-        <Button variant="secondary" onClick={() => go('seeds')} disabled={run.isPending}>
-          {busy('seeds') ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <TestTube2 className="mr-2 h-4 w-4" />
-          )}
-          2. Test to my numbers
-        </Button>
-
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button disabled={run.isPending || !result}>
-              <Send className="mr-2 h-4 w-4" />
-              3. Send to cohort {cohort}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Send to {result?.recipients ?? '?'} customers?</AlertDialogTitle>
-              <AlertDialogDescription asChild>
-                <div className="space-y-2 text-sm">
-                  <p>
-                    Cohort {cohort}, chasing {ghs(result?.amountBeingChased ?? 0)} from{' '}
-                    {result?.recipients ?? 0} people, from sender{' '}
-                    <strong>{senderId || '(not set)'}</strong>.
-                  </p>
-                  <p className="text-muted-foreground">
-                    Have you confirmed the test message actually arrived on a handset? That is the
-                    only way to know this sender ID delivers.
-                  </p>
-                </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => go('send')}>Send it</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-
-      {/* Result */}
-      {result && (
-        <div className="space-y-4 rounded-lg border p-4">
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-            <Stat label="Customers" value={String(result.recipients ?? 0)} />
-            <Stat label="To chase" value={ghs(result.amountBeingChased ?? 0)} />
-            <Stat label="Your numbers" value={String(result.seedNumbers ?? 0)} />
-            <Stat
-              label="Queued"
-              value={result.queued != null ? String(result.queued) : 'nothing yet'}
-            />
+        {/* Message */}
+        <div className="space-y-2 rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="message">Message</Label>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground">{worstCase.length} chars at worst case</span>
+              <Badge variant={segments === 1 ? 'secondary' : 'destructive'}>
+                {segments} segment{segments > 1 ? 's' : ''}
+              </Badge>
+            </div>
           </div>
-
-          {(result.skippedNothingOwed > 0 ||
-            result.skippedNotYetDefaulted > 0 ||
-            result.skippedNoDueDate > 0) && (
-            <p className="text-xs text-muted-foreground">
-              Left out: {result.skippedNothingOwed} already paid the campaign amount (settle them
-              instead), {result.skippedNotYetDefaulted} overdue but not yet defaulted,{' '}
-              {result.skippedNoDueDate} with no due date.
+          <Textarea
+            id="message"
+            rows={4}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            <code>[firstname]</code> and <code>[amount]</code> are filled per customer. Length is
+            measured with a long name and a four-figure amount, since that is what decides the cost.
+          </p>
+          {hasCurly && (
+            <p className="flex items-start gap-1.5 text-xs text-amber-700">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              Curly quotes or dashes halve the limit to 70 characters and double the cost. Use
+              straight ones.
             </p>
           )}
-
-          {result.preview?.length ? (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                What they will receive
-              </p>
-              {result.preview.map((p, i) => (
-                <div key={i} className="rounded-md bg-muted/40 p-3 text-sm">
-                  <div className="mb-1 font-mono text-xs text-muted-foreground">{p.msisdn}</div>
-                  {p.rendered}
-                </div>
-              ))}
-            </div>
-          ) : null}
         </div>
-      )}
-    </div>
+
+        {/* Seeds */}
+        <div className="space-y-3 rounded-lg border p-4">
+          <div>
+            <Label>Your numbers</Label>
+            <p className="text-xs text-muted-foreground">
+              These ride along so somebody sees the handset view. They get sample values, never a real
+              customer's.
+            </p>
+          </div>
+          {seeds.map((s, i) => (
+            <div key={i} className="flex gap-2">
+              <Input
+                value={s.name}
+                onChange={(e) =>
+                  setSeeds(seeds.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))
+                }
+                placeholder="Name"
+                className="w-40"
+              />
+              <Input
+                value={s.msisdn}
+                onChange={(e) =>
+                  setSeeds(seeds.map((x, j) => (j === i ? { ...x, msisdn: e.target.value } : x)))
+                }
+                placeholder="233XXXXXXXXX"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSeeds(seeds.filter((_, j) => j !== i))}
+                disabled={seeds.length === 1}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={() => setSeeds([...seeds, { msisdn: '', name: '' }])}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> Add number
+          </Button>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => go('preview')} disabled={run.isPending}>
+            {busy('preview') && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            1. Preview
+          </Button>
+
+          <Button variant="secondary" onClick={() => go('seeds')} disabled={run.isPending}>
+            {busy('seeds') ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <TestTube2 className="mr-2 h-4 w-4" />
+            )}
+            2. Test to my numbers
+          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button disabled={run.isPending || !result}>
+                <Send className="mr-2 h-4 w-4" />
+                3. Send to cohort {cohort}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Send to {result?.recipients ?? '?'} customers?</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2 text-sm">
+                    <p>
+                      Cohort {cohort}, chasing {ghs(result?.amountBeingChased ?? 0)} from{' '}
+                      {result?.recipients ?? 0} people, from sender{' '}
+                      <strong>{senderId || '(not set)'}</strong>.
+                    </p>
+                    <p className="text-muted-foreground">
+                      Have you confirmed the test message actually arrived on a handset? That is the
+                      only way to know this sender ID delivers.
+                    </p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => go('send')}>Send it</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+
+        {/* Result */}
+        {result && (
+          <div className="space-y-4 rounded-lg border p-4">
+            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <Stat label="Customers" value={String(result.recipients ?? 0)} />
+              <Stat label="To chase" value={ghs(result.amountBeingChased ?? 0)} />
+              <Stat label="Your numbers" value={String(result.seedNumbers ?? 0)} />
+              <Stat
+                label="Queued"
+                value={result.queued != null ? String(result.queued) : 'nothing yet'}
+              />
+            </div>
+
+            {(result.skippedNothingOwed > 0 ||
+              result.skippedNotYetDefaulted > 0 ||
+              result.skippedNoDueDate > 0) && (
+              <p className="text-xs text-muted-foreground">
+                Left out: {result.skippedNothingOwed} already paid the campaign amount (settle them
+                instead), {result.skippedNotYetDefaulted} overdue but not yet defaulted,{' '}
+                {result.skippedNoDueDate} with no due date.
+              </p>
+            )}
+
+            {result.preview?.length ? (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  What they will receive
+                </p>
+                {result.preview.map((p, i) => (
+                  <div key={i} className="rounded-md bg-muted/40 p-3 text-sm">
+                    <div className="mb-1 font-mono text-xs text-muted-foreground">{p.msisdn}</div>
+                    {p.rendered}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
   );
 }
 
