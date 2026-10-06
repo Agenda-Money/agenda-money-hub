@@ -252,6 +252,89 @@ describe("the scorecard", () => {
   });
 });
 
+describe("signals and privacy notice tabs", () => {
+  const signalsReply = {
+    data: {
+      data: {
+        deviceCapture: { enabled: false, noticePublished: false, noticeVersion: null, sightings: 0 },
+        rules: [],
+      },
+    },
+  };
+
+  it("offers both tabs alongside the queue", async () => {
+    respondWith([]);
+    renderPage();
+
+    expect(screen.getByRole("tab", { name: "Signals" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Privacy notice" })).toBeTruthy();
+  });
+
+  it("opens the signals panel, and stops asking for the queue", async () => {
+    get.mockImplementation((url: string) =>
+      url.includes("signals") ? Promise.resolve(signalsReply) : Promise.resolve({ data: { rows: [], total: 0 } }),
+    );
+    renderPage();
+    openTab("Signals");
+
+    expect(await screen.findByRole("switch", { name: "Device capture" })).toBeTruthy();
+    expect(screen.queryByLabelText(/include rules still being tested/i)).toBeNull();
+  });
+
+  it("opens the privacy notice editor", async () => {
+    get.mockImplementation((url: string) =>
+      url.includes("privacy-notice")
+        ? Promise.resolve({
+            data: {
+              data: {
+                draft: { shortNotice: "x".repeat(50), policyText: "y".repeat(90) },
+                draftUpdatedAt: null,
+                draftUpdatedBy: null,
+                published: null,
+                hasUnpublishedChanges: true,
+                placeholders: [],
+                history: [],
+                limits: { shortNotice: { min: 40, max: 700 }, policyText: { min: 80, max: 6000 } },
+              },
+            },
+          })
+        : Promise.resolve({ data: { rows: [], total: 0 } }),
+    );
+    renderPage();
+    openTab("Privacy notice");
+
+    expect(await screen.findByTestId("notice-preview")).toBeTruthy();
+  });
+
+  it("takes you to the notice from the signals panel", async () => {
+    get.mockImplementation((url: string) => {
+      if (url.includes("signals")) return Promise.resolve(signalsReply);
+      if (url.includes("privacy-notice"))
+        return Promise.resolve({
+          data: {
+            data: {
+              draft: { shortNotice: "x".repeat(50), policyText: "y".repeat(90) },
+              draftUpdatedAt: null,
+              draftUpdatedBy: null,
+              published: null,
+              hasUnpublishedChanges: true,
+              placeholders: [],
+              history: [],
+              limits: { shortNotice: { min: 40, max: 700 }, policyText: { min: 80, max: 6000 } },
+            },
+          },
+        });
+      return Promise.resolve({ data: { rows: [], total: 0 } });
+    });
+    renderPage();
+    openTab("Signals");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open privacy notice" }));
+
+    expect(await screen.findByTestId("notice-preview")).toBeTruthy();
+  });
+});
+
 describe("wording helpers", () => {
   it("falls back to something readable for a rule the hub has not been taught", () => {
     expect(ruleTitle("SOMETHING_NEW")).toBe("something new");

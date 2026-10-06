@@ -108,3 +108,61 @@ export function precisionLabel(score: Pick<RuleScore, "precision" | "decided">):
   const pct = `${Math.round(score.precision * 100)}%`;
   return score.decided < MIN_DECISIONS_TO_TRUST ? `${pct} (too few to trust)` : pct;
 }
+
+// ── Signals: what each rule is doing, and the switches ──
+
+export interface SignalRow {
+  rule: FraudRule | string;
+  live: boolean;
+  /** Live because the code says so; cannot be switched off from the page. */
+  pinned: boolean;
+  needsDeviceCapture: boolean;
+  /** Open flags hidden now that would join the queue if this went live. */
+  hiddenOpen: number;
+  /** Open flags the queue is showing now. */
+  shownOpen: number;
+}
+
+export interface SignalsResponse {
+  deviceCapture: {
+    enabled: boolean;
+    noticePublished: boolean;
+    noticeVersion: number | null;
+    /** Customer-and-device pairs recorded so far. */
+    sightings: number;
+  };
+  rules: SignalRow[];
+}
+
+// ── Privacy notice ──
+
+export interface NoticeText {
+  shortNotice: string;
+  policyText: string;
+}
+
+export interface PublishedNotice extends NoticeText {
+  version: number;
+  publishedAt: string;
+  publishedBy: string;
+}
+
+export interface NoticeResponse {
+  draft: NoticeText;
+  draftUpdatedAt: string | null;
+  draftUpdatedBy: string | null;
+  published: PublishedNotice | null;
+  hasUnpublishedChanges: boolean;
+  placeholders: string[];
+  history: { version: number; publishedAt: string; publishedBy: string }[];
+  limits: { shortNotice: { min: number; max: number }; policyText: { min: number; max: number } };
+}
+
+/**
+ * Anything in square brackets is a blank still waiting to be filled in. The
+ * server refuses to publish while any remain; the editor uses the same rule so
+ * it can say so as the person types.
+ */
+export function placeholdersIn(text: string): string[] {
+  return [...new Set((text.match(/\[[^\]]{1,120}\]/g) ?? []).map((p) => p.trim()))];
+}

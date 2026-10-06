@@ -34,6 +34,7 @@ import { useApplicant } from "@/contexts/ApplicantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocketContext } from "@/contexts/SocketContext";
 import api, { getUserLoansHistory, getUserRepaymentsHistory } from "@/lib/api";
+import { DeviceNotice } from "@/components/privacy/DeviceNotice";
 import { reportDevice } from "@/lib/deviceSighting";
 import { getApiBaseUrl } from "@/lib/domain";
 import {
@@ -2381,6 +2382,9 @@ export default function ApplyPage() {
                         The number must be your mobile money number
                       </p>
                     </div>
+
+                    {/* Shown only while device capture is on; renders nothing otherwise. */}
+                    <DeviceNotice baseUrl={baseApiUrl} />
 
                     <div className="mt-10">
                       <Button

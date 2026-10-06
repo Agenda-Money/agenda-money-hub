@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { DecideDialog } from "@/components/fraud/DecideDialog";
 import { FlagCard } from "@/components/fraud/FlagCard";
+import { PrivacyNoticeEditor } from "@/components/fraud/PrivacyNoticeEditor";
+import { SignalsPanel } from "@/components/fraud/SignalsPanel";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,7 +44,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
  */
 
 const PAGE_SIZE = 25;
-type Tab = FraudStatus | "SCORECARD";
+type Tab = FraudStatus | "SCORECARD" | "SIGNALS" | "NOTICE";
 
 export default function FraudReviewPage() {
   const qc = useQueryClient();
@@ -51,7 +53,7 @@ export default function FraudReviewPage() {
   const [page, setPage] = useState(0);
   const [deciding, setDeciding] = useState<{ flag: FraudFlag; decision: "CONFIRMED" | "DISMISSED" } | null>(null);
 
-  const isQueue = tab !== "SCORECARD";
+  const isQueue = tab === "OPEN" || tab === "CONFIRMED" || tab === "DISMISSED";
 
   const flags = useQuery({
     queryKey: ["fraud-flags", tab, includeShadow, page],
@@ -126,6 +128,8 @@ export default function FraudReviewPage() {
             <TabsTrigger value="CONFIRMED">Confirmed</TabsTrigger>
             <TabsTrigger value="DISMISSED">Dismissed</TabsTrigger>
             <TabsTrigger value="SCORECARD">Rule scorecard</TabsTrigger>
+            <TabsTrigger value="SIGNALS">Signals</TabsTrigger>
+            <TabsTrigger value="NOTICE">Privacy notice</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -259,6 +263,10 @@ export default function FraudReviewPage() {
             )}
           </section>
         )}
+
+        {tab === "SIGNALS" && <SignalsPanel onOpenNotice={() => changeTab("NOTICE")} />}
+
+        {tab === "NOTICE" && <PrivacyNoticeEditor />}
 
         <DecideDialog
           flag={deciding?.flag ?? null}
