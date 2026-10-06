@@ -10,7 +10,9 @@ export type FraudRule =
   | "REFERENCE_IS_DEFAULTER"
   | "REFERRER_IN_DEFAULT"
   | "REMOTE_AGENT_LINK"
-  | "AGENT_RISK";
+  | "AGENT_RISK"
+  | "DEVICE_SHARED"
+  | "DEVICE_OF_DEFAULTER";
 
 export type FraudSeverity = "low" | "medium" | "high";
 export type FraudStatus = "OPEN" | "CONFIRMED" | "DISMISSED";
@@ -19,7 +21,7 @@ export interface FraudFlag {
   _id: string;
   rule: FraudRule | string;
   severity: FraudSeverity;
-  subjectType: "user" | "loan" | "agent" | "reference";
+  subjectType: "user" | "loan" | "agent" | "reference" | "device";
   subjectKey: string;
   msisdn?: string;
   loanReference?: string;
@@ -66,6 +68,14 @@ export const RULE_LABELS: Record<string, { title: string; hint: string }> = {
   AGENT_RISK: {
     title: "Agent book looks unusual",
     hint: "Two or more independent signals on one agent. Look at their customers, not just the numbers.",
+  },
+  DEVICE_SHARED: {
+    title: "Several customers on one device",
+    hint: "A family phone or an agent signing people up on their own handset looks the same as made-up customers. Check which agent they sit under, then call a few.",
+  },
+  DEVICE_OF_DEFAULTER: {
+    title: "Applied from a defaulter's device",
+    hint: "Same device as someone in default. A relative sharing a phone is the innocent case, so ask before judging.",
   },
 };
 

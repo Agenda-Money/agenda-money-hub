@@ -72,6 +72,12 @@ export function FlagCard({ flag, onConfirm, onDismiss }: Props) {
             <dd className="font-mono text-foreground">{flag.agentCode}</dd>
           </div>
         )}
+        {flag.subjectType === "device" && (
+          <div className="flex gap-1">
+            <dt>Device</dt>
+            <dd className="font-mono text-foreground">{flag.subjectKey.slice(0, 8)}…</dd>
+          </div>
+        )}
         {flag.subjectType === "reference" && (
           <div className="flex gap-1">
             <dt>Reference number</dt>

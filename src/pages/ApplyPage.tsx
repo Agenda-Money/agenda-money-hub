@@ -34,6 +34,7 @@ import { useApplicant } from "@/contexts/ApplicantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocketContext } from "@/contexts/SocketContext";
 import api, { getUserLoansHistory, getUserRepaymentsHistory } from "@/lib/api";
+import { reportDevice } from "@/lib/deviceSighting";
 import { getApiBaseUrl } from "@/lib/domain";
 import {
   getActiveKycProvider,
@@ -1217,6 +1218,13 @@ export default function ApplyPage() {
     setView("success");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, mandateLoanReference, activeLoanDetails]);
+
+  // Tell the backend which device this customer is on, once per session. It is a
+  // separate fire-and-forget call so it cannot affect anything above, and the
+  // server decides whether to keep it.
+  useEffect(() => {
+    reportDevice(baseApiUrl, authToken);
+  }, [authToken]);
 
   // ─── Recent Activity Fetching ───
   useEffect(() => {
