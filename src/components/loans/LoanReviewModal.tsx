@@ -80,6 +80,8 @@ type LoanReviewData = {
   createdAt?: string;
   loanDetails?: any;
   disbursementProvider?: "PAYSTACK" | "ORCHARD";
+  /** Two-step disbursement: set once one admin has approved and a different one must finish it. */
+  firstApproval?: { adminId: string; adminName: string; at: string };
 };
 
 interface LoanReviewModalProps {
@@ -116,7 +118,7 @@ const tierColors: Record<string, string> = {
 
 export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }: Readonly<LoanReviewModalProps>) {
   const queryClient = useQueryClient();
-  const { canWrite } = useAuth();
+  const { canWrite, user: currentAdmin } = useAuth();
   const [momoCheck, setMomoCheck] = useState<{ resolvedName: string | null; registeredName: string; match: boolean; score: number; cached?: boolean; error?: string } | null>(null);
   const [momoCheckLoading, setMomoCheckLoading] = useState(false);
 
@@ -211,15 +213,29 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
     return "text-rose-400";
   })();
 
+  // Two-step disbursement: has one admin already approved, and is it me?
+  const firstApproval = loan?.firstApproval;
+  const iGaveFirstApproval = !!firstApproval && !!currentAdmin?.id && firstApproval.adminId === currentAdmin.id;
+
   const approveMutation = useMutation({
     mutationFn: (id: string) => approveLoan(id),
-    onSuccess: () => {
+    onSuccess: (data: { stage?: string; message?: string }) => {
       onOpenChange(false);
-      toast.success("Loan approved successfully", { duration: 1000 });
       queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
-      queryClient.invalidateQueries({ queryKey: ["loans"] }); 
+      queryClient.invalidateQueries({ queryKey: ["loans"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["loans-count"] }); 
+      queryClient.invalidateQueries({ queryKey: ["loans-count"] });
+
+      // The first of two approvals sends nothing. Saying "approved" here would
+      // tell the admin the money is on its way when it is not.
+      if (data?.stage === "FIRST_APPROVAL_RECORDED") {
+        toast.success("First approval recorded", {
+          description: "A different admin must give the final approval before money is sent.",
+        });
+        return;
+      }
+
+      toast.success("Loan approved successfully", { duration: 1000 });
       if (loanId) onActionSuccess?.('approve', loanId);
     },
     onError: (error: any) => {
@@ -654,6 +670,17 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                         </>
                       )}
                     </Button>
+                    {!isAwaitingMandate && firstApproval && (
+                      <div
+                        className="flex w-full items-center justify-center rounded-lg border border-blue-500/20 bg-blue-500/10 p-2 text-sm font-medium text-blue-700"
+                        data-testid="first-approval-banner"
+                      >
+                        <Check className="mr-2 h-4 w-4" />
+                        {iGaveFirstApproval
+                          ? "You gave the first approval. A different admin must give the final approval."
+                          : `First approved by ${firstApproval.adminName}. Your approval will send the money.`}
+                      </div>
+                    )}
                     {!isAwaitingMandate && (
                     <Button
                       className={cn(
@@ -663,7 +690,7 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                           : "bg-emerald-600 hover:bg-emerald-500"
                       )}
                       onClick={handleApprove}
-                      disabled={approveMutation.isPending || rejectMutation.isPending || momoCheckLoading}
+                      disabled={approveMutation.isPending || rejectMutation.isPending || momoCheckLoading || iGaveFirstApproval}
                     >
                       {approveMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -677,7 +704,9 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
                           <Check className="mr-2 h-4 w-4" />
                           {(momoCheck && !momoCheck.match) || (momoCheck && (momoCheck.resolvedName === null || momoCheck.error))
                             ? "Approve anyway"
-                            : "Approve Loan"}
+                            : firstApproval
+                              ? "Give final approval"
+                              : "Approve Loan"}
                         </>
                       )}
                     </Button>
