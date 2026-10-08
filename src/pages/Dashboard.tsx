@@ -55,10 +55,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Hero metrics and the loan book by days past due. Each figure states its
-          own definition, and the default rate always sits beside the system's
-          own DEFAULTED figure. */}
-      <PortfolioHealth />
+      {/* Hero metrics only. The days-past-due table lives on the Analytics page.
+          The default rate card still carries the system's own DEFAULTED figure in
+          its caption, so the 300-day figure is never shown on its own. */}
+      <PortfolioHealth showBands={false} />
 
       {/* Liquidity for the week ahead. Sits directly under the hero metrics
           because it is a float decision someone makes on a cadence, not

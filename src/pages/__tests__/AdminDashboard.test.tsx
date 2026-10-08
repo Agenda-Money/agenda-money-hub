@@ -189,23 +189,12 @@ describe("Admin Dashboard Integration", () => {
       expect(hero).toHaveTextContent("System marks defaulted at 30 days: 30.0% (30 loans)");
     });
 
-    it("shows every past-due band, so a zero default rate cannot hide a late book", async () => {
+    it("leaves the days-past-due table to the Analytics page", async () => {
       renderDashboard();
 
-      const bands = await screen.findByTestId("portfolio-bands");
-      expect(bands).toHaveTextContent("Not yet due");
-      expect(bands).toHaveTextContent("1 to 30 days past due");
-      expect(bands).toHaveTextContent("300+ days past due (default)");
-      expect(screen.getByTestId("portfolio-summary-lines")).toHaveTextContent("40 loans, GHS 4,000, 40.0% of the book");
-      expect(screen.getByTestId("portfolio-summary-lines")).toHaveTextContent("30 loans, GHS 3,000, 30.0% of the book");
-    });
-
-    it("states the definitions in the server's words", async () => {
-      renderDashboard();
-
-      const defs = await screen.findByTestId("portfolio-definitions");
-      expect(defs).toHaveTextContent("Share of the loan book, by value, on loans 300 or more days past due.");
-      expect(defs).toHaveTextContent("30 days after the due date");
+      await screen.findByTestId("portfolio-hero");
+      expect(screen.queryByTestId("portfolio-bands")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("portfolio-definitions")).not.toBeInTheDocument();
     });
 
     it("says so, rather than showing old numbers, when the portfolio cannot be loaded", async () => {
