@@ -1,10 +1,11 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import {
   Calculator, LogOut, LayoutGrid, Receipt, BookText, ArrowLeftRight, PieChart, Activity,
-  SlidersHorizontal, TrendingUp, Landmark, Wallet, FileBarChart, Sparkles, BarChart3,
+  SlidersHorizontal, TrendingUp, Landmark, Wallet, FileBarChart, Sparkles, BarChart3, ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAccountingAccess } from "@/hooks/useAccountingAccess";
 import { cn } from "@/lib/utils";
 
 const ACTUALS_NAV_ITEMS = [
@@ -50,7 +51,7 @@ function SectionToggle({ activeSection }: { activeSection: "actuals" | "plan" })
   );
 }
 
-function NavGroup({ items }: { items: typeof ACTUALS_NAV_ITEMS }) {
+function NavGroup({ items }: { items: { to: string; label: string; end?: boolean; icon: typeof LayoutGrid }[] }) {
   return (
     <div className="flex items-center gap-1 shrink-0">
       {items.map((item) => (
@@ -81,7 +82,13 @@ export default function FinanceLayout() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const activeSection = location.pathname.startsWith("/finance/plan") ? "plan" : "actuals";
-  const activeItems = activeSection === "plan" ? PLAN_NAV_ITEMS : ACTUALS_NAV_ITEMS;
+  const access = useAccountingAccess();
+  // Only someone who can assign roles sees the Access page; the server refuses
+  // everyone else regardless.
+  const actualsItems = access.can("assignRoles")
+    ? [...ACTUALS_NAV_ITEMS, { to: "/finance/access", label: "Access", icon: ShieldCheck }]
+    : ACTUALS_NAV_ITEMS;
+  const activeItems = activeSection === "plan" ? PLAN_NAV_ITEMS : actualsItems;
 
   return (
     <div className="min-h-screen bg-background flex flex-col w-full">
