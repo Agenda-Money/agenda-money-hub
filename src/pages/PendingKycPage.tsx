@@ -182,10 +182,17 @@ export default function PendingKycPage() {
     if (!pendingLoan) return;
     setIsApprovingLoan(true);
     try {
-      await approveLoan(pendingLoan._id || pendingLoan.id);
-      toast.success("Loan Approved! 🎉", {
-        description: "Loan has been approved successfully.",
-      });
+      const result = await approveLoan(pendingLoan._id || pendingLoan.id);
+      if (result?.stage === "FIRST_APPROVAL_RECORDED") {
+        // Nothing has been sent yet; a different admin must finish it.
+        toast.success("First approval recorded", {
+          description: "A different admin must give the final approval before money is sent.",
+        });
+      } else {
+        toast.success("Loan Approved! 🎉", {
+          description: "Loan has been approved successfully.",
+        });
+      }
       setPendingLoan(null);
       setKycJustVerified(false);
       setSelectedUser(null);
