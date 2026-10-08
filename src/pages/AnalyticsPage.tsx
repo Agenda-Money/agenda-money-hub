@@ -23,6 +23,8 @@ import {
   useReferralAnalytics
 } from "@/components/analytics/analytics.hooks";
 import { ReferralAnalytics } from "@/components/analytics/ReferralAnalytics";
+import { PortfolioBands } from "@/components/analytics/PortfolioHealth";
+import { usePortfolio } from "@/components/analytics/portfolio";
 import { CashflowProjectionPanel } from "@/components/analytics/CashflowProjection";
 import { 
   safeNum, 
@@ -34,9 +36,6 @@ import {
   getWeeklyDisbursementStatus,
   getRepaymentRateStatus,
   getCollectionRateStatus,
-  getLoanBookStatus,
-  getOverdueLoansStatus,
-  getDefaultRateStatus,
   getPAR15Status,
   getPAR15StatusCustom,
   getApprovalRateStatus,
@@ -50,6 +49,7 @@ export default function AnalyticsPage() {
   const [toInput, setToInput] = useState('');
 
   const sum = useSummary();
+  const port = usePortfolio();
   const perf = usePerformance(range);
   const dist = useDistribution();
   const vol = useVolume(range);
@@ -122,16 +122,22 @@ export default function AnalyticsPage() {
         />
         <KpiCard
           label="Loan book"
-          value={fGHS(s?.loanBook?.total)}
-          subtext="Outstanding principal"
-          {...getLoanBookStatus(safeNum(s?.loanBook?.total))}
+          loading={port.isLoading}
+          value={port.data ? fGHS(port.data.loanBook.outstanding) : "Unavailable"}
+          subtext={port.data ? `Still owed across ${fCount(port.data.loanBook.loans)} loans` : "Could not load the portfolio figures"}
+          status={port.data ? "green" : "neutral"}
           icon={<Banknote className="w-5 h-5" />}
         />
         <KpiCard
-          label="Overdue loans"
-          value={safeNum(s?.overdueLoans?.count).toString()}
-          subtext="Includes defaulted loans"
-          {...getOverdueLoansStatus(safeNum(s?.overdueLoans?.count))}
+          label="Past due"
+          loading={port.isLoading}
+          value={port.data ? fCount(port.data.pastDue.loans) : "Unavailable"}
+          subtext={
+            port.data
+              ? `${fGHS(port.data.pastDue.outstanding)} owed, ${fPct(port.data.pastDue.shareOfBookPct)} of the book. Bands below.`
+              : "Could not load the portfolio figures"
+          }
+          status="neutral"
           icon={<AlertTriangle className="w-5 h-5" />}
         />
       </div>
@@ -150,10 +156,15 @@ export default function AnalyticsPage() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px] mt-4">
         <KpiCard
-          label="Default rate"
-          value={fPct(overallDefaultRate)}
-          subtext="DD+15 unpaid"
-          {...getDefaultRateStatus(safeNum(overallDefaultRate))}
+          label={port.data ? `Default rate (${port.data.defaultRate.afterDays}+ days)` : "Default rate"}
+          loading={port.isLoading}
+          value={port.data ? fPct(port.data.defaultRate.shareOfBookPct) : "Unavailable"}
+          subtext={
+            port.data
+              ? `${fCount(port.data.defaultRate.loans)} loans ${port.data.defaultRate.afterDays}+ days past due. System marks defaulted at ${port.data.definitions.systemDefaultAfterDays} days: ${fPct(port.data.systemDefaulted.shareOfBookPct)} (${fCount(port.data.systemDefaulted.loans)} loans)`
+              : "Could not load the portfolio figures"
+          }
+          status="neutral"
           icon={<AlertTriangle className="w-5 h-5" />}
         />
         <KpiCard
@@ -215,6 +226,16 @@ export default function AnalyticsPage() {
           <SectionHead title="Summary KPIs" />
           {renderSummaryCards()}
         </div>
+
+        {/* Section 1a: Where the loan book sits by days past due, with each
+            definition stated and the system's own DEFAULTED figure beside the
+            default rate. */}
+        {port.data && (
+          <div>
+            <SectionHead title="Portfolio by days past due" />
+            <PortfolioBands snapshot={port.data} />
+          </div>
+        )}
 
         {/* Section 1b: Cashflow. Placed straight after the summary because it
             is the only forward-looking panel here — everything below reports

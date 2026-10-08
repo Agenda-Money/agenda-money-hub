@@ -3,18 +3,15 @@ import React from "react";
 import { RecentLoansTable } from "@/components/dashboard/RecentLoansTable";
 import { PendingApprovals } from "@/components/dashboard/PendingApprovals";
 import { RecentRepaymentsWidget } from "@/components/dashboard/RecentRepaymentsWidget";
-import { DashboardSkeleton } from "@/components/layout/DashboardSkeleton";
 import { useSocket } from "@/hooks/useSocket";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { CashflowProjectionCard } from "@/components/analytics/CashflowProjection";
-import { Users, TrendingDown, BookOpen, AlertTriangle } from "lucide-react";
-import { formatAmount, formatNumber } from "@/lib/utils";
+import { PortfolioHealth } from "@/components/analytics/PortfolioHealth";
 
 // New hooks and types
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDateFilter } from "@/hooks/useDateFilter";
 import api from "@/lib/api";
-import { SummaryData, PerformanceData, VolumeData } from "@/types/analytics";
+import { VolumeData } from "@/types/analytics";
 
 // New cards
 import { MoMDisbursementCard } from "@/components/dashboard/MoMDisbursementCard";
@@ -23,21 +20,7 @@ export default function Dashboard() {
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
   const { preset, startDate, endDate, applyPreset, setStartDate, setEndDate } = useDateFilter();
 
-  // 1. Batch API fetches for Summary and Performance (Mounted once or on refetch)
-  const { data: dashboardData, isLoading: isDashboardLoading, refetch } = useQuery({
-    queryKey: ["dashboard-core"],
-    queryFn: async () => {
-      const [summaryRes, perfRes] = await Promise.all([
-        api.get("/api/admin/analytics/summary"),
-        api.get("/api/admin/analytics/performance"),
-      ]);
-
-      return {
-        summary: summaryRes.data.data as SummaryData,
-        performance: perfRes.data.data as PerformanceData,
-      };
-    },
-  });
+  const queryClient = useQueryClient();
 
   // 2. Volume API triggered by date filter
   const { data: volumeData } = useQuery({
@@ -55,15 +38,10 @@ export default function Dashboard() {
   // WebSocket integration for real-time updates
   useSocket(wsUrl, (message) => {
     if (message?.type === "NEW_APPLICATION" || message?.type === "KYC_VERIFIED_SUCCESS") {
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ["analytics-portfolio"] });
     }
   });
 
-  if (isDashboardLoading || !dashboardData) {
-    return <DashboardSkeleton />;
-  }
-
-  const { summary, performance } = dashboardData;
   const momGrowth = volumeData?.momDisbursementGrowth || [];
 
   return (
@@ -77,24 +55,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Top 3 Hero Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatsCard
-          title="Loan Book"
-          value={`₵ ${formatAmount(summary.loanBook.value ?? 0)}`}
-          icon={BookOpen}
-        />
-        <StatsCard
-          title="Active Loans"
-          value={formatNumber(summary.activeLoans?.count ?? 0)}
-          icon={Users}
-        />
-        <StatsCard
-          title="Repayment Rate"
-          value={performance.repaymentRate?.rate != null ? `${performance.repaymentRate.rate.toFixed(1)}%` : "0%"}
-          icon={TrendingDown}
-        />
-      </div>
+      {/* Hero metrics and the loan book by days past due. Each figure states its
+          own definition, and the default rate always sits beside the system's
+          own DEFAULTED figure. */}
+      <PortfolioHealth />
 
       {/* Liquidity for the week ahead. Sits directly under the hero metrics
           because it is a float decision someone makes on a cadence, not
