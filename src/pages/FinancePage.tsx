@@ -27,6 +27,8 @@ import {
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAccountingAccess } from "@/hooks/useAccountingAccess";
+import { AccessPanel } from "@/components/finance/AccessPanel";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { uploadToStorage } from "@/lib/storage";
 import { cn } from "@/lib/utils";
@@ -35,6 +37,7 @@ import { EXPENSE_CATEGORIES, PAYROLL_DEPARTMENTS, type LedgerCategoryId } from "
 import {
   getAccountingSettings, updateAccountingSettings,
   listLedgerEntries, createLedgerEntry, requestLedgerDeletion, approveLedgerDeletion, rejectLedgerDeletion,
+  approveLedgerEntry, rejectLedgerEntry,
   getPnl, getPnlTrend, getChannelBreakdown, getCashflow,
   type LedgerEntry,
 } from "@/api/accounting.api";
@@ -636,7 +639,11 @@ function ReceiptCell({ receiptUrl }: { receiptUrl?: string }) {
 function LedgerTab({ month }: { month: string }) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { canWrite, canDelete } = useAuth();
+  const { canDelete, user: me } = useAuth();
+  const access = useAccountingAccess();
+  const [decideTarget, setDecideTarget] = useState<{ entry: LedgerEntry; action: "approve" | "reject" } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [form, setForm] = useState({ category: "" as LedgerCategoryId | "", department: "", description: "", amount: "", periodMonth: month });
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -649,9 +656,10 @@ function LedgerTab({ month }: { month: string }) {
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["ledger-entries", month, categoryFilter, departmentFilter],
+    queryKey: ["ledger-entries", month, categoryFilter, departmentFilter, showPendingOnly],
     queryFn: () => listLedgerEntries({
       periodMonth: month,
+      approvalStatus: showPendingOnly ? "pending" : undefined,
       limit: 100,
       category: categoryFilter === "all" ? undefined : categoryFilter,
       department: departmentFilter === "all" ? undefined : (departmentFilter as any),
@@ -663,7 +671,7 @@ function LedgerTab({ month }: { month: string }) {
   );
 
   const exportCsv = () => {
-    const header = ["Category", "Department", "Description", "Cost Type", "Amount (GHS)", "Period", "Status"];
+    const header = ["Category", "Department", "Description", "Cost Type", "Amount (GHS)", "Period", "Status", "Approval", "Entered by", "Approved by"];
     const rows = visibleEntries.map((e) => [
       EXPENSE_CATEGORIES.find((c) => c.id === e.category)?.label ?? e.category,
       e.department ?? "",
@@ -672,6 +680,9 @@ function LedgerTab({ month }: { month: string }) {
       e.amount.toFixed(2),
       e.periodMonth,
       e.status,
+      e.approvalStatus ?? "approved",
+      `"${(e.enteredByName ?? "").replace(/"/g, '""')}"`,
+      `"${(e.approvedByName ?? "").replace(/"/g, '""')}"`,
     ]);
     const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -720,6 +731,19 @@ function LedgerTab({ month }: { month: string }) {
     onError: (e: any) => toast({ variant: "destructive", title: "Failed to request deletion", description: getFriendlyErrorMessage(e) }),
   });
 
+  const decideMut = useMutation({
+    mutationFn: ({ id, action, reason }: { id: string; action: "approve" | "reject"; reason: string }) =>
+      action === "approve" ? approveLedgerEntry(id) : rejectLedgerEntry(id, reason),
+    onSuccess: (_d, v) => {
+      toast({ title: v.action === "approve" ? "Entry approved" : "Entry rejected" });
+      setDecideTarget(null);
+      setRejectReason("");
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["accounting-pnl"] });
+    },
+    onError: (e: any) => { setDecideTarget(null); invalidate(); toast({ variant: "destructive", title: "Could not save that decision", description: getFriendlyErrorMessage(e) }); },
+  });
+
   const approveMut = useMutation({
     mutationFn: approveLedgerDeletion,
     onSuccess: () => { toast({ title: "Deletion approved" }); setApprovalTarget(null); invalidate(); },
@@ -766,7 +790,11 @@ function LedgerTab({ month }: { month: string }) {
           <Button size="sm" variant="outline" onClick={exportCsv} disabled={visibleEntries.length === 0}>
             <Download className="h-4 w-4 mr-2" /> Export CSV
           </Button>
-        {canWrite && (
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input type="checkbox" checked={showPendingOnly} onChange={(e) => setShowPendingOnly(e.target.checked)} />
+            Awaiting approval only
+          </label>
+        {access.can("upload") && (
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-2" /> New Entry</Button>
@@ -854,6 +882,7 @@ function LedgerTab({ month }: { month: string }) {
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Receipt</TableHead>
+                  <TableHead>Approval</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -873,6 +902,22 @@ function LedgerTab({ month }: { month: string }) {
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{fmtGhs(entry.amount)}</TableCell>
                     <TableCell><ReceiptCell receiptUrl={entry.receiptUrl} /></TableCell>
+                    <TableCell data-testid={`approval-${entry._id}`}>
+                      {entry.approvalStatus === "pending" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                          <Clock className="h-3 w-3" /> Awaiting approval
+                        </span>
+                      )}
+                      {entry.approvalStatus === "rejected" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800" title={entry.rejectionReason}>
+                          <XCircle className="h-3 w-3" /> Rejected
+                        </span>
+                      )}
+                      {(!entry.approvalStatus || entry.approvalStatus === "approved") && (
+                        <span className="text-xs text-muted-foreground">{entry.approvedByName ? `Approved by ${entry.approvedByName}` : "Approved"}</span>
+                      )}
+                      {entry.enteredByName && <div className="text-[11px] text-muted-foreground">Entered by {entry.enteredByName}</div>}
+                    </TableCell>
                     <TableCell>
                       <span className={cn(
                         "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
@@ -884,7 +929,20 @@ function LedgerTab({ month }: { month: string }) {
                       </span>
                     </TableCell>
                     <TableCell className="text-right space-x-1">
-                      {entry.status === "active" && canWrite && (
+                      {entry.approvalStatus === "pending" && entry.status === "active" && access.can("approve") && entry.enteredBy !== me?.id && (
+                        <>
+                          <Button variant="ghost" size="sm" className="h-7 text-green-700" aria-label="Approve entry" onClick={() => setDecideTarget({ entry, action: "approve" })}>
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 text-destructive" aria-label="Reject entry" onClick={() => setDecideTarget({ entry, action: "reject" })}>
+                            <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                          </Button>
+                        </>
+                      )}
+                      {entry.approvalStatus === "pending" && entry.enteredBy === me?.id && (
+                        <span className="text-[11px] text-muted-foreground">Someone else must approve</span>
+                      )}
+                      {entry.status === "active" && access.can("requestDeletion") && (
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteTarget(entry)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -902,12 +960,47 @@ function LedgerTab({ month }: { month: string }) {
                     </TableCell>
                   </TableRow>
                 ))}
-                {visibleEntries.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{search.trim() ? "No entries match your search" : "No ledger entries for this period"}</TableCell></TableRow>}
+                {visibleEntries.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{search.trim() ? "No entries match your search" : "No ledger entries for this period"}</TableCell></TableRow>}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!decideTarget} onOpenChange={(v) => { if (!v) { setDecideTarget(null); setRejectReason(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{decideTarget?.action === "approve" ? "Approve this expense" : "Reject this expense"}</DialogTitle>
+            <DialogDescription>
+              {decideTarget?.action === "approve"
+                ? "It will count in the P&L and cash flow from now on."
+                : "It stays out of the P&L and cash flow. The person who entered it will see why."}
+            </DialogDescription>
+          </DialogHeader>
+          {decideTarget && (
+            <p className="text-sm">
+              {decideTarget.entry.description}: <span className="font-mono">{fmtGhs(decideTarget.entry.amount)}</span>
+              {decideTarget.entry.enteredByName ? `, entered by ${decideTarget.entry.enteredByName}` : ""}
+            </p>
+          )}
+          {decideTarget?.action === "reject" && (
+            <div className="py-2 space-y-2">
+              <Label htmlFor="reject-reason">Reason (required)</Label>
+              <Textarea id="reject-reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="e.g. No receipt attached" />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDecideTarget(null); setRejectReason(""); }}>Cancel</Button>
+            <Button
+              variant={decideTarget?.action === "reject" ? "destructive" : "default"}
+              disabled={decideMut.isPending || (decideTarget?.action === "reject" && !rejectReason.trim())}
+              onClick={() => decideTarget && decideMut.mutate({ id: decideTarget.entry._id, action: decideTarget.action, reason: rejectReason.trim() })}
+            >
+              {decideMut.isPending ? "Saving…" : decideTarget?.action === "approve" ? "Approve" : "Reject"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-md">
@@ -970,7 +1063,7 @@ function LedgerTab({ month }: { month: string }) {
 function SettingsCard() {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { canWrite } = useAuth();
+  const access = useAccountingAccess();
   const { data: settings } = useQuery({ queryKey: ["accounting-settings"], queryFn: getAccountingSettings });
   const [rate, setRate] = useState<string>("");
 
@@ -986,7 +1079,7 @@ function SettingsCard() {
         <CardTitle className="text-base">Cost of funds</CardTitle>
         <CardDescription>Monthly rate applied to that month's total disbursed principal. Current: {settings?.costOfFundsRatePercent ?? "—"}%/month.</CardDescription>
       </CardHeader>
-      {canWrite && (
+      {access.can("settings") && (
         <CardContent className="flex items-end gap-3">
           <div className="space-y-2">
             <Label>New rate (%)</Label>
@@ -1069,6 +1162,18 @@ export function FinancePortfolioPage() {
     <div>
       <PageHeader title="Portfolio" month={month} onMonth={setMonth} />
       <PortfolioTab month={month} />
+    </div>
+  );
+}
+
+export function FinanceAccessPage() {
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-foreground">Access</h1>
+        <p className="text-sm text-muted-foreground">Who can enter, approve and view accounting.</p>
+      </div>
+      <AccessPanel />
     </div>
   );
 }

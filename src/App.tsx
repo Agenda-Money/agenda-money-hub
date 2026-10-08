@@ -66,6 +66,9 @@ const FinanceOverviewPage = lazy(() =>
 const FinancePnlPage = lazy(() =>
   import("./pages/FinancePage").then((m) => ({ default: m.FinancePnlPage })),
 );
+const FinanceAccessPage = lazy(() =>
+  import("./pages/FinancePage").then((m) => ({ default: m.FinanceAccessPage })),
+);
 const FinanceLedgerPage = lazy(() =>
   import("./pages/FinancePage").then((m) => ({ default: m.FinanceLedgerPage })),
 );
@@ -278,6 +281,7 @@ const App = () => {
                         <Route path="/finance" element={<FinanceOverviewPage />} />
                         <Route path="/finance/pnl" element={<FinancePnlPage />} />
                         <Route path="/finance/ledger" element={<FinanceLedgerPage />} />
+                        <Route path="/finance/access" element={<FinanceAccessPage />} />
                         <Route path="/finance/channels" element={<FinanceChannelsPage />} />
                         <Route path="/finance/portfolio" element={<FinancePortfolioPage />} />
                         <Route path="/finance/cashflow" element={<FinanceCashflowPage />} />

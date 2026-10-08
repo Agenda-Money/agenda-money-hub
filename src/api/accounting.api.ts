@@ -21,6 +21,13 @@ export interface LedgerEntry {
   periodMonth: string;
   receiptUrl?: string;
   enteredBy: string;
+  enteredByName?: string;
+  /** Missing on entries from before approvals existed; those count as approved. */
+  approvalStatus?: LedgerApprovalStatus;
+  approvedByName?: string;
+  approvedAt?: string;
+  rejectedByName?: string;
+  rejectionReason?: string;
   status: LedgerEntryStatus;
   deletionRequestedAt?: string;
   deletionRequestedBy?: string;
@@ -74,6 +81,7 @@ export async function listLedgerEntries(params: {
   department?: PayrollDepartment;
   periodMonth?: string;
   status?: LedgerEntryStatus;
+  approvalStatus?: LedgerApprovalStatus | "approved";
 }): Promise<{ data: LedgerEntry[]; pagination: { total: number; page: number; pages: number } }> {
   const res = await api.get(`${BASE}/ledger`, { params });
   return res.data;
@@ -124,5 +132,55 @@ export async function getCashflow(month: string): Promise<CashflowResponse> {
 
 export async function getPnlTrend(endMonth: string, months = 6): Promise<PnlTrendResponse> {
   const res = await api.get(`${BASE}/pnl/trend`, { params: { endMonth, months } });
+  return res.data.data;
+}
+
+// ── Approvals and access ──
+
+export type LedgerApprovalStatus = "pending" | "approved" | "rejected";
+
+export type AccountingPermission =
+  | "read"
+  | "upload"
+  | "requestDeletion"
+  | "approve"
+  | "settings"
+  | "assignRoles";
+
+export type AccountingRole = "uploader" | "approver" | "viewer";
+
+export async function approveLedgerEntry(id: string): Promise<LedgerEntry> {
+  const res = await api.post(`${BASE}/ledger/${id}/approve`);
+  return res.data.data;
+}
+
+export async function rejectLedgerEntry(id: string, reason: string): Promise<LedgerEntry> {
+  const res = await api.post(`${BASE}/ledger/${id}/reject`, { reason });
+  return res.data.data;
+}
+
+export async function getMyAccountingAccess(): Promise<{
+  accountingRole: AccountingRole | null;
+  permissions: AccountingPermission[];
+}> {
+  const res = await api.get(`${BASE}/access/me`);
+  return res.data.data;
+}
+
+export interface AccountingAdmin {
+  _id: string;
+  fullName: string;
+  email: string;
+  role: string;
+  accountingRole?: AccountingRole;
+}
+
+export async function listAccountingAdmins(): Promise<AccountingAdmin[]> {
+  const res = await api.get(`${BASE}/access/admins`);
+  return res.data.data;
+}
+
+export async function setAccountingRole(adminId: string, accountingRole: AccountingRole | null) {
+  const res = await api.put(`${BASE}/access/admins/${adminId}`, { accountingRole });
   return res.data.data;
 }
