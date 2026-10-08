@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { sendTestAlert, type TestAlertResult } from "@/api/alerts.api";
+import { TwoStepDisbursementCard } from "@/components/settings/TwoStepDisbursementCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -575,6 +576,8 @@ function PaymentsSettings({ canWrite }: { canWrite: boolean }) {
           )}
         </CardContent>
       </Card>
+
+      <TwoStepDisbursementCard canWrite={canWrite} />
 
       <Card>
         <SettingsCardHeader

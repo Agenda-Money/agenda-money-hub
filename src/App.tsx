@@ -342,6 +342,7 @@ const App = () => {
                       <Route path="/loans/active" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
                       <Route path="/loans/closed" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
                       <Route path="/loans/overdue" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
+                      <Route path="/loans/second-approval" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
                       <Route path="/loans/awaiting-node" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
                       <Route path="/loans/defaulted" element={<RequireAuth><AdminRoute><LoansPage /></AdminRoute></RequireAuth>} />
                       <Route path="/repayments" element={<RequireAuth><AdminRoute><RepaymentsPage /></AdminRoute></RequireAuth>} />

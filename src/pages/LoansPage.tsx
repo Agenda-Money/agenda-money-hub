@@ -42,6 +42,8 @@ interface Loan {
   createdAt?: string;
   totalLoans?: number;
   loansToDate?: number;
+  /** Two-step disbursement: set once one admin has approved and a different one must finish it. */
+  firstApproval?: { adminId: string; adminName: string; at: string };
 }
 
 const statusConfig = {
@@ -62,6 +64,23 @@ const statusConfig = {
   "DUE TODAY": { label: "Due Today", icon: AlertTriangle, color: "bg-warning/10 text-warning border-warning/20" },
 };
 
+/**
+ * A loan one admin has approved and another must finish is still PENDING, so the
+ * ordinary label would say nothing about it. It keeps its PENDING status
+ * underneath (the review sheet depends on that) and only the label changes.
+ */
+const AWAITING_SECOND_APPROVAL = {
+  label: "Awaiting 2nd approval",
+  icon: ShieldCheck,
+  color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+};
+
+function statusFor(loan: Loan) {
+  if (loan.status === "PENDING" && loan.firstApproval) return AWAITING_SECOND_APPROVAL;
+  const key = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
+  return statusConfig[key] ?? statusConfig.PENDING;
+}
+
 const tabStatusMap: Record<string, string> = {
   pending: "PENDING",
   "awaiting-node": "AWAITING_ENDORSEMENT",
@@ -69,6 +88,9 @@ const tabStatusMap: Record<string, string> = {
   overdue: "OVERDUE",
   closed: "REPAID,CLOSED",
   defaulted: "DEFAULTED",
+  // Not a status of its own: the list is filtered to PENDING loans that already
+  // have a first approval. See buildParams.
+  "second-approval": "PENDING",
 };
 
 function formatDate(dateStr: string | undefined | null): string {
@@ -132,8 +154,7 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
             </thead>
             <tbody>
               {loans.map((loan, index) => {
-                const key = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
-                const cfg = statusConfig[key] ?? statusConfig.PENDING;
+                const cfg = statusFor(loan);
                 return (
                   <tr
                     key={loan.id}
@@ -152,6 +173,11 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
                     <td className="px-6 py-4 text-sm text-muted-foreground">{formatDate(loan.dueDate)}</td>
                     <td className="px-6 py-4">
                       <Badge variant="outline" className={cn("font-medium text-xs", cfg.color)}>{cfg.label}</Badge>
+                      {loan.status === "PENDING" && loan.firstApproval && (
+                        <p className="mt-1 text-[11px] text-muted-foreground" data-testid={`first-approver-${loan.id}`}>
+                          First approved by {loan.firstApproval.adminName}
+                        </p>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end">
@@ -171,8 +197,7 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
       {/* Mobile cards */}
       <div className="md:hidden space-y-3 w-full min-w-0">
         {loans.map((loan, index) => {
-          const key = (loan.status || "PENDING").toUpperCase() as keyof typeof statusConfig;
-          const cfg = statusConfig[key] ?? statusConfig.PENDING;
+          const cfg = statusFor(loan);
           const StatusIcon = cfg.icon;
           return (
             <div
@@ -198,6 +223,9 @@ function LoansTable({ loans, onLoanClick, sortBy, sortOrder, onSort }: Readonly<
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground text-sm truncate">{loan.user}</p>
                     <p className="text-xs text-muted-foreground font-mono truncate">{loan.reference} <span className="opacity-50 mx-1">•</span> {loan.phone}</p>
+                    {loan.status === "PENDING" && loan.firstApproval && (
+                      <p className="text-[11px] text-muted-foreground truncate">First approved by {loan.firstApproval.adminName}</p>
+                    )}
                   </div>
                 </div>
                 <Badge variant="outline" className={cn("flex items-center gap-1.5 shrink-0 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border-border/50", cfg.color)}>
@@ -272,6 +300,7 @@ export default function LoansPage() {
 
   const getTabFromPath = () => {
     const path = location.pathname;
+    if (path.includes("/second-approval")) return "second-approval";
     if (path.includes("/awaiting-node")) return "awaiting-node";
     if (path.includes("/defaulted")) return "defaulted";
     if (path.includes("/pending")) return "pending";
@@ -300,6 +329,7 @@ export default function LoansPage() {
     const statusForTab = tabStatusMap[currentTab];
     if (currentTab === "all" && statusFilter !== "all") params.status = statusFilter;
     else if (statusForTab) params.status = statusForTab;
+    if (currentTab === "second-approval") params.awaitingSecondApproval = "true";
     return params;
   }, [page, sortBy, sortOrder, debouncedSearch, dateFrom, dateTo, currentTab, statusFilter]);
 
@@ -322,6 +352,16 @@ export default function LoansPage() {
 
   const [pendingCount, awaitingNodeCount, activeCount, closedCount, overdueCount, defaultedCount] =
     statusQueries.map((q) => q.data ?? 0);
+
+  const secondApprovalQuery = useQuery({
+    queryKey: ["loans-count", "second-approval"],
+    queryFn: async () => {
+      const res = await getAdminLoans({ awaitingSecondApproval: "true", limit: 1 });
+      return res.pagination?.total || 0;
+    },
+    staleTime: 60000,
+  });
+  const secondApprovalCount = secondApprovalQuery.data ?? 0;
 
   const rawLoans = loansData?.loans || [];
   const totalLoans = loansData?.pagination?.total || 0;
@@ -372,6 +412,7 @@ export default function LoansPage() {
       guaranteedAt: l.guaranteedAt,
       guarantorApprovedAt: l.guarantorApprovedAt,
       createdAt: l.createdAt,
+      firstApproval: l.firstApproval?.adminId ? l.firstApproval : undefined,
       totalLoans: l.user?.totalLoansRepaid ?? l.user?.totalLoansTaken ?? l.user?.totalLoans ?? l.totalLoans ?? 0,
       loansToDate: l.user?.totalLoansRepaid ?? l.user?.totalLoansTaken ?? l.user?.totalLoans ?? l.loansToDate ?? 0,
     };
@@ -389,6 +430,7 @@ export default function LoansPage() {
       const statusForTab = tabStatusMap[currentTab];
       if (currentTab === "all" && statusFilter !== "all") params.status = statusFilter;
       else if (statusForTab) params.status = statusForTab;
+      if (currentTab === "second-approval") params.awaitingSecondApproval = "true";
       if (debouncedSearch) params.search = debouncedSearch;
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
@@ -411,6 +453,7 @@ export default function LoansPage() {
   // Stat strip config — defined after counts are available
   const statItems = [
     { label: "Pending",      count: pendingCount,      dot: "bg-amber-400",  card: "bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800",    text: "text-amber-700 dark:text-amber-400" },
+    { label: "2nd approval", count: secondApprovalCount, dot: "bg-blue-500", card: "bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800", text: "text-blue-700 dark:text-blue-400" },
     { label: "Awaiting Node",count: awaitingNodeCount, dot: "bg-purple-500", card: "bg-purple-50 border-purple-200 dark:bg-purple-950/40 dark:border-purple-800", text: "text-purple-700 dark:text-purple-400" },
     { label: "Active",       count: activeCount,       dot: "bg-green-500",  card: "bg-green-50 border-green-200 dark:bg-green-950/40 dark:border-green-800",     text: "text-green-700 dark:text-green-400" },
     { label: "Closed",       count: closedCount,       dot: "bg-blue-500",   card: "bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800",         text: "text-blue-700 dark:text-blue-400" },
@@ -492,9 +535,9 @@ export default function LoansPage() {
         </div>
 
         {/* Desktop */}
-        <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="hidden sm:grid sm:grid-cols-4 lg:grid-cols-7 gap-3">
           {statItems.map((s) => (
-            <div key={s.label} className={cn("rounded-xl border p-4 shadow-sm", s.card)}>
+            <div key={s.label} data-testid={`stat-${s.label}`} className={cn("rounded-xl border p-4 shadow-sm", s.card)}>
               <div className="flex items-center gap-1.5 mb-2">
                 <span className={cn("h-2 w-2 rounded-full shrink-0", s.dot)} />
                 <span className={cn("text-xs font-semibold", s.text)}>{s.label}</span>
@@ -551,6 +594,7 @@ export default function LoansPage() {
               {[
                 { value: "all",          label: "All" },
                 { value: "pending",      label: "Pending" },
+                { value: "second-approval", label: "2nd approval" },
                 { value: "awaiting-node",label: "Awaiting" },
                 { value: "active",       label: "Active" },
                 { value: "overdue",      label: "Overdue" },
