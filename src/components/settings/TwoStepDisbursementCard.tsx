@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { getTwoStepDisbursement, setTwoStepDisbursement } from "@/api/twoStepDisbursement.api";
+import { ApprovalAlertNumbers } from "@/components/settings/ApprovalAlertNumbers";
 
 const errorText = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Could not change that setting.";
@@ -108,6 +109,8 @@ export function TwoStepDisbursementCard({ canWrite }: Readonly<{ canWrite: boole
             </div>
 
             {lastChange && <p className="text-xs text-muted-foreground" data-testid="two-step-last-change">{lastChange}</p>}
+
+            <ApprovalAlertNumbers canWrite={canWrite} />
 
             {enabled && (
               <p className="text-xs">

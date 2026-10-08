@@ -230,7 +230,8 @@ export function LoanReviewModal({ loan, isOpen, onOpenChange, onActionSuccess }:
       // tell the admin the money is on its way when it is not.
       if (data?.stage === "FIRST_APPROVAL_RECORDED") {
         toast.success("First approval recorded", {
-          description: "A different admin must give the final approval before money is sent.",
+          // The server says whether the other admin was texted, and what to do if not.
+          description: data?.message ?? "A different admin must give the final approval before money is sent.",
         });
         return;
       }

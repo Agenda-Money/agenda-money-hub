@@ -13,6 +13,8 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 const get = api.get as unknown as ReturnType<typeof vi.fn>;
 const patch = api.patch as unknown as ReturnType<typeof vi.fn>;
 
+const adminList = { data: { data: [] } };
+
 const flags = (over: Record<string, unknown> = {}) => ({
   data: {
     flags: [
@@ -35,9 +37,15 @@ function renderCard(canWrite = true) {
 
 const sw = () => screen.findByRole("switch", { name: "Require a second admin" });
 
+// The card also lists the admins' alert numbers. Answer each request by its own url.
+const serve = (flagReply: unknown) =>
+  get.mockImplementation((url: string) =>
+    String(url).includes("approval-alerts") ? Promise.resolve(adminList) : flagReply instanceof Error ? Promise.reject(flagReply) : Promise.resolve(flagReply),
+  );
+
 beforeEach(() => {
   vi.clearAllMocks();
-  get.mockResolvedValue(flags());
+  serve(flags());
   patch.mockResolvedValue({ data: {} });
 });
 
@@ -51,7 +59,7 @@ describe("reading the setting", () => {
   });
 
   it("shows on, and where waiting loans are, when the flag is on", async () => {
-    get.mockResolvedValue(flags({ enabled: true }));
+    serve(flags({ enabled: true }));
     renderCard();
 
     expect(await sw()).toBeChecked();
@@ -63,14 +71,14 @@ describe("reading the setting", () => {
   });
 
   it("treats a flag that has never been set as off", async () => {
-    get.mockResolvedValue({ data: { flags: [] } });
+    serve({ data: { flags: [] } });
     renderCard();
 
     expect(await sw()).not.toBeChecked();
   });
 
   it("says who changed it last and when, but not for the system's own seed", async () => {
-    get.mockResolvedValue(flags({ enabled: true, updatedBy: "charles@agendamoney.com", updatedAt: "2026-10-08T09:30:00.000Z" }));
+    serve(flags({ enabled: true, updatedBy: "charles@agendamoney.com", updatedAt: "2026-10-08T09:30:00.000Z" }));
     renderCard();
 
     expect(await screen.findByTestId("two-step-last-change")).toHaveTextContent("Last changed by charles@agendamoney.com");
@@ -83,7 +91,7 @@ describe("reading the setting", () => {
   });
 
   it("says so if the setting cannot be loaded, and offers no switch", async () => {
-    get.mockRejectedValue(new Error("down"));
+    serve(new Error("down"));
     renderCard();
 
     expect(await screen.findByText("Could not load this setting.")).toBeInTheDocument();

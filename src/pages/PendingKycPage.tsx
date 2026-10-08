@@ -186,7 +186,7 @@ export default function PendingKycPage() {
       if (result?.stage === "FIRST_APPROVAL_RECORDED") {
         // Nothing has been sent yet; a different admin must finish it.
         toast.success("First approval recorded", {
-          description: "A different admin must give the final approval before money is sent.",
+          description: result?.message ?? "A different admin must give the final approval before money is sent.",
         });
       } else {
         toast.success("Loan Approved! 🎉", {

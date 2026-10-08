@@ -55,6 +55,45 @@ beforeEach(() => {
   currentAdmin = { id: "admin-kofi" };
 });
 
+describe("the first approval toast", () => {
+  it("shows the server's message, which says whether the other admin was texted", async () => {
+    approve.mockResolvedValue({
+      success: true,
+      stage: "FIRST_APPROVAL_RECORDED",
+      alerted: 1,
+      message: "First approval recorded. The other admin has been texted to give the final approval.",
+    });
+    renderModal();
+
+    fireEvent.click(await approveButton());
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith("First approval recorded", {
+        description: "First approval recorded. The other admin has been texted to give the final approval.",
+      }),
+    );
+  });
+
+  it("shows the warning when nobody could be texted, so the approver knows to tell the other admin", async () => {
+    approve.mockResolvedValue({
+      success: true,
+      stage: "FIRST_APPROVAL_RECORDED",
+      alerted: 0,
+      message: "First approval recorded. No admin has an alert number saved, so tell the other admin yourself.",
+    });
+    renderModal();
+
+    fireEvent.click(await approveButton());
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        "First approval recorded",
+        expect.objectContaining({ description: expect.stringContaining("tell the other admin yourself") }),
+      ),
+    );
+  });
+});
+
 describe("before any approval", () => {
   it("offers a plain Approve Loan and no banner", async () => {
     renderModal();

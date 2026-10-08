@@ -18,3 +18,23 @@ export async function getTwoStepDisbursement(): Promise<TwoStepState> {
 export async function setTwoStepDisbursement(enabled: boolean): Promise<void> {
   await api.patch(`/api/admin/settings/feature-flags/${FLAG}`, { enabled });
 }
+
+// ── Who is texted for the final approval ──
+
+export interface ApprovalAlertAdmin {
+  adminId: string;
+  fullName: string;
+  email: string;
+  /** 233XXXXXXXXX, or empty when none is saved. */
+  phone: string;
+}
+
+export async function listApprovalAlerts(): Promise<ApprovalAlertAdmin[]> {
+  const res = await api.get("/api/admin/settings/approval-alerts");
+  return res.data.data;
+}
+
+/** An empty string clears the number. */
+export async function setApprovalAlert(adminId: string, phone: string): Promise<void> {
+  await api.put(`/api/admin/settings/approval-alerts/${adminId}`, { phone });
+}
