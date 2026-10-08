@@ -48,11 +48,11 @@ const snapshot = {
   asOf: "2026-10-08T12:00:00.000Z",
   definitions: {
     defaultAfterDays: 120,
-    systemDefaultAfterDays: 120,
+    systemDefaultAfterDays: 30,
     loanBook: "Money still owed on disbursed loans.",
     pastDue: "Days past due is counted from each loan's due date.",
     defaultRate: "Share of the loan book, by value, on loans more than 120 days past due.",
-    systemDefault: "The loans our system has marked DEFAULTED. Loans marked under the earlier 30-day rule keep that status until they are reviewed.",
+    systemDefault: "The loans our system marks DEFAULTED, which it does 30 days after the due date.",
   },
   allTimeDisbursement: { loans: 400, valueDisbursed: 90000, principal: 100000 },
   loanBook: { loans: 100, outstanding: 10000 },
@@ -63,7 +63,7 @@ const snapshot = {
   ],
   pastDue: { loans: 40, outstanding: 4000, shareOfBookPct: 40 },
   defaultRate: { afterDays: 120, loans: 0, outstanding: 0, shareOfBookPct: 0 },
-  systemDefaulted: { afterDays: 120, loans: 30, outstanding: 3000, shareOfBookPct: 30 },
+  systemDefaulted: { afterDays: 30, loans: 30, outstanding: 3000, shareOfBookPct: 30 },
 };
 
 
@@ -112,7 +112,7 @@ describe("default rate", () => {
   it("carries the system's own DEFAULTED figure on the same card", () => {
     render(<AnalyticsPage />);
 
-    expect(screen.getByText(/Marked DEFAULTED in system: 30\.0% \(30 loans\)/)).toBeInTheDocument();
+    expect(screen.getByText(/System marks defaulted at 30 days: 30\.0% \(30 loans\)/)).toBeInTheDocument();
   });
 
   it("explains the definition and the system's rule under the table", () => {
@@ -120,7 +120,7 @@ describe("default rate", () => {
 
     const defs = screen.getByTestId("portfolio-definitions");
     expect(defs).toHaveTextContent("more than 120 days past due");
-    expect(defs).toHaveTextContent("earlier 30-day rule");
+    expect(defs).toHaveTextContent("30 days after the due date");
   });
 });
 

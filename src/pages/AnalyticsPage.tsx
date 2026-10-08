@@ -161,7 +161,7 @@ export default function AnalyticsPage() {
           value={port.data ? fPct(port.data.defaultRate.shareOfBookPct) : "Unavailable"}
           subtext={
             port.data
-              ? `${fCount(port.data.defaultRate.loans)} loans over ${port.data.defaultRate.afterDays} days past due. Marked DEFAULTED in system: ${fPct(port.data.systemDefaulted.shareOfBookPct)} (${fCount(port.data.systemDefaulted.loans)} loans)`
+              ? `${fCount(port.data.defaultRate.loans)} loans over ${port.data.defaultRate.afterDays} days past due. System marks defaulted at ${port.data.definitions.systemDefaultAfterDays} days: ${fPct(port.data.systemDefaulted.shareOfBookPct)} (${fCount(port.data.systemDefaulted.loans)} loans)`
               : "Could not load the portfolio figures"
           }
           status="neutral"

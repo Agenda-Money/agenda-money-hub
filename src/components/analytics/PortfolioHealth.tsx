@@ -44,7 +44,7 @@ export function PortfolioHero({ snapshot }: Readonly<HeroProps>) {
       <KpiCard
         label={`Default rate (over ${defaultRate.afterDays} days)`}
         value={fPct(defaultRate.shareOfBookPct)}
-        subtext={`${fCount(defaultRate.loans)} loans over ${defaultRate.afterDays} days past due. Marked DEFAULTED in system: ${fPct(systemDefaulted.shareOfBookPct)} (${fCount(systemDefaulted.loans)} loans)`}
+        subtext={`${fCount(defaultRate.loans)} loans over ${defaultRate.afterDays} days past due. System marks defaulted at ${definitions.systemDefaultAfterDays} days: ${fPct(systemDefaulted.shareOfBookPct)} (${fCount(systemDefaulted.loans)} loans)`}
         status="neutral"
         icon={<ShieldCheck className="h-5 w-5" />}
       />
@@ -106,7 +106,7 @@ export function PortfolioBands({ snapshot }: Readonly<HeroProps>) {
           </dd>
         </div>
         <div>
-          <dt className="font-medium text-foreground">Marked DEFAULTED in our system</dt>
+          <dt className="font-medium text-foreground">Marked DEFAULTED in our system ({systemDefaulted.afterDays}+ days)</dt>
           <dd className="text-muted-foreground">
             {fCount(systemDefaulted.loans)} loans, {fGHS(systemDefaulted.outstanding)}, {fPct(systemDefaulted.shareOfBookPct)} of the book
           </dd>
