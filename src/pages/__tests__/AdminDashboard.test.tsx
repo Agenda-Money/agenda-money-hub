@@ -76,6 +76,28 @@ vi.mock("@/components/dashboard/MoMDisbursementCard", () => ({
 
 // --- SETUP ---
 
+const portfolio = {
+  asOf: "2026-10-08T12:00:00.000Z",
+  definitions: {
+    defaultAfterDays: 300,
+    systemDefaultAfterDays: 30,
+    loanBook: "Money still owed on disbursed loans.",
+    pastDue: "Days past due is counted from each loan's due date.",
+    defaultRate: "Share of the loan book, by value, on loans 300 or more days past due.",
+    systemDefault: "The loans our system marks DEFAULTED, which it does 30 days after the due date.",
+  },
+  allTimeDisbursement: { loans: 400, valueDisbursed: 90000, principal: 100000 },
+  loanBook: { loans: 100, outstanding: 10000 },
+  bands: [
+    { key: "current", label: "Not yet due", loans: 60, outstanding: 6000, shareOfBookPct: 60, isDefault: false },
+    { key: "1-30", label: "1 to 30 days past due", loans: 20, outstanding: 2000, shareOfBookPct: 20, isDefault: false },
+    { key: "300+", label: "300+ days past due (default)", loans: 0, outstanding: 0, shareOfBookPct: 0, isDefault: true },
+  ],
+  pastDue: { loans: 40, outstanding: 4000, shareOfBookPct: 40 },
+  defaultRate: { afterDays: 300, loans: 0, outstanding: 0, shareOfBookPct: 0 },
+  systemDefaulted: { afterDays: 30, loans: 30, outstanding: 3000, shareOfBookPct: 30 },
+};
+
 const createTestQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -104,24 +126,8 @@ describe("Admin Dashboard Integration", () => {
 
     // Default API mocks
     (api.get as any).mockImplementation((url: string) => {
-      if (url === "/api/admin/analytics/summary") {
-        return Promise.resolve({
-          data: {
-            data: {
-              loanBook: { value: 125000 },
-              activeLoans: { count: 84 },
-            },
-          },
-        });
-      }
-      if (url === "/api/admin/analytics/performance") {
-        return Promise.resolve({
-          data: {
-            data: {
-              repaymentRate: { rate: 92.4 },
-            },
-          },
-        });
+      if (url === "/api/admin/analytics/portfolio") {
+        return Promise.resolve({ data: { data: portfolio } });
       }
       if (url.includes("/api/admin/analytics/volume")) {
         return Promise.resolve({
@@ -140,7 +146,7 @@ describe("Admin Dashboard Integration", () => {
   });
 
   describe("Dashboard Content", () => {
-    it("renders core stats cards with data from API", async () => {
+    const renderDashboard = () =>
       render(
         <QueryClientProvider client={queryClient}>
           <router.BrowserRouter>
@@ -149,32 +155,80 @@ describe("Admin Dashboard Integration", () => {
         </QueryClientProvider>
       );
 
-      // Verify Stats Cards
-      expect(await screen.findByText(/₵ 125,000/i)).toBeInTheDocument();
-      expect(await screen.findByText(/84/i)).toBeInTheDocument();
-      expect(await screen.findByText(/92.4%/i)).toBeInTheDocument();
+    it("shows all-time disbursement, the loan book and the default rate", async () => {
+      renderDashboard();
 
-      // Verify Widget Presence
+      const hero = await screen.findByTestId("portfolio-hero");
+      expect(hero).toHaveTextContent("All-time disbursement");
+      expect(hero).toHaveTextContent("GHS 90,000");
+      expect(hero).toHaveTextContent("400 loans paid out");
+      expect(hero).toHaveTextContent("Loan book");
+      expect(hero).toHaveTextContent("GHS 10,000");
+      expect(hero).toHaveTextContent("Still owed across 100 loans");
+      expect(hero).toHaveTextContent("Default rate (300+ days)");
+
+      // Operational widgets are still there.
       expect(screen.getByTestId("recent-loans-table")).toBeInTheDocument();
       expect(screen.getByTestId("pending-approvals")).toBeInTheDocument();
       expect(screen.getByTestId("mom-disbursement-card")).toBeInTheDocument();
     });
 
-    it("shows loading skeleton initially", () => {
-      // Don't resolve API immediately to see loading state
+    it("no longer shows an active loans count", async () => {
+      renderDashboard();
+
+      await screen.findByTestId("portfolio-hero");
+      expect(screen.queryByText(/active loans/i)).not.toBeInTheDocument();
+    });
+
+    it("never shows the 300-day default rate without the system's own figure beside it", async () => {
+      renderDashboard();
+
+      const hero = await screen.findByTestId("portfolio-hero");
+      // The portfolio says 0%; the system's own DEFAULTED share is on the same card.
+      expect(hero).toHaveTextContent("0.0%");
+      expect(hero).toHaveTextContent("System marks defaulted at 30 days: 30.0% (30 loans)");
+    });
+
+    it("shows every past-due band, so a zero default rate cannot hide a late book", async () => {
+      renderDashboard();
+
+      const bands = await screen.findByTestId("portfolio-bands");
+      expect(bands).toHaveTextContent("Not yet due");
+      expect(bands).toHaveTextContent("1 to 30 days past due");
+      expect(bands).toHaveTextContent("300+ days past due (default)");
+      expect(screen.getByTestId("portfolio-summary-lines")).toHaveTextContent("40 loans, GHS 4,000, 40.0% of the book");
+      expect(screen.getByTestId("portfolio-summary-lines")).toHaveTextContent("30 loans, GHS 3,000, 30.0% of the book");
+    });
+
+    it("states the definitions in the server's words", async () => {
+      renderDashboard();
+
+      const defs = await screen.findByTestId("portfolio-definitions");
+      expect(defs).toHaveTextContent("Share of the loan book, by value, on loans 300 or more days past due.");
+      expect(defs).toHaveTextContent("30 days after the due date");
+    });
+
+    it("says so, rather than showing old numbers, when the portfolio cannot be loaded", async () => {
+      (api.get as any).mockImplementation((url: string) =>
+        url === "/api/admin/analytics/portfolio"
+          ? Promise.reject(new Error("down"))
+          : url.includes("/volume")
+            ? Promise.resolve({ data: { data: { momDisbursementGrowth: [] } } })
+            : Promise.reject(new Error(`Unhandled API call: ${url}`)),
+      );
+      renderDashboard();
+
+      expect(await screen.findByText("Could not load the portfolio figures.")).toBeInTheDocument();
+      expect(screen.queryByTestId("portfolio-hero")).not.toBeInTheDocument();
+    });
+
+    it("does not show the portfolio figures while they are still loading", () => {
+      // Don't resolve the API, to see the loading state.
       (api.get as any).mockReturnValue(new Promise(() => {}));
 
-      render(
-        <QueryClientProvider client={queryClient}>
-          <router.BrowserRouter>
-            <Dashboard />
-          </router.BrowserRouter>
-        </QueryClientProvider>
-      );
+      renderDashboard();
 
-      // DashboardSkeleton has animate-pulse divs
-      const skeleton = screen.getByTestId("dashboard-skeleton");
-      expect(skeleton).toBeInTheDocument();
+      expect(screen.queryByTestId("portfolio-hero")).not.toBeInTheDocument();
     });
   });
 

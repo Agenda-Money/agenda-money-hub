@@ -89,7 +89,7 @@ export function TierBreakdownTables({ repayment, defaultRate, collection }: { re
   return (
     <div className="mt-4 flex w-full flex-col gap-4 md:flex-row">
       <TierTable title="Repayment Rate" data={repayment || []} valueKey="rate" />
-      <TierTable title="Default Rate" data={defaultRate || []} valueKey="rate" />
+      <TierTable title="Default rate by tier (system: marked DEFAULTED)" data={defaultRate || []} valueKey="rate" />
       <TierTable title="Collection Rate" data={collection || []} valueKey="rate" />
     </div>
   );
