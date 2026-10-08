@@ -79,23 +79,23 @@ vi.mock("@/components/dashboard/MoMDisbursementCard", () => ({
 const portfolio = {
   asOf: "2026-10-08T12:00:00.000Z",
   definitions: {
-    defaultAfterDays: 300,
-    systemDefaultAfterDays: 30,
+    defaultAfterDays: 120,
+    systemDefaultAfterDays: 120,
     loanBook: "Money still owed on disbursed loans.",
     pastDue: "Days past due is counted from each loan's due date.",
-    defaultRate: "Share of the loan book, by value, on loans 300 or more days past due.",
-    systemDefault: "The loans our system marks DEFAULTED, which it does 30 days after the due date.",
+    defaultRate: "Share of the loan book, by value, on loans more than 120 days past due.",
+    systemDefault: "The loans our system has marked DEFAULTED. Loans marked under the earlier 30-day rule keep that status until they are reviewed.",
   },
   allTimeDisbursement: { loans: 400, valueDisbursed: 90000, principal: 100000 },
   loanBook: { loans: 100, outstanding: 10000 },
   bands: [
     { key: "current", label: "Not yet due", loans: 60, outstanding: 6000, shareOfBookPct: 60, isDefault: false },
     { key: "1-30", label: "1 to 30 days past due", loans: 20, outstanding: 2000, shareOfBookPct: 20, isDefault: false },
-    { key: "300+", label: "300+ days past due (default)", loans: 0, outstanding: 0, shareOfBookPct: 0, isDefault: true },
+    { key: "121+", label: "More than 120 days past due (default)", loans: 0, outstanding: 0, shareOfBookPct: 0, isDefault: true },
   ],
   pastDue: { loans: 40, outstanding: 4000, shareOfBookPct: 40 },
-  defaultRate: { afterDays: 300, loans: 0, outstanding: 0, shareOfBookPct: 0 },
-  systemDefaulted: { afterDays: 30, loans: 30, outstanding: 3000, shareOfBookPct: 30 },
+  defaultRate: { afterDays: 120, loans: 0, outstanding: 0, shareOfBookPct: 0 },
+  systemDefaulted: { afterDays: 120, loans: 30, outstanding: 3000, shareOfBookPct: 30 },
 };
 
 const createTestQueryClient = () =>
@@ -165,7 +165,7 @@ describe("Admin Dashboard Integration", () => {
       expect(hero).toHaveTextContent("Loan book");
       expect(hero).toHaveTextContent("GHS 10,000");
       expect(hero).toHaveTextContent("Still owed across 100 loans");
-      expect(hero).toHaveTextContent("Default rate (300+ days)");
+      expect(hero).toHaveTextContent("Default rate (over 120 days)");
 
       // Operational widgets are still there.
       expect(screen.getByTestId("recent-loans-table")).toBeInTheDocument();
@@ -186,7 +186,7 @@ describe("Admin Dashboard Integration", () => {
       const hero = await screen.findByTestId("portfolio-hero");
       // The portfolio says 0%; the system's own DEFAULTED share is on the same card.
       expect(hero).toHaveTextContent("0.0%");
-      expect(hero).toHaveTextContent("System marks defaulted at 30 days: 30.0% (30 loans)");
+      expect(hero).toHaveTextContent("Marked DEFAULTED in system: 30.0% (30 loans)");
     });
 
     it("leaves the days-past-due table to the Analytics page", async () => {

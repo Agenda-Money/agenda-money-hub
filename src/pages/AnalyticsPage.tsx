@@ -156,12 +156,12 @@ export default function AnalyticsPage() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px] mt-4">
         <KpiCard
-          label={port.data ? `Default rate (${port.data.defaultRate.afterDays}+ days)` : "Default rate"}
+          label={port.data ? `Default rate (over ${port.data.defaultRate.afterDays} days)` : "Default rate"}
           loading={port.isLoading}
           value={port.data ? fPct(port.data.defaultRate.shareOfBookPct) : "Unavailable"}
           subtext={
             port.data
-              ? `${fCount(port.data.defaultRate.loans)} loans ${port.data.defaultRate.afterDays}+ days past due. System marks defaulted at ${port.data.definitions.systemDefaultAfterDays} days: ${fPct(port.data.systemDefaulted.shareOfBookPct)} (${fCount(port.data.systemDefaulted.loans)} loans)`
+              ? `${fCount(port.data.defaultRate.loans)} loans over ${port.data.defaultRate.afterDays} days past due. Marked DEFAULTED in system: ${fPct(port.data.systemDefaulted.shareOfBookPct)} (${fCount(port.data.systemDefaulted.loans)} loans)`
               : "Could not load the portfolio figures"
           }
           status="neutral"

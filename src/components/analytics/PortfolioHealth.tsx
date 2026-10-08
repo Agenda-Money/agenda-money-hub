@@ -42,9 +42,9 @@ export function PortfolioHero({ snapshot }: Readonly<HeroProps>) {
         icon={<BookOpen className="h-5 w-5" />}
       />
       <KpiCard
-        label={`Default rate (${defaultRate.afterDays}+ days)`}
+        label={`Default rate (over ${defaultRate.afterDays} days)`}
         value={fPct(defaultRate.shareOfBookPct)}
-        subtext={`${fCount(defaultRate.loans)} loans ${defaultRate.afterDays}+ days past due. System marks defaulted at ${definitions.systemDefaultAfterDays} days: ${fPct(systemDefaulted.shareOfBookPct)} (${fCount(systemDefaulted.loans)} loans)`}
+        subtext={`${fCount(defaultRate.loans)} loans over ${defaultRate.afterDays} days past due. Marked DEFAULTED in system: ${fPct(systemDefaulted.shareOfBookPct)} (${fCount(systemDefaulted.loans)} loans)`}
         status="neutral"
         icon={<ShieldCheck className="h-5 w-5" />}
       />
@@ -79,7 +79,7 @@ export function PortfolioBands({ snapshot }: Readonly<HeroProps>) {
               <tr key={b.key} className="border-b last:border-0" data-testid={`band-${b.key}`}>
                 <td className="py-2 pr-4">
                   {b.label}
-                  {b.isDefault && <span className="ml-2 text-[11px] text-muted-foreground">reporting default</span>}
+                  {b.isDefault && <span className="ml-2 text-[11px] text-muted-foreground">default</span>}
                 </td>
                 <td className="py-2 pr-4 text-right font-mono tabular-nums">{fCount(b.loans)}</td>
                 <td className="py-2 pr-4 text-right font-mono tabular-nums">{fGHS(b.outstanding)}</td>
@@ -106,7 +106,7 @@ export function PortfolioBands({ snapshot }: Readonly<HeroProps>) {
           </dd>
         </div>
         <div>
-          <dt className="font-medium text-foreground">Marked DEFAULTED in our system ({systemDefaulted.afterDays}+ days)</dt>
+          <dt className="font-medium text-foreground">Marked DEFAULTED in our system</dt>
           <dd className="text-muted-foreground">
             {fCount(systemDefaulted.loans)} loans, {fGHS(systemDefaulted.outstanding)}, {fPct(systemDefaulted.shareOfBookPct)} of the book
           </dd>

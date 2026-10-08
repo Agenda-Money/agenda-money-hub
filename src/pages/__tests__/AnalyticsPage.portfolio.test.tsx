@@ -47,23 +47,23 @@ const portfolioHook = usePortfolio as unknown as ReturnType<typeof vi.fn>;
 const snapshot = {
   asOf: "2026-10-08T12:00:00.000Z",
   definitions: {
-    defaultAfterDays: 300,
-    systemDefaultAfterDays: 30,
+    defaultAfterDays: 120,
+    systemDefaultAfterDays: 120,
     loanBook: "Money still owed on disbursed loans.",
     pastDue: "Days past due is counted from each loan's due date.",
-    defaultRate: "Share of the loan book, by value, on loans 300 or more days past due.",
-    systemDefault: "The loans our system marks DEFAULTED, which it does 30 days after the due date.",
+    defaultRate: "Share of the loan book, by value, on loans more than 120 days past due.",
+    systemDefault: "The loans our system has marked DEFAULTED. Loans marked under the earlier 30-day rule keep that status until they are reviewed.",
   },
   allTimeDisbursement: { loans: 400, valueDisbursed: 90000, principal: 100000 },
   loanBook: { loans: 100, outstanding: 10000 },
   bands: [
     { key: "current", label: "Not yet due", loans: 60, outstanding: 6000, shareOfBookPct: 60, isDefault: false },
     { key: "1-30", label: "1 to 30 days past due", loans: 40, outstanding: 4000, shareOfBookPct: 40, isDefault: false },
-    { key: "300+", label: "300+ days past due (default)", loans: 0, outstanding: 0, shareOfBookPct: 0, isDefault: true },
+    { key: "121+", label: "More than 120 days past due (default)", loans: 0, outstanding: 0, shareOfBookPct: 0, isDefault: true },
   ],
   pastDue: { loans: 40, outstanding: 4000, shareOfBookPct: 40 },
-  defaultRate: { afterDays: 300, loans: 0, outstanding: 0, shareOfBookPct: 0 },
-  systemDefaulted: { afterDays: 30, loans: 30, outstanding: 3000, shareOfBookPct: 30 },
+  defaultRate: { afterDays: 120, loans: 0, outstanding: 0, shareOfBookPct: 0 },
+  systemDefaulted: { afterDays: 120, loans: 30, outstanding: 3000, shareOfBookPct: 30 },
 };
 
 
@@ -102,25 +102,25 @@ describe("past due", () => {
 });
 
 describe("default rate", () => {
-  it("uses the 300-day definition and says so in the label", () => {
+  it("uses the policy definition and says so in the label", () => {
     render(<AnalyticsPage />);
 
-    expect(screen.getByText("Default rate (300+ days)")).toBeInTheDocument();
+    expect(screen.getByText("Default rate (over 120 days)")).toBeInTheDocument();
     expect(screen.queryByText("DD+15 unpaid")).not.toBeInTheDocument();
   });
 
   it("carries the system's own DEFAULTED figure on the same card", () => {
     render(<AnalyticsPage />);
 
-    expect(screen.getByText(/System marks defaulted at 30 days: 30\.0% \(30 loans\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Marked DEFAULTED in system: 30\.0% \(30 loans\)/)).toBeInTheDocument();
   });
 
   it("explains the definition and the system's rule under the table", () => {
     render(<AnalyticsPage />);
 
     const defs = screen.getByTestId("portfolio-definitions");
-    expect(defs).toHaveTextContent("300 or more days past due");
-    expect(defs).toHaveTextContent("30 days after the due date");
+    expect(defs).toHaveTextContent("more than 120 days past due");
+    expect(defs).toHaveTextContent("earlier 30-day rule");
   });
 });
 
