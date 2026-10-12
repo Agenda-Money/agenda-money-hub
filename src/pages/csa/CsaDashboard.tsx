@@ -378,7 +378,7 @@ export default function CsaDashboard() {
             </p>
             <p className="text-xs text-muted-foreground">
               {!BUCKET_ORDER.includes(activeBucket)
-                ? formatGHS(loans.reduce((sum: number, l: any) => sum + (l.totalPayable - l.amountRepaid), 0))
+                ? formatGHS((loansData as any)?.totalOutstanding ?? 0)
                 : formatGHS(buckets[activeBucket]?.totalOutstanding ?? 0)}
             </p>
           </div>
@@ -1056,8 +1056,10 @@ function CustomBucketPopover({ onSearch }: { onSearch: (bucket: number) => void 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!days) return;
-    const num = Number(days);
-    const bucket = mode === 'overdue' ? Math.abs(num) : -Math.abs(num);
+    // Whole days only, within what the API accepts (it also reserves 9999 for DD+16+).
+    const num = Math.min(Math.round(Math.abs(Number(days))), 3650);
+    if (!Number.isFinite(num)) return;
+    const bucket = mode === 'overdue' ? num : -num;
     onSearch(bucket);
     setOpen(false);
     setDays('');
