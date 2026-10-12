@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import {
   RefreshCw, MoreHorizontal, AlertCircle, Clock,
   PauseCircle, XCircle, CheckCircle2, KeyRound,
-  Users, Wallet, Zap,
+  Users, Wallet, Zap, Search, X, CalendarX2,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ExpiryRiskTab, useExpiryRisk } from "@/components/orchard/ExpiryRiskTab";
+import { RetryReportTab } from "@/components/orchard/RetryReportTab";
+import { TimingTab } from "@/components/orchard/TimingTab";
+import { expiryBadge, loanStatusTone, money, statusCounts, TONE_CLASS } from "@/lib/orchard-insights";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -125,7 +129,8 @@ function getTriggerCountdown(startDate?: string): { label: string; tone: "muted"
 
 // ── Overview Tab ───────────────────────────────────────────────────────────────
 
-function OverviewTab() {
+function OverviewTab({ onOpenExpiry }: { onOpenExpiry: () => void }) {
+  const { data: risk } = useExpiryRisk();
   const { data: mandates, isLoading } = useQuery({
     queryKey: ["orchard-mandates", "all"],
     queryFn: () => listOrchardMandates(),
@@ -159,8 +164,27 @@ function OverviewTab() {
     { label: "Total Mandates",   value: counts.total,      icon: Users,        color: "text-primary" },
   ];
 
+  const atRisk = risk ? risk.summary.endedWithMoneyOwed.mandates + risk.summary.endingSoonWithMoneyOwed.mandates : 0;
+
   return (
     <div className="space-y-6">
+      {risk && atRisk > 0 && (
+        <Alert variant="destructive">
+          <CalendarX2 className="h-4 w-4" />
+          <AlertTitle>
+            {atRisk} mandate{atRisk === 1 ? "" : "s"} running out while money is still owed
+          </AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              {risk.summary.endedWithMoneyOwed.mandates} already ended ({money(risk.summary.endedWithMoneyOwed.owed)} owed),{" "}
+              {risk.summary.endingSoonWithMoneyOwed.mandates} ending within {risk.withinDays} days. Orchard stops debiting
+              when a mandate ends, even if the loan is unpaid.
+            </span>
+            <Button size="sm" variant="outline" onClick={onOpenExpiry}>See which</Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {cards.map(({ label, value, icon: Icon, color }) => (
           <Card key={label}>
@@ -218,16 +242,35 @@ function OverviewTab() {
 
 // ── Mandates Tab ───────────────────────────────────────────────────────────────
 
+function useDebounced<T>(value: T, ms = 300): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
+
 function MandatesTab() {
   const qc = useQueryClient();
   const { canWrite } = useAuth();
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | OrchardMandateStatus>("");
+  const [searchText, setSearchText] = useState("");
+  const search = useDebounced(searchText.trim(), 300);
   const [cancelTarget, setCancelTarget] = useState<OrchardMandate | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
-  const { data: mandates, isLoading } = useQuery({
-    queryKey: ["orchard-mandates", statusFilter],
-    queryFn: () => listOrchardMandates((statusFilter || undefined) as OrchardMandateStatus | undefined),
+  // The unfiltered list feeds the chip counts, and is the same query the overview uses.
+  const { data: everything } = useQuery({
+    queryKey: ["orchard-mandates", "all"],
+    queryFn: () => listOrchardMandates(),
+  });
+  const counts = statusCounts(everything);
+
+  const { data: mandates, isLoading, isFetching } = useQuery({
+    queryKey: ["orchard-mandates", statusFilter, search],
+    queryFn: () => listOrchardMandates({ status: statusFilter, search }),
+    placeholderData: (prev) => prev,
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["orchard-mandates"] });
@@ -259,33 +302,69 @@ function MandatesTab() {
   });
 
   const rows = mandates ?? [];
+  const chips: { value: "" | OrchardMandateStatus; label: string; n: number }[] = [
+    { value: "", label: "All", n: counts.ALL ?? 0 },
+    ...(Object.entries(STATUS_META) as [OrchardMandateStatus, { label: string }][]).map(([k, v]) => ({
+      value: k, label: v.label, n: counts[k] ?? 0,
+    })),
+  ];
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
-        <Select value={statusFilter} onValueChange={v => setStatusFilter(v === "all" ? "" : v)}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="All statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {Object.entries(STATUS_META).map(([k, v]) => (
-              <SelectItem key={k} value={k}>{v.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 max-w-xl">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search by name, phone number, loan reference or subscription reference"
+            aria-label="Search mandates"
+            className="pl-9 pr-9"
+          />
+          {searchText && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => setSearchText("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          {isFetching ? "Searching..." : `${rows.length} mandate${rows.length === 1 ? "" : "s"}${search ? ` matching "${search}"` : ""}`}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
+        {chips.map((c) => (
+          <button
+            key={c.label}
+            type="button"
+            aria-pressed={statusFilter === c.value}
+            onClick={() => setStatusFilter(c.value)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              statusFilter === c.value ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted",
+            )}
+          >
+            {c.label}
+            <span className={cn("rounded-full px-1.5 text-[10px]", statusFilter === c.value ? "bg-primary-foreground/20" : "bg-muted")}>{c.n}</span>
+          </button>
+        ))}
       </div>
 
       <div className="rounded-md border overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="px-4 py-3 text-left font-medium">Phone</th>
-              <th className="px-4 py-3 text-left font-medium">Network</th>
+              <th className="px-4 py-3 text-left font-medium">Customer</th>
               <th className="px-4 py-3 text-left font-medium">Status</th>
-              <th className="px-4 py-3 text-left font-medium">Loan Ref</th>
-              <th className="px-4 py-3 text-left font-medium">Amount / Cycle</th>
+              <th className="px-4 py-3 text-left font-medium">Loan</th>
+              <th className="px-4 py-3 text-left font-medium">Owed / Debit</th>
               <th className="px-4 py-3 text-left font-medium">Due Date / Auto-Debit</th>
+              <th className="px-4 py-3 text-left font-medium">Mandate ends</th>
               <th className="px-4 py-3 text-left font-medium">Last Debit</th>
               <th className="px-4 py-3 text-left font-medium">Orchard Retries</th>
               {canWrite && <th className="px-4 py-3 text-right font-medium">Actions</th>}
@@ -295,7 +374,11 @@ function MandatesTab() {
             {isLoading ? (
               <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">Loading...</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No mandates found</td></tr>
+              <tr>
+                <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
+                  {search || statusFilter ? "No mandate matches. Try a shorter search or clear the filter." : "No mandates found"}
+                </td>
+              </tr>
             ) : rows.map((m) => {
               // The loan's own due date, sent by the API. It used to be worked
               // back from startDate by subtracting a grace period hardcoded
@@ -306,13 +389,26 @@ function MandatesTab() {
               // this right.
               const dueDate = m.loanDueDate ?? undefined;
               const countdown = getTriggerCountdown(m.startDate);
+              const ends = expiryBadge(m.expiry, m.outstanding);
               return (
               <tr key={m._id} className="hover:bg-muted/30 transition-colors">
-                <td className="px-4 py-3 font-mono text-xs">{m.msisdn}</td>
-                <td className="px-4 py-3">{m.network}</td>
+                <td className="px-4 py-3">
+                  <div className="font-medium">{m.customerName ?? "Unknown"}</div>
+                  <div className="font-mono text-xs text-muted-foreground">{m.msisdn} · {m.network}</div>
+                </td>
                 <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
-                <td className="px-4 py-3 font-mono text-xs">{m.currentLoanReference ?? "—"}</td>
-                <td className="px-4 py-3">{fmtGhs(m.currentDebitAmount)}{m.cycle ? ` / ${m.cycle}` : ""}</td>
+                <td className="px-4 py-3">
+                  <div className="font-mono text-xs">{m.currentLoanReference ?? "—"}</div>
+                  {m.loanStatus && (
+                    <span className={cn("inline-flex px-2 py-0.5 mt-1 rounded-full text-[10px] font-medium", TONE_CLASS[loanStatusTone(m.loanStatus)])}>
+                      {m.loanStatus.replace("_", " ")}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="font-semibold">{m.outstanding === null || m.outstanding === undefined ? "—" : money(m.outstanding)}</div>
+                  <div className="text-xs text-muted-foreground">Debit {fmtGhs(m.currentDebitAmount)}{m.cycle ? ` / ${m.cycle}` : ""}</div>
+                </td>
                 <td className="px-4 py-3 text-xs">
                   <div className="text-muted-foreground">Due {fmtShortDate(dueDate)}</div>
                   <div className={cn(
@@ -323,13 +419,21 @@ function MandatesTab() {
                     Debit {fmtShortDate(m.startDate)} ({countdown.label})
                   </div>
                 </td>
+                <td className="px-4 py-3">
+                  {m.status === "ACTIVE" ? (
+                    <>
+                      <div className="text-xs text-muted-foreground mb-1">{fmtShortDate(m.endDate)}</div>
+                      <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium", TONE_CLASS[ends.tone])}>{ends.label}</span>
+                    </>
+                  ) : <span className="text-xs text-muted-foreground">—</span>}
+                </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{fmt(m.lastDebitAt)}</td>
                 <td className="px-4 py-3">{m.retryCount}</td>
                 {canWrite && (
                   <td className="px-4 py-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Actions for ${m.msisdn}`}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -406,8 +510,10 @@ function MandatesTab() {
 export default function OrchardPage() {
   const { tab } = useParams();
   const navigate = useNavigate();
-  const validTabs = ["overview", "mandates"];
+  const validTabs = ["overview", "mandates", "expiring", "retry-report", "timing"];
   const activeTab = validTabs.includes(tab ?? "") ? tab! : "overview";
+  const { data: risk } = useExpiryRisk();
+  const atRisk = risk ? risk.summary.endedWithMoneyOwed.mandates + risk.summary.endingSoonWithMoneyOwed.mandates : 0;
 
   return (
     <DashboardLayout>
@@ -423,10 +529,21 @@ export default function OrchardPage() {
           <TabsList className="bg-muted p-1 flex overflow-x-auto w-full sm:w-fit no-scrollbar">
             <TabsTrigger value="overview" className="data-[state=active]:bg-card">Overview</TabsTrigger>
             <TabsTrigger value="mandates" className="data-[state=active]:bg-card">Mandates</TabsTrigger>
+            <TabsTrigger value="expiring" className="data-[state=active]:bg-card">
+              Running out
+              {atRisk > 0 && (
+                <span className="ml-1.5 rounded-full bg-red-600 text-white px-1.5 text-[10px] font-semibold">{atRisk}</span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="retry-report" className="data-[state=active]:bg-card">Retry report</TabsTrigger>
+            <TabsTrigger value="timing" className="data-[state=active]:bg-card">When money lands</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="mt-4"><OverviewTab /></TabsContent>
+          <TabsContent value="overview" className="mt-4"><OverviewTab onOpenExpiry={() => navigate("/admin/orchard/expiring")} /></TabsContent>
           <TabsContent value="mandates" className="mt-4"><MandatesTab /></TabsContent>
+          <TabsContent value="expiring" className="mt-4"><ExpiryRiskTab /></TabsContent>
+          <TabsContent value="retry-report" className="mt-4"><RetryReportTab /></TabsContent>
+          <TabsContent value="timing" className="mt-4"><TimingTab /></TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>

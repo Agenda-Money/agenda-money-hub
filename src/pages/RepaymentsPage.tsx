@@ -28,6 +28,9 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
+import { PaidViaBadges } from "@/components/repayments/PaidViaBadges";
+import { PaidViaSummary } from "@/components/repayments/PaidViaSummary";
+import { filterByVia, type PaidViaCode } from "@/lib/repayment-via";
 
 interface LoanInfo {
   id: string;
@@ -222,13 +225,13 @@ export default function RepaymentsPage() {
 
         <Tabs value={activeMainTab} onValueChange={(val) => {
           setActiveMainTab(val);
-          if (val === "organic") setSource("organic");
+          if (val === "all") setSource(undefined);
           else if (val === "agent-collections") setSource("collections");
           else setSource(undefined);
         }} className="w-full">
           <TabsList className="mb-6 h-auto grid grid-cols-2 md:grid-cols-4 w-full max-w-2xl bg-muted/50 p-1">
             <TabsTrigger value="record" className="flex-1 py-2.5">Record Payment</TabsTrigger>
-            <TabsTrigger value="organic" className="flex-1 py-2.5">Organic Payments</TabsTrigger>
+            <TabsTrigger value="all" className="flex-1 py-2.5">All Payments</TabsTrigger>
             <TabsTrigger value="agent-collections" className="flex-1 py-2.5">Agent Collections</TabsTrigger>
             <TabsTrigger value="logs" className="flex-1 py-2.5">Activity Logs</TabsTrigger>
           </TabsList>
@@ -313,11 +316,11 @@ export default function RepaymentsPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="organic" className="mt-0">
+          <TabsContent value="all" className="mt-0">
             <RepaymentHistorySection 
-              title="Organic Repayments" 
-              subtitle="Customer-initiated payments"
-              source="organic"
+              title="All Repayments" 
+              subtitle="Every payment, and how it actually came in"
+              source="all"
               isLoading={isLoadingRecent}
               repayments={recentRepayments}
               period={period}
@@ -353,7 +356,10 @@ export default function RepaymentsPage() {
   );
 }
 
-function RepaymentHistorySection({ title, subtitle, source, isLoading, repayments, period, setPeriod, limit, setLimit, isFetchingMore, accentColor = "text-foreground" }: any) {
+function RepaymentHistorySection({ title, subtitle, source, isLoading, repayments: loaded, period, setPeriod, limit, setLimit, isFetchingMore, accentColor = "text-foreground" }: any) {
+  const [via, setVia] = useState<PaidViaCode | "ALL">("ALL");
+  const everything: any[] = loaded ?? [];
+  const repayments = filterByVia(everything, via);
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4">
@@ -371,7 +377,7 @@ function RepaymentHistorySection({ title, subtitle, source, isLoading, repayment
         </Select>
       </div>
 
-      {source === "collections" && repayments && repayments.length > 0 && (
+      {source === "collections" && repayments.length > 0 && (
         <div className="bg-pink-500/5 border border-pink-500/10 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
           <div className="w-12 h-12 bg-pink-500/10 rounded-full flex items-center justify-center"><PhoneCall className="h-6 w-6 text-pink-600" /></div>
           <div>
@@ -381,11 +387,17 @@ function RepaymentHistorySection({ title, subtitle, source, isLoading, repayment
         </div>
       )}
 
+      {!isLoading && everything.length > 0 && (
+        <PaidViaSummary rows={everything} active={via} onChange={setVia} />
+      )}
+
       {isLoading ? (
         <div className="space-y-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
-      ) : !repayments || repayments.length === 0 ? (
+      ) : repayments.length === 0 ? (
         <div className="text-center py-20 bg-card rounded-[2rem] border-2 border-dashed border-border/50">
-          <p className="text-muted-foreground font-medium">No {title.toLowerCase()} found.</p>
+          <p className="text-muted-foreground font-medium">
+            {everything.length > 0 ? "No loaded payments came in that way. Clear the filter or load more." : "No repayments found for this period."}
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -396,7 +408,7 @@ function RepaymentHistorySection({ title, subtitle, source, isLoading, repayment
                 <TableRow className="hover:bg-transparent border-border bg-muted/30">
                   <TableHead className="pl-8 py-4">Beneficiary</TableHead>
                   <TableHead>Reference</TableHead>
-                  <TableHead>Source</TableHead>
+                  <TableHead>Paid via</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="text-right pr-8">Balance</TableHead>
                 </TableRow>
@@ -420,9 +432,7 @@ function RepaymentHistorySection({ title, subtitle, source, isLoading, repayment
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={cn("text-[10px] font-black uppercase tracking-tighter px-2", rep.collectionSource === 'collections' ? "bg-pink-500/10 text-pink-700 border-pink-200" : "bg-gray-100 text-gray-500 border-gray-200")}>
-                        {rep.collectionSource === 'collections' ? (rep.assignedCsaName || 'CSA') : 'Organic'}
-                      </Badge>
+                      <PaidViaBadges row={rep} />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">
@@ -459,9 +469,7 @@ function RepaymentHistorySection({ title, subtitle, source, isLoading, repayment
                       <p className="text-xs text-muted-foreground font-mono">{rep.userMsisdn}</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className={cn("text-[10px] font-black uppercase shrink-0", rep.collectionSource === 'collections' ? "bg-pink-500/10 text-pink-700 border-pink-200" : "bg-gray-100 text-gray-500 border-gray-200")}>
-                    {rep.collectionSource === 'collections' ? (rep.assignedCsaName || 'CSA') : 'Organic'}
-                  </Badge>
+                  <PaidViaBadges row={rep} className="justify-end" />
                 </div>
                 <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-xl p-3">
                   <div>

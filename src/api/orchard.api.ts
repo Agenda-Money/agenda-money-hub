@@ -1,4 +1,5 @@
 import api from '@/lib/api';
+import type { MandateExpiry } from '@/lib/orchard-insights';
 
 const BASE = '/api/admin/settings/orchard';
 
@@ -47,6 +48,12 @@ export interface OrchardMandate {
    * not derived from startDate, since mandates predating the DD+4 grace
    * period have startDate equal to the due date with no offset. */
   loanDueDate?: string | null;
+  /** Attached server-side from the customer and the loan. */
+  customerName?: string | null;
+  loanStatus?: string | null;
+  /** What the loan still owes, or null when the mandate has no loan. */
+  outstanding?: number | null;
+  expiry?: MandateExpiry;
 }
 
 export async function getOrchardConfig(): Promise<{ data: OrchardConfig; env: OrchardEnvInfo }> {
@@ -80,8 +87,14 @@ export async function getOrchardTransactionStatus(loanId: string): Promise<Orcha
   return res.data.data;
 }
 
-export async function listOrchardMandates(status?: OrchardMandateStatus): Promise<OrchardMandate[]> {
-  const res = await api.get(`${BASE}/mandates`, { params: status ? { status } : undefined });
+export async function listOrchardMandates(
+  params: { status?: OrchardMandateStatus | ''; search?: string; limit?: number } = {},
+): Promise<OrchardMandate[]> {
+  const query: Record<string, string | number> = {};
+  if (params.status) query.status = params.status;
+  if (params.search?.trim()) query.search = params.search.trim();
+  if (params.limit) query.limit = params.limit;
+  const res = await api.get(`${BASE}/mandates`, { params: query });
   return res.data.data;
 }
 
@@ -168,5 +181,108 @@ export async function triggerCollection(params: {
 /** Orchard-specific — lives in the Orchard settings tab, always Orchard. */
 export async function triggerOrchardCollection(loanReference: string, amount?: number): Promise<TriggerCollectionResult> {
   const res = await api.post(`${BASE}/collect/${encodeURIComponent(loanReference)}`, amount !== undefined ? { amount } : {});
+  return res.data.data;
+}
+
+// ── Mandates running out while money is still owed ──────────────────────
+export interface ExpiryRiskRow {
+  msisdn: string;
+  customerName: string | null;
+  loanReference: string;
+  loanStatus: string;
+  outstanding: number;
+  endDate: string;
+  daysLeft: number;
+  state: 'ENDED' | 'ENDS_SOON';
+}
+
+export interface ExpiryRisk {
+  asOf: string;
+  withinDays: number;
+  summary: {
+    endedWithMoneyOwed: { mandates: number; owed: number };
+    endingSoonWithMoneyOwed: { mandates: number; owed: number };
+    within3Days: number;
+    within7Days: number;
+  };
+  rows: ExpiryRiskRow[];
+}
+
+export async function getMandateExpiryRisk(withinDays?: number): Promise<ExpiryRisk> {
+  const res = await api.get(`${BASE}/mandate-expiry`, { params: withinDays ? { withinDays } : undefined });
+  return res.data.data;
+}
+
+// ── When repayments land ────────────────────────────────────────────────
+export interface TimingBucket {
+  key: number;
+  count: number;
+  amount: number;
+}
+
+export interface RepaymentTiming {
+  asOf: string;
+  days: number;
+  timezone: string;
+  sampleSize: number;
+  customerChosenSampleSize: number;
+  lowSample: boolean;
+  all: { byHour: TimingBucket[]; byDayOfMonth: TimingBucket[]; byWeekday: TimingBucket[] };
+  customerChosen: {
+    byHour: TimingBucket[];
+    byDayOfMonth: TimingBucket[];
+    byWeekday: TimingBucket[];
+    busiestHours: TimingBucket[];
+    busiestDays: TimingBucket[];
+  };
+  byChannel: { channel: string; count: number; amount: number }[];
+}
+
+export async function getRepaymentTiming(days?: number): Promise<RepaymentTiming> {
+  const res = await api.get(`${BASE}/repayment-timing`, { params: days ? { days } : undefined });
+  return res.data.data;
+}
+
+// ── Automatic retry report (report only: it never charges anyone) ───────
+export interface RetryVerdict {
+  uniqRefId: string;
+  loanReference?: string;
+  customer: string;
+  verdict: 'WOULD_RETRY' | 'SKIP';
+  code?: string;
+  reason: string;
+  chargeAmount?: number;
+  outstanding?: number;
+}
+
+export interface RetryPlan {
+  asOf: string;
+  considered: number;
+  wouldRetry: RetryVerdict[];
+  skipped: Record<string, number>;
+  needsAPerson: RetryVerdict[];
+  statusChecks: number;
+  verdicts: RetryVerdict[];
+}
+
+export async function getRetryReport(): Promise<RetryPlan> {
+  const res = await api.get(`${BASE}/retry-report`);
+  return res.data.data;
+}
+
+export interface RetrySchedule {
+  enabled: boolean;
+  reportOnly: true;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+}
+
+export async function getRetrySchedule(): Promise<RetrySchedule> {
+  const res = await api.get(`${BASE}/retry-report/schedule`);
+  return res.data.data;
+}
+
+export async function setRetrySchedule(enabled: boolean): Promise<RetrySchedule> {
+  const res = await api.put(`${BASE}/retry-report/schedule`, { enabled });
   return res.data.data;
 }
