@@ -1,19 +1,33 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { PlayCircle, ShieldCheck } from "lucide-react";
+import { Clock, PlayCircle, ShieldCheck, Zap } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  getRetryReport, getRetrySchedule, setRetrySchedule,
-  type RetryPlan, type RetryVerdict,
+  getRetryReport, getRetryRuns, getRetrySchedule, setRetryLive, setRetrySchedule,
+  type RetryPlan, type RetryRun, type RetryVerdict,
 } from "@/api/orchard.api";
-import { money, skipReasonLabel } from "@/lib/orchard-insights";
+import { cn } from "@/lib/utils";
+import { money, skipReasonLabel, slotLabel } from "@/lib/orchard-insights";
 
 const SCHEDULE_KEY = ["orchard-retry-schedule"];
+const RUNS_KEY = ["orchard-retry-runs"];
+
+const OUTCOME_LABEL: Record<string, string> = {
+  SUBMITTED: "Submitted",
+  LOAN_NOT_ELIGIBLE: "Loan no longer owed",
+  REFUSED: "Orchard refused",
+  ERROR: "Could not send",
+};
 
 function VerdictTable({ rows, empty, showCharge }: { rows: RetryVerdict[]; empty: string; showCharge?: boolean }) {
   return (
@@ -96,22 +110,101 @@ function ReportResult({ plan }: { plan: RetryPlan }) {
   );
 }
 
+function RunRow({ run }: { run: RetryRun }) {
+  const [open, setOpen] = useState(false);
+  const submitted = run.attempts.filter((a) => a.outcome === "SUBMITTED").length;
+  const problems = run.attempts.length - submitted;
+  const live = run.mode === "LIVE";
+
+  return (
+    <>
+      <tr className="hover:bg-muted/30">
+        <td className="px-4 py-2 text-xs">{format(new Date(run.createdAt), "dd MMM HH:mm")}</td>
+        <td className="px-4 py-2">
+          <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold", live ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400")}>
+            {live ? "Live" : "Report"}
+          </span>
+        </td>
+        <td className="px-4 py-2 text-xs">{slotLabel(run.slotHour)}</td>
+        <td className="px-4 py-2 text-right">{run.considered}</td>
+        <td className="px-4 py-2 text-right">{run.wouldRetry}</td>
+        <td className="px-4 py-2 text-right font-semibold">{live ? submitted : "—"}</td>
+        <td className="px-4 py-2 text-xs">
+          {run.abortedReason ? (
+            <span className="text-red-600" title={run.abortedReason}>Stopped itself</span>
+          ) : run.capped ? (
+            <span className="text-amber-600">Hit the per-run limit</span>
+          ) : problems > 0 ? (
+            <span className="text-amber-600">{problems} not submitted</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </td>
+        <td className="px-4 py-2 text-right">
+          {run.attempts.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+              {open ? "Hide" : "Who"}
+            </Button>
+          )}
+        </td>
+      </tr>
+      {open && (
+        <tr>
+          <td colSpan={8} className="px-4 pb-3 bg-muted/20">
+            {run.abortedReason && <p className="text-xs text-red-600 py-2">{run.abortedReason}</p>}
+            <ul className="text-xs divide-y">
+              {run.attempts.map((a, i) => (
+                <li key={`${a.customer}-${i}`} className="flex items-center justify-between py-1.5 gap-3">
+                  <span className="font-mono">{a.customer} · {a.loanReference ?? "—"}</span>
+                  <span>{money(a.amount)}</span>
+                  <span className={a.outcome === "SUBMITTED" ? "text-green-700" : "text-amber-700"} title={a.detail}>
+                    {OUTCOME_LABEL[a.outcome] ?? a.outcome}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 /**
- * The automatic debit retry, as a REPORT. It lists which mandates a retry would be
- * made for and why the rest are left alone. Nothing here, and nothing the schedule
- * switch controls, submits a debit.
+ * The automatic debit retry, with two switches.
+ *
+ * LIVE charges customers: once a day it debits the mandate of each overdue loan
+ * that Orchard confirms is active, at an hour that moves one hour later each day.
+ * REPORT only writes down who it would have charged. Both start off.
  */
 export function RetryReportTab() {
   const qc = useQueryClient();
   const { canWrite } = useAuth();
+  const [confirmLive, setConfirmLive] = useState(false);
 
   const { data: schedule, isLoading } = useQuery({ queryKey: SCHEDULE_KEY, queryFn: getRetrySchedule });
+  const { data: runs } = useQuery({ queryKey: RUNS_KEY, queryFn: () => getRetryRuns(20), refetchInterval: 60_000 });
 
-  const toggle = useMutation({
+  const done = () => {
+    qc.invalidateQueries({ queryKey: SCHEDULE_KEY });
+    qc.invalidateQueries({ queryKey: RUNS_KEY });
+  };
+
+  const toggleReport = useMutation({
     mutationFn: (enabled: boolean) => setRetrySchedule(enabled),
     onSuccess: (s) => {
       toast.success(s.enabled ? "Scheduled retry report is on" : "Scheduled retry report is off");
-      qc.invalidateQueries({ queryKey: SCHEDULE_KEY });
+      done();
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || "Could not change the setting"),
+  });
+
+  const toggleLive = useMutation({
+    mutationFn: (enabled: boolean) => setRetryLive(enabled),
+    onSuccess: (s) => {
+      toast.success(s.enabled ? "Automatic retry is ON. Customers will be charged." : "Automatic retry is off");
+      setConfirmLive(false);
+      done();
     },
     onError: (e: any) => toast.error(e?.response?.data?.message || "Could not change the setting"),
   });
@@ -121,23 +214,106 @@ export function RetryReportTab() {
     onError: (e: any) => toast.error(e?.response?.data?.message || "Could not build the report"),
   });
 
+  const liveOn = schedule?.live.enabled === true;
+
   return (
     <div className="space-y-6">
-      <Alert>
-        <ShieldCheck className="h-4 w-4" />
-        <AlertTitle>Report only. This never charges a customer.</AlertTitle>
-        <AlertDescription>
-          It shows which mandates an automatic retry would be made for, so you can judge the idea before anything is made
-          live. Going live is a separate step that needs refunds in place first.
-        </AlertDescription>
-      </Alert>
+      <Card className={cn(liveOn && "border-red-300 dark:border-red-900")}>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Zap className={cn("h-4 w-4", liveOn ? "text-red-600" : "text-muted-foreground")} />
+            Automatic retry
+            <span className={cn("ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold", liveOn ? "bg-red-600 text-white" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400")}>
+              {liveOn ? "ON · charging customers" : "OFF"}
+            </span>
+          </CardTitle>
+          <CardDescription>
+            Once a day it debits each overdue loan whose mandate Orchard says is active. The hour moves one hour later
+            every day, so over 24 days every hour of the day gets tried.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">{liveOn ? "On" : "Off"}</p>
+              {schedule?.live.updatedBy && (
+                <p className="text-xs text-muted-foreground">
+                  Last changed by {schedule.live.updatedBy}
+                  {schedule.live.updatedAt ? ` on ${format(new Date(schedule.live.updatedAt), "dd MMM yyyy HH:mm")}` : ""}
+                </p>
+              )}
+            </div>
+            <Switch
+              aria-label="Charge customers with the automatic retry"
+              checked={liveOn}
+              disabled={isLoading || toggleLive.isPending || !canWrite}
+              onCheckedChange={(v) => (v ? setConfirmLive(true) : toggleLive.mutate(false))}
+            />
+          </div>
+
+          {schedule && (
+            <div className="rounded-md border bg-muted/30 p-3">
+              <p className="text-xs font-medium flex items-center gap-1.5 mb-2">
+                <Clock className="h-3.5 w-3.5" /> Retry hour (Accra time)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {schedule.upcomingSlots.map((s, i) => (
+                  <div key={s.date} className={cn("rounded-md border px-3 py-1.5 text-xs", i === 0 ? "bg-card font-semibold" : "text-muted-foreground")}>
+                    {i === 0 ? "Today" : format(new Date(`${s.date}T00:00:00Z`), "EEE d MMM")}
+                    <span className="ml-2">{slotLabel(s.hour)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Runs every hour and attempts each mandate once, on the first run at or after that day's hour, so a late
+                run still makes the day.
+              </p>
+            </div>
+          )}
+
+          <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-5">
+            <li>Never past the mandate's end date: after that the customer no longer permits a debit.</li>
+            <li>Never on a loan that is repaid, or for more than is owed.</li>
+            <li>Skips mandates Orchard is already retrying (a debit in the last 4 hours).</li>
+            <li>At most 30 debits an hour, and it stops itself and alerts if Orchard refuses 5 in a row.</li>
+            <li>Gives up after 24 of its own attempts on a mandate and leaves it for a person.</li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={confirmLive} onOpenChange={setConfirmLive}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Start charging customers automatically?</AlertDialogTitle>
+            <AlertDialogDescription>
+              From the next hourly run, each overdue loan with an active mandate is debited once a day. Today's hour is{" "}
+              {schedule ? slotLabel(schedule.todaySlotHour) : "shown above"}; anything that qualifies after it is tried
+              the same day. Money moves when this is on, and a wrong debit is refunded by hand.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not yet</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={toggleLive.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                toggleLive.mutate(true);
+              }}
+            >
+              {toggleLive.isPending ? "Turning on..." : "Turn on and charge"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Scheduled report</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" /> Report only
+          </CardTitle>
           <CardDescription>
-            When on, the report runs at 08:05, 13:05 and 18:05 and writes its findings to the server log. Switching it on
-            or off cannot move money.
+            Writes down who the retry would charge each day, at the retry hour, without charging anyone. It stands in for
+            the automatic retry while that is off, and is ignored once it is on.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-between gap-4">
@@ -153,18 +329,48 @@ export function RetryReportTab() {
           <Switch
             aria-label="Run the retry report on a schedule"
             checked={schedule?.enabled === true}
-            disabled={isLoading || toggle.isPending || !canWrite}
-            onCheckedChange={(v) => toggle.mutate(v)}
+            disabled={isLoading || toggleReport.isPending || !canWrite}
+            onCheckedChange={(v) => toggleReport.mutate(v)}
           />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Run it now</CardTitle>
+          <CardTitle className="text-base">What it has done</CardTitle>
+          <CardDescription>Each hourly run that did something, newest first.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium">When</th>
+                  <th className="px-4 py-2 text-left font-medium">Mode</th>
+                  <th className="px-4 py-2 text-left font-medium">Hour</th>
+                  <th className="px-4 py-2 text-right font-medium">Looked at</th>
+                  <th className="px-4 py-2 text-right font-medium">Qualified</th>
+                  <th className="px-4 py-2 text-right font-medium">Charged</th>
+                  <th className="px-4 py-2 text-left font-medium">Note</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {!runs || runs.length === 0 ? (
+                  <tr><td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">Nothing yet.</td></tr>
+                ) : runs.map((r) => <RunRow key={r._id} run={r} />)}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Check who qualifies right now</CardTitle>
           <CardDescription>
-            Checks every active mandate against its loan and asks Orchard for the status of those that pass. It can take a
-            few seconds.
+            Checks every active mandate against its loan and asks Orchard for the status of those that pass. It never
+            charges anyone, whatever the switches say. It can take a few seconds.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  busiestSentence, expiryBadge, hourLabel, loanStatusTone, ordinal, skipReasonLabel, statusCounts, weekdayName,
+  busiestSentence, canRenew, expiryBadge, hourLabel, loanStatusTone, ordinal, skipReasonLabel, slotLabel, statusCounts, weekdayName,
 } from "../orchard-insights";
 
 describe("expiryBadge", () => {
@@ -82,5 +82,39 @@ describe("statusCounts and skipReasonLabel", () => {
   it("explains a skip in words, and falls back to the code for one it does not know", () => {
     expect(skipReasonLabel("LOAN_FINISHED")).toBe("Loan is already finished");
     expect(skipReasonLabel("SOMETHING_NEW")).toBe("SOMETHING_NEW");
+  });
+});
+
+describe("canRenew", () => {
+  it("allows a mandate that has ended, or is close to its end, while money is owed", () => {
+    expect(canRenew({ state: "ENDED", daysLeft: -3 }, "ACTIVE", 100)).toBe(true);
+    expect(canRenew({ state: "ENDS_SOON", daysLeft: 7 }, "ACTIVE", 100)).toBe(true);
+    expect(canRenew({ state: "ENDS_SOON", daysLeft: 1 }, "ACTIVE", 100)).toBe(true);
+  });
+
+  it("refuses one with more than a week left, because renewing would end it early", () => {
+    expect(canRenew({ state: "ENDS_SOON", daysLeft: 8 }, "ACTIVE", 100)).toBe(false);
+    expect(canRenew({ state: "OK", daysLeft: 25 }, "ACTIVE", 100)).toBe(false);
+  });
+
+  it("refuses when nothing is owed, the mandate is not active, or there is no end date", () => {
+    expect(canRenew({ state: "ENDED", daysLeft: -3 }, "ACTIVE", 0)).toBe(false);
+    expect(canRenew({ state: "ENDED", daysLeft: -3 }, "ACTIVE", null)).toBe(false);
+    expect(canRenew({ state: "ENDED", daysLeft: -3 }, "CANCELLED", 100)).toBe(false);
+    expect(canRenew({ state: "NO_END_DATE", daysLeft: null }, "ACTIVE", 100)).toBe(false);
+    expect(canRenew(undefined, "ACTIVE", 100)).toBe(false);
+  });
+});
+
+describe("slotLabel and the new skip reasons", () => {
+  it("pads the hour", () => {
+    expect(slotLabel(2)).toBe("02:00");
+    expect(slotLabel(14)).toBe("14:00");
+  });
+
+  it("explains the three new reasons in words", () => {
+    expect(skipReasonLabel("ALREADY_TRIED_TODAY")).toMatch(/one attempt a day/i);
+    expect(skipReasonLabel("MANDATE_ENDED")).toMatch(/needs renewing/i);
+    expect(skipReasonLabel("WAITING_FOR_SLOT")).toMatch(/retry hour/i);
   });
 });

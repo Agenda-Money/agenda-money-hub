@@ -73,12 +73,15 @@ export const SKIP_REASON: Record<string, string> = {
   NOT_YET_OVERDUE: "Loan is not overdue yet",
   SCHEDULE_NOT_STARTED: "First scheduled debit has not happened yet",
   LAST_DEBIT_SUCCEEDED: "Last debit went through",
-  TOO_MANY_FAILURES: "Too many failures in a row, needs a person",
+  TOO_MANY_FAILURES: "Tried 24 times already, needs a person",
   ATTEMPTED_RECENTLY: "A debit was attempted a few hours ago",
   AMOUNT_EXCEEDS_BALANCE: "Debit amount is more than what is owed, needs a person",
   NOT_CHECKED_THIS_RUN: "Not checked this run (limit on Orchard lookups)",
   NOT_ACTIVE_ON_ORCHARD: "Orchard does not show it as active",
   ORCHARD_STATUS_UNAVAILABLE: "Could not reach Orchard for its status",
+  ALREADY_TRIED_TODAY: "Already tried today, one attempt a day",
+  WAITING_FOR_SLOT: "Waiting for today's retry hour",
+  MANDATE_ENDED: "Mandate has ended, needs renewing",
 };
 
 export const skipReasonLabel = (code: string) => SKIP_REASON[code] ?? code;
@@ -109,3 +112,18 @@ export function ordinal(n: number): string {
 
 export const money = (n: number | null | undefined) =>
   n === null || n === undefined ? "—" : `₵${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** Whether a mandate can be renewed now: ended, or close enough to its end that little is given up. */
+export const RENEW_WITHIN_DAYS = 7;
+
+export function canRenew(
+  expiry: MandateExpiry | undefined,
+  status: string,
+  owed: number | null | undefined,
+): boolean {
+  if (status !== "ACTIVE" || !expiry || (owed ?? 0) <= 0) return false;
+  if (expiry.state === "ENDED") return true;
+  return expiry.state === "ENDS_SOON" && expiry.daysLeft !== null && expiry.daysLeft <= RENEW_WITHIN_DAYS;
+}
+
+export const slotLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;

@@ -270,11 +270,20 @@ export async function getRetryReport(): Promise<RetryPlan> {
   return res.data.data;
 }
 
-export interface RetrySchedule {
+export interface FlagState {
   enabled: boolean;
-  reportOnly: true;
   updatedBy?: string | null;
   updatedAt?: string | null;
+}
+
+export interface RetrySchedule extends FlagState {
+  /** `enabled` above is the REPORT switch, which never charges anyone. */
+  reportOnly: true;
+  /** The switch that charges customers. */
+  live: FlagState;
+  /** The retry hour (UTC, which is Accra time) for today. */
+  todaySlotHour: number;
+  upcomingSlots: { date: string; hour: number }[];
 }
 
 export async function getRetrySchedule(): Promise<RetrySchedule> {
@@ -282,7 +291,67 @@ export async function getRetrySchedule(): Promise<RetrySchedule> {
   return res.data.data;
 }
 
-export async function setRetrySchedule(enabled: boolean): Promise<RetrySchedule> {
+export async function setRetrySchedule(enabled: boolean): Promise<{ enabled: boolean }> {
   const res = await api.put(`${BASE}/retry-report/schedule`, { enabled });
   return res.data.data;
+}
+
+/** Turns the automatic retry that CHARGES customers on or off. */
+export async function setRetryLive(enabled: boolean): Promise<{ enabled: boolean }> {
+  const res = await api.put(`${BASE}/retry-report/live`, { enabled });
+  return res.data.data;
+}
+
+export interface RetryAttempt {
+  customer: string;
+  loanReference?: string;
+  amount: number;
+  outcome: 'SUBMITTED' | 'LOAN_NOT_ELIGIBLE' | 'REFUSED' | 'ERROR';
+  detail?: string;
+  reference?: string;
+}
+
+export interface RetryRun {
+  _id: string;
+  mode: 'LIVE' | 'REPORT';
+  slotHour: number;
+  considered: number;
+  wouldRetry: number;
+  attempts: RetryAttempt[];
+  capped: boolean;
+  abortedReason?: string;
+  createdAt: string;
+}
+
+export async function getRetryRuns(limit = 20): Promise<RetryRun[]> {
+  const res = await api.get(`${BASE}/retry-report/runs`, { params: { limit } });
+  return res.data.data;
+}
+
+// ── Renewal ─────────────────────────────────────────────────────────────
+export async function getRenewalNotices(): Promise<FlagState> {
+  const res = await api.get(`${BASE}/mandate-notices`);
+  return res.data.data;
+}
+
+export async function setRenewalNotices(enabled: boolean): Promise<{ enabled: boolean }> {
+  const res = await api.put(`${BASE}/mandate-notices`, { enabled });
+  return res.data.data;
+}
+
+export interface RenewResult {
+  message: string;
+  data: { mandate: OrchardMandate; terms: { amount: number; cycle: string; startDate: string; endDate: string } };
+}
+
+/** Subscribes the customer again, which sends them a new code. */
+export async function renewOrchardMandate(msisdn: string): Promise<RenewResult> {
+  const res = await api.post(`${BASE}/mandates/${msisdn}/renew`);
+  return res.data;
+}
+
+/** Submits the code the customer received, which activates a PENDING_OTP mandate. */
+export async function confirmOrchardOtp(msisdn: string, otp: string) {
+  const res = await api.post(`${BASE}/mandates/${msisdn}/confirm-otp`, { otp });
+  return res.data;
 }

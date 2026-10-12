@@ -17,8 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ExpiryRiskTab, useExpiryRisk } from "@/components/orchard/ExpiryRiskTab";
 import { RetryReportTab } from "@/components/orchard/RetryReportTab";
+import { RenewMandateDialog, type RenewTarget } from "@/components/orchard/RenewMandateDialog";
 import { TimingTab } from "@/components/orchard/TimingTab";
-import { expiryBadge, loanStatusTone, money, statusCounts, TONE_CLASS } from "@/lib/orchard-insights";
+import { canRenew, expiryBadge, loanStatusTone, money, statusCounts, TONE_CLASS } from "@/lib/orchard-insights";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -259,6 +260,7 @@ function MandatesTab() {
   const search = useDebounced(searchText.trim(), 300);
   const [cancelTarget, setCancelTarget] = useState<OrchardMandate | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [renewTarget, setRenewTarget] = useState<RenewTarget | null>(null);
 
   // The unfiltered list feeds the chip counts, and is the same query the overview uses.
   const { data: everything } = useQuery({
@@ -458,6 +460,20 @@ function MandatesTab() {
                             <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-green-500" /> Resume
                           </DropdownMenuItem>
                         )}
+                        {canRenew(m.expiry, m.status, m.outstanding) && (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setRenewTarget({
+                                msisdn: m.msisdn,
+                                customerName: m.customerName,
+                                loanReference: m.currentLoanReference ?? "",
+                                owed: m.outstanding ?? 0,
+                              })
+                            }
+                          >
+                            <RefreshCw className="h-3.5 w-3.5 mr-2 text-blue-500" /> Renew mandate
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => syncMut.mutate(m.msisdn)}>
                           <RefreshCw className="h-3.5 w-3.5 mr-2" /> Sync from Orchard
                         </DropdownMenuItem>
@@ -478,6 +494,8 @@ function MandatesTab() {
           </tbody>
         </table>
       </div>
+
+      <RenewMandateDialog target={renewTarget} onClose={() => setRenewTarget(null)} />
 
       <Dialog open={!!cancelTarget} onOpenChange={v => !v && setCancelTarget(null)}>
         <DialogContent className="sm:max-w-md">
