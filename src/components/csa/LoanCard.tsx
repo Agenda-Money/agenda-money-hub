@@ -133,7 +133,7 @@ export function LoanCard({ loan, onOpen, index }: LoanCardProps) {
             <div className="text-right flex-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Overdue</p>
               <p className={cn('text-sm font-bold', loan.ddBucket >= 5 ? 'text-red-600' : 'text-amber-600')}>
-                {exactDaysOverdue > 15 ? `${exactDaysOverdue} days` : loan.ddBucket >= 15 ? '15+ days' : `${loan.ddBucket} day${loan.ddBucket > 1 ? 's' : ''}`}
+                {`${exactDaysOverdue} day${exactDaysOverdue > 1 ? 's' : ''}`}
               </p>
             </div>
           )}

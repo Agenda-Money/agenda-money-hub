@@ -1088,6 +1088,8 @@ function CustomBucketPopover({ onSearch }: { onSearch: (bucket: number) => void 
               <Input
                 type="number"
                 min="0"
+                max="3650"
+                step="1"
                 placeholder="e.g. 20"
                 value={days}
                 onChange={(e) => setDays(e.target.value)}

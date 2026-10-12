@@ -8,7 +8,20 @@ export interface BucketMeta {
   description: string;
 }
 
+/**
+ * Catch-all bucket for every loan more than 15 days overdue. Must match
+ * OVERFLOW_BUCKET on the backend. It is a sentinel, not a day count, so a
+ * custom lookup of N days always means exactly N days.
+ */
+export const OVERFLOW_BUCKET = 9999;
+
 export function getBucketMeta(bucket: number): BucketMeta {
+  if (bucket === OVERFLOW_BUCKET) return {
+    label: 'DD+16+', short: '+16+',
+    color: 'bg-red-950', textColor: 'text-white', ringColor: 'ring-red-950',
+    badgeBg: 'bg-red-300 text-red-950 border-red-400',
+    description: 'Critical — more than 15 days overdue',
+  };
   if (bucket > 15) return {
     label: `DD+${bucket}`, short: `+${bucket}`,
     color: 'bg-red-900', textColor: 'text-white', ringColor: 'ring-red-900',
@@ -16,10 +29,10 @@ export function getBucketMeta(bucket: number): BucketMeta {
     description: `Critical — ${bucket} days overdue`,
   };
   if (bucket === 15) return {
-    label: 'DD+15+', short: '+15+',
+    label: 'DD+15', short: '+15',
     color: 'bg-red-800', textColor: 'text-white', ringColor: 'ring-red-800',
     badgeBg: 'bg-red-200 text-red-900 border-red-300',
-    description: 'Critical — 15+ days overdue',
+    description: 'Critical — 15 days overdue',
   };
   if (bucket >= 8 && bucket <= 14) return {
     label: `DD+${bucket}`, short: `+${bucket}`,
@@ -101,7 +114,7 @@ export function getBucketMeta(bucket: number): BucketMeta {
   };
 }
 
-export const BUCKET_ORDER = [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3];
+export const BUCKET_ORDER = [OVERFLOW_BUCKET, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3];
 
 export function formatNetwork(network: string, msisdn?: string) {
   // 1. If we have an MSISDN, use heuristic detection to verify/fallback

@@ -30,14 +30,6 @@ export default function TeamActivityPage() {
   const isSupervisorOrManager = ['supervisor', 'manager'].includes((csaUser?.role as string)?.toLowerCase());
   const isAllowed = isExecutingAsAdmin ? isAdmin : (isSupervisorOrManager || isAdmin);
 
-  if (adminLoading || csaLoading) {
-    return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <RefreshCw className="h-8 w-8 text-primary animate-spin opacity-20" />
-      </div>
-    );
-  }
-
   const [dateFrom, setDateFrom] = useState('1970-01-01');
   const [dateTo, setDateTo] = useState(endOfDay(new Date()).toISOString());
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
@@ -96,6 +88,16 @@ export default function TeamActivityPage() {
     notes: e.notes,
     promiseDetails: e.promiseDetails
   }));
+
+  // Must stay below every hook: returning earlier changes the hook count between
+  // renders and crashes the page once auth finishes loading.
+  if (adminLoading || csaLoading) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center">
+        <RefreshCw className="h-8 w-8 text-primary animate-spin opacity-20" />
+      </div>
+    );
+  }
 
   if (overviewError) {
     const errorBody = (
