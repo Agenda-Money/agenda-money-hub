@@ -75,7 +75,8 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
       setPromisedAmount(''); setCallbackAt(''); setSendSms(false); setSmsTemplateKey('');
       setActiveTab('history');
     },
-    onError: (err: any) => toast.error('Could not record activity. Please try again.'),
+    onError: (err: any) =>
+      toast.error(err?.response?.data?.message || 'Could not record activity. Please try again.'),
   });
 
   const handleSubmit = () => {
@@ -92,6 +93,11 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
   };
 
   const loan = data as any;
+  // Mirrors the server rule: no SMS to a borrower who has already paid.
+  const smsBlocked =
+    !!loan &&
+    (!['ACTIVE', 'OVERDUE', 'PARTIAL_REPAID', 'DEFAULTED'].includes(loan.status) ||
+      (loan.totalPayable > 0 && (loan.amountRepaid ?? 0) >= loan.totalPayable));
   const meta = loan?.ddBucket != null ? getBucketMeta(loan.ddBucket) : null;
   const templates = templateData?.templates ?? [];
 
@@ -337,12 +343,12 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                               <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Promise Date</Label>
-                              <Input type="date" value={promisedDate} onChange={(e) => setPromisedDate(e.target.value)} className="h-9 text-sm rounded-xl" />
+                              <Input type="date" min={format(new Date(), 'yyyy-MM-dd')} value={promisedDate} onChange={(e) => setPromisedDate(e.target.value)} className="h-9 text-sm rounded-xl" />
                             </div>
                             {outcome === 'PARTIAL_PAYMENT' && (
                               <div className="space-y-1.5">
                                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Amount (GHS)</Label>
-                                <Input type="number" placeholder="0.00" value={promisedAmount} onChange={(e) => setPromisedAmount(e.target.value)} className="h-9 text-sm rounded-xl" />
+                                <Input type="number" min="0.01" step="0.01" placeholder="0.00" value={promisedAmount} onChange={(e) => setPromisedAmount(e.target.value)} className="h-9 text-sm rounded-xl" />
                               </div>
                             )}
                           </div>
@@ -351,7 +357,7 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                         {outcome === 'CALLED_BACK_LATER' && (
                           <div className="space-y-1.5">
                             <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Call Back At</Label>
-                            <Input type="datetime-local" value={callbackAt} onChange={(e) => setCallbackAt(e.target.value)} className="h-9 text-sm rounded-xl" />
+                            <Input type="datetime-local" min={format(new Date(), "yyyy-MM-dd'T'HH:mm")} value={callbackAt} onChange={(e) => setCallbackAt(e.target.value)} className="h-9 text-sm rounded-xl" />
                           </div>
                         )}
 
@@ -375,11 +381,14 @@ export function LoanDrawer({ loanId, onClose }: LoanDrawerProps) {
                         <div className="border border-border/60 rounded-xl overflow-hidden">
                           <button
                             onClick={() => setSendSms(!sendSms)}
-                            className="w-full flex items-center justify-between px-4 py-3 bg-muted/20 hover:bg-muted/40 transition-colors"
+                            disabled={smsBlocked}
+                            className="w-full flex items-center justify-between px-4 py-3 bg-muted/20 hover:bg-muted/40 transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-muted/20"
                           >
                             <div className="flex items-center gap-2">
                               <Send className="h-4 w-4 text-primary" />
-                              <span className="text-sm font-semibold">Also send an SMS</span>
+                              <span className="text-sm font-semibold">
+                                {smsBlocked ? 'SMS unavailable — loan already repaid' : 'Also send an SMS'}
+                              </span>
                             </div>
                             <motion.div animate={{ rotate: sendSms ? 180 : 0 }}>
                               <ChevronDown className="h-4 w-4 text-muted-foreground" />
