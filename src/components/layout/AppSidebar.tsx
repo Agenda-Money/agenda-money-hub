@@ -217,6 +217,23 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         { to: "/repayments/campaign", label: "Campaign SMS" },
       ]
     },
+    // Directly under Repayments. Admin and viewer only, like the rest of the Orchard tools.
+    ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
+      ? [
+          {
+            to: "/admin/orchard",
+            icon: TreePine,
+            label: "Orchard",
+            subItems: [
+              { to: "/admin/orchard", label: "Overview" },
+              { to: "/admin/orchard/mandates", label: "Mandates" },
+              { to: "/admin/orchard/expiring", label: "Running out" },
+              { to: "/admin/orchard/retry-report", label: "Retry report" },
+              { to: "/admin/orchard/timing", label: "When money lands" },
+            ],
+          },
+        ]
+      : []),
     // Admin/Viewer only items (bottom)
     ...(user && (user.role === "admin" || user.role === "viewer" || user.role === "superadmin")
       ? [
@@ -241,15 +258,6 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
             ],
           },
           { to: "/admin/fraud", icon: ShieldAlert, label: "Fraud review" },
-          {
-            to: "/admin/orchard",
-            icon: TreePine,
-            label: "Orchard",
-            subItems: [
-              { to: "/admin/orchard", label: "Overview" },
-              { to: "/admin/orchard/mandates", label: "Mandates" },
-            ],
-          },
           { to: "/analytics", icon: BarChart3, label: "Analytics" },
           { to: "/audit-logs", icon: FileText, label: "Audit Logs" },
           {
