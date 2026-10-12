@@ -5,24 +5,24 @@ import {
 
 describe("expiryBadge", () => {
   it("is loudest when a mandate has ended and money is still owed", () => {
-    expect(expiryBadge({ state: "ENDED", daysLeft: -3 }, 100)).toEqual({ label: "Ended 3 days ago, money still owed", tone: "danger" });
+    expect(expiryBadge({ state: "ENDED", daysLeft: -3 }, 100)).toEqual({ label: "Ended 3 days ago, money still owed", short: "Ended 3d ago", tone: "danger" });
     expect(expiryBadge({ state: "ENDED", daysLeft: -1 }, 5).label).toBe("Ended 1 day ago, money still owed");
     expect(expiryBadge({ state: "ENDED", daysLeft: 0 }, 5).label).toBe("Ended today, money still owed");
   });
 
   it("is quiet when the mandate ended on a loan that owes nothing", () => {
-    expect(expiryBadge({ state: "ENDED", daysLeft: -3 }, 0)).toEqual({ label: "Ended 3 days ago", tone: "muted" });
+    expect(expiryBadge({ state: "ENDED", daysLeft: -3 }, 0)).toEqual({ label: "Ended 3 days ago", short: "Ended 3d ago", tone: "muted" });
     expect(expiryBadge({ state: "ENDED", daysLeft: -3 }, null).tone).toBe("muted");
   });
 
   it("warns about an ending-soon mandate only when money is owed", () => {
-    expect(expiryBadge({ state: "ENDS_SOON", daysLeft: 5 }, 50)).toEqual({ label: "Ends soon, 5 days left", tone: "warning" });
+    expect(expiryBadge({ state: "ENDS_SOON", daysLeft: 5 }, 50)).toEqual({ label: "Ends soon, 5 days left", short: "Ends in 5d", tone: "warning" });
     expect(expiryBadge({ state: "ENDS_SOON", daysLeft: 1 }, 50).label).toBe("Ends soon, 1 day left");
     expect(expiryBadge({ state: "ENDS_SOON", daysLeft: 5 }, 0).tone).toBe("muted");
   });
 
   it("is calm for a mandate with plenty of time left", () => {
-    expect(expiryBadge({ state: "OK", daysLeft: 25 }, 50)).toEqual({ label: "25 days left", tone: "ok" });
+    expect(expiryBadge({ state: "OK", daysLeft: 25 }, 50)).toEqual({ label: "25 days left", short: "25d left", tone: "ok" });
   });
 
   it("does not invent an end for a mandate without one, or a row from an older server", () => {

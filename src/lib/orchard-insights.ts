@@ -17,20 +17,27 @@ export type Tone = "danger" | "warning" | "ok" | "muted";
 export function expiryBadge(
   expiry: MandateExpiry | undefined,
   owed: number | null | undefined,
-): { label: string; tone: Tone } {
-  if (!expiry || expiry.state === "NO_END_DATE" || expiry.daysLeft === null) return { label: "No end date", tone: "muted" };
+): { label: string; short: string; tone: Tone } {
+  if (!expiry || expiry.state === "NO_END_DATE" || expiry.daysLeft === null) {
+    return { label: "No end date", short: "No end date", tone: "muted" };
+  }
   const stillOwed = (owed ?? 0) > 0;
   if (expiry.state === "ENDED") {
     const ago = Math.abs(expiry.daysLeft);
     const when = ago === 0 ? "today" : `${ago} day${ago === 1 ? "" : "s"} ago`;
+    const shortWhen = ago === 0 ? "today" : `${ago}d ago`;
     return stillOwed
-      ? { label: `Ended ${when}, money still owed`, tone: "danger" }
-      : { label: `Ended ${when}`, tone: "muted" };
+      ? { label: `Ended ${when}, money still owed`, short: `Ended ${shortWhen}`, tone: "danger" }
+      : { label: `Ended ${when}`, short: `Ended ${shortWhen}`, tone: "muted" };
   }
   const d = expiry.daysLeft;
   const left = `${d} day${d === 1 ? "" : "s"} left`;
-  if (expiry.state === "ENDS_SOON") return stillOwed ? { label: `Ends soon, ${left}`, tone: "warning" } : { label: left, tone: "muted" };
-  return { label: left, tone: "ok" };
+  if (expiry.state === "ENDS_SOON") {
+    return stillOwed
+      ? { label: `Ends soon, ${left}`, short: `Ends in ${d}d`, tone: "warning" }
+      : { label: left, short: `${d}d left`, tone: "muted" };
+  }
+  return { label: left, short: `${d}d left`, tone: "ok" };
 }
 
 export const TONE_CLASS: Record<Tone, string> = {
@@ -127,3 +134,6 @@ export function canRenew(
 }
 
 export const slotLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
+
+const CYCLE_NAME: Record<string, string> = { DLY: "Daily", WKL: "Weekly", MON: "Monthly" };
+export const cycleName = (c?: string) => (c ? CYCLE_NAME[c] ?? c : "");

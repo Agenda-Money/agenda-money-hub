@@ -16,10 +16,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ExpiryRiskTab, useExpiryRisk } from "@/components/orchard/ExpiryRiskTab";
+import { RUNS_KEY, SCHEDULE_KEY } from "@/components/orchard/RetryReportTab";
 import { RetryReportTab } from "@/components/orchard/RetryReportTab";
 import { RenewMandateDialog, type RenewTarget } from "@/components/orchard/RenewMandateDialog";
 import { TimingTab } from "@/components/orchard/TimingTab";
-import { canRenew, expiryBadge, loanStatusTone, money, statusCounts, TONE_CLASS } from "@/lib/orchard-insights";
+import { canRenew, cycleName, expiryBadge, loanStatusTone, money, slotLabel, statusCounts, TONE_CLASS } from "@/lib/orchard-insights";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -31,7 +32,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   listOrchardMandates, suspendOrchardMandate, resumeOrchardMandate,
   cancelOrchardMandate, resendOrchardOtp, syncOrchardMandate,
-  forceRetryOrchardDebit, checkOrchardWalletBalance,
+  forceRetryOrchardDebit, checkOrchardWalletBalance, getRetryRuns, getRetrySchedule,
   type OrchardMandate, type OrchardMandateStatus,
 } from "@/api/orchard.api";
 import { cn } from "@/lib/utils";
@@ -120,18 +121,12 @@ function fmtShortDate(date?: string) {
   return format(new Date(date), "dd MMM yyyy");
 }
 
-function getTriggerCountdown(startDate?: string): { label: string; tone: "muted" | "warning" | "done" } {
-  if (!startDate) return { label: "—", tone: "muted" };
-  const diffDays = Math.round((new Date(startDate).getTime() - Date.now()) / 86_400_000);
-  if (diffDays > 0) return { label: `in ${diffDays} day${diffDays === 1 ? "" : "s"}`, tone: "muted" };
-  if (diffDays === 0) return { label: "today", tone: "warning" };
-  return { label: `${-diffDays} day${diffDays === -1 ? "" : "s"} ago`, tone: "done" };
-}
-
 // ── Overview Tab ───────────────────────────────────────────────────────────────
 
-function OverviewTab({ onOpenExpiry }: { onOpenExpiry: () => void }) {
+function OverviewTab({ onOpenExpiry, onOpenRetry }: { onOpenExpiry: () => void; onOpenRetry: () => void }) {
   const { data: risk } = useExpiryRisk();
+  const { data: schedule } = useQuery({ queryKey: SCHEDULE_KEY, queryFn: getRetrySchedule });
+  const { data: runs } = useQuery({ queryKey: RUNS_KEY, queryFn: () => getRetryRuns(5), refetchInterval: 60_000 });
   const { data: mandates, isLoading } = useQuery({
     queryKey: ["orchard-mandates", "all"],
     queryFn: () => listOrchardMandates(),
@@ -165,26 +160,59 @@ function OverviewTab({ onOpenExpiry }: { onOpenExpiry: () => void }) {
     { label: "Total Mandates",   value: counts.total,      icon: Users,        color: "text-primary" },
   ];
 
-  const atRisk = risk ? risk.summary.endedWithMoneyOwed.mandates + risk.summary.endingSoonWithMoneyOwed.mandates : 0;
+  const ended = risk?.summary.endedWithMoneyOwed;
+  const soon = risk?.summary.endingSoonWithMoneyOwed;
+  const liveOn = schedule?.live.enabled === true;
+  const lastRun = runs?.[0];
+  const lastCharged = lastRun?.attempts.filter((x) => x.outcome === "SUBMITTED").length ?? 0;
+
+  const headline: { label: string; value: string; sub: string; tone: string; onClick: () => void }[] = [
+    {
+      label: "Owed on ended mandates",
+      value: risk ? money(ended!.owed) : "—",
+      sub: risk ? `${ended!.mandates} mandate${ended!.mandates === 1 ? "" : "s"} no longer collecting` : "",
+      tone: (ended?.mandates ?? 0) > 0 ? "text-red-600" : "text-foreground",
+      onClick: onOpenExpiry,
+    },
+    {
+      label: `Ending within ${risk?.withinDays ?? 14} days`,
+      value: risk ? money(soon!.owed) : "—",
+      sub: risk ? `${soon!.mandates} mandate${soon!.mandates === 1 ? "" : "s"} with money owed` : "",
+      tone: (soon?.mandates ?? 0) > 0 ? "text-amber-600" : "text-foreground",
+      onClick: onOpenExpiry,
+    },
+    {
+      label: "Automatic retry",
+      value: schedule ? (liveOn ? "ON" : "OFF") : "—",
+      sub: schedule ? `Today's hour ${slotLabel(schedule.todaySlotHour)}${liveOn ? "" : ", not charging"}` : "",
+      tone: liveOn ? "text-red-600" : "text-foreground",
+      onClick: onOpenRetry,
+    },
+    {
+      label: "Last retry run",
+      value: lastRun ? (lastRun.mode === "LIVE" ? `${lastCharged} charged` : `${lastRun.wouldRetry} qualified`) : "No runs yet",
+      sub: lastRun ? `${lastRun.mode === "LIVE" ? "Live" : "Report"} · ${fmt(lastRun.createdAt)}` : "",
+      tone: "text-foreground",
+      onClick: onOpenRetry,
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      {risk && atRisk > 0 && (
-        <Alert variant="destructive">
-          <CalendarX2 className="h-4 w-4" />
-          <AlertTitle>
-            {atRisk} mandate{atRisk === 1 ? "" : "s"} running out while money is still owed
-          </AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>
-              {risk.summary.endedWithMoneyOwed.mandates} already ended ({money(risk.summary.endedWithMoneyOwed.owed)} owed),{" "}
-              {risk.summary.endingSoonWithMoneyOwed.mandates} ending within {risk.withinDays} days. Orchard stops debiting
-              when a mandate ends, even if the loan is unpaid.
-            </span>
-            <Button size="sm" variant="outline" onClick={onOpenExpiry}>See which</Button>
-          </AlertDescription>
-        </Alert>
-      )}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {headline.map((h) => (
+          <button
+            key={h.label}
+            type="button"
+            onClick={h.onClick}
+            className="rounded-xl border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <p className="text-xs text-muted-foreground">{h.label}</p>
+            <p className={cn("text-2xl font-bold mt-1 whitespace-nowrap", h.tone)}>{h.value}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 min-h-4">{h.sub}</p>
+          </button>
+        ))}
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {cards.map(({ label, value, icon: Icon, color }) => (
@@ -359,80 +387,73 @@ function MandatesTab() {
 
       <div className="rounded-md border overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium">Customer</th>
-              <th className="px-4 py-3 text-left font-medium">Status</th>
-              <th className="px-4 py-3 text-left font-medium">Loan</th>
-              <th className="px-4 py-3 text-left font-medium">Owed / Debit</th>
-              <th className="px-4 py-3 text-left font-medium">Due Date / Auto-Debit</th>
-              <th className="px-4 py-3 text-left font-medium">Mandate ends</th>
-              <th className="px-4 py-3 text-left font-medium">Last Debit</th>
-              <th className="px-4 py-3 text-left font-medium">Orchard Retries</th>
-              {canWrite && <th className="px-4 py-3 text-right font-medium">Actions</th>}
+          <thead className="bg-muted/50 text-xs text-muted-foreground">
+            <tr className="whitespace-nowrap">
+              <th className="px-3 py-2.5 text-left font-medium">Customer</th>
+              <th className="px-3 py-2.5 text-left font-medium">Loan</th>
+              <th className="px-3 py-2.5 text-left font-medium">Owed</th>
+              <th className="px-3 py-2.5 text-left font-medium">Auto-repay</th>
+              <th className="px-3 py-2.5 text-left font-medium">Last debit</th>
+              {canWrite && <th className="px-3 py-2.5 text-right font-medium"><span className="sr-only">Actions</span></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {isLoading ? (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">Loading...</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Loading...</td></tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
                   {search || statusFilter ? "No mandate matches. Try a shorter search or clear the filter." : "No mandates found"}
                 </td>
               </tr>
             ) : rows.map((m) => {
               // The loan's own due date, sent by the API. It used to be worked
               // back from startDate by subtracting a grace period hardcoded
-              // here as 4 — which was already wrong when the backend moved to
-              // 3, and is wrong again at 1. Mandates created under every one
-              // of those graces are live at once, since Orchard fixes
-              // start_date at subscribe, so no single constant could have got
-              // this right.
+              // here as 4, which was wrong as soon as the backend moved to 3
+              // and again at 1. Mandates created under every one of those
+              // graces are live at once, since Orchard fixes start_date at
+              // subscribe, so no single constant could have got this right.
               const dueDate = m.loanDueDate ?? undefined;
-              const countdown = getTriggerCountdown(m.startDate);
               const ends = expiryBadge(m.expiry, m.outstanding);
+              const firstDebit = `First debit ${fmtShortDate(m.startDate)}`;
               return (
-              <tr key={m._id} className="hover:bg-muted/30 transition-colors">
-                <td className="px-4 py-3">
-                  <div className="font-medium">{m.customerName ?? "Unknown"}</div>
-                  <div className="font-mono text-xs text-muted-foreground">{m.msisdn} · {m.network}</div>
+              <tr key={m._id} className="hover:bg-muted/30 transition-colors align-top">
+                <td className="px-3 py-2.5">
+                  <div className="font-medium whitespace-nowrap">{m.customerName ?? "Unknown"}</div>
+                  <div className="font-mono text-xs text-muted-foreground whitespace-nowrap">{m.msisdn} · {m.network}</div>
                 </td>
-                <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
-                <td className="px-4 py-3">
-                  <div className="font-mono text-xs">{m.currentLoanReference ?? "—"}</div>
-                  {m.loanStatus && (
-                    <span className={cn("inline-flex px-2 py-0.5 mt-1 rounded-full text-[10px] font-medium", TONE_CLASS[loanStatusTone(m.loanStatus)])}>
-                      {m.loanStatus.replace("_", " ")}
-                    </span>
-                  )}
+                <td className="px-3 py-2.5">
+                  <div className="flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="font-mono text-xs">{m.currentLoanReference ?? "—"}</span>
+                    {m.loanStatus && (
+                      <span className={cn("inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-medium", TONE_CLASS[loanStatusTone(m.loanStatus)])}>
+                        {m.loanStatus.replace("_", " ")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground whitespace-nowrap">Due {fmtShortDate(dueDate)}</div>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="font-semibold">{m.outstanding === null || m.outstanding === undefined ? "—" : money(m.outstanding)}</div>
-                  <div className="text-xs text-muted-foreground">Debit {fmtGhs(m.currentDebitAmount)}{m.cycle ? ` / ${m.cycle}` : ""}</div>
-                </td>
-                <td className="px-4 py-3 text-xs">
-                  <div className="text-muted-foreground">Due {fmtShortDate(dueDate)}</div>
-                  <div className={cn(
-                    "font-medium",
-                    countdown.tone === "warning" && "text-orange-600 dark:text-orange-400",
-                    countdown.tone === "done" && "text-muted-foreground",
-                  )}>
-                    Debit {fmtShortDate(m.startDate)} ({countdown.label})
+                  <div className="text-xs text-muted-foreground">
+                    Debit {fmtGhs(m.currentDebitAmount)}{m.cycle ? ` · ${cycleName(m.cycle)}` : ""}
                   </div>
                 </td>
-                <td className="px-4 py-3">
-                  {m.status === "ACTIVE" ? (
-                    <>
-                      <div className="text-xs text-muted-foreground mb-1">{fmtShortDate(m.endDate)}</div>
-                      <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium", TONE_CLASS[ends.tone])}>{ends.label}</span>
-                    </>
-                  ) : <span className="text-xs text-muted-foreground">—</span>}
+                <td className="px-3 py-2.5 whitespace-nowrap" title={m.status === "ACTIVE" ? `${firstDebit}. ${ends.label}.` : undefined}>
+                  <div className="flex items-center gap-1.5">
+                    <StatusBadge status={m.status} />
+                    {m.status === "ACTIVE" && (
+                      <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium", TONE_CLASS[ends.tone])}>{ends.short}</span>
+                    )}
+                  </div>
+                  {m.status === "ACTIVE" && <div className="text-xs text-muted-foreground mt-0.5">Ends {fmtShortDate(m.endDate)}</div>}
                 </td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">{fmt(m.lastDebitAt)}</td>
-                <td className="px-4 py-3">{m.retryCount}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <div className="text-xs">{fmt(m.lastDebitAt)}</div>
+                  {m.retryCount > 0 && <div className="text-xs text-muted-foreground">Orchard retried {m.retryCount}×</div>}
+                </td>
                 {canWrite && (
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-3 py-2.5 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Actions for ${m.msisdn}`}>
@@ -557,7 +578,12 @@ export default function OrchardPage() {
             <TabsTrigger value="timing" className="data-[state=active]:bg-card">When money lands</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="mt-4"><OverviewTab onOpenExpiry={() => navigate("/admin/orchard/expiring")} /></TabsContent>
+          <TabsContent value="overview" className="mt-4">
+            <OverviewTab
+              onOpenExpiry={() => navigate("/admin/orchard/expiring")}
+              onOpenRetry={() => navigate("/admin/orchard/retry-report")}
+            />
+          </TabsContent>
           <TabsContent value="mandates" className="mt-4"><MandatesTab /></TabsContent>
           <TabsContent value="expiring" className="mt-4"><ExpiryRiskTab /></TabsContent>
           <TabsContent value="retry-report" className="mt-4"><RetryReportTab /></TabsContent>

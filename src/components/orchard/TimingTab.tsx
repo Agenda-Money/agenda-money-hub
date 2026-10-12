@@ -93,26 +93,24 @@ export function TimingTab() {
         </Select>
       </div>
 
-      {data.lowSample && (
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>Too few payments to call this a pattern</AlertTitle>
-          <AlertDescription>
-            Only {data.customerChosenSampleSize} payments here were chosen by the customer. With so few, the busiest hour
-            can just be chance. Treat it as a hint, and don't set retry times from it yet.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>What this can and cannot tell you</AlertTitle>
-        <AlertDescription>
-          It shows when customers pay, which is when they have money. It cannot see anyone's wallet. Customer-chosen leaves
-          out auto-debit, agent and admin-recorded payments, because those land when we tried, not when the customer paid.
-          Times are Accra time (UTC).
-        </AlertDescription>
-      </Alert>
+      <div className={cn("rounded-md border px-3 py-2 text-sm flex items-start gap-2", data.lowSample ? "bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-900" : "bg-muted/30")}>
+        <Info className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+        <div className="space-y-1">
+          <p>
+            {data.lowSample
+              ? `Only ${data.customerChosenSampleSize} payments here were chosen by the customer. That is a hint, not a pattern. Don't set retry times from it yet.`
+              : `Built from ${customerOnly ? data.customerChosenSampleSize : data.sampleSize} payments.`}
+          </p>
+          <details className="text-xs text-muted-foreground">
+            <summary className="cursor-pointer select-none font-medium text-foreground">What this can and cannot tell you</summary>
+            <p className="mt-1">
+              It shows when customers pay, which is when they have money. It cannot see anyone's wallet. Customer-chosen
+              leaves out auto-debit, agent and admin-recorded payments, because those land when we tried, not when the
+              customer paid. Times are Accra time (UTC).
+            </p>
+          </details>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[

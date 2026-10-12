@@ -12,6 +12,8 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/api/orchard.api", () => ({
   listOrchardMandates: vi.fn(),
   getMandateExpiryRisk: vi.fn(),
+  getRetrySchedule: vi.fn(),
+  getRetryRuns: vi.fn(),
   suspendOrchardMandate: vi.fn(),
   resumeOrchardMandate: vi.fn(),
   cancelOrchardMandate: vi.fn(),
@@ -27,6 +29,8 @@ vi.mock("@/api/orchard.api", () => ({
 
 const list = orchard.listOrchardMandates as unknown as ReturnType<typeof vi.fn>;
 const risk = orchard.getMandateExpiryRisk as unknown as ReturnType<typeof vi.fn>;
+const schedule = orchard.getRetrySchedule as unknown as ReturnType<typeof vi.fn>;
+const runs = orchard.getRetryRuns as unknown as ReturnType<typeof vi.fn>;
 
 const mandate = (over: Record<string, unknown> = {}) => ({
   _id: String(Math.random()),
@@ -83,6 +87,8 @@ beforeEach(() => {
     mandate({ _id: "b", msisdn: "233541000002", status: "CANCELLED", customerName: "Kofi Test" }),
   ]);
   risk.mockResolvedValue(emptyRisk);
+  schedule.mockResolvedValue({ enabled: false, reportOnly: true, live: { enabled: false }, todaySlotHour: 2, upcomingSlots: [] });
+  runs.mockResolvedValue([]);
 });
 
 describe("Orchard mandates search", () => {
@@ -91,7 +97,7 @@ describe("Orchard mandates search", () => {
     expect(await screen.findAllByText("Ama Test")).not.toHaveLength(0);
     expect(screen.getAllByText("OVERDUE").length).toBeGreaterThan(0);
     expect(screen.getAllByText("₵120.00").length).toBeGreaterThan(0);
-    expect(screen.getByText("Ended 2 days ago, money still owed")).toBeInTheDocument();
+    expect(screen.getByText("Ended 2d ago")).toBeInTheDocument();
   });
 
   it("sends what is typed to the server, once typing pauses", async () => {
@@ -138,13 +144,15 @@ describe("Orchard running-out warning", () => {
     });
     renderPage("/admin/orchard/overview");
 
-    expect(await screen.findByText(/5 mandates running out while money is still owed/)).toBeInTheDocument();
+    expect(await screen.findByText("₵450.00")).toBeInTheDocument();
+    expect(screen.getByText("Owed on ended mandates")).toBeInTheDocument();
+    expect(screen.getByText("3 mandates no longer collecting")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Running out/ })).toHaveTextContent("5");
   });
 
-  it("shows no warning when none are at risk", async () => {
+  it("shows nothing owed when none are at risk", async () => {
     renderPage("/admin/orchard/overview");
     await screen.findByText("Active Mandates");
-    expect(screen.queryByText(/running out while money is still owed/)).not.toBeInTheDocument();
+    expect(screen.getByText("0 mandates no longer collecting")).toBeInTheDocument();
   });
 });

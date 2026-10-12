@@ -19,8 +19,8 @@ import {
 import { cn } from "@/lib/utils";
 import { money, skipReasonLabel, slotLabel } from "@/lib/orchard-insights";
 
-const SCHEDULE_KEY = ["orchard-retry-schedule"];
-const RUNS_KEY = ["orchard-retry-runs"];
+export const SCHEDULE_KEY = ["orchard-retry-schedule"];
+export const RUNS_KEY = ["orchard-retry-runs"];
 
 const OUTCOME_LABEL: Record<string, string> = {
   SUBMITTED: "Submitted",
@@ -271,13 +271,16 @@ export function RetryReportTab() {
             </div>
           )}
 
-          <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-5">
-            <li>Never past the mandate's end date: after that the customer no longer permits a debit.</li>
-            <li>Never on a loan that is repaid, or for more than is owed.</li>
-            <li>Skips mandates Orchard is already retrying (a debit in the last 4 hours).</li>
-            <li>At most 30 debits an hour, and it stops itself and alerts if Orchard refuses 5 in a row.</li>
-            <li>Gives up after 24 of its own attempts on a mandate and leaves it for a person.</li>
-          </ul>
+          <details className="text-xs text-muted-foreground group">
+            <summary className="cursor-pointer select-none font-medium text-foreground">How it works and its limits</summary>
+            <ul className="space-y-1 list-disc pl-5 mt-2">
+              <li>Never past the mandate's end date: after that the customer no longer permits a debit.</li>
+              <li>Never on a loan that is repaid, or for more than is owed.</li>
+              <li>Skips mandates Orchard is already retrying (a debit in the last 4 hours).</li>
+              <li>At most 30 debits an hour, and it stops itself and alerts if Orchard refuses 5 in a row.</li>
+              <li>Gives up after 24 of its own attempts on a mandate and leaves it for a person.</li>
+            </ul>
+          </details>
         </CardContent>
       </Card>
 
@@ -308,35 +311,6 @@ export function RetryReportTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-muted-foreground" /> Report only
-          </CardTitle>
-          <CardDescription>
-            Writes down who the retry would charge each day, at the retry hour, without charging anyone. It stands in for
-            the automatic retry while that is off, and is ignored once it is on.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium">{schedule?.enabled ? "On" : "Off"}</p>
-            {schedule?.updatedBy && (
-              <p className="text-xs text-muted-foreground">
-                Last changed by {schedule.updatedBy}
-                {schedule.updatedAt ? ` on ${format(new Date(schedule.updatedAt), "dd MMM yyyy HH:mm")}` : ""}
-              </p>
-            )}
-          </div>
-          <Switch
-            aria-label="Run the retry report on a schedule"
-            checked={schedule?.enabled === true}
-            disabled={isLoading || toggleReport.isPending || !canWrite}
-            onCheckedChange={(v) => toggleReport.mutate(v)}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle className="text-base">What it has done</CardTitle>
           <CardDescription>Each hourly run that did something, newest first.</CardDescription>
         </CardHeader>
@@ -362,6 +336,34 @@ export function RetryReportTab() {
               </tbody>
             </table>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" /> Report only
+          </CardTitle>
+          <CardDescription>
+            Records who the retry would charge each day, without charging anyone. Stands in while the retry is off.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">{schedule?.enabled ? "On" : "Off"}</p>
+            {schedule?.updatedBy && (
+              <p className="text-xs text-muted-foreground">
+                Last changed by {schedule.updatedBy}
+                {schedule.updatedAt ? ` on ${format(new Date(schedule.updatedAt), "dd MMM yyyy HH:mm")}` : ""}
+              </p>
+            )}
+          </div>
+          <Switch
+            aria-label="Run the retry report on a schedule"
+            checked={schedule?.enabled === true}
+            disabled={isLoading || toggleReport.isPending || !canWrite}
+            onCheckedChange={(v) => toggleReport.mutate(v)}
+          />
         </CardContent>
       </Card>
 
