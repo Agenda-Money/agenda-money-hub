@@ -175,6 +175,11 @@ export function PendingApprovals() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground">{loan.user}</p>
                     <p className="text-xs text-muted-foreground mt-1">{loan.phone}</p>
+                    {loan.firstApproval && (
+                      <p className="mt-1 text-[11px] font-medium text-blue-600" data-testid={`first-approval-${loan.id}`}>
+                        First approved by {loan.firstApproval.adminName}. Waiting for a second admin.
+                      </p>
+                    )}
                   </div>
                   
                   <div className="flex items-center gap-2 flex-shrink-0">
