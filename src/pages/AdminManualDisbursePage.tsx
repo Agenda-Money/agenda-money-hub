@@ -97,6 +97,16 @@ export default function AdminManualDisbursePage() {
   const disburseMutation = useMutation({
     mutationFn: (data: ManualDisbursementRequest) => manualDisburseLoan(selectedLoan?._id || "", data, idempotencyKey),
     onSuccess: (res) => {
+      // With two-step approval on, the first admin only records a first approval:
+      // nothing has been recorded yet and a different admin must complete it.
+      if (res.data?.stage === "FIRST_APPROVAL_RECORDED") {
+        toast.success(res.data?.message || "First approval recorded. A different admin must complete this disbursement.");
+        queryClient.invalidateQueries({ queryKey: ["admin-loans"] });
+        setIsConfirmOpen(false);
+        setSelectedLoan(null);
+        setLoanRef("");
+        return;
+      }
       toast.success("Disbursement recorded successfully!");
       // If code 200, it was already recorded
       if (res.status === 200) {
