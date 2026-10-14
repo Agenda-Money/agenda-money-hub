@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { getApiBaseUrl } from "@/lib/domain";
+import api from "@/lib/api";
 
 /**
  * useSignedUrl - React hook to fetch a signed URL for a given file path
- * @param filePath The storage file path (e.g. kyc-bucket/1234/selfie-123.jpg)
+ * @param filePath The storage file path (e.g. users/<userId>/selfie-123.jpg)
  * @returns signedUrl or null
+ *
+ * Uses the authenticated axios instance: the backend's /api/files/signed-url
+ * route requires a valid token and checks the caller may read that key.
  */
 export function useSignedUrl(filePath?: string) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
@@ -14,11 +17,18 @@ export function useSignedUrl(filePath?: string) {
       setSignedUrl(null);
       return;
     }
-    const base = getApiBaseUrl();
-    fetch(`${base}/api/files/signed-url?path=${encodeURIComponent(filePath)}`)
-      .then(res => res.json())
-      .then(data => setSignedUrl(data.signedUrl))
-      .catch(() => setSignedUrl(null));
+    let cancelled = false;
+    api
+      .get("/api/files/signed-url", { params: { path: filePath } })
+      .then((res) => {
+        if (!cancelled) setSignedUrl(res.data?.signedUrl ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setSignedUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [filePath]);
 
   return signedUrl;

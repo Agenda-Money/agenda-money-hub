@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2, AlertCircle, Maximize2 } from "lucide-react";
-import { getKycSignedUrl } from "@/lib/api";
-import { getApiBaseUrl } from "@/lib/domain";
+import api, { getKycSignedUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface SecureKycImageProps {
@@ -41,9 +40,10 @@ export function SecureKycImage({
 
         // Bare R2 storage key — resolve via backend signed-url endpoint
         if (imageUrl) {
-          const base = getApiBaseUrl();
-          const res = await fetch(`${base}/api/files/signed-url?path=${encodeURIComponent(imageUrl)}`);
-          const data = await res.json();
+          // Authenticated: the backend now requires the admin token on this route.
+          const { data } = await api.get("/api/files/signed-url", {
+            params: { path: imageUrl },
+          });
           if (isMounted) {
             if (data?.signedUrl) setUrl(data.signedUrl);
             else setError("Failed to load image");

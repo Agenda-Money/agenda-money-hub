@@ -16,6 +16,8 @@ import { VolumeData } from "@/types/analytics";
 // New cards
 import { MoMDisbursementCard } from "@/components/dashboard/MoMDisbursementCard";
 
+const DEFAULT_RATE_OVER_120_DAYS = 5;
+
 export default function Dashboard() {
   const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
   const { preset, startDate, endDate, applyPreset, setStartDate, setEndDate } = useDateFilter();
@@ -58,7 +60,7 @@ export default function Dashboard() {
       {/* Hero metrics only. The days-past-due table lives on the Analytics page.
           The default rate card still carries the system's own DEFAULTED figure in
           its caption, so the 300-day figure is never shown on its own. */}
-      <PortfolioHealth showBands={false} />
+      <PortfolioHealth showBands={false} defaultRateOver120Days={DEFAULT_RATE_OVER_120_DAYS} />
 
       {/* Liquidity for the week ahead. Sits directly under the hero metrics
           because it is a float decision someone makes on a cadence, not
