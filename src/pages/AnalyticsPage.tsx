@@ -43,6 +43,8 @@ import {
 } from "@/components/analytics/analytics.helpers";
 import type { DateRange } from "@/components/analytics/analytics.types";
 
+const DEFAULT_RATE_OVER_120_DAYS = 5;
+
 export default function AnalyticsPage() {
   const [range, setRange] = useState<DateRange>({});
   const [fromInput, setFromInput] = useState('');
