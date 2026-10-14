@@ -189,6 +189,19 @@ describe("Admin Dashboard Integration", () => {
       expect(hero).toHaveTextContent("System marks defaulted at 30 days: 30.0% (30 loans)");
     });
 
+    it("shows the figure reported by Internal Affairs beside the calculated one, labelled as theirs", async () => {
+      renderDashboard();
+
+      const hero = await screen.findByTestId("portfolio-hero");
+      const note = screen.getByTestId("reported-default-rate");
+      expect(note).toHaveTextContent("Reported by Internal Affairs: 5.0% default rate");
+      expect(note).toHaveTextContent("given 2026-10-14");
+      expect(note).toHaveTextContent("cannot be traced to the loans");
+      // It sits beside the calculated figure, and never replaces it.
+      expect(hero).toHaveTextContent("Default rate (over 120 days)");
+      expect(hero).toHaveTextContent("System marks defaulted at 30 days");
+    });
+
     it("leaves the days-past-due table to the Analytics page", async () => {
       renderDashboard();
 

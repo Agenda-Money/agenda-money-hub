@@ -1,3 +1,4 @@
+import { REPORTED_DEFAULT_RATE } from "@/lib/reported-figures";
 import { AlertCircle, Banknote, BookOpen, ShieldCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard } from "@/components/analytics/KpiCard";
@@ -24,6 +25,7 @@ interface HeroProps {
 
 export function PortfolioHero({ snapshot }: Readonly<HeroProps>) {
   const { allTimeDisbursement, loanBook, defaultRate, systemDefaulted, definitions } = snapshot;
+  const reported = REPORTED_DEFAULT_RATE;
 
   return (
     <div className="grid grid-cols-1 gap-[14px] md:grid-cols-3" data-testid="portfolio-hero">
@@ -48,6 +50,20 @@ export function PortfolioHero({ snapshot }: Readonly<HeroProps>) {
         status="neutral"
         icon={<ShieldCheck className="h-5 w-5" />}
       />
+      {reported && (
+        <p
+          className="rounded-[14px] border border-border/60 bg-muted/30 px-4 py-3 text-xs text-muted-foreground md:col-span-3"
+          data-testid="reported-default-rate"
+        >
+          <span className="font-semibold text-foreground">
+            Reported by {reported.source}: {fPct(reported.pct)} default rate
+          </span>{" "}
+          (given {reported.asOf}).{" "}
+          {reported.method
+            ? reported.method
+            : "Their method has not been supplied, so it cannot be traced to the loans. The default rate above is calculated from the loans themselves."}
+        </p>
+      )}
     </div>
   );
 }
